@@ -11,7 +11,6 @@ import json
 from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import Callable
-from uuid import uuid4
 
 from ..backend_p0.transactions import TransactionManager
 from ..schedule_evaluator import evaluate_schedule_snapshot
@@ -74,6 +73,49 @@ def _analysis_hash(event_id, source_hash, impacted_hash, unimpacted_run, impacte
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+def _deterministic_impacted_snapshot_id(source_snapshot_hash: str, fragnet: DelayEventFragnet) -> str:
+    payload = {
+        "event_id": fragnet.event_id,
+        "title": fragnet.title,
+        "description": fragnet.description,
+        "activities": [
+            {
+                "activity_id": item.activity_id,
+                "name": item.name,
+                "duration_working_days": item.duration_working_days,
+                "activity_type": item.activity_type.value,
+                "calendar": None if item.calendar is None else {
+                    "calendar_id": item.calendar.calendar_id,
+                    "calendar_version": item.calendar.calendar_version,
+                    "kind": item.calendar.kind,
+                    "system": item.calendar.system.value,
+                },
+            }
+            for item in fragnet.activities
+        ],
+        "relationships": [
+            {
+                "predecessor_id": item.predecessor_id,
+                "successor_id": item.successor_id,
+                "relationship_type": item.relationship_type.value,
+                "lag_working_days": item.lag_working_days,
+            }
+            for item in fragnet.relationships
+        ],
+        "constraints": [
+            {
+                "activity_id": item.activity_id,
+                "type": item.type.value,
+                "date": item.date.isoformat(),
+            }
+            for item in fragnet.constraints
+        ],
+    }
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    digest = hashlib.sha256(f"{source_snapshot_hash}:{canonical}".encode("utf-8")).hexdigest()
+    return f"TIA-{digest[:32]}"
+
+
 class TimeImpactAnalysisExecutor:
     """Insert a validated event fragnet and rerun the authoritative scheduler.
 
@@ -94,7 +136,7 @@ class TimeImpactAnalysisExecutor:
         self.snapshot_repository = snapshot_repository
         self.run_repository = run_repository
         self.transaction_manager = transaction_manager
-        self.snapshot_id_factory = snapshot_id_factory or (lambda: str(uuid4()))
+        self.snapshot_id_factory = snapshot_id_factory
         self.clock = clock or (lambda: datetime.now().astimezone())
 
     def execute(
@@ -169,7 +211,11 @@ class TimeImpactAnalysisExecutor:
                 ActivityCalendarAssignment(item.activity_id, item.calendar)
                 for item in fragnet.activities if item.calendar is not None
             )
-            impacted_id = self.snapshot_id_factory()
+            impacted_id = (
+                self.snapshot_id_factory()
+                if self.snapshot_id_factory is not None
+                else _deterministic_impacted_snapshot_id(source_snapshot.snapshot_hash, fragnet)
+            )
             if not isinstance(impacted_id, str) or not impacted_id.strip() or impacted_id == source_snapshot.snapshot_id:
                 raise TimeImpactExecutionError("INVALID_IMPACTED_SNAPSHOT_ID")
             impacted_input = replace(
