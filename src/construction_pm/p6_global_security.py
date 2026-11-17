@@ -7,7 +7,7 @@ project security profile and OBS responsibility checks.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import Any, Protocol
 from uuid import uuid4
@@ -151,12 +151,16 @@ class GlobalSecurityProfile:
     built_in: bool = False
     active: bool = True
     revision: int = 1
+    description: str = ""
+    is_default: bool = False
 
     def validate(self) -> None:
         if not all(isinstance(v, str) and v.strip()
                    for v in (self.tenant_id, self.profile_id, self.name)):
+
             raise GlobalSecurityError("GLOBAL_SECURITY_PROFILE_REQUIRED")
-        if len(self.profile_id) > 120 or len(self.name) > 160:
+        if (len(self.profile_id) > 120 or len(self.name) > 160
+                or not isinstance(self.description, str) or len(self.description) > 2000):
             raise GlobalSecurityError("GLOBAL_SECURITY_PROFILE_INVALID")
         if self.revision < 1:
             raise GlobalSecurityError("GLOBAL_SECURITY_PROFILE_REVISION_INVALID")
@@ -272,6 +276,8 @@ class PostgresP6GlobalSecurityRepository:
             """CREATE TABLE IF NOT EXISTS p6_global_security_profiles (
                 tenant_id TEXT NOT NULL, profile_id TEXT NOT NULL,
                 name TEXT NOT NULL CHECK(length(trim(name)) BETWEEN 1 AND 160),
+                description TEXT NOT NULL DEFAULT '',
+                is_default BOOLEAN NOT NULL DEFAULT FALSE,
                 privileges JSONB NOT NULL CHECK(jsonb_typeof(privileges)='array'),
                 built_in BOOLEAN NOT NULL DEFAULT FALSE,
                 active BOOLEAN NOT NULL DEFAULT TRUE,
@@ -279,6 +285,10 @@ class PostgresP6GlobalSecurityRepository:
                 created_by TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL,
                 PRIMARY KEY(tenant_id,profile_id),
                 UNIQUE(tenant_id,name))""",
+            "ALTER TABLE p6_global_security_profiles ADD COLUMN IF NOT EXISTS description TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE p6_global_security_profiles ADD COLUMN IF NOT EXISTS is_default BOOLEAN NOT NULL DEFAULT FALSE",
+            "CREATE UNIQUE INDEX IF NOT EXISTS p6_global_security_one_default_per_tenant "
+            "ON p6_global_security_profiles(tenant_id) WHERE is_default=TRUE",
             """CREATE TABLE IF NOT EXISTS p6_user_global_security (
                 tenant_id TEXT NOT NULL, user_id TEXT NOT NULL,
                 profile_id TEXT NOT NULL, module_access JSONB NOT NULL
@@ -347,11 +357,13 @@ class PostgresP6GlobalSecurityRepository:
             raise GlobalSecurityError("GLOBAL_SECURITY_PROFILE_ACTOR_REQUIRED")
         if profile.built_in or profile.name in BUILTIN_GLOBAL_PROFILES:
             raise GlobalSecurityError("BUILTIN_GLOBAL_SECURITY_PROFILE_IMMUTABLE")
+        if profile.is_default:
+            raise GlobalSecurityError("SET_DEFAULT_PROFILE_SEPARATELY")
         self._connection.execute(
             "INSERT INTO p6_global_security_profiles "
-            "(tenant_id,profile_id,name,privileges,built_in,active,revision,created_by,created_at) "
-            "VALUES(%s,%s,%s,%s::jsonb,FALSE,%s,%s,%s,%s)",
-            (profile.tenant_id, profile.profile_id, profile.name,
+            "(tenant_id,profile_id,name,description,is_default,privileges,built_in,active,revision,created_by,created_at) "
+            "VALUES(%s,%s,%s,%s,FALSE,%s::jsonb,FALSE,%s,%s,%s,%s)",
+            (profile.tenant_id, profile.profile_id, profile.name, profile.description,
              json.dumps(list(profile.privileges)), profile.active, profile.revision,
              actor_id, created_at),
         )
@@ -369,7 +381,7 @@ class PostgresP6GlobalSecurityRepository:
 
     def get_profile(self, tenant_id: str, profile_id: str) -> GlobalSecurityProfile | None:
         row = self._connection.execute(
-            "SELECT tenant_id,profile_id,name,privileges,built_in,active,revision "
+            "SELECT tenant_id,profile_id,name,privileges,built_in,active,revision,description,is_default "
             "FROM p6_global_security_profiles WHERE tenant_id=%s AND profile_id=%s",
             (tenant_id, profile_id),
         ).fetchone()
@@ -379,7 +391,8 @@ class PostgresP6GlobalSecurityRepository:
         if isinstance(privileges, str):
             privileges = json.loads(privileges)
         result = GlobalSecurityProfile(str(row[0]), str(row[1]), str(row[2]),
-            tuple(privileges or ()), bool(row[4]), bool(row[5]), int(row[6]))
+            tuple(privileges or ()), bool(row[4]), bool(row[5]), int(row[6]),
+            str(row[7] or ""), bool(row[8]))
         result.validate()
         return result
 
