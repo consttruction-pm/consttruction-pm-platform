@@ -25,6 +25,7 @@ from construction_pm.deployment.production_runtime import (
     ProductionSettings,
 )
 from construction_pm.identity_session import IdentityUser, PostgresIdentityStore, hash_password
+from construction_pm.p6_global_security import PostgresP6GlobalSecurityRepository
 
 pytestmark = pytest.mark.skipif(
     not os.getenv("CONSTRUCTION_PM_POSTGRES_DSN"),
@@ -123,6 +124,51 @@ def runtime() -> ProductionRuntime:
                     project_a if user.tenant_id == tenant_a else project_b,
                     user.user_id,
                 ),
+            )
+
+        # Production project authorization now requires a persisted P6 V26
+        # Global Security Profile assignment. Seed these through the same
+        # tenant-scoped repository used by production; never infer them from
+        # CUBI organization roles or project memberships.
+        global_security = PostgresP6GlobalSecurityRepository(connection)
+        bootstrap_time = __import__("datetime").datetime.now(
+            __import__("datetime").timezone.utc
+        )
+        for tenant in (tenant_a, tenant_b):
+            global_security.ensure_builtin_profiles(
+                tenant, provisioned_by="integration-bootstrap",
+                created_at=bootstrap_time,
+            )
+            connection.execute(
+                "INSERT INTO p6_global_security_profiles "
+                "(tenant_id,profile_id,name,description,is_default,privileges,built_in,"
+                "active,revision,created_by,created_at) "
+                "VALUES (%s,'integration-project-access','Integration Project Access',"
+                "'Test-only scoped project profile',FALSE,'[]'::jsonb,FALSE,TRUE,1,"
+                "'integration-bootstrap',%s) ON CONFLICT (tenant_id,profile_id) DO NOTHING",
+                (tenant, bootstrap_time),
+            )
+
+        for user_key in ("admin", "outsider"):
+            user = users[user_key]
+            connection.execute(
+                "INSERT INTO p6_user_global_security "
+                "(tenant_id,user_id,profile_id,module_access,resource_access_mode,"
+                "resource_root_ids,revision,updated_by,updated_at) "
+                "VALUES (%s,%s,'p6-admin-superuser','[]'::jsonb,'all','[]'::jsonb,"
+                "1,'integration-bootstrap',%s) ON CONFLICT (tenant_id,user_id) DO NOTHING",
+                (user.tenant_id, user.user_id, bootstrap_time),
+            )
+        for user_key in ("viewer", "planner"):
+            user = users[user_key]
+            connection.execute(
+                "INSERT INTO p6_user_global_security "
+                "(tenant_id,user_id,profile_id,module_access,resource_access_mode,"
+                "resource_root_ids,revision,updated_by,updated_at) "
+                "VALUES (%s,%s,'integration-project-access','[\\"projects\\"]'::jsonb,"
+                "'none','[]'::jsonb,1,'integration-bootstrap',%s) "
+                "ON CONFLICT (tenant_id,user_id) DO NOTHING",
+                (user.tenant_id, user.user_id, bootstrap_time),
             )
         connection.commit()
     finally:
