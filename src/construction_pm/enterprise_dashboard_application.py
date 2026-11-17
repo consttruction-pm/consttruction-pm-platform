@@ -79,7 +79,7 @@ class EnterpriseDashboardApplicationService:
         self._require_enterprise(session, write=True)
         allowed = {
             "title", "description", "context", "context_portfolio_id", "portlets", "filters",
-            "restrict_filter_override",
+            "restrict_filter_override", "max_rows_per_portlet",
         }
         if not isinstance(payload, Mapping) or set(payload) - allowed:
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_CREATE_FIELDS")
@@ -105,6 +105,7 @@ class EnterpriseDashboardApplicationService:
             revision=1,
             created_at=now,
             restrict_filter_override=payload.get("restrict_filter_override", False),
+            max_rows_per_portlet=payload.get("max_rows_per_portlet", 100),
         )
         dashboard.validate()
         if dashboard.context == "portfolio":
@@ -157,7 +158,7 @@ class EnterpriseDashboardApplicationService:
         self._require_manage(current.dashboard, session)
         if current.dashboard.status != "active":
             raise EnterpriseDashboardError("ARCHIVED_ENTERPRISE_DASHBOARD_IS_IMMUTABLE")
-        allowed = {"title", "description", "portlets", "filters", "restrict_filter_override"}
+        allowed = {"title", "description", "portlets", "filters", "restrict_filter_override", "max_rows_per_portlet"}
         if not isinstance(payload, Mapping) or not payload or set(payload) - allowed:
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_UPDATE_FIELDS")
         changes: dict[str, object] = {}
@@ -175,6 +176,8 @@ class EnterpriseDashboardApplicationService:
             changes["filters"] = self._filters(payload["filters"])
         if "restrict_filter_override" in payload:
             changes["restrict_filter_override"] = payload["restrict_filter_override"]
+        if "max_rows_per_portlet" in payload:
+            changes["max_rows_per_portlet"] = payload["max_rows_per_portlet"]
         updated = replace(current.dashboard, **changes)
         updated.validate()
         if updated.context == "portfolio":
@@ -440,6 +443,7 @@ class EnterpriseDashboardApplicationService:
                 item,
                 stored.dashboard.filters,
                 effective_filters,
+                stored.dashboard.max_rows_per_portlet,
             )
             for item in ordered_portlets
         ]
@@ -459,6 +463,7 @@ class EnterpriseDashboardApplicationService:
         portlet: DashboardPortlet,
         dashboard_filters: tuple[DashboardFilter, ...],
         applied_filters: tuple[DashboardFilter, ...],
+        max_rows_per_portlet: int,
     ) -> dict[str, object]:
         definition = PORTLET_REGISTRY[portlet.type_id]
         filters = {item.key: item for item in applied_filters}
@@ -516,6 +521,8 @@ class EnterpriseDashboardApplicationService:
             if not self._include_stale(generated_at, filters):
                 filtered_out = True
 
+            display_rows = project_rows[:max_rows_per_portlet]
+            truncated = len(project_rows) > max_rows_per_portlet
             if not filtered_out:
                 # The returned snapshot retains its source_refs; re-authorize every
                 # project in that source snapshot before exposing any of its references.
@@ -523,9 +530,11 @@ class EnterpriseDashboardApplicationService:
                     session_id, session, tuple(item.project_id for item in snapshot.projects)
                 )
                 snapshot_data = snapshot.as_dict()
-                snapshot_data["projects"] = [item.as_dict() for item in project_rows]
+                snapshot_data["projects"] = [item.as_dict() for item in display_rows]
                 summary = {
                     "total_projects": len(project_rows),
+                    "displayed_projects": len(display_rows),
+                    "truncated": truncated,
                     "included_projects": 0,
                     "on_hold_projects": 0,
                     "excluded_projects": 0,
@@ -540,7 +549,7 @@ class EnterpriseDashboardApplicationService:
                         "id": item.project_id,
                         "source_revision": item.project_revision,
                     }
-                    for item in project_rows
+                    for item in display_rows
                 ]
 
         elif portlet.type_id == PORTFOLIO_DECISION:
@@ -641,6 +650,8 @@ class EnterpriseDashboardApplicationService:
             "saved_filters": [item.as_dict() for item in dashboard_filters],
             "applied_filters": [item.as_dict() for item in applied_filters],
             "filtered_out": filtered_out,
+            "display_limit": max_rows_per_portlet,
+            "truncated": truncated if portlet.type_id == PORTFOLIO_CONTROL_SNAPSHOT else False,
         }
 
     @staticmethod
@@ -698,6 +709,8 @@ class EnterpriseDashboardApplicationService:
             "saved_filters": [item.as_dict() for item in dashboard_filters],
             "applied_filters": [item.as_dict() for item in applied_filters],
             "filtered_out": False,
+            "display_limit": None,
+            "truncated": False,
         }
 
     def _freshness(self, generated_at: datetime | None) -> str:
