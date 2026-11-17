@@ -206,9 +206,21 @@ class TimeImpactAnalysisExecutor:
                 raise TimeImpactExecutionError("SCHEDULE_FINISH_TYPE_MISMATCH")
             delta = (after_finish - before_finish).days
 
+            # Reuse a previously captured source run on deterministic replay.
+            # The capture timestamp is provenance metadata, not calculation
+            # identity; all semantic payloads must still match byte-for-byte.
+            existing_baseline = self.run_repository.get(
+                source_snapshot.scope, baseline_capture.run_id
+            )
+            if existing_baseline is not None:
+                if replace(existing_baseline, captured_at=baseline_capture.captured_at) != baseline_capture:
+                    raise TimeImpactExecutionError("SOURCE_RUN_CAPTURE_IMMUTABLE_CONFLICT")
+                baseline_capture = existing_baseline
+
             # Persist only after both calculations and provenance records validate.
             self.snapshot_repository.save(impacted_snapshot)
-            self.run_repository.save(baseline_capture)
+            if existing_baseline is None:
+                self.run_repository.save(baseline_capture)
             self.run_repository.save(impacted_capture)
             digest = _analysis_hash(
                 fragnet.event_id, source_snapshot.snapshot_hash,
