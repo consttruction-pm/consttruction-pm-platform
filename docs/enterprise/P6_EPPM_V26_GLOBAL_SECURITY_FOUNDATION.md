@@ -290,3 +290,39 @@ tenant-wide resource identity/registry (or an authoritative cross-project
 resource identity) is established and the user↔resource unique constraints,
 calendar/Team Member eligibility, Contributor visibility, reassignment,
 revocation, and audit behavior are implemented against it.
+
+
+### Project Security Profiles — persistence, OBS assignment, runtime and V26 dependency semantics — 2026-11-17
+
+Implemented the project-profile domain and persistence layer:
+- `p6_project_security_repository.py`: SQLite/PostgreSQL profile storage, optimistic revisions, unique tenant profile names, one tenant default, immutable built-in Project Superuser, profile duplication, assignment/revocation of one profile per user+OBS, default-profile selection when an OBS grant omits a profile, and append-only audit records.
+- `p6_project_security_api.py`: profile list/create/update/duplicate/default/delete and user↔OBS grant list/assign/revoke, with separate global privileges for profile administration (`add_edit_delete_security_profiles`) and user access administration (`add_edit_delete_users`).
+- `P6GlobalSecurityAuthorizationPolicy`: OBS ancestry-backed project access, explicit named project-privilege checks, and Admin Superuser-only assignment/provisioning of the built-in Project Superuser.
+- Production schema and runtime now initialize and compose these repositories. Tenant-admin HTTP endpoints are mounted under `/api/admin/p6/project-security-profiles` and `/api/admin/p6/users/{user_id}/associated-resource`.
+
+The privilege catalogue is 57 options in the eight V26 Help categories. Crucially, V26 distinguishes auto-selected privileges from mandatory co-grants. The implementation now preserves that distinction rather than auto-granting every prerequisite:
+- Auto-selected by Help: Add Project Activity Codes → Edit Project Activity Codes; Delete Project Activity Codes → Add + Edit; Add EPS Activity Codes → Edit; Delete EPS Activity Codes → Add + Edit; Edit WBS Costs/Financials → View Project Costs/Financials; Level Resources → Schedule Projects.
+- Required co-grants that remain administrator-selected: Edit Activity ID requires Add/Edit Activities; Edit WBS Costs requires Add/Edit/Delete WBS; Assign Project Baselines requires Edit Project Details; Template Documents requires Work Products/Documents; Edit Future Periods requires Add/Edit Activities; Edit Period Performance requires Add/Edit Activities + View Project Costs; Store Period Performance requires Add/Edit Activities.
+- Delete Project Data with Timesheet Actuals has level-dependent delete prerequisites and must be checked against the specific activity/WBS/project/EPS deletion path.
+
+Official V26 source: [Privileges Detail Window of the Project Security Profiles Page](https://docs.oracle.com/cd/G48897_01/p6help/en/102786.htm). The API returns the exact label/category plus `auto_selects` and `requires` metadata so the UI can render the same dependency behavior.
+
+### Associated Resource — tenant-wide identity and one-to-one enforcement — 2026-11-17
+
+Added a tenant-wide `p6_enterprise_resource_identity` registry populated by the P6 Resource Master repository (including a conservative legacy backfill). Associated Resource now persists separately from project/revision-scoped resource rows, with database-enforced unique constraints on both (tenant,user) and (tenant,resource). Assignment verifies the user has a persisted P6 global-security identity and the resource has a tenant-wide identity. Reassignment requires the current revision; unassignment never deletes the underlying resource. SQLite and PostgreSQL audit records are append-only.
+
+The production native-authentication path synchronizes the user's personal/display name from the associated resource name. Contributor module users gain project-read visibility only for projects where their associated resource has a resource assignment. Team Member and personal resource-calendar eligibility checks now require an Associated Resource; calendar eligibility also checks the V26 resource-calendar global privilege.
+
+Official V26 sources: [Users Page](https://docs.oracle.com/cd/G48897_01/p6help/en/6187.htm) and [Assigning Associated Resources](https://docs.oracle.com/cd/G48897_01/p6help/en/35744.htm).
+
+### Route-level project privilege gates added
+
+Named V26 project privilege checks now cover activity create/update, WBS writes, activity relationships, constraints, expenses, issues, project calendars, baseline capture/conversion/update/assignment, activity period performance, project layouts, activity/EPS code creation and assignment, resource assignments/period performance/spreads, and role assignments on the resource-planning surface. These are additional to the OBS project-access gate and generic project policy.
+
+### Remaining parity blockers — do not mark complete
+
+1. The current project lifecycle schema exposes one project-level `obs_id`; it does not yet represent OBS assignments independently at EPS and WBS levels. The resolver walks the OBS hierarchy for inherited access, but cannot reproduce all EPS/WBS responsibility-manager inheritance until those assignment points exist.
+2. The current app supports native identity name synchronization. LDAP/SSO name synchronization (where the Help specifies the resource name follows the external user's personal name) is not implemented because the current identity runtime has no external-auth mode contract.
+3. The Team Member and personal resource-calendar eligibility methods are available in the policy, but the full Team Member web/mobile and My Calendar route surfaces are not yet present/wired here.
+4. The project privilege gates listed above are not yet exhaustive across every project-data route, import/export, copy/paste, report, UDF/cost, external integration and UI action. The route matrix must be completed before claiming full V26 parity.
+5. Live PostgreSQL, browser end-to-end and exact-head CI checks are still required. Keep PR #1984 open/Draft until the same final SHA passes them.
