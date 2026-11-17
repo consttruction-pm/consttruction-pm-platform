@@ -23,6 +23,10 @@ _MAX_BODY = 1_048_576
 _ROOT = "/api/enterprise/dashboards"
 
 
+class _DashboardRequestBodyTooLarge(EnterpriseDashboardError):
+    """The HTTP request body exceeded the adapter's configured size limit."""
+
+
 class EnterpriseDashboardHttpMiddleware:
     """Authenticated HTTP adapter for the ENT-06 dashboard application service.
 
@@ -49,9 +53,14 @@ class EnterpriseDashboardHttpMiddleware:
             status, payload = 403, {"code": str(exc) or "AUTHORIZATION_DENIED"}
         except EnterpriseDashboardNotFound:
             status, payload = 404, {"code": "ENTERPRISE_DASHBOARD_NOT_FOUND"}
+        except _DashboardRequestBodyTooLarge:
+            status, payload = 413, {"code": "REQUEST_BODY_TOO_LARGE"}
         except (EnterpriseDashboardRevisionConflict, EnterpriseDashboardIdempotencyReuse) as exc:
             status, payload = 409, {"code": str(exc)}
-        except (EnterpriseDashboardSourceError, EnterpriseDashboardError, ValueError, TypeError) as exc:
+        except EnterpriseDashboardSourceError:
+            # Provider details may contain infrastructure identifiers or secrets.
+            status, payload = 503, {"code": "DASHBOARD_SOURCE_UNAVAILABLE"}
+        except (EnterpriseDashboardError, ValueError, TypeError) as exc:
             status, payload = 400, {"code": str(exc) or "ENTERPRISE_DASHBOARD_REQUEST_INVALID"}
         except PermissionError as exc:
             status, payload = 403, {"code": str(exc) or "AUTHORIZATION_DENIED"}
@@ -192,7 +201,7 @@ class EnterpriseDashboardHttpMiddleware:
         except ValueError as exc:
             raise EnterpriseDashboardError("REQUEST_LENGTH_INVALID") from exc
         if length < 0 or length > _MAX_BODY:
-            raise EnterpriseDashboardError("REQUEST_BODY_TOO_LARGE")
+            raise _DashboardRequestBodyTooLarge("REQUEST_BODY_TOO_LARGE")
         stream = environ.get("wsgi.input")
         raw = b"" if length == 0 or not hasattr(stream, "read") else stream.read(length)
         if len(raw) != length:
