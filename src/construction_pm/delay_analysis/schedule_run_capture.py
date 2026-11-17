@@ -166,13 +166,17 @@ def build_schedule_run_capture(
         or calculation_context.project_id != snapshot.scope.project_id
         or calculation_context.project_version != snapshot.scope.project_revision
         or calculation_context.tenant_id not in (None, snapshot.scope.tenant_id)
-        or calculation_context.calculation_identity != snapshot.calculation_identity
+        or (
+            calculation_context.calculation_identity != snapshot.calculation_identity
+            if snapshot.calculation_identity_version == 2
+            else calculation_context.legacy_calculation_identity != snapshot.calculation_identity
+        )
     ):
         raise ScheduleRunCaptureError("CALCULATION_CONTEXT_SNAPSHOT_MISMATCH")
     if (
         evaluation.snapshot_id != snapshot.snapshot_id
         or evaluation.snapshot_hash != snapshot.snapshot_hash
-        or evaluation.calculation_identity != snapshot.calculation_identity
+        or evaluation.calculation_identity != calculation_context.calculation_identity
         or evaluation.project_id != snapshot.scope.project_id
         or evaluation.project_revision != snapshot.scope.project_revision
     ):
