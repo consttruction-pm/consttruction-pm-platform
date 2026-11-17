@@ -5,6 +5,7 @@ import json
 from types import SimpleNamespace
 
 from construction_pm.enterprise_dashboard_http import EnterpriseDashboardHttpMiddleware
+from construction_pm.enterprise_dashboard_application import EnterpriseDashboardSourceError
 
 
 class FakeDashboard:
@@ -15,9 +16,12 @@ class FakeDashboard:
 class FakeService:
     def __init__(self):
         self.calls = []
+        self.source_error = False
 
     def list_dashboard_catalog(self, session_id, *, limit, search):
         self.calls.append(("list", session_id, limit, search))
+        if self.source_error:
+            raise EnterpriseDashboardSourceError("database://internal-secret")
         return {"contract_version": "cubi-enterprise-dashboard-catalog.v1", "displayed_dashboards": [], "available_dashboards": []}
 
     def create_dashboard(self, session_id, payload, *, idempotency_key):
@@ -157,3 +161,34 @@ def test_dashboard_http_passes_through_unowned_paths():
     assert status.startswith("200")
     assert payload == "upstream"
     assert service.calls == []
+
+
+
+def test_dashboard_http_oversized_body_returns_413_without_calling_service():
+    service = FakeService()
+    app = EnterpriseDashboardHttpMiddleware(lambda environ, start: [b"upstream"], service)
+
+    status, payload, _ = request(
+        app,
+        "POST",
+        "/api/enterprise/dashboards",
+        body={"title": "x" * 1_100_000},
+        headers={"Idempotency-Key": "dashboard-create-large"},
+    )
+
+    assert status.startswith("413")
+    assert payload == {"code": "REQUEST_BODY_TOO_LARGE"}
+    assert service.calls == []
+
+
+def test_dashboard_http_source_failures_are_safe_503_not_client_errors():
+    service = FakeService()
+    service.source_error = True
+    app = EnterpriseDashboardHttpMiddleware(lambda environ, start: [b"upstream"], service)
+
+    status, payload, _ = request(app, "GET", "/api/enterprise/dashboards")
+
+    assert status.startswith("503")
+    assert payload == {"code": "DASHBOARD_SOURCE_UNAVAILABLE"}
+    assert "internal-secret" not in json.dumps(payload)
+    assert service.calls == [("list", "actor-session", 200, None)]
