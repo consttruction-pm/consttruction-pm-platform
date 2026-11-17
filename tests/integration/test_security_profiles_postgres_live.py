@@ -1372,6 +1372,10 @@ def test_postgres_project_profiles_enforce_activity_assignment_wbs_and_period_pr
         eps.initialize()
         wbs = PostgresWBSMasterRepository(connection)
         wbs.initialize()
+        # Activity initialization performs idempotent WBS schema migrations;
+        # run it before this test creates rows that fire deferred WBS triggers.
+        activities = PostgresActivityMasterRepository(connection)
+        activities.initialize()
         initialize_security_profile_schema(connection)
 
         identity.upsert_user(_identity_user(user_id, tenant, "planner"))
@@ -1402,8 +1406,6 @@ def test_postgres_project_profiles_enforce_activity_assignment_wbs_and_period_pr
         )
 
         scope = BackendScope(tenant, project_id, 0)
-        activities = PostgresActivityMasterRepository(connection)
-        activities.initialize()
         activities.save(ActivityMaster(
             scope, root_activity, Decimal("1"), DurationUnit.WORKING_DAY,
             name="Root WBS activity", wbs_id=root_wbs,
