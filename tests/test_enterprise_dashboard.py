@@ -539,6 +539,16 @@ def test_user_share_rejects_a_user_from_another_tenant():
         )
 
 
+def test_share_target_type_is_validated_before_membership_branching():
+    service, _, _, _ = make_service()
+    created = create_dashboard(service)
+    with pytest.raises(EnterpriseDashboardError, match="SHARE_TARGET_TYPE"):
+        service.assign_share(
+            "alice-session", created.dashboard.dashboard_id,
+            target_type=[], target_id="", expected_revision=1,
+        )
+
+
 def test_explicit_role_share_and_admin_management():
     service, _, _, _ = make_service()
     created = create_dashboard(service)
