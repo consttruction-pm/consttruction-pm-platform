@@ -811,6 +811,36 @@ class P6GlobalSecurityAuthorizationPolicy:
             )
         )
 
+    def can_access_resource(
+        self, context: Any, resource_id: str, ancestor_resource_ids: tuple[str, ...]
+    ) -> bool:
+        """Enforce the V26 Users-page Resource Access setting at the data boundary."""
+        try:
+            context.validate()
+            assignment = self._repository.get_user_security(
+                context.tenant_id, context.user_id
+            )
+            if assignment is None:
+                return False
+            profile = self._repository.get_profile(
+                context.tenant_id, assignment.profile_id
+            )
+            if profile is None or not profile.active:
+                return False
+            if not global_profile_is_admin_superuser(profile):
+                if "resources" not in assignment.module_access:
+                    return False
+            return user_can_access_resource(
+                profile,
+                assignment,
+                tenant_id=context.tenant_id,
+                user_id=context.user_id,
+                resource_id=resource_id,
+                ancestor_resource_ids=ancestor_resource_ids,
+            )
+        except (GlobalSecurityError, ValueError, AttributeError, TypeError):
+            return False
+
     def is_allowed(self, context: Any, permission: Any) -> bool:
         try:
             context.validate()
