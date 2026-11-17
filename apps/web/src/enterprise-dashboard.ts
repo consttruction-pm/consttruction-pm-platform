@@ -391,7 +391,7 @@ export async function mountEnterpriseDashboard(
       section.append(node("h2", "", label));
       if (!items.length) section.append(node("p", "ced-muted", t.noDashboards));
       const grid = node("div", "ced-grid");
-      for (const item of items) {
+      for (const [itemIndex, item] of items.entries()) {
         const dashboard = dashboardOf(item);
         const card = node("article", "ced-card");
         card.append(node("h3", "", dashboard.title), node("p", "ced-muted", dashboard.description || "—"));
