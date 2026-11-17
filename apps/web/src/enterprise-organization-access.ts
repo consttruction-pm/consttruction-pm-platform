@@ -286,13 +286,13 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
     const moduleLabels: Record<string, string> = locale === "fa" ? {
       projects: "پروژه‌ها", portfolios: "پورتفولیوها", resources: "منابع", contributor: "همکار",
       enterprise_reports: "گزارش‌های سازمانی", integration_api: "رابط یکپارچه‌سازی",
-      p6_analytics: "تحلیل‌ها", p6_professional: "محیط حرفه‌ای", team_member: "عضو تیم",
-      timesheet: "کاربرگ زمان", visualizer: "Visualizer", web_services: "وب‌سرویس‌ها",
+      p6_analytics: "تحلیل‌ها", p6_professional: "مهندسی دسکتاپ", team_member: "عضو تیم",
+      timesheet: "کاربرگ زمان", visualizer: "تحلیل بصری", web_services: "خدمات یکپارچه‌سازی",
     } : {
       projects: "Projects", portfolios: "Portfolios", resources: "Resources", contributor: "Contributor",
       enterprise_reports: "Enterprise Reports", integration_api: "Integration API",
-      p6_analytics: "P6 Analytics", p6_professional: "P6 Professional", team_member: "Team Member",
-      timesheet: "Timesheet", visualizer: "Visualizer", web_services: "Web Services",
+      p6_analytics: "Analytics", p6_professional: "Desktop Engineering", team_member: "Team Member",
+      timesheet: "Timesheet", visualizer: "Visual Analysis", web_services: "Integration Services",
     };
     const moduleOptions = Object.entries(moduleLabels).map(([value, label]) =>
       `<option value="${value}" ${globalUserAccess?.module_access.includes(value) ? "selected" : ""}>${escapeHtml(label)}</option>`
@@ -386,6 +386,7 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
             </form>`}
             <div class="cubi-oa-actions">
               ${selectedProfile && (!selectedProfileIsBuiltIn || selectedProfile.profile_id === "p6-no-global-privileges")
+                && (selectedProfile.scope !== "global" || !selectedProfile.is_default)
                 && (selectedProfile.profile_id !== "p6-no-global-privileges" || !selectedProfile.is_default)
                 ? `<button class="cubi-oa-button" type="button" data-profile-default="true" data-default="${selectedProfile.is_default}" ${busy || selectedProfile.active !== true ? "disabled" : ""}>${selectedProfile.is_default ? t.profileClearDefault : t.profileSetDefault}</button>`
                 : ""}
