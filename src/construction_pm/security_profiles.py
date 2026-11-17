@@ -451,6 +451,53 @@ SECURITY_PROFILE_SCHEMA = (
     BEFORE UPDATE OR DELETE ON p6_security_profile_audit
     FOR EACH ROW EXECUTE FUNCTION cubi_p6_security_profile_audit_immutable()
     """,
+    """
+    CREATE OR REPLACE FUNCTION cubi_p6_assign_default_global_profile()
+    RETURNS trigger LANGUAGE plpgsql AS $
+    DECLARE default_profile_id TEXT; inserted_profile_id TEXT;
+    BEGIN
+        IF NOT COALESCE(NEW.active,FALSE) THEN
+            RETURN NEW;
+        END IF;
+        SELECT profile_id INTO default_profile_id
+        FROM p6_security_profiles
+        WHERE tenant_id=NEW.tenant_id AND scope='global'
+          AND is_default=TRUE AND active=TRUE
+          AND profile_id<>'p6-admin-superuser'
+        LIMIT 1;
+        IF default_profile_id IS NULL THEN
+            RETURN NEW;
+        END IF;
+        INSERT INTO p6_security_profile_assignments
+            (tenant_id,profile_id,user_id,obs_id,revision,assigned_by,assigned_at,
+             module_access,resource_access_mode,resource_root_ids)
+        VALUES
+            (NEW.tenant_id,default_profile_id,NEW.user_id,'',1,
+             'cubi-security-default',now(),'[]'::jsonb,'none','[]'::jsonb)
+        ON CONFLICT DO NOTHING
+        RETURNING profile_id INTO inserted_profile_id;
+        IF inserted_profile_id IS NOT NULL THEN
+            INSERT INTO p6_security_profile_audit
+                (audit_id,tenant_id,actor_user_id,profile_id,action,before_state,after_state,occurred_at)
+            VALUES
+                (md5(random()::text || clock_timestamp()::text),NEW.tenant_id,
+                 'cubi-security-default',inserted_profile_id,'profile_assigned',NULL,
+                 jsonb_build_object('user_id',NEW.user_id,'obs_id','','revision',1,
+                                    'source','tenant_default_global_profile'),now());
+        END IF;
+        RETURN NEW;
+    END;
+    $
+    """,
+    """
+    DROP TRIGGER IF EXISTS p6_user_default_global_profile ON identity_users
+    """,
+    """
+    CREATE TRIGGER p6_user_default_global_profile
+    AFTER INSERT OR UPDATE OF active ON identity_users
+    FOR EACH ROW WHEN (NEW.active=TRUE)
+    EXECUTE FUNCTION cubi_p6_assign_default_global_profile()
+    """,
 )
 
 
@@ -501,14 +548,6 @@ def bootstrap_first_admin_superuser(
     ).fetchone()
     if target is None or str(target[0]) != tenant_id or not bool(target[1]):
         raise SecurityProfileError("SECURITY_PROFILE_USER_NOT_ELIGIBLE")
-    occupied = connection.execute(
-        "SELECT profile_id FROM p6_security_profile_assignments "
-        "WHERE tenant_id=%s AND user_id=%s AND obs_id='' FOR UPDATE",
-        (tenant_id, user_id),
-    ).fetchone()
-    if occupied is not None:
-        raise SecurityProfileError("SECURITY_PROFILE_BOOTSTRAP_USER_HAS_GLOBAL_PROFILE")
-
     # Provision the other two Oracle built-ins alongside the first
     # administrator so every tenant has the complete immutable catalog.
     for builtin_id, builtin_name, builtin_scope in (
@@ -592,18 +631,106 @@ def bootstrap_first_admin_superuser(
         ):
             raise SecurityProfileError("SECURITY_PROFILE_BUILTIN_COLLISION")
 
-    connection.execute(
-        "INSERT INTO p6_security_profile_assignments "
-        "(tenant_id,profile_id,user_id,obs_id,revision,assigned_by,assigned_at) "
-        "VALUES (%s,%s,%s,'',1,%s,%s)",
-        (tenant_id, ADMIN_SUPERUSER_PROFILE_ID, user_id, user_id, occurred_at),
-    )
+    default_row = connection.execute(
+        "SELECT profile_id,revision FROM p6_security_profiles "
+        "WHERE tenant_id=%s AND scope='global' AND is_default=TRUE AND active=TRUE FOR UPDATE",
+        (tenant_id,),
+    ).fetchone()
+    if default_row is None:
+        no_global = connection.execute(
+            "SELECT revision FROM p6_security_profiles "
+            "WHERE tenant_id=%s AND profile_id=%s AND scope='global' AND active=TRUE FOR UPDATE",
+            (tenant_id, NO_GLOBAL_PRIVILEGES_PROFILE_ID),
+        ).fetchone()
+        if no_global is None:
+            raise SecurityProfileError("SECURITY_PROFILE_DEFAULT_GLOBAL_PROFILE_REQUIRED")
+        next_revision = int(no_global[0]) + 1
+        connection.execute(
+            "UPDATE p6_security_profiles SET is_default=TRUE,revision=%s,"
+            "updated_by=%s,updated_at=%s WHERE tenant_id=%s AND profile_id=%s",
+            (next_revision, user_id, occurred_at, tenant_id, NO_GLOBAL_PRIVILEGES_PROFILE_ID),
+        )
+        connection.execute(
+            "INSERT INTO p6_security_profile_audit "
+            "(audit_id,tenant_id,actor_user_id,profile_id,action,before_state,after_state,occurred_at) "
+            "VALUES (%s,%s,%s,%s,'profile_default_changed',%s::jsonb,%s::jsonb,%s)",
+            (str(uuid.uuid4()),tenant_id,user_id,NO_GLOBAL_PRIVILEGES_PROFILE_ID,
+             json.dumps({"is_default":False,"revision":int(no_global[0])}),
+             json.dumps({"is_default":True,"revision":next_revision}),occurred_at),
+        )
+        default_profile_id = NO_GLOBAL_PRIVILEGES_PROFILE_ID
+    else:
+        default_profile_id = str(default_row[0])
+    if default_profile_id == ADMIN_SUPERUSER_PROFILE_ID:
+        raise SecurityProfileError("SECURITY_PROFILE_ADMIN_SUPERUSER_CANNOT_BE_DEFAULT")
+
+    occupied = connection.execute(
+        "SELECT profile_id,revision FROM p6_security_profile_assignments "
+        "WHERE tenant_id=%s AND user_id=%s AND obs_id='' FOR UPDATE",
+        (tenant_id, user_id),
+    ).fetchone()
+    if occupied is not None and str(occupied[0]) != default_profile_id:
+        raise SecurityProfileError("SECURITY_PROFILE_BOOTSTRAP_USER_HAS_GLOBAL_PROFILE")
+
+    # Existing active users receive the safe tenant default. The bootstrap
+    # target is excluded and upgraded to Admin Superuser below.
+    existing_users = connection.execute(
+        "SELECT u.user_id FROM identity_users u WHERE u.tenant_id=%s AND u.active=TRUE "
+        "AND u.user_id<>%s AND NOT EXISTS (SELECT 1 FROM p6_security_profile_assignments a "
+        "WHERE a.tenant_id=u.tenant_id AND a.user_id=u.user_id AND a.obs_id='') "
+        "ORDER BY u.user_id",
+        (tenant_id, user_id),
+    ).fetchall()
+    for existing_user in existing_users:
+        existing_user_id = str(existing_user[0])
+        connection.execute(
+            "INSERT INTO p6_security_profile_assignments "
+            "(tenant_id,profile_id,user_id,obs_id,revision,assigned_by,assigned_at,"
+            "module_access,resource_access_mode,resource_root_ids) "
+            "VALUES (%s,%s,%s,'',1,'cubi-security-default',%s,'[]'::jsonb,'none','[]'::jsonb)",
+            (tenant_id, default_profile_id, existing_user_id, occurred_at),
+        )
+        connection.execute(
+            "INSERT INTO p6_security_profile_audit "
+            "(audit_id,tenant_id,actor_user_id,profile_id,action,before_state,after_state,occurred_at) "
+            "VALUES (%s,%s,'cubi-security-default',%s,'profile_assigned',NULL,%s::jsonb,%s)",
+            (str(uuid.uuid4()), tenant_id, default_profile_id,
+             json.dumps({"user_id":existing_user_id,"obs_id":"","revision":1,
+                         "source":"tenant_default_global_profile"}), occurred_at),
+        )
+
+    admin_modules = [value for value in P6_MODULE_ACCESS_OPTIONS if value != "contributor"]
+    if occupied is None:
+        connection.execute(
+            "INSERT INTO p6_security_profile_assignments "
+            "(tenant_id,profile_id,user_id,obs_id,revision,assigned_by,assigned_at,"
+            "module_access,resource_access_mode,resource_root_ids) "
+            "VALUES (%s,%s,%s,'',1,%s,%s,%s::jsonb,'all','[]'::jsonb)",
+            (tenant_id, ADMIN_SUPERUSER_PROFILE_ID, user_id, user_id, occurred_at,
+             json.dumps(admin_modules)),
+        )
+        admin_revision = 1
+        before_admin = None
+    else:
+        admin_revision = int(occupied[1]) + 1
+        connection.execute(
+            "UPDATE p6_security_profile_assignments SET profile_id=%s,revision=%s,"
+            "assigned_by=%s,assigned_at=%s,module_access=%s::jsonb,"
+            "resource_access_mode='all',resource_root_ids='[]'::jsonb "
+            "WHERE tenant_id=%s AND user_id=%s AND obs_id='' AND revision=%s",
+            (ADMIN_SUPERUSER_PROFILE_ID, admin_revision, user_id, occurred_at,
+             json.dumps(admin_modules), tenant_id, user_id, int(occupied[1])),
+        )
+        before_admin = {"profile_id":str(occupied[0]),"revision":int(occupied[1])}
     connection.execute(
         "INSERT INTO p6_security_profile_audit "
         "(audit_id,tenant_id,actor_user_id,profile_id,action,before_state,after_state,occurred_at) "
-        "VALUES (%s,%s,%s,%s,'profile_assigned',NULL,%s::jsonb,%s)",
+        "VALUES (%s,%s,%s,%s,'profile_assigned',%s::jsonb,%s::jsonb,%s)",
         (str(uuid.uuid4()), tenant_id, user_id, ADMIN_SUPERUSER_PROFILE_ID,
-         json.dumps({"user_id": user_id, "obs_id": "", "revision": 1}), occurred_at),
+         json.dumps(before_admin) if before_admin is not None else None,
+         json.dumps({"user_id": user_id, "obs_id": "", "revision": admin_revision,
+                     "module_access":admin_modules,"resource_access_mode":"all",
+                     "resource_root_ids":[]}), occurred_at),
     )
     return SecurityProfile(
         tenant_id, ADMIN_SUPERUSER_PROFILE_ID, "Admin Superuser",
@@ -755,7 +882,8 @@ class PostgresSecurityProfileRepository:
         ).fetchone()
         if row is None:
             raise SecurityProfileError("SECURITY_PROFILE_NOT_FOUND")
-        if profile_id in _RESERVED_PROFILE_IDS:
+        if (profile_id in _ADMIN_ONLY_PROFILE_IDS
+                or (profile_id == NO_GLOBAL_PRIVILEGES_PROFILE_ID and not is_default)):
             raise SecurityProfileError("SECURITY_PROFILE_BUILTIN_PROTECTED")
         if str(row[1]) != scope:
             raise SecurityProfileError("SECURITY_PROFILE_SCOPE_CONFLICT")
