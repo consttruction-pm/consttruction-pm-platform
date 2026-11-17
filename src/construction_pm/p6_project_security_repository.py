@@ -39,8 +39,8 @@ class P6ProjectSecurityRepository(Protocol):
     def list_profiles(self, tenant_id: str) -> tuple[P6ProjectSecurityProfile, ...]: ...
     def set_default_profile(self, tenant_id: str, profile_id: str, *, expected_revision: int) -> P6ProjectSecurityProfile: ...
     def delete_profile(self, tenant_id: str, profile_id: str, *, expected_revision: int) -> None: ...
-    def assign_obs(self, grant: P6OBSProjectGrant) -> P6OBSProjectGrant: ...
-    def revoke_obs(self, tenant_id: str, user_id: str, obs_id: str) -> None: ...
+    def assign_obs(self, grant: P6OBSProjectGrant, *, actor_id: str) -> P6OBSProjectGrant: ...
+    def revoke_obs(self, tenant_id: str, user_id: str, obs_id: str, *, actor_id: str) -> None: ...
     def list_user_grants(self, tenant_id: str, user_id: str) -> tuple[P6OBSProjectGrant, ...]: ...
 
 
@@ -77,8 +77,12 @@ class _ProjectSecurityRepositoryBase:
         ).fetchall()
         return tuple(_profile_from_row(row) for row in rows)
 
-    def assign_obs(self, grant: P6OBSProjectGrant):
+    def assign_obs(self, grant: P6OBSProjectGrant, *, actor_id: str):
         grant.validate()
+        if not isinstance(actor_id, str) or not actor_id.strip():
+            raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_ACTOR_REQUIRED")
+        if not self.obs_repository.obs_node_exists(grant.tenant_id, grant.obs_id):
+            raise P6ProjectSecurityPersistenceError("OBS_NODE_NOT_FOUND")
         profile = self.get_profile(grant.tenant_id, grant.profile_id)
         if profile is None or not profile.active:
             raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_PROFILE_NOT_FOUND")
@@ -88,18 +92,20 @@ class _ProjectSecurityRepositoryBase:
             f"ON CONFLICT (tenant_id,user_id,obs_id) DO UPDATE SET profile_id=excluded.profile_id",
             (grant.tenant_id, grant.user_id, grant.obs_id, grant.profile_id),
         )
-        self._audit(grant.tenant_id, grant.user_id, "obs_project_profile_assigned",
+        self._audit(grant.tenant_id, actor_id, "obs_project_profile_assigned",
                     {"obs_id": grant.obs_id, "profile_id": grant.profile_id})
         return grant
 
-    def revoke_obs(self, tenant_id: str, user_id: str, obs_id: str):
+    def revoke_obs(self, tenant_id: str, user_id: str, obs_id: str, *, actor_id: str):
+        if not isinstance(actor_id, str) or not actor_id.strip():
+            raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_ACTOR_REQUIRED")
         row = self.connection.execute(
             f"DELETE FROM p6_user_obs_project_profile WHERE tenant_id={self.placeholder} "
             f"AND user_id={self.placeholder} AND obs_id={self.placeholder} RETURNING profile_id",
             (tenant_id, user_id, obs_id),
         ).fetchone()
         if row is not None:
-            self._audit(tenant_id, user_id, "obs_project_profile_revoked",
+            self._audit(tenant_id, actor_id, "obs_project_profile_revoked",
                         {"obs_id": obs_id, "profile_id": str(row[0])})
 
     def list_user_grants(self, tenant_id: str, user_id: str):
@@ -160,9 +166,10 @@ class SQLiteP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
     placeholders4 = "?,?,?,?"
     placeholders5 = "?,?,?,?,?"
 
-    def __init__(self, connection: sqlite3.Connection, *, project_obs_lookup):
+    def __init__(self, connection: sqlite3.Connection, *, project_obs_lookup, obs_repository: P6OBSRepository):
         self.connection = connection
         self.project_obs_lookup = project_obs_lookup
+        self.obs_repository = obs_repository
         self.connection.executescript("""
         CREATE TABLE IF NOT EXISTS p6_project_security_profile (
           tenant_id TEXT NOT NULL, profile_id TEXT NOT NULL, name TEXT NOT NULL,
@@ -187,10 +194,14 @@ class SQLiteP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
         );
         """)
 
-    def save_profile(self, profile, *, expected_revision=None):
+    def save_profile(self, profile, *, actor_id: str, expected_revision=None):
         profile.validate()
+        if not isinstance(actor_id, str) or not actor_id.strip():
+            raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_ACTOR_REQUIRED")
         current = self.get_profile(profile.tenant_id, profile.profile_id)
         if current is None:
+            if profile.is_default:
+                raise P6ProjectSecurityPersistenceError("SET_DEFAULT_PROFILE_SEPARATELY")
             if expected_revision not in (None, 0) or profile.revision != 1:
                 raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_PROFILE_REVISION_CONFLICT")
             self.connection.execute(
@@ -211,12 +222,14 @@ class SQLiteP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
                 (profile.name, json.dumps(list(profile.privileges)), int(profile.active),
                  profile.revision, profile.tenant_id, profile.profile_id, current.revision),
             )
-        self._audit(profile.tenant_id, "system", "project_profile_saved",
+        self._audit(profile.tenant_id, actor_id, "project_profile_saved",
                     {"profile_id": profile.profile_id, "revision": profile.revision})
         return profile
 
-    def set_default_profile(self, tenant_id, profile_id, *, expected_revision):
-        self.connection.execute("BEGIN IMMEDIATE")
+    def set_default_profile(self, tenant_id, profile_id, *, actor_id: str, expected_revision):
+        if not isinstance(actor_id, str) or not actor_id.strip():
+            raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_ACTOR_REQUIRED")
+        self.connection.execute("SAVEPOINT p6_project_security_default")
         try:
             current = self.get_profile(tenant_id, profile_id)
             if current is None or not current.active:
@@ -231,16 +244,19 @@ class SQLiteP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
                 "UPDATE p6_project_security_profile SET is_default=1,revision=revision+1 "
                 "WHERE tenant_id=? AND profile_id=?", (tenant_id, profile_id),
             )
-            self._audit(tenant_id, "system", "default_project_profile_changed",
+            self._audit(tenant_id, actor_id, "default_project_profile_changed",
                         {"profile_id": profile_id})
-            self.connection.commit()
+            self.connection.execute("RELEASE SAVEPOINT p6_project_security_default")
         except Exception:
-            self.connection.rollback()
+            self.connection.execute("ROLLBACK TO SAVEPOINT p6_project_security_default")
+            self.connection.execute("RELEASE SAVEPOINT p6_project_security_default")
             raise
         result = self.get_profile(tenant_id, profile_id)
         return result
 
-    def delete_profile(self, tenant_id, profile_id, *, expected_revision):
+    def delete_profile(self, tenant_id, profile_id, *, actor_id: str, expected_revision):
+        if not isinstance(actor_id, str) or not actor_id.strip():
+            raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_ACTOR_REQUIRED")
         current = self.get_profile(tenant_id, profile_id)
         if current is None:
             raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_PROFILE_NOT_FOUND")
@@ -258,7 +274,7 @@ class SQLiteP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
             "DELETE FROM p6_project_security_profile WHERE tenant_id=? AND profile_id=? AND revision=?",
             (tenant_id, profile_id, expected_revision),
         )
-        self._audit(tenant_id, "system", "project_profile_deleted", {"profile_id": profile_id})
+        self._audit(tenant_id, actor_id, "project_profile_deleted", {"profile_id": profile_id})
 
 
 class PostgresP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
@@ -266,9 +282,10 @@ class PostgresP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
     placeholders4 = "%s,%s,%s,%s"
     placeholders5 = "%s,%s,%s,%s,%s"
 
-    def __init__(self, connection, *, project_obs_lookup):
+    def __init__(self, connection, *, project_obs_lookup, obs_repository: P6OBSRepository):
         self.connection = connection
         self.project_obs_lookup = project_obs_lookup
+        self.obs_repository = obs_repository
 
     def initialize(self):
         self.connection.execute("""
@@ -331,7 +348,9 @@ class PostgresP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
                     {"profile_id": profile.profile_id, "revision": profile.revision})
         return profile
 
-    def set_default_profile(self, tenant_id, profile_id, *, expected_revision):
+    def set_default_profile(self, tenant_id, profile_id, *, actor_id: str, expected_revision):
+        if not isinstance(actor_id, str) or not actor_id.strip():
+            raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_ACTOR_REQUIRED")
         self.connection.execute(
             "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
             (f"p6-project-security:{tenant_id}",),
@@ -352,11 +371,13 @@ class PostgresP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
         ).fetchone()
         if row is None:
             raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_PROFILE_NOT_FOUND")
-        self._audit(tenant_id, "system", "default_project_profile_changed",
+        self._audit(tenant_id, actor_id, "default_project_profile_changed",
                     {"profile_id": profile_id})
         return _profile_from_row(row)
 
-    def delete_profile(self, tenant_id, profile_id, *, expected_revision):
+    def delete_profile(self, tenant_id, profile_id, *, actor_id: str, expected_revision):
+        if not isinstance(actor_id, str) or not actor_id.strip():
+            raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_ACTOR_REQUIRED")
         current = self.get_profile(tenant_id, profile_id)
         if current is None:
             raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_PROFILE_NOT_FOUND")
@@ -376,7 +397,7 @@ class PostgresP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
         ).fetchone()
         if row is None:
             raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_PROFILE_REVISION_CONFLICT")
-        self._audit(tenant_id, "system", "project_profile_deleted", {"profile_id": profile_id})
+        self._audit(tenant_id, actor_id, "project_profile_deleted", {"profile_id": profile_id})
 
 
 __all__ = [
