@@ -463,6 +463,66 @@ def test_p6_dashboard_catalog_supports_actor_scoped_show_hide_search_and_order()
         )
 
 
+def test_dashboard_tab_visibility_changes_preserve_saved_custom_order():
+    service, _, _, _ = make_service()
+    created = [
+        service.create_dashboard(
+            "alice-session",
+            create_payload(title=title),
+            idempotency_key=f"tab-order-{index}",
+        )
+        for index, title in enumerate(("Alpha", "Beta", "Gamma"))
+    ]
+    alpha_id, beta_id, gamma_id = [
+        item.dashboard.dashboard_id for item in created
+    ]
+
+    service.set_dashboard_display_preference(
+        "alice-session", gamma_id, displayed=True, position=0
+    )
+    hidden = service.set_dashboard_display_preference(
+        "alice-session", beta_id, displayed=False
+    )
+    assert [
+        item["dashboard"]["dashboard_id"]
+        for item in hidden["displayed_dashboards"]
+    ] == [gamma_id, alpha_id]
+
+    shown = service.set_dashboard_display_preference(
+        "alice-session", beta_id, displayed=True
+    )
+    assert [
+        item["dashboard"]["dashboard_id"]
+        for item in shown["displayed_dashboards"]
+    ] == [gamma_id, alpha_id, beta_id]
+
+
+def test_dashboard_list_applies_access_before_result_limit():
+    service, _, _, _ = make_service()
+    service.create_dashboard(
+        "alice-session",
+        create_payload(title="Private dashboard"),
+        idempotency_key="private-before-shared",
+    )
+    shared = service.create_dashboard(
+        "alice-session",
+        create_payload(title="Older shared dashboard"),
+        idempotency_key="shared-after-private",
+    )
+    service.assign_share(
+        "alice-session",
+        shared.dashboard.dashboard_id,
+        target_type="user",
+        target_id="bob",
+        expected_revision=1,
+    )
+
+    visible = service.list_dashboards("bob-session", limit=1)
+    assert [item.dashboard.dashboard_id for item in visible] == [
+        shared.dashboard.dashboard_id
+    ]
+
+
 def test_empty_dashboard_is_a_valid_p6_manageable_definition():
     service, _, _, _ = make_service()
     created = create_dashboard(service, payload=create_payload(portlets=[]))
