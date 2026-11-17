@@ -143,7 +143,8 @@ class _ProjectSecurityRepositoryBase:
             raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_USER_NOT_FOUND")
         if not self.obs_repository.obs_node_exists(grant.tenant_id, grant.obs_id):
             raise P6ProjectSecurityPersistenceError("OBS_NODE_NOT_FOUND")
-        profile_id = grant.profile_id.strip() or next((item.profile_id for item in self.list_profiles(grant.tenant_id) if item.is_default), "")
+        default_profile = self.get_default_profile(grant.tenant_id) if not grant.profile_id.strip() else None
+        profile_id = grant.profile_id.strip() or (default_profile.profile_id if default_profile is not None else "")
         if not profile_id:
             raise P6ProjectSecurityPersistenceError("DEFAULT_PROJECT_SECURITY_PROFILE_NOT_CONFIGURED")
         grant = P6OBSProjectGrant(grant.tenant_id, grant.user_id, grant.obs_id, profile_id)
