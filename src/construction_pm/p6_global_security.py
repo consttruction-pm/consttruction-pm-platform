@@ -46,6 +46,13 @@ class GlobalSecurityProfile:
             raise GlobalSecurityError("DUPLICATE_GLOBAL_SECURITY_PRIVILEGE")
         if self.built_in and self.name not in BUILTIN_GLOBAL_PROFILES:
             raise GlobalSecurityError("UNKNOWN_BUILTIN_GLOBAL_SECURITY_PROFILE")
+        if self.name in BUILTIN_GLOBAL_PROFILES and not self.built_in:
+            raise GlobalSecurityError("BUILTIN_PROFILE_FLAG_REQUIRED")
+        if self.built_in:
+            expected_id = ("p6-admin-superuser" if self.name == ADMIN_SUPERUSER
+                           else "p6-no-global-privileges")
+            if self.profile_id != expected_id:
+                raise GlobalSecurityError("BUILTIN_PROFILE_ID_INVALID")
         if self.name == ADMIN_SUPERUSER and self.privileges:
             raise GlobalSecurityError("ADMIN_SUPERUSER_PRIVILEGES_ARE_IMPLICIT")
         if self.name == NO_GLOBAL_PRIVILEGES and self.privileges:
@@ -90,7 +97,8 @@ class UserGlobalSecurity:
 
 def global_profile_is_admin_superuser(profile: GlobalSecurityProfile) -> bool:
     profile.validate()
-    return profile.active and profile.name == ADMIN_SUPERUSER and profile.built_in
+    return (profile.active and profile.built_in and profile.name == ADMIN_SUPERUSER
+            and profile.profile_id == "p6-admin-superuser")
 
 
 def global_profile_has_project_access_bypass(profile: GlobalSecurityProfile) -> bool:
@@ -101,7 +109,8 @@ def global_profile_has_project_access_bypass(profile: GlobalSecurityProfile) -> 
 def global_profile_has_global_read_only(profile: GlobalSecurityProfile) -> bool:
     """No Global Privileges retains the V26 documented read-only global access."""
     profile.validate()
-    return profile.active and profile.name == NO_GLOBAL_PRIVILEGES and profile.built_in
+    return (profile.active and profile.built_in and profile.name == NO_GLOBAL_PRIVILEGES
+            and profile.profile_id == "p6-no-global-privileges")
 
 
 class P6GlobalSecurityRepository(Protocol):
@@ -183,7 +192,7 @@ class PostgresP6GlobalSecurityRepository:
         profile.validate()
         if not actor_id.strip() or created_at.tzinfo is None:
             raise GlobalSecurityError("GLOBAL_SECURITY_PROFILE_ACTOR_REQUIRED")
-        if profile.built_in:
+        if profile.built_in or profile.name in BUILTIN_GLOBAL_PROFILES:
             raise GlobalSecurityError("BUILTIN_GLOBAL_SECURITY_PROFILE_IMMUTABLE")
         self._connection.execute(
             "INSERT INTO p6_global_security_profiles "
