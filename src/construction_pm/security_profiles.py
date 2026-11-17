@@ -1392,6 +1392,22 @@ class PostgresSecurityProfileRepository:
                     occurred_at)
         return revision
 
+    def list_user_project_assignments(
+        self, tenant_id: str, user_id: str,
+    ) -> tuple[dict[str, Any], ...]:
+        rows = self._connection.execute(
+            "SELECT p.profile_id,p.name,a.obs_id,a.revision "
+            "FROM p6_security_profile_assignments a "
+            "JOIN p6_security_profiles p ON p.tenant_id=a.tenant_id AND p.profile_id=a.profile_id "
+            "WHERE a.tenant_id=%s AND a.user_id=%s AND a.obs_id<>'' AND p.scope='project' "
+            "ORDER BY a.obs_id",
+            (tenant_id, user_id),
+        ).fetchall()
+        return tuple({
+            "profile_id": str(row[0]), "profile_name": str(row[1]),
+            "obs_id": str(row[2]), "revision": int(row[3]),
+        } for row in rows)
+
     def list_obs_nodes(self, tenant_id: str) -> tuple[dict[str, Any], ...]:
         rows = self._connection.execute(
             "SELECT obs_id,parent_obs_id,code,name,manager_user_id,sequence_number "
