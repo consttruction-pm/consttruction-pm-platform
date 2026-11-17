@@ -178,7 +178,7 @@ def test_custom_profile_rejects_unknown_global_privilege_and_missing_dependencie
     profile("Custom", built_in=False, privileges=normalized).validate()
 
 
-@pytest.mark.parametrize("admin_count", [0, 1])
+@pytest.mark.parametrize("admin_count", [0])
 def test_last_admin_superuser_guard_rejects_removal_when_none_would_remain(admin_count):
     from construction_pm.p6_global_security import PostgresP6GlobalSecurityRepository
 
@@ -186,10 +186,11 @@ def test_last_admin_superuser_guard_rejects_removal_when_none_would_remain(admin
         PostgresP6GlobalSecurityRepository._require_remaining_admin_superuser(admin_count)
 
 
-def test_last_admin_superuser_guard_allows_removal_when_another_admin_remains():
+@pytest.mark.parametrize("remaining_admins", [1, 2])
+def test_last_admin_superuser_guard_allows_removal_when_another_admin_remains(remaining_admins):
     from construction_pm.p6_global_security import PostgresP6GlobalSecurityRepository
 
-    PostgresP6GlobalSecurityRepository._require_remaining_admin_superuser(2)
+    PostgresP6GlobalSecurityRepository._require_remaining_admin_superuser(remaining_admins)
 
 
 def test_custom_profile_cannot_preempt_reserved_builtin_profile_ids():
