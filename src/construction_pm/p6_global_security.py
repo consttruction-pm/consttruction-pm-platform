@@ -6,10 +6,10 @@ project security profile and OBS responsibility checks.
 """
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Protocol
-import json
 from uuid import uuid4
 
 
@@ -181,7 +181,8 @@ class PostgresP6GlobalSecurityRepository:
     def ensure_builtin_profiles(self, tenant_id: str, *, provisioned_by: str,
                                 created_at: datetime) -> None:
         """Idempotently provision the two application-generated V26 profiles."""
-        if not tenant_id.strip() or not provisioned_by.strip() or created_at.tzinfo is None:
+        if (not tenant_id.strip() or not provisioned_by.strip()
+                or created_at.tzinfo is None or created_at.utcoffset() is None):
             raise GlobalSecurityError("GLOBAL_SECURITY_PROFILE_BOOTSTRAP_INVALID")
         for profile_id, name in (
             ("p6-admin-superuser", ADMIN_SUPERUSER),
@@ -207,7 +208,8 @@ class PostgresP6GlobalSecurityRepository:
     def create_profile(self, profile: GlobalSecurityProfile, *, actor_id: str,
                        created_at: datetime) -> GlobalSecurityProfile:
         profile.validate()
-        if not actor_id.strip() or created_at.tzinfo is None:
+        if (not actor_id.strip() or created_at.tzinfo is None
+                or created_at.utcoffset() is None):
             raise GlobalSecurityError("GLOBAL_SECURITY_PROFILE_ACTOR_REQUIRED")
         if profile.built_in or profile.name in BUILTIN_GLOBAL_PROFILES:
             raise GlobalSecurityError("BUILTIN_GLOBAL_SECURITY_PROFILE_IMMUTABLE")
