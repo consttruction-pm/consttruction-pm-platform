@@ -1,0 +1,200 @@
+from __future__ import annotations
+
+import os
+import uuid
+from dataclasses import replace
+from datetime import datetime, timedelta, timezone
+
+import pytest
+
+from construction_pm.enterprise_dashboard import (
+    DashboardFilter,
+    DashboardLayout,
+    DashboardPortlet,
+    EnterpriseDashboard,
+    EnterpriseDashboardNotFound,
+    EnterpriseDashboardRevisionConflict,
+    PORTFOLIO_CONTROL_SNAPSHOT,
+)
+from construction_pm.enterprise_dashboard_repository import (
+    PostgresEnterpriseDashboardRepository,
+)
+
+DSN = os.getenv("CONSTRUCTION_PM_POSTGRES_DSN") or os.getenv("P6_TEST_POSTGRES_DSN")
+pytestmark = pytest.mark.skipif(not DSN, reason="CONSTRUCTION_PM_POSTGRES_DSN or P6_TEST_POSTGRES_DSN is required")
+
+NOW = datetime(2026, 11, 17, 12, 0, tzinfo=timezone.utc)
+
+
+def new_scope() -> str:
+    return f"ent-dashboard-{uuid.uuid4().hex}"
+
+
+def make_dashboard(tenant_id: str, dashboard_id: str, *, created_at=NOW) -> EnterpriseDashboard:
+    portlet = DashboardPortlet(
+        instance_id="portlet-1",
+        type_id=PORTFOLIO_CONTROL_SNAPSHOT,
+        contract_version=PORTFOLIO_CONTROL_SNAPSHOT,
+        config={"portfolio_id": "portfolio-1"},
+        layout=DashboardLayout(0, 0, 6, 4),
+    )
+    return EnterpriseDashboard(
+        dashboard_id=dashboard_id,
+        tenant_id=tenant_id,
+        context="enterprise_home",
+        context_portfolio_id=None,
+        owner_user_id="integration-owner",
+        title="Integration dashboard",
+        description="PostgreSQL persistence test",
+        status="active",
+        visibility="private",
+        shared_user_ids=(),
+        shared_role_ids=(),
+        portlets=(portlet,),
+        filters=(DashboardFilter("membership_status", "eq", "included"),),
+        revision=1,
+        created_at=created_at,
+    )
+
+
+def test_postgres_dashboard_round_trip_revision_sharing_tenant_isolation_and_append_only_audit():
+    psycopg = pytest.importorskip("psycopg")
+    tenant = new_scope()
+    dashboard_id = f"dashboard-{uuid.uuid4().hex}"
+
+    with psycopg.connect(DSN) as connection:
+        repository = PostgresEnterpriseDashboardRepository(connection)
+        repository.initialize()
+        created = repository.create(
+            make_dashboard(tenant, dashboard_id),
+            idempotency_key="create-1",
+            actor_id="integration-owner",
+            occurred_at=NOW + timedelta(seconds=1),
+        )
+        assert created.revision == 1
+
+    with psycopg.connect(DSN) as connection:
+        repository = PostgresEnterpriseDashboardRepository(connection)
+        assert repository.get(tenant, dashboard_id) == created
+        with pytest.raises(EnterpriseDashboardNotFound):
+            repository.get(tenant + "-other", dashboard_id)
+
+        shared = replace(
+            created.dashboard,
+            shared_user_ids=("integration-viewer",),
+            visibility="users",
+        )
+        updated = repository.update(
+            shared,
+            expected_revision=1,
+            actor_id="integration-owner",
+            occurred_at=NOW + timedelta(minutes=1),
+            event_type="shared",
+        )
+        assert updated.revision == 2
+        connection.commit()
+
+    with psycopg.connect(DSN) as connection:
+        repository = PostgresEnterpriseDashboardRepository(connection)
+        persisted = repository.get(tenant, dashboard_id)
+        assert persisted.revision == 2
+        assert persisted.dashboard.shared_user_ids == ("integration-viewer",)
+        history = repository.history(tenant, dashboard_id)
+        assert [(item.revision, item.event_type) for item in history] == [
+            (1, "created"),
+            (2, "shared"),
+        ]
+
+        with pytest.raises(EnterpriseDashboardRevisionConflict):
+            repository.update(
+                persisted.dashboard,
+                expected_revision=1,
+                actor_id="integration-owner",
+                occurred_at=NOW + timedelta(minutes=2),
+            )
+        connection.rollback()
+
+        with pytest.raises(psycopg.Error, match="ENTERPRISE_DASHBOARD_AUDIT_APPEND_ONLY"):
+            connection.execute(
+                "UPDATE enterprise_dashboard_audit SET event_type='tampered' "
+                "WHERE tenant_id=%s AND dashboard_id=%s",
+                (tenant, dashboard_id),
+            )
+        connection.rollback()
+
+        with pytest.raises(psycopg.errors.ForeignKeyViolation):
+            connection.execute(
+                "DELETE FROM enterprise_dashboards WHERE tenant_id=%s AND dashboard_id=%s",
+                (tenant, dashboard_id),
+            )
+        connection.rollback()
+        assert repository.history(tenant, dashboard_id) == history
+
+
+def test_postgres_dashboard_idempotency_returns_original_and_rejects_payload_reuse():
+    psycopg = pytest.importorskip("psycopg")
+    tenant = new_scope()
+    first_id = f"dashboard-{uuid.uuid4().hex}"
+    retry_id = f"dashboard-{uuid.uuid4().hex}"
+
+    with psycopg.connect(DSN) as connection:
+        repository = PostgresEnterpriseDashboardRepository(connection)
+        repository.initialize()
+        first = repository.create(
+            make_dashboard(tenant, first_id),
+            idempotency_key="same-request",
+            actor_id="integration-owner",
+            occurred_at=NOW + timedelta(seconds=1),
+        )
+        retry = repository.create(
+            make_dashboard(
+                tenant,
+                retry_id,
+                created_at=NOW + timedelta(minutes=3),
+            ),
+            idempotency_key="same-request",
+            actor_id="integration-owner",
+            occurred_at=NOW + timedelta(minutes=3, seconds=1),
+        )
+        assert retry == first
+        connection.commit()
+
+    with psycopg.connect(DSN) as connection:
+        repository = PostgresEnterpriseDashboardRepository(connection)
+        changed = replace(make_dashboard(tenant, f"dashboard-{uuid.uuid4().hex}"), title="Different payload")
+        with pytest.raises(ValueError, match="IDEMPOTENCY_KEY_REUSE"):
+            repository.create(
+                changed,
+                idempotency_key="same-request",
+                actor_id="integration-owner",
+                occurred_at=NOW + timedelta(minutes=4),
+            )
+        connection.rollback()
+
+
+def test_postgres_dashboard_create_and_audit_are_atomic_on_rollback():
+    psycopg = pytest.importorskip("psycopg")
+    tenant = new_scope()
+    dashboard_id = f"dashboard-{uuid.uuid4().hex}"
+
+    with psycopg.connect(DSN) as connection:
+        repository = PostgresEnterpriseDashboardRepository(connection)
+        repository.initialize()
+        repository.create(
+            make_dashboard(tenant, dashboard_id),
+            idempotency_key="rollback-create",
+            actor_id="integration-owner",
+            occurred_at=NOW + timedelta(seconds=1),
+        )
+        connection.rollback()
+
+    with psycopg.connect(DSN) as connection:
+        repository = PostgresEnterpriseDashboardRepository(connection)
+        with pytest.raises(EnterpriseDashboardNotFound):
+            repository.get(tenant, dashboard_id)
+        history = connection.execute(
+            "SELECT count(*) FROM enterprise_dashboard_audit "
+            "WHERE tenant_id=%s AND dashboard_id=%s",
+            (tenant, dashboard_id),
+        ).fetchone()
+        assert int(history[0]) == 0
