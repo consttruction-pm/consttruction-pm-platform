@@ -191,6 +191,51 @@ def test_postgres_dashboard_titles_are_unique_case_insensitively_within_tenant()
         assert repository.get(tenant, second_id).dashboard.title == "Portfolio Metrics"
 
 
+def test_postgres_user_filter_reset_preserves_actor_dashboard_visibility_preferences():
+    psycopg = pytest.importorskip("psycopg")
+    tenant = new_scope()
+    dashboard_id = f"dashboard-{uuid.uuid4().hex}"
+    override = [{"key": "project_status", "operator": "eq", "value": "active"}]
+
+    with psycopg.connect(DSN) as connection:
+        repository = PostgresEnterpriseDashboardRepository(connection)
+        repository.initialize()
+        repository.create(
+            make_dashboard(tenant, dashboard_id),
+            idempotency_key="create-preference-dashboard",
+            actor_id="integration-owner",
+            occurred_at=NOW + timedelta(seconds=1),
+        )
+        repository.set_dashboard_filter_override(
+            tenant, "integration-viewer", dashboard_id, override
+        )
+        repository.replace_display_preferences(
+            tenant,
+            "integration-viewer",
+            ((dashboard_id, False, 4),),
+            updated_at=NOW + timedelta(minutes=1),
+        )
+        saved = repository.list_user_preferences(tenant, "integration-viewer")
+        assert saved[dashboard_id]["filter_override"] == override
+        assert saved[dashboard_id]["displayed"] is False
+
+        repository.set_dashboard_filter_override(
+            tenant, "integration-viewer", dashboard_id, None
+        )
+        after_filter_reset = repository.list_user_preferences(
+            tenant, "integration-viewer"
+        )
+        assert after_filter_reset[dashboard_id]["filter_override"] is None
+        assert after_filter_reset[dashboard_id]["displayed"] is False
+
+        repository.reset_dashboard_preferences(
+            tenant, "integration-viewer", dashboard_id
+        )
+        assert dashboard_id not in repository.list_user_preferences(
+            tenant, "integration-viewer"
+        )
+
+
 def test_postgres_dashboard_idempotency_returns_original_and_rejects_payload_reuse():
     psycopg = pytest.importorskip("psycopg")
     tenant = new_scope()
