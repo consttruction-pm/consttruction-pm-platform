@@ -515,8 +515,10 @@ class EnterpriseDashboardApplicationService:
                 filtered_out = True
 
             if not filtered_out:
+                # The returned snapshot retains its source_refs; re-authorize every
+                # project in that source snapshot before exposing any of its references.
                 self._authorize_source_projects(
-                    session_id, session, tuple(item.project_id for item in project_rows)
+                    session_id, session, tuple(item.project_id for item in snapshot.projects)
                 )
                 data = snapshot.as_dict()
                 data["projects"] = [item.as_dict() for item in project_rows]
