@@ -28,6 +28,7 @@ Each scope has one active default profile. The defaults are independent: changin
 - Revision-bumps and append-audits both the newly selected profile and the previously selected profile in the same scope.
 - Exposes `get_default_global_profile` alongside the existing `get_default_project_profile`.
 - Rejects deletion of a currently selected default profile.
+- Requires the current assignment revision when replacing a user's Global profile, updates the single assignment in place, and preserves the last-Admin-Superuser guard.
 - Keeps reserved built-in profile identities immutable; this default-selection operation does not convert Admin Superuser or Project Superuser into an editable custom profile.
 
 ## Acceptance evidence added
@@ -37,7 +38,8 @@ Each scope has one active default profile. The defaults are independent: changin
 - switching each default independently;
 - revision changes on the displaced default;
 - retrieval of the current default by scope;
-- deletion denial for either active default.
+- deletion denial for either active default;
+- current-revision enforcement when replacing Global assignments and protection of the final Admin Superuser assignment.
 
 ## Explicitly not claimed by this slice
 
