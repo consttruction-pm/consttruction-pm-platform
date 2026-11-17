@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from dataclasses import replace
 from typing import Callable, Mapping
 
 from construction_pm.application.authorization import AuthorizationContext, AuthorizationPolicy
@@ -207,6 +208,32 @@ def build_project_lifecycle_wsgi_app(
     The assistant provider is wired only through an explicit dependency or
     CUBI_AI_ENABLED=true with server-only CUBI_AI_* environment configuration.
     """
+    # A persisted P6 global-security policy must reach every resource-bearing
+    # API through the same tenant-scoped resource master. Do not silently mount
+    # a policy-aware API without the ancestry repository it needs.
+    if callable(getattr(authorization_policy, "can_access_resource", None)):
+        resource_apis = (
+            p6_resource_api, resource_read_api, resource_write_api,
+            p6_resource_capacity_read_api, p6_resource_capacity_write_api,
+            p6_resource_rate_read_api, p6_resource_rate_write_api,
+        )
+        if any(api is not None for api in resource_apis) and tracking_resource_repository is None:
+            raise ValueError("P6_RESOURCE_ACCESS_REPOSITORY_REQUIRED")
+        if p6_resource_api is not None:
+            p6_resource_api = replace(
+                p6_resource_api, authorization_policy=authorization_policy
+            )
+        for name in (
+            "resource_read_api", "resource_write_api",
+            "p6_resource_capacity_read_api", "p6_resource_capacity_write_api",
+            "p6_resource_rate_read_api", "p6_resource_rate_write_api",
+        ):
+            api = locals()[name]
+            if api is not None:
+                locals()[name] = replace(
+                    api, authorization_policy=authorization_policy,
+                    resource_repository=tracking_resource_repository,
+                )
     resolved_environment = os.environ if environment is None else environment
     assistant_enabled = resolved_environment.get(
         "CUBI_AI_ENABLED", ""
