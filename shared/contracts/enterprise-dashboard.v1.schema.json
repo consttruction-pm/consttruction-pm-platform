@@ -788,7 +788,8 @@
         "saved_filters",
         "filtered_out",
         "applied_filters",
-        "row_limit"
+        "row_limit",
+        "truncated"
       ],
       "properties": {
         "instance_id": {
@@ -1435,9 +1436,15 @@
           }
         },
         "row_limit": {
-          "type": "integer",
+          "type": [
+            "integer",
+            "null"
+          ],
           "minimum": 1,
-          "maximum": 1000
+          "maximum": 500
+        },
+        "truncated": {
+          "type": "boolean"
         }
       }
     },
@@ -1475,6 +1482,91 @@
         "read_at": {
           "type": "string",
           "format": "date-time"
+        }
+      }
+    },
+    "dashboard_catalog_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dashboard",
+        "revision",
+        "display_order"
+      ],
+      "properties": {
+        "dashboard": {
+          "$ref": "#"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "display_order": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 499
+        }
+      }
+    },
+    "dashboard_catalog_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract_version",
+        "displayed_dashboards",
+        "available_dashboards",
+        "read_at"
+      ],
+      "properties": {
+        "contract_version": {
+          "const": "cubi-enterprise-dashboard-catalog.v1"
+        },
+        "displayed_dashboards": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dashboard_catalog_item"
+          }
+        },
+        "available_dashboards": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dashboard_catalog_item"
+          }
+        },
+        "read_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "dashboard_display_preference_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dashboard_id",
+        "displayed",
+        "position"
+      ],
+      "properties": {
+        "dashboard_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "displayed": {
+          "type": "boolean"
+        },
+        "position": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 499
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       }
     }
