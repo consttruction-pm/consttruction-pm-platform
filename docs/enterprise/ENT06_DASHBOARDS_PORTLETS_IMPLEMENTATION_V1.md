@@ -77,7 +77,7 @@ The application service provides:
 - Read dashboard definition.
 - Update title, description, portlets and filters.
 - Duplicate into a new private dashboard owned by the current actor.
-- Assign and revoke explicit user or Enterprise-role shares.
+- Assign and revoke explicit user or Enterprise-role shares; user targets are resolved against the canonical identity_users directory and must be active members of the same tenant.
 - Assign/revoke all-tenant global visibility; only an Enterprise administrator can create, edit, or revoke a global dashboard.
 - Enforce the owner-controlled filter-override restriction.
 - Archive.
@@ -300,7 +300,7 @@ The statuses below describe the backend v1 work package, not complete P6 EPPM UI
 | Immutable audit and idempotent create/update retries | Implemented | Same-transaction audit, append-only trigger, idempotency fingerprint and exact update retry recognition. |
 | Per-project source authorization on every portlet read | Implemented | Existing source API plus project lifecycle PROJECT_READ authorization for every referenced project. |
 | Source freshness and revision reporting | Partial | Snapshot freshness is fresh/stale/missing; Portfolio Decision currently has no generated timestamp and is explicitly unknown. |
-| Applying saved dashboard filters to source queries | Deferred | Filter metadata is validated and returned; no shared source filter AST exists yet, so no source filtering or KPI recomputation is claimed. |
+| Applying saved dashboard filters and P6-style per-user overrides | Implemented / Partial | Typed portfolio/project/status/date/freshness filters are applied to existing read-model projections; owner filter lock and request-scoped overrides are implemented. Project-code filter remains deferred because the source contract does not expose that field. No KPI calculation is added. |
 | EPPM dashboard UI, route mounting, drill-through navigation and browser acceptance | Deferred | Protected shared composition and UI paths are intentionally not changed in this backend slice. |
 | P6 Professional dashboard authoring and Team Member dashboard authoring | Not Applicable | Their official V26 Help surfaces do not define the EPPM dashboard/portlet authoring capability; overlap/applicability checks are recorded above. |
 
@@ -311,14 +311,14 @@ The statuses below describe the backend v1 work package, not complete P6 EPPM UI
 | Closed versioned contract | enterprise-dashboard.v1.schema.json and EnterpriseDashboard validation | Run contract/unit CI |
 | Unknown fields, portlet types, filters and invalid layout rejected | Domain validators and negative unit cases | Run exact-head CI |
 | Tenant/actor server-derived | Application service reads authenticated session; caller authority fields rejected | Run authorization tests |
-| Private/user/role sharing | Explicit share fields and application checks | Run unit and PostgreSQL tests |
-| Owner/admin mutation boundaries | Application boundary and role tests | Run unit and PostgreSQL tests |
+| Private/user/role/global sharing | Explicit share fields, active same-tenant identity lookup for user shares, and admin-only global access | Run unit and PostgreSQL tests |
+| Owner/admin mutation boundaries | Application boundary; global dashboards are admin-only | Run unit and PostgreSQL tests |
 | Revocation | Share removal is revision-guarded and audited | Run unit and PostgreSQL tests |
 | Optimistic revision conflicts | Row lock + expected revision + guarded update | Run PostgreSQL integration |
 | Idempotent create/duplicate | Tenant/owner/key uniqueness, advisory lock and stable fingerprint | Run PostgreSQL integration |
 | Audit atomicity and immutability | Same transaction; append-only trigger; RESTRICT foreign key | Run PostgreSQL integration |
 | Source authorization | Portfolio source boundary plus per-project lifecycle authorization | Run unit and PostgreSQL CI |
-| Stale/missing source states | Explicit fresh/stale/missing/unknown response states | Run unit tests |
+| Stale/missing/filtered-out source states | Explicit fresh/stale/missing/unknown freshness, filtered_out flag and separate saved/applied filter lists | Run unit tests |
 | Exact Oracle traceability | Tables in Section 3 | Review source coverage |
 | Production route/UI/browser parity | Explicitly not included | Later handoff required |
 
@@ -328,7 +328,7 @@ The statuses below describe the backend v1 work package, not complete P6 EPPM UI
 - No web, desktop, mobile or workspace-shell files are changed.
 - No UI dashboard designer, browser acceptance, visual parity screenshot or drill-through navigation is claimed.
 - No caching is implemented.
-- Filter metadata is saved and returned, but is not applied to source queries until the source contracts accept a governed filter AST.
+- Typed filters are applied at the read-model projection boundary. Project-code filtering and source-specific filters that cannot be evaluated from the registered contracts fail closed / remain deferred; no ungoverned query AST or KPI engine is introduced.
 - The Portfolio Decision read contract does not currently expose a generated timestamp; its freshness state is therefore unknown, not falsely reported as fresh.
 - The two registered portlets are read-only. No portfolio or project record can be changed through a dashboard.
 - Cloud-only map, external-content, photo, text, Gantt, measure, budget-planning and investor-map features remain unimplemented.
