@@ -23,11 +23,13 @@ Status: implementation foundation; **not full V26 security parity**.
 
 ## Additional V26 user-access constraints now enforced
 
-- Module access accepts only the V26 Users Page options: Projects, Portfolios, Resources, Contributor, Enterprise Reporting, Integration API, P6 Analytics, P6 Professional, Team Member, Timesheet, Visualizer, and Web Services.
+- Module access accepts only the V26 Users Page options: Projects, Portfolios, Resources, Contributor, Enterprise Reports, Integration API, P6 Analytics, P6 Professional, Team Member, Timesheet, Visualizer, and Web Services.
 - Contributor is mutually exclusive with every other module-access option, as specified by the V26 Users Page.
 - Selected Resource Access accepts at most five resource roots; each selected root is intended to include its descendants. Admin Superuser retains all-resource access regardless of the stored setting.
 
 Official HTML references:
+- [Global Privileges Detail Window — all 72 global privilege definitions and dependencies](https://docs.oracle.com/cd/G48897_01/p6help/en/102785.htm)
+- [Module Access Detail Window — exact module names and Contributor exclusivity](https://docs.oracle.com/cd/G48897_01/p6help/en/6184.htm)
 - [Users Page](https://docs.oracle.com/cd/G48897_01/p6help/en/6187.htm)
 - [Assigning Global Security Profiles](https://docs.oracle.com/cd/G48897_01/p6help/en/8117.htm)
 - [Global Security Profiles Page](https://docs.oracle.com/cd/G48897_01/p6help/en/9003.htm)
@@ -44,7 +46,7 @@ Official HTML references:
 
 This increment deliberately does **not** claim complete V26 parity:
 
-- The complete ordered Global Security privilege catalogue and its exact Help dependencies are not yet encoded. Until that catalogue exists, custom global privilege strings are persisted but must not be used as an authorization decision.
+- The V26 Global Security privilege catalogue is now encoded as 72 entries across the seven Help categories, with documented code/resource hierarchy dependencies normalized and validated. Route-level authorization still needs to consume this catalogue before the values may be treated as effective grants.
 - The domain predicate is not yet wired into every production API, web route, report, export, or service boundary. Do not use it as a substitute for route-level enforcement.
 - Initial Admin Superuser assignment needs a controlled tenant bootstrap/provisioning path and a tested last-admin protection rule.
 - Module-access values now validate against the V26 Users Page options and Contributor exclusivity; route/login enforcement is still required.
@@ -55,7 +57,7 @@ This increment deliberately does **not** claim complete V26 parity:
 
 ## Required acceptance gates
 
-- Machine-reviewed ordered manifest for all global privileges with one official V26 Help URL and dependency/exception test per row.
+- Machine-reviewed ordered manifest for all 72 global privileges with one official V26 Help URL and dependency/exception test per row (catalogue is now encoded; per-row exhaustive behavior tests and route mapping remain).
 - Built-in profile bootstrap and at-least-one-Admin-Superuser invariants, including concurrent assignment/revocation tests.
 - Module access enforced on login, session resolution, APIs, and navigation.
 - Resource access enforced in every resource read/write/query/export and secure-code path.
