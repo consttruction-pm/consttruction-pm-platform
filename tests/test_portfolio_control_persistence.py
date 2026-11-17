@@ -91,6 +91,7 @@ def test_provider_uses_canonical_membership_and_authoritative_project_facts():
     snapshot = snapshot_provider.get_snapshot("portfolio-a", tenant_id="tenant-a")
 
     assert snapshot.portfolio_revision == 2
+    assert snapshot.snapshot_id.startswith("pcs-r2-")
     assert [item.project_id for item in snapshot.projects] == ["project-a", "project-b"]
     assert [item.membership_status for item in snapshot.projects] == ["included", "on_hold"]
     assert [item.status for item in snapshot.projects] == ["active", "on_hold"]
