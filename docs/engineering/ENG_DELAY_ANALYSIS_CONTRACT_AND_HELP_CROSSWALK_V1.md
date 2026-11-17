@@ -72,7 +72,7 @@ Cloud comparison may improve the CUBI user experience, but it is not a substitut
 
 ## 3. Methodology boundary: delay is not disruption
 
-The [SCL Delay and Disruption Protocol, 2nd edition](https://schdc.cl/web2021/wp-content/uploads/2023/10/SCL_Delay_Protocol_2nd_Edition_Final.pdf) distinguishes delay (time impact, especially critical delay to completion) from disruption (disturbance/hindrance/interruption to planned working methods and productivity). It also explains that the monetary consequences may overlap but require different substantiation. The [AACE RP 29R-03 Forensic Schedule Analysis](https://web.aacei.org/docs/default-source/toc/toc_29r-03.pdf) is a technical reference for CPM-based forensic schedule analysis and explicitly requires professional judgment in selecting methods based on contract, facts, applicable law and contemporaneous records.
+The [SCL Delay and Disruption Protocol, 2nd edition](https://www.scl.org.uk/sites/default/files/documents/SCL_Delay_Protocol_2nd_Edition_Final.pdf) distinguishes delay (time impact, especially critical delay to completion) from disruption (disturbance/hindrance/interruption to planned working methods and productivity). It also explains that the monetary consequences may overlap but require different substantiation. The [AACE RP 29R-03 Forensic Schedule Analysis](https://web.aacei.org/docs/default-source/rps/29r-03.pdf) is a technical reference for CPM-based forensic schedule analysis. Its scope guidance emphasizes method categorization/evaluation and professional judgment; the recommended practice is not a universal prescriptive entitlement rule.
 
 Therefore:
 
@@ -225,7 +225,7 @@ Do not calculate a single combined “employer loss” or “contractor claim am
 
 ### Forensic methodology references
 - [Society of Construction Law — Delay and Disruption Protocol, 2nd Edition (2017)](https://schdc.cl/web2021/wp-content/uploads/2023/10/SCL_Delay_Protocol_2nd_Edition_Final.pdf)
-- [AACE International RP 29R-03 — Forensic Schedule Analysis (Table of Contents / scope)](https://web.aacei.org/docs/default-source/toc/toc_29r-03.pdf)
+- [AACE International RP 29R-03 — Forensic Schedule Analysis](https://web.aacei.org/docs/default-source/rps/29r-03.pdf)
 
 ### Repository governance
 - [#2009 — Engineering contracts, menu/access placement and non-interference queue](https://github.com/consttruction-pm/consttruction-pm-platform/issues/2009)
