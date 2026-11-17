@@ -392,6 +392,40 @@ export async function mountEnterpriseDashboard(
     titleRow.append(button(t.manage, () => openManageDialog(), "ced-button primary"));
     titleRow.append(button(t.duplicate, async () => { await client.duplicateDashboard(activeDefinition!.dashboard_id); await loadCatalog(); }));
     content.append(titleRow);
+    const filterRow = node("div", "ced-toolbar ced-section");
+    const projectFilter = input("dashboard-project-filter", "");
+    projectFilter.placeholder = t.projectFilter;
+    projectFilter.setAttribute("aria-label", t.projectFilter);
+    projectFilter.disabled = activeDefinition.restrict_filter_override;
+    const applyFilter = button(t.applyFilter, async () => {
+      const projectId = projectFilter.value.trim();
+      if (!activeDefinition || !projectId || activeDefinition.restrict_filter_override) return;
+      try {
+        status.textContent = t.loading;
+        activeRead = await client.readPortlets(activeDefinition.dashboard_id, [
+          { key: "project_id", operator: "eq", value: projectId },
+        ]);
+        status.textContent = "";
+        renderViewer();
+      } catch (error) {
+        status.textContent = error instanceof Error && error.message.includes("FORBIDDEN") ? t.denied : t.error;
+      }
+    });
+    applyFilter.disabled = activeDefinition.restrict_filter_override;
+    const resetFilter = button(t.resetFilter, async () => {
+      if (!activeDefinition) return;
+      projectFilter.value = "";
+      try {
+        activeRead = await client.readPortlets(activeDefinition.dashboard_id);
+        status.textContent = "";
+        renderViewer();
+      } catch {
+        status.textContent = t.error;
+      }
+    });
+    filterRow.append(projectFilter, applyFilter, resetFilter);
+    if (activeDefinition.restrict_filter_override) filterRow.append(node("span", "ced-muted", t.filterLocked));
+    content.append(filterRow);
     if (!activeRead.portlets.length) {
       content.append(node("p", "ced-muted", t.noPortlets));
       return;
