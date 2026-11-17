@@ -546,7 +546,7 @@ class EnterpriseDashboardApplicationService:
                 )
             except KeyError:
                 return self._missing_portlet(
-                    portlet, definition.source_owner, dashboard_filters
+                    portlet, definition.source_owner, dashboard_filters, applied_filters
                 )
             if (
                 not isinstance(decision_data, Mapping)
