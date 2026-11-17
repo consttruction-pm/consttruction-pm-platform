@@ -101,6 +101,13 @@ class FakeRepository:
     def __init__(self):
         self.items: dict[tuple[str, str], StoredEnterpriseDashboard] = {}
         self.idempotency: dict[tuple[str, str, str], tuple[str, StoredEnterpriseDashboard]] = {}
+        self.users = {
+            ("tenant-a", "alice"), ("tenant-a", "bob"), ("tenant-a", "admin"),
+            ("tenant-b", "other"),
+        }
+
+    def user_belongs_to_tenant(self, tenant_id, user_id):
+        return (tenant_id, user_id) in self.users
 
     @staticmethod
     def _fingerprint(dashboard):
@@ -367,6 +374,8 @@ def test_filter_override_obeys_eppm_owner_restriction_and_is_not_persisted():
     )
     assert result["filters"][0]["key"] == "project_status"
     assert result["dashboard"]["filters"][0]["key"] == "membership_status"
+    assert result["portlets"][0]["saved_filters"][0]["key"] == "membership_status"
+    assert result["portlets"][0]["applied_filters"][0]["key"] == "project_status"
     assert result["portlets"][0]["data"]["projects"][0]["project_id"] == "project-1"
 
     restricted_service, _, _, _ = make_service()
@@ -472,6 +481,22 @@ def test_explicit_user_share_grants_definition_read_then_revocation_removes_it()
     assert revoked.dashboard.visibility == "private"
     with pytest.raises(Exception):
         service.get_dashboard("bob-session", created.dashboard.dashboard_id)
+
+
+def test_user_share_rejects_a_user_from_another_tenant():
+    service, _, _, _ = make_service()
+    created = create_dashboard(service)
+    with pytest.raises(
+        EnterpriseDashboardAuthorizationError,
+        match="SHARE_TARGET_NOT_IN_TENANT",
+    ):
+        service.assign_share(
+            "alice-session",
+            created.dashboard.dashboard_id,
+            target_type="user",
+            target_id="other",
+            expected_revision=1,
+        )
 
 
 def test_explicit_role_share_and_admin_management():
