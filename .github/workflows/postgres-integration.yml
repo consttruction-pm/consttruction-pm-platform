@@ -94,9 +94,9 @@ on:
       - "tests/integration/test_enterprise_task_postgres_live.py"
       - "tests/integration/test_production_login_postgres_live.py"
       - "src/construction_pm/enterprise_organization_access.py"
-      - "src/construction_pm/enterprise_organization_access_repository.py"
-      - "tests/test_enterprise_organization_access.py"
-      - "tests/integration/test_enterprise_organization_access_postgres_live.py"
+      - "src/construction_pm/enterprise_organization_access_repository.py"\n      - "src/construction_pm/portfolio_control_persistence.py"\n      - "tests/test_portfolio_control_persistence.py"\n      - "tests/integration/test_portfolio_control_persistence_postgres_live.py"
+      - "tests/test_enterprise_organization_access.py"\n      - "src/construction_pm/portfolio_control_persistence.py"\n      - "tests/test_portfolio_control_persistence.py"\n      - "tests/integration/test_portfolio_control_persistence_postgres_live.py"
+      - "tests/integration/test_enterprise_organization_access_postgres_live.py tests/integration/test_portfolio_control_persistence_postgres_live.py"
 
   pull_request:
     paths:
