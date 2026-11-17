@@ -135,7 +135,7 @@ class _ProjectSecurityRepositoryBase:
         ).fetchall()
         return tuple(_profile_from_row(row) for row in rows)
 
-    def assign_obs(self, grant: P6OBSProjectGrant, *, actor_id: str):
+    def assign_obs(self, grant: P6OBSProjectGrant, *, actor_id: str, allow_project_superuser: bool = False):
         grant.validate()
         if not isinstance(actor_id, str) or not actor_id.strip():
             raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_ACTOR_REQUIRED")
