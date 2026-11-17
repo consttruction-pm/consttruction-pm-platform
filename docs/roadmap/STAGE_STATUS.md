@@ -538,7 +538,7 @@ Status: **current implementation track through 34.2.14 completed/merged; documen
 - 34.2.6 — Field assurance/core persistence and PostgreSQL atomicity: implemented and live-verified.
 - 34.2.7 — Change/Claim core + Client Integration Audit: implemented; Client resource sync boundary coverage merged in PR #149; post-merge CI green.
 - 34.2.8 — Procurement/Commercial core: implemented.
-- 34.2.9 — Portfolio Control read model: **implementation in progress**. The versioned snapshot/domain/API contracts exist, but the canonical Enterprise membership persistence/provider is being added on `fix/portfolio-control-provider-owned-implementation`; not merged or runtime-verified yet.
+- 34.2.9 — Portfolio Control read model: canonical tenant-scoped Enterprise portfolio/membership persistence, read-only Engineering project facts adapter, deterministic snapshot provider, and fail-closed per-project authorization; merged in PR #2035 and runtime-verified (Python 3.11/3.12/3.13, live PostgreSQL and client typecheck). Production dashboard composition mounting remains in ENT-06B #2032.
 - 34.2.10 — Portfolio Decision & Approval Boundary: implemented and merged; Python and client runtime verification completed.
 - 34.2.11 — Portfolio Action Transition Boundary: implemented and integrated.
 - 34.2.12 — Portfolio Action Persistence: implemented and integrated.
