@@ -23,7 +23,7 @@ The dashboard is a presentation/configuration aggregate. It stores dashboard ide
 | Concern | Owner / boundary |
 |---|---|
 | Dashboard definition, layout, sharing, filters, revision and audit | CUBI Enterprise ENT-06 |
-| Portfolio Control Snapshot read model | Existing Portfolio Control read boundary; consumes Engineering-owned facts |
+| Portfolio Control Snapshot read model | Existing versioned schema and Engineering-owned source facts; live `get_snapshot` provider remains a Stage 34.2.9 dependency and is injected, not re-created here |
 | Portfolio Decision read model | Existing Portfolio Decision domain/application/API |
 | Project schedule, CPM, activities, WBS, resource assignments, cost, progress, EVM and project risk facts | Engineering |
 | Identity, session, tenant and project authorization | Existing shared identity/project-lifecycle services; consumed, not modified |
@@ -62,6 +62,12 @@ Registry metadata includes source owner, permission, supported contexts, contrac
 
 The registry is closed. Unknown portlet types and extra configuration keys fail validation. Arbitrary SQL, user-supplied code, formulas, arbitrary external URLs, custom report execution and new KPI/calculation engines are prohibited.
 
+#### Source readiness and dependency boundary
+
+The repository at the recorded `main` base contains `shared/contracts/portfolio-control-snapshot.v1.schema.json`, but Stage 34.2.9 is still marked **implementation in progress** and does not yet provide a production `get_snapshot(portfolio_id, auth_context)` reader. ENT-06A therefore defines and consumes that injected read boundary, validates tenant/portfolio/revision/freshness and fails closed with `PORTFOLIO_QUERY_SOURCE_NOT_CONFIGURED` when no provider is supplied. The contract consumer tests use source-shaped fixtures; they do not claim a live PostgreSQL-backed Portfolio Control Snapshot provider.
+
+The existing `PortfolioQueryAdapter.list_projects` is not a substitute: it does not own the snapshot's membership state, source-reference revisions, generated timestamp or derived summary. ENT-06A deliberately does not synthesize a second snapshot generator from that adapter. A source-owner handoff is required to complete Stage 34.2.9 and expose the approved reader before the first production Portfolio Control Snapshot portlet can return live data. Portfolio Decision uses the existing `PortfolioDecisionAPI.get` boundary and is separately consumer-tested.
+
 ### 2.3 Persistence and lifecycle
 
 PostgresEnterpriseDashboardRepository uses dedicated tenant-scoped tables:
@@ -94,7 +100,7 @@ The authenticated session is the sole authority for actor and tenant. Caller-sup
 
 A dashboard share grants access to the dashboard definition only. For each portlet read:
 
-1. The existing Portfolio Control Snapshot or Portfolio Decision boundary is called with an AuthorizationContext derived from the current authenticated session.
+1. The injected Portfolio Control Snapshot reader (when supplied) or the existing Portfolio Decision API is called with an AuthorizationContext derived from the current authenticated session. A missing snapshot reader fails closed; no local fallback or synthetic source is created.
 2. Portfolio snapshot filters are applied to source-backed project rows. Before returning the filtered projection and its preserved source_refs, every project referenced by the original snapshot is re-authorized through the existing project lifecycle authorize_project(..., PROJECT_READ) boundary. Portfolio Decision must declare a non-empty, well-formed affected-project set; otherwise the dashboard projection fails closed. Every affected project is re-authorized before decision data or revision metadata is returned.
 3. Tenant, portfolio and source contract identity are checked before returning data.
 4. The response preserves source snapshot identity and source revision. Snapshot source revision is represented by the ordered source-reference revision set; a decision uses its persisted decision revision.
@@ -362,6 +368,7 @@ The statuses below describe the backend v1 work package, not complete P6 EPPM UI
 |---|---|---|
 | Closed tenant-scoped dashboard definition and domain validation | Implemented | Versioned contract, strict field validation, context, visibility, revision, bounded portlet layout and typed filter validation. |
 | Governed registry for the two approved portfolio source contracts | Implemented | Closed registry with source owner, required permission, context, contract version, typed config and drill-through shape. |
+| Portfolio Control Snapshot live provider integration | Partial / Deferred dependency | Contract consumer and authorization boundary are implemented; Stage 34.2.9 still has no production `get_snapshot` provider on the base branch. A source-owner handoff is required; ENT-06A does not synthesize portfolio facts or source revisions. |
 | PostgreSQL persistence, tenant isolation and revision history | Implemented | Dedicated tables, composite tenant/dashboard key, row locking and expected-revision checks. |
 | P6 Manage Dashboards search, show/hide and tab order preferences | Implemented / Partial | Actor-scoped preferences are stored separately from the shared dashboard definition; UI-view assignment and rendered tabs remain deferred. |
 | P6 General Content row-limit setting | Implemented | `max_rows_per_portlet` defaults to 100, is bounded to 1–500, and truncates only the displayed snapshot projection while preserving full source counts/revisions. |
