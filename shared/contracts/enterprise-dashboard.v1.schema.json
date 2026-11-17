@@ -1370,10 +1370,7 @@
           }
         },
         "row_limit": {
-          "type": [
-            "integer",
-            "null"
-          ],
+          "type": "integer",
           "minimum": 1,
           "maximum": 500
         },
