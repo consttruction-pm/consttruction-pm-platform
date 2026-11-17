@@ -458,6 +458,9 @@ class EnterpriseOrganizationAccessService:
     ) -> None:
         session = self._session(session_id)
         self._require_global_privilege(session, "add_edit_delete_users")
+        if user_id == session.user_id:
+            raise OrganizationAccessDenied("SECURITY_PROFILE_SELF_ASSIGNMENT_NOT_ALLOWED")
+        self._require_target_user_resource_access(session, user_id)
         self._security_profiles.unassign(
             tenant_id=session.tenant_id, profile_id=profile_id, user_id=user_id,
             obs_id=obs_id, expected_revision=expected_revision,
