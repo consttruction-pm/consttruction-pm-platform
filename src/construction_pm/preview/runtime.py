@@ -2041,6 +2041,7 @@ def open_preview_runtime(
             repositories.resource_period_service,
             policy,
             assignment_service=repositories.resource_assignment_service,
+            resource_repository=repositories.resources,
         ),
         # The assignment read API also feeds the persisted leveling resolver,
         # so the resolver receives the exact same calendar repositories the
