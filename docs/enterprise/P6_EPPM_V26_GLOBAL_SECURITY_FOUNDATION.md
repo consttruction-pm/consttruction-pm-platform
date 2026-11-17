@@ -31,7 +31,8 @@ Official HTML references:
 - [Users Page](https://docs.oracle.com/cd/G48897_01/p6help/en/6187.htm)
 - [Assigning Global Security Profiles](https://docs.oracle.com/cd/G48897_01/p6help/en/8117.htm)
 - [Global Security Profiles Page](https://docs.oracle.com/cd/G48897_01/p6help/en/9003.htm)
-- [Creating Global Security Profiles](https://docs.oracle.com/cd/G48897_01/p6help/en/35572.htm)
+- [Privileges Detail Window of the Global Security Profiles Page](https://docs.oracle.com/cd/G48897_01/p6help/en/102785.htm)
+- [Module Access Detail Window of the Users Page](https://docs.oracle.com/cd/G48897_01/p6help/en/6184.htm)
 
 ## Code
 
