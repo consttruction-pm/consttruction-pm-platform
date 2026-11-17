@@ -129,6 +129,20 @@ class TimeImpactAnalysisExecutor:
             source = materialized.schedule_input
             if source.mode is not AuthoritativeScheduleMode.DATE_BASED:
                 raise TimeImpactExecutionError("FRAGNET_TIME_AWARE_MODE_NOT_YET_SUPPORTED")
+            if any(
+                getattr(source.schedule_options, name)
+                for name in (
+                    "level_all_resources",
+                    "level_within_float",
+                    "min_float_to_preserve",
+                    "over_allocation_percentage",
+                    "resource_list",
+                    "priority_list",
+                    "preserve_scheduled_early_and_late_dates",
+                    "recalculate_resource_costs",
+                )
+            ):
+                raise TimeImpactExecutionError("FRAGNET_RESOURCE_LEVELING_NOT_SUPPORTED")
             existing_ids = {item.id for item in source.activities}
             existing_pairs = {(item.predecessor_id, item.successor_id) for item in source.relationships}
             fragnet.validate_against(existing_ids, existing_pairs)
