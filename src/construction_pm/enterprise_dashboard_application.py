@@ -494,6 +494,8 @@ class EnterpriseDashboardApplicationService:
             )
             source_snapshot_id = snapshot.snapshot_id
             project_rows = list(snapshot.projects)
+            if "decision_status" in filters:
+                filtered_out = True
             for key, attribute in (
                 ("project_id", "project_id"),
                 ("project_status", "status"),
@@ -570,11 +572,24 @@ class EnterpriseDashboardApplicationService:
             source_snapshot_id = decision_data.get("source_snapshot_id")
             raw_generated_at = decision_data.get("generated_at")
             if isinstance(raw_generated_at, str):
-                generated_at = datetime.fromisoformat(
-                    raw_generated_at.replace("Z", "+00:00")
-                )
+                try:
+                    generated_at = datetime.fromisoformat(
+                        raw_generated_at.replace("Z", "+00:00")
+                    )
+                except ValueError as exc:
+                    raise EnterpriseDashboardSourceError(
+                        "INVALID_PORTLET_SOURCE_TIMESTAMP"
+                    ) from exc
             elif isinstance(raw_generated_at, datetime):
                 generated_at = raw_generated_at
+            if generated_at is not None and (
+                not isinstance(generated_at, datetime)
+                or generated_at.tzinfo is None
+                or generated_at.utcoffset() is None
+            ):
+                raise EnterpriseDashboardSourceError("INVALID_PORTLET_SOURCE_TIMESTAMP")
+            if "project_status" in filters or "membership_status" in filters:
+                filtered_out = True
             if "decision_status" in filters and not self._filter_matches(
                 decision_data.get("status"), filters["decision_status"]
             ):
