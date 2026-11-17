@@ -262,11 +262,6 @@ SECURITY_PROFILE_SCHEMA = (
     """,
     """
     ALTER TABLE p6_security_profiles
-    ADD CONSTRAINT p6_security_profiles_default_scope_check
-    CHECK (NOT is_default OR scope='project')
-    """,
-    """
-    ALTER TABLE p6_security_profiles
     DROP CONSTRAINT IF EXISTS p6_security_profiles_description_check
     """,
     """
@@ -277,6 +272,10 @@ SECURITY_PROFILE_SCHEMA = (
     """
     CREATE UNIQUE INDEX IF NOT EXISTS p6_security_profiles_one_default_project
     ON p6_security_profiles (tenant_id) WHERE scope='project' AND is_default=TRUE
+    """,
+    """
+    CREATE UNIQUE INDEX IF NOT EXISTS p6_security_profiles_one_default_global
+    ON p6_security_profiles (tenant_id) WHERE scope='global' AND is_default=TRUE
     """,
     """
     CREATE TABLE IF NOT EXISTS p6_security_profile_privileges (
@@ -669,11 +668,27 @@ class PostgresSecurityProfileRepository:
         self, *, tenant_id: str, profile_id: str, is_default: bool,
         expected_revision: int, actor_user_id: str, occurred_at: Any,
     ) -> SecurityProfile:
+        """Set the V26 default independently for the Global or Project scope."""
         if not isinstance(is_default, bool):
             raise SecurityProfileError("SECURITY_PROFILE_DEFAULT_FLAG_INVALID")
+        scope_row = self._connection.execute(
+            "SELECT scope FROM p6_security_profiles WHERE tenant_id=%s AND profile_id=%s",
+            (tenant_id, profile_id),
+        ).fetchone()
+        if scope_row is None:
+            raise SecurityProfileError("SECURITY_PROFILE_NOT_FOUND")
+        scope = str(scope_row[0])
+        if scope not in _PROFILE_SCOPES:
+            raise SecurityProfileError("SECURITY_PROFILE_SCOPE_INVALID")
+        # Keep the historical Project lock key stable while adding an
+        # independent Global lock so both scopes can have one default.
+        lock_key = (
+            f"p6-project-profile-default:{tenant_id}"
+            if scope == "project" else f"p6-global-profile-default:{tenant_id}"
+        )
         self._connection.execute(
             "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
-            (f"p6-project-profile-default:{tenant_id}",),
+            (lock_key,),
         )
         row = self._connection.execute(
             "SELECT name,scope,active,revision,description,is_default FROM p6_security_profiles "
@@ -682,10 +697,8 @@ class PostgresSecurityProfileRepository:
         ).fetchone()
         if row is None:
             raise SecurityProfileError("SECURITY_PROFILE_NOT_FOUND")
-        if profile_id in _RESERVED_PROFILE_IDS:
-            raise SecurityProfileError("SECURITY_PROFILE_BUILTIN_PROTECTED")
-        if str(row[1]) != "project":
-            raise SecurityProfileError("SECURITY_PROFILE_DEFAULT_PROJECT_ONLY")
+        if str(row[1]) != scope:
+            raise SecurityProfileError("SECURITY_PROFILE_SCOPE_CONFLICT")
         if not bool(row[2]) and is_default:
             raise SecurityProfileError("SECURITY_PROFILE_INACTIVE")
         if int(row[3]) != expected_revision:
@@ -696,9 +709,9 @@ class PostgresSecurityProfileRepository:
         if is_default:
             previous_rows = self._connection.execute(
                 "SELECT profile_id,revision FROM p6_security_profiles "
-                "WHERE tenant_id=%s AND scope='project' AND is_default=TRUE "
+                "WHERE tenant_id=%s AND scope=%s AND is_default=TRUE "
                 "AND profile_id<>%s FOR UPDATE",
-                (tenant_id, profile_id),
+                (tenant_id, scope, profile_id),
             ).fetchall()
             for previous in previous_rows:
                 previous_id, previous_revision = str(previous[0]), int(previous[1])
@@ -814,7 +827,7 @@ class PostgresSecurityProfileRepository:
         if profile_id in _RESERVED_PROFILE_IDS:
             raise SecurityProfileError("SECURITY_PROFILE_BUILTIN_PROTECTED")
         row = self._connection.execute(
-            "SELECT revision FROM p6_security_profiles "
+            "SELECT revision,is_default FROM p6_security_profiles "
             "WHERE tenant_id=%s AND profile_id=%s FOR UPDATE",
             (tenant_id, profile_id),
         ).fetchone()
@@ -822,6 +835,8 @@ class PostgresSecurityProfileRepository:
             raise SecurityProfileError("SECURITY_PROFILE_NOT_FOUND")
         if int(row[0]) != expected_revision:
             raise SecurityProfileError("SECURITY_PROFILE_REVISION_CONFLICT")
+        if bool(row[1]):
+            raise SecurityProfileError("SECURITY_PROFILE_DEFAULT_CANNOT_DELETE")
         assigned = self._connection.execute(
             "SELECT 1 FROM p6_security_profile_assignments "
             "WHERE tenant_id=%s AND profile_id=%s LIMIT 1",
@@ -846,6 +861,14 @@ class PostgresSecurityProfileRepository:
             before.as_dict(), {"profile_id": profile_id, "deleted": True,
                                "revision": expected_revision}, occurred_at,
         )
+
+    def get_default_global_profile(self, tenant_id: str) -> SecurityProfile | None:
+        row = self._connection.execute(
+            "SELECT profile_id FROM p6_security_profiles "
+            "WHERE tenant_id=%s AND scope='global' AND active=TRUE AND is_default=TRUE",
+            (tenant_id,),
+        ).fetchone()
+        return None if row is None else self.get_profile(tenant_id, str(row[0]))
 
     def get_default_project_profile(self, tenant_id: str) -> SecurityProfile | None:
         row = self._connection.execute(
