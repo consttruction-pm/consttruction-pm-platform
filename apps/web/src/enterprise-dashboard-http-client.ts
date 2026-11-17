@@ -1,7 +1,8 @@
 import type {
   EnterpriseDashboardCatalog,
   EnterpriseDashboardClient,
-  EnterpriseDashboardDefinition,\n  EnterpriseDashboardFilter,
+  EnterpriseDashboardDefinition,
+  EnterpriseDashboardFilter,
   EnterpriseDashboardPortlet,
   EnterpriseDashboardRead,
 } from "./enterprise-dashboard.js";
