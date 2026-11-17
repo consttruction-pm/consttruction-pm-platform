@@ -97,7 +97,7 @@ def test_postgres_portfolio_membership_revision_snapshot_and_audit_are_durable()
         assert snapshot.summary["included_projects"] == 1
 
         changed_source = SourceReference(
-            f"schedule-{suffix}", "schedule", f"schedule://{project_id}/snapshot-12", 12
+            f"schedule-{suffix}", "schedule", f"schedule://{project_id}/snapshot-11", 12
         )
         updated = repository.update_membership(
             tenant_id, portfolio_id, project_id, membership_status="on_hold",
