@@ -98,6 +98,8 @@ class _ProjectSecurityRepositoryBase:
         source = self.get_profile(tenant_id, source_profile_id)
         if source is None or not source.active:
             raise P6ProjectSecurityPersistenceError("PROJECT_SECURITY_PROFILE_NOT_FOUND")
+        if source.built_in:
+            raise P6ProjectSecurityPersistenceError("BUILTIN_PROJECT_SECURITY_PROFILE_CANNOT_BE_DUPLICATED")
         duplicate = P6ProjectSecurityProfile(
             tenant_id, new_profile_id, new_name, source.privileges,
             active=True, revision=1, description=source.description,
