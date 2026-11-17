@@ -112,6 +112,14 @@ class FakeRepository:
         }
         self.preferences: dict[tuple[str, str, str], tuple[bool, int]] = {}
         self.filter_overrides: dict[tuple[str, str, str], list[dict[str, object]]] = {}
+        self.portlet_limits: dict[str, int] = {}
+
+    def get_dashboard_portlet_limit(self, tenant_id):
+        return self.portlet_limits.get(tenant_id)
+
+    def set_dashboard_portlet_limit(self, tenant_id, max_dashboard_portlets, *, actor_id, occurred_at):
+        self.portlet_limits[tenant_id] = max_dashboard_portlets
+        return max_dashboard_portlets
 
     def user_belongs_to_tenant(self, tenant_id, user_id):
         return (tenant_id, user_id) in self.users
@@ -319,6 +327,60 @@ def create_dashboard(service, *, session_id="alice-session", payload=None):
     )
 
 
+def test_dashboard_portlet_limit_defaults_to_twelve_and_is_admin_configurable():
+    service, repository, _, _ = make_service()
+    assert service.get_dashboard_portlet_limit("alice-session") == 12
+    with pytest.raises(EnterpriseDashboardError, match="PORTLET_LIMIT_EXCEEDED"):
+        create_dashboard(
+            service,
+            payload=create_payload(
+                title="Over default limit",
+                portlets=[
+                    snapshot_portlet(
+                        instance_id=f"portlet-{index}",
+                        layout={"x": (index % 2) * 6, "y": (index // 2) * 4, "w": 6, "h": 4},
+                    )
+                    for index in range(13)
+                ],
+            ),
+        )
+
+    with pytest.raises(EnterpriseDashboardAuthorizationError, match="ADMIN_REQUIRED"):
+        service.set_dashboard_portlet_limit("alice-session", 13)
+    assert service.set_dashboard_portlet_limit("admin-session", 13) == 13
+    assert service.get_dashboard_portlet_limit("bob-session") == 13
+    assert repository.get_dashboard_portlet_limit("tenant-b") is None
+
+    created = create_dashboard(
+        service,
+        payload=create_payload(
+            title="Configured portlet limit",
+            portlets=[
+                snapshot_portlet(
+                    instance_id=f"portlet-{index}",
+                    layout={"x": (index % 2) * 6, "y": (index // 2) * 4, "w": 6, "h": 4},
+                )
+                for index in range(13)
+            ],
+        ),
+    )
+    assert len(created.dashboard.portlets) == 13
+    service.set_dashboard_portlet_limit("admin-session", 12)
+    with pytest.raises(EnterpriseDashboardError, match="PORTLET_LIMIT_EXCEEDED"):
+        service.duplicate_dashboard(
+            "alice-session",
+            created.dashboard.dashboard_id,
+            idempotency_key="duplicate-over-new-limit",
+        )
+
+
+def test_dashboard_portlet_limit_rejects_invalid_configuration():
+    service, _, _, _ = make_service()
+    with pytest.raises(EnterpriseDashboardError, match="PORTLET_LIMIT"):
+        service.set_dashboard_portlet_limit("admin-session", 51)
+
+
+
 def test_create_derives_tenant_and_owner_from_authenticated_session():
     service, _, _, _ = make_service()
     stored = create_dashboard(service)
@@ -461,6 +523,109 @@ def test_p6_dashboard_catalog_supports_actor_scoped_show_hide_search_and_order()
         service.set_dashboard_display_preference(
             "bob-session", ids[0], displayed=False
         )
+
+
+def test_dashboard_tab_visibility_changes_preserve_saved_custom_order():
+    service, _, _, _ = make_service()
+    created = [
+        service.create_dashboard(
+            "alice-session",
+            create_payload(title=title),
+            idempotency_key=f"tab-order-{index}",
+        )
+        for index, title in enumerate(("Alpha", "Beta", "Gamma"))
+    ]
+    alpha_id, beta_id, gamma_id = [
+        item.dashboard.dashboard_id for item in created
+    ]
+
+    service.set_dashboard_display_preference(
+        "alice-session", gamma_id, displayed=True, position=0
+    )
+    hidden = service.set_dashboard_display_preference(
+        "alice-session", beta_id, displayed=False
+    )
+    assert [
+        item["dashboard"]["dashboard_id"]
+        for item in hidden["displayed_dashboards"]
+    ] == [gamma_id, alpha_id]
+
+    shown = service.set_dashboard_display_preference(
+        "alice-session", beta_id, displayed=True
+    )
+    assert [
+        item["dashboard"]["dashboard_id"]
+        for item in shown["displayed_dashboards"]
+    ] == [gamma_id, alpha_id, beta_id]
+
+
+def test_dashboard_list_applies_access_before_result_limit():
+    service, _, _, _ = make_service()
+    service.create_dashboard(
+        "alice-session",
+        create_payload(title="Private dashboard"),
+        idempotency_key="private-before-shared",
+    )
+    shared = service.create_dashboard(
+        "alice-session",
+        create_payload(title="Older shared dashboard"),
+        idempotency_key="shared-after-private",
+    )
+    service.assign_share(
+        "alice-session",
+        shared.dashboard.dashboard_id,
+        target_type="user",
+        target_id="bob",
+        expected_revision=1,
+    )
+
+    visible = service.list_dashboards("bob-session", limit=1)
+    assert [item.dashboard.dashboard_id for item in visible] == [
+        shared.dashboard.dashboard_id
+    ]
+
+
+def test_dashboard_list_caps_access_filter_prefix_at_repository_limit():
+    service, repository, _, _ = make_service()
+    service.create_dashboard(
+        "alice-session",
+        create_payload(title="Private prefix row"),
+        idempotency_key="private-prefix-row",
+    )
+    shared = service.create_dashboard(
+        "alice-session",
+        create_payload(title="Shared tail row"),
+        idempotency_key="shared-tail-row",
+    )
+    service.assign_share(
+        "alice-session",
+        shared.dashboard.dashboard_id,
+        target_type="user",
+        target_id="bob",
+        expected_revision=1,
+    )
+
+    private_row = repository.get("tenant-a", next(
+        dashboard_id
+        for (tenant_id, dashboard_id), item in repository.items.items()
+        if tenant_id == "tenant-a" and item.dashboard.title == "Private prefix row"
+    ))
+    shared_row = repository.get("tenant-a", shared.dashboard.dashboard_id)
+    calls = []
+
+    def bounded_list_for_tenant(tenant_id, *, limit=200):
+        assert limit <= 500
+        calls.append(limit)
+        rows = (private_row,) * 399 + (shared_row,)
+        return rows[:limit]
+
+    repository.list_for_tenant = bounded_list_for_tenant
+    visible = service.list_dashboards("bob-session", limit=2)
+
+    assert [item.dashboard.dashboard_id for item in visible] == [
+        shared.dashboard.dashboard_id
+    ]
+    assert calls == [200, 400, 500]
 
 
 def test_empty_dashboard_is_a_valid_p6_manageable_definition():
@@ -1384,7 +1549,7 @@ def test_dashboard_schema_is_closed_and_declares_read_freshness_contract():
     assert schema["properties"]["contract_version"]["const"] == "cubi-enterprise-dashboard.v1"
     assert schema["properties"]["portlets"]["minItems"] == 0
     assert schema["properties"]["portlets"]["minItems"] == 0
-    assert schema["properties"]["portlets"]["maxItems"] == 12
+    assert schema["properties"]["portlets"]["maxItems"] == 50
     project_id_filter = schema["properties"]["filters"]["items"]["oneOf"][-1]["oneOf"]
     assert {item["properties"]["operator"]["const"] for item in project_id_filter} == {"eq", "in"}
     project_status_filter = schema["properties"]["filters"]["items"]["oneOf"][0]["oneOf"]

@@ -18,6 +18,8 @@ from .enterprise_dashboard import (
     EnterpriseDashboardNotFound,
     EnterpriseDashboardRevisionConflict,
     PORTLET_REGISTRY,
+    DEFAULT_MAX_DASHBOARD_PORTLETS,
+    MAX_DASHBOARD_PORTLETS,
     visibility_for_shares,
 )
 from .enterprise_dashboard_repository import (
@@ -67,7 +69,6 @@ class EnterpriseDashboardApplicationService:
         ):
             raise ValueError("INVALID_ENTERPRISE_DASHBOARD_FRESHNESS_TTL")
         self._freshness_ttl_seconds = freshness_ttl_seconds
-
     def create_dashboard(
         self,
         session_id: str,
@@ -85,7 +86,7 @@ class EnterpriseDashboardApplicationService:
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_CREATE_FIELDS")
         context = payload.get("context", "enterprise_home")
         context_portfolio_id = payload.get("context_portfolio_id")
-        portlets = self._portlets(payload.get("portlets"), context, context_portfolio_id)
+        portlets = self._portlets(payload.get("portlets"), context, context_portfolio_id, self._portlet_limit(session.tenant_id))
         filters = self._filters(payload.get("filters", ()))
         now = self._now()
         dashboard = EnterpriseDashboard(
@@ -122,13 +123,36 @@ class EnterpriseDashboardApplicationService:
     ) -> tuple[StoredEnterpriseDashboard, ...]:
         session = self._session(session_id)
         self._require_enterprise(session, write=False)
-        items = self._repository.list_for_tenant(session.tenant_id, limit=limit)
-        return tuple(
-            item
-            for item in items
-            if self._can_view(item.dashboard, session)
-            and (item.dashboard.status == "active" or item.dashboard.owner_user_id == session.user_id or self._is_admin(session))
-        )
+        if limit <= 0:
+            return ()
+        # The repository is tenant-scoped but cannot apply actor-level sharing.
+        # Expand the ordered prefix until enough accessible dashboards are found;
+        # applying LIMIT before _can_view would hide older dashboards shared with
+        # this actor whenever newer private dashboards fill the first page.
+        # The repository currently enforces a maximum page size of 500.
+        # Stop at that boundary rather than issuing an invalid larger query.
+        fetch_limit = min(500, max(200, limit))
+        while True:
+            items = self._repository.list_for_tenant(
+                session.tenant_id, limit=fetch_limit
+            )
+            accessible = tuple(
+                item
+                for item in items
+                if self._can_view(item.dashboard, session)
+                and (
+                    item.dashboard.status == "active"
+                    or item.dashboard.owner_user_id == session.user_id
+                    or self._is_admin(session)
+                )
+            )
+            if (
+                len(accessible) >= limit
+                or len(items) < fetch_limit
+                or fetch_limit >= 500
+            ):
+                return accessible[:limit]
+            fetch_limit = min(fetch_limit * 2, 500)
 
     def list_dashboard_catalog(
         self,
@@ -232,10 +256,23 @@ class EnterpriseDashboardApplicationService:
         preferences = self._repository.list_display_preferences(
             session.tenant_id, session.user_id
         )
-        displayed_ids = [
-            item_id for item_id in visible_ids
-            if preferences.get(item_id, (True, visible_ids.index(item_id)))[0]
-        ]
+        default_orders = {
+            item_id: index for index, item_id in enumerate(visible_ids)
+        }
+        displayed_ids = sorted(
+            (
+                item_id
+                for item_id in visible_ids
+                if preferences.get(item_id, (True, default_orders[item_id]))[0]
+            ),
+            key=lambda item_id: (
+                preferences.get(
+                    item_id, (True, default_orders[item_id])
+                )[1],
+                default_orders[item_id],
+                item_id,
+            ),
+        )
         displayed_ids = [item_id for item_id in displayed_ids if item_id != dashboard_id]
         if displayed:
             insert_at = len(displayed_ids) if position is None else position
@@ -366,6 +403,7 @@ class EnterpriseDashboardApplicationService:
                 payload["portlets"],
                 current.dashboard.context,
                 current.dashboard.context_portfolio_id,
+                self._portlet_limit(session.tenant_id),
             )
         if "filters" in payload:
             changes["filters"] = self._filters(payload["filters"])
@@ -400,6 +438,8 @@ class EnterpriseDashboardApplicationService:
         source = self._get_in_tenant(session, dashboard_id)
         if not self._can_view(source.dashboard, session):
             raise EnterpriseDashboardNotFound("ENTERPRISE_DASHBOARD_NOT_FOUND")
+        if len(source.dashboard.portlets) > self._portlet_limit(session.tenant_id):
+            raise EnterpriseDashboardError("ENTERPRISE_DASHBOARD_PORTLET_LIMIT_EXCEEDED")
         new_title = title.strip() if isinstance(title, str) and title.strip() else f"{source.dashboard.title} (copy)"
         if len(new_title) > 200:
             raise EnterpriseDashboardError("ENTERPRISE_DASHBOARD_TITLE_TOO_LONG")
@@ -1012,12 +1052,41 @@ class EnterpriseDashboardApplicationService:
             session_id, session, tuple(item.project_id for item in snapshot.projects)
         )
 
-    @staticmethod
+    def get_dashboard_portlet_limit(self, session_id: str) -> int:
+        session = self._session(session_id)
+        self._require_enterprise(session, write=False)
+        return self._portlet_limit(session.tenant_id)
+
+    def set_dashboard_portlet_limit(self, session_id: str, max_dashboard_portlets: int) -> int:
+        session = self._session(session_id)
+        self._require_enterprise(session, write=True)
+        if "enterprise_admin" not in frozenset(getattr(session, "roles", ())):
+            raise EnterpriseDashboardAuthorizationError("ENTERPRISE_ADMIN_REQUIRED")
+        if (
+            isinstance(max_dashboard_portlets, bool)
+            or not isinstance(max_dashboard_portlets, int)
+            or not 1 <= max_dashboard_portlets <= MAX_DASHBOARD_PORTLETS
+        ):
+            raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_PORTLET_LIMIT")
+        return self._repository.set_dashboard_portlet_limit(
+            session.tenant_id,
+            max_dashboard_portlets,
+            actor_id=session.user_id,
+            occurred_at=self._now(),
+        )
+
+    def _portlet_limit(self, tenant_id: str) -> int:
+        configured = self._repository.get_dashboard_portlet_limit(tenant_id)
+        return DEFAULT_MAX_DASHBOARD_PORTLETS if configured is None else configured
+
     def _portlets(
-        value: object, context: str, context_portfolio_id: str | None
+        self, value: object, context: str, context_portfolio_id: str | None,
+        max_portlets: int,
     ) -> tuple[DashboardPortlet, ...]:
         if not isinstance(value, (tuple, list)):
             raise EnterpriseDashboardError("ENTERPRISE_DASHBOARD_PORTLETS_REQUIRED")
+        if len(value) > max_portlets:
+            raise EnterpriseDashboardError("ENTERPRISE_DASHBOARD_PORTLET_LIMIT_EXCEEDED")
         return tuple(
             DashboardPortlet.from_dict(
                 item, context=context, context_portfolio_id=context_portfolio_id

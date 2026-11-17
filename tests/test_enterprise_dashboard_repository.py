@@ -131,11 +131,34 @@ def test_initialize_creates_tenant_scoped_tables_and_append_only_audit_trigger()
     assert "CREATE TABLE IF NOT EXISTS enterprise_dashboard_idempotency" in sql
     assert "CREATE TABLE IF NOT EXISTS enterprise_dashboard_audit" in sql
     assert "CREATE TABLE IF NOT EXISTS enterprise_dashboard_display_preferences" in sql
+    assert "CREATE TABLE IF NOT EXISTS enterprise_dashboard_tenant_policies" in sql
+    assert "CHECK (max_dashboard_portlets BETWEEN 1 AND 50)" in sql
     assert "ADD COLUMN IF NOT EXISTS filter_override_json JSONB" in sql
     assert "PRIMARY KEY (tenant_id, user_id, dashboard_id)" in sql
     assert "ON DELETE RESTRICT" in sql
     assert "ENTERPRISE_DASHBOARD_AUDIT_APPEND_ONLY" in sql
     assert "BEFORE UPDATE OR DELETE ON enterprise_dashboard_audit" in sql
+
+
+def test_tenant_portlet_limit_reads_and_upserts_policy():
+    connection = IdentityLookupConnection((17,))
+    repository = PostgresEnterpriseDashboardRepository(connection)
+    assert repository.get_dashboard_portlet_limit("tenant-a") == 17
+    assert repository.set_dashboard_portlet_limit(
+        "tenant-a", 17, actor_id="admin", occurred_at=NOW
+    ) == 17
+    sql, params = connection.statements[-1]
+    assert "ON CONFLICT (tenant_id) DO UPDATE" in sql
+    assert "RETURNING max_dashboard_portlets" in sql
+    assert params == ("tenant-a", 17, "admin", NOW)
+
+
+def test_tenant_portlet_limit_rejects_out_of_range_values():
+    repository = PostgresEnterpriseDashboardRepository(RecordingConnection())
+    with pytest.raises(EnterpriseDashboardError, match="PORTLET_LIMIT"):
+        repository.set_dashboard_portlet_limit(
+            "tenant-a", 51, actor_id="admin", occurred_at=NOW
+        )
 
 
 def test_repository_rejects_invalid_audit_timestamp_and_event_type():

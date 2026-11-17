@@ -106,7 +106,7 @@
     "portlets": {
       "type": "array",
       "minItems": 0,
-      "maxItems": 12,
+      "maxItems": 50,
       "items": {
         "oneOf": [
           {
@@ -1525,7 +1525,7 @@
         "portlets": {
           "type": "array",
           "minItems": 0,
-          "maxItems": 12,
+          "maxItems": 50,
           "items": {
             "$ref": "#/$defs/portlet_read_response"
           }
