@@ -743,8 +743,6 @@ class EnterpriseDashboardApplicationService:
                 snapshot_data["projects"] = [item.as_dict() for item in display_rows]
                 summary = {
                     "total_projects": len(project_rows),
-                    "displayed_projects": len(display_rows),
-                    "truncated": truncated,
                     "included_projects": 0,
                     "on_hold_projects": 0,
                     "excluded_projects": 0,
