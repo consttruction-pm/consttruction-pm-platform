@@ -32,6 +32,10 @@ class Permission(str, Enum):
     P6_MONITOR_THRESHOLDS = "p6.thresholds.monitor"
     P6_COSTS_VIEW = "p6.costs.view"
     P6_RESOURCE_REQUEST_ADMIN = "p6.resource.request.admin"
+    P6_RESOURCE_PLANNING_ASSIGNMENT_ADMIN = "p6.resource.planning.assignment.admin"
+    P6_ROLE_PLANNING_ASSIGNMENT_ADMIN = "p6.role.planning.assignment.admin"
+    P6_RESOURCE_PLANNING_COMMITTED_FLAG_EDIT = "p6.resource.planning.committed_flag.edit"
+    P6_EDIT_FUTURE_PERIODS = "p6.period.future.edit"
     P6_EDIT_PERIOD_PERFORMANCE = "p6.period.performance.edit"
     P6_PROJECT_CHECKOUT_ADMIN = "p6.project.checkout.admin"
     P6_LEVEL_RESOURCES = "p6.resources.level"
@@ -116,7 +120,12 @@ class RoleBasedAuthorizationPolicy:
             Permission.P6_PROJECT_DOCUMENT_ADMIN, Permission.P6_ASSIGN_PROJECT_BASELINE,
             Permission.P6_APPLY_ACTUALS, Permission.P6_STORE_PERIOD_PERFORMANCE,
             Permission.P6_MONITOR_THRESHOLDS, Permission.P6_COSTS_VIEW,
-            Permission.P6_RESOURCE_REQUEST_ADMIN, Permission.P6_EDIT_PERIOD_PERFORMANCE,
+            Permission.P6_RESOURCE_REQUEST_ADMIN,
+            Permission.P6_RESOURCE_PLANNING_ASSIGNMENT_ADMIN,
+            Permission.P6_ROLE_PLANNING_ASSIGNMENT_ADMIN,
+            Permission.P6_RESOURCE_PLANNING_COMMITTED_FLAG_EDIT,
+            Permission.P6_EDIT_FUTURE_PERIODS,
+            Permission.P6_EDIT_PERIOD_PERFORMANCE,
             Permission.P6_PROJECT_CHECKOUT_ADMIN,
             Permission.P6_LEVEL_RESOURCES, Permission.P6_BASELINE_UPDATE,
             Permission.P6_GLOBAL_CHANGE, Permission.P6_EPS_ADMIN,
