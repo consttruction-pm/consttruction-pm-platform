@@ -322,7 +322,7 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
       timesheet: "Timesheet", visualizer: "Visual Analysis", web_services: "Integration Services",
     };
     const moduleOptions = Object.entries(moduleLabels).map(([value, label]) =>
-      `<option value="${value}" ${globalUserAccess?.module_access.includes(value) ? "selected" : ""}>${escapeHtml(label)}</option>`
+      `<label class="cubi-oa-module-option"><input type="checkbox" name="module_access" value="${value}" ${globalUserAccess?.module_access.includes(value) ? "checked" : ""}> <span>${escapeHtml(label)}</span></label>`
     ).join("");
     const selectedResourceAccess = globalUserAccess?.resource_access_mode ?? "none";
     const projectUserOptions = accounts.filter((account) => account.active).map((account) =>
@@ -359,6 +359,9 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
         .cubi-oa-field input,.cubi-oa-field select,.cubi-oa-field textarea{width:100%;min-height:38px;border:1px solid #ccd7e3;border-radius:7px;padding:8px;background:#fff;color:#172b43}
         .cubi-oa-form{border-top:1px solid #e6ebf1;margin-top:16px;padding-top:14px}.cubi-oa-tablewrap{overflow:auto}
         .cubi-oa-actions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+        .cubi-oa-module-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;padding:10px;border:1px solid #e1e8ef;border-radius:8px}
+        .cubi-oa-module-option{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;background:#f8fafc;font-weight:500!important}
+        .cubi-oa-module-option input{width:16px;min-height:16px;margin:0}
         .cubi-oa table{width:100%;border-collapse:collapse;min-width:650px}.cubi-oa th,.cubi-oa td{text-align:left;padding:10px;border-bottom:1px solid #e9eef3;vertical-align:middle}
         .cubi-oa th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#6b7b8f}.cubi-oa-status{font-size:11px;border-radius:20px;padding:3px 8px;background:#e7f5ed;color:#23643f}
         .cubi-oa-removed{background:#f1f2f4;color:#6a7481}.cubi-oa-suspended{background:#fff3d8;color:#805a11}
@@ -446,8 +449,8 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
               <h3>${t.globalAccessTitle}</h3>
               <div class="cubi-oa-field"><label for="cubi-oa-global-access-user">${t.selectGlobalUser}</label>
                 <select id="cubi-oa-global-access-user" name="user_id">${globalAssignmentOptions}</select></div>
-              <div class="cubi-oa-field"><label for="cubi-oa-module-access">${t.moduleAccess}</label>
-                <select id="cubi-oa-module-access" name="module_access" multiple size="7">${moduleOptions}</select></div>
+              <fieldset class="cubi-oa-field"><legend>${t.moduleAccess}</legend>
+                <div class="cubi-oa-module-grid">${moduleOptions}</div></fieldset>
               <div class="cubi-oa-field"><label for="cubi-oa-resource-access">${t.resourceAccess}</label>
                 <select id="cubi-oa-resource-access" name="resource_access_mode">
                   <option value="none" ${selectedResourceAccess === "none" ? "selected" : ""}>${t.noResources}</option>
@@ -606,11 +609,21 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
       selectedGlobalAccessUserId = (event.currentTarget as HTMLSelectElement).value;
       void run(async () => { await loadGlobalUserAccess(); });
     });
+    container.querySelectorAll<HTMLInputElement>('input[name="module_access"]').forEach((input) => input.addEventListener("change", () => {
+      if (input.value === "contributor" && input.checked) {
+        container.querySelectorAll<HTMLInputElement>('input[name="module_access"]').forEach((other) => {
+          if (other !== input) other.checked = false;
+        });
+      } else if (input.checked) {
+        const contributor = container.querySelector<HTMLInputElement>('input[name="module_access"][value="contributor"]');
+        if (contributor) contributor.checked = false;
+      }
+    }));
     container.querySelector<HTMLFormElement>("#cubi-oa-global-access")?.addEventListener("submit", (event) => {
       event.preventDefault();
       if (!globalUserAccess || !selectedGlobalAccessUserId) return;
-      const moduleSelect = container.querySelector<HTMLSelectElement>("#cubi-oa-module-access");
-      const modules = moduleSelect ? Array.from(moduleSelect.selectedOptions).map((option) => option.value) : [];
+      const modules = Array.from(container.querySelectorAll<HTMLInputElement>('input[name="module_access"]:checked'))
+        .map((input) => input.value);
       const resourceMode = String(new FormData(event.currentTarget as HTMLFormElement).get("resource_access_mode") ?? "none");
       void run(async () => {
         await api(`/api/enterprise/users/${encodeURIComponent(selectedGlobalAccessUserId)}/global-access`, "PATCH", {
