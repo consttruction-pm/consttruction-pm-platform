@@ -107,7 +107,7 @@ def test_postgres_dashboard_round_trip_revision_sharing_tenant_isolation_and_app
 
         with pytest.raises(EnterpriseDashboardRevisionConflict):
             repository.update(
-                persisted.dashboard,
+                replace(persisted.dashboard, title="Conflicting stale payload"),
                 expected_revision=1,
                 actor_id="integration-owner",
                 occurred_at=NOW + timedelta(minutes=2),
