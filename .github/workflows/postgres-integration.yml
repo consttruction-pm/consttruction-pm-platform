@@ -102,7 +102,8 @@ on:
       - "src/construction_pm/portfolio_control_persistence.py"
       - "tests/test_portfolio_control_persistence.py"
       - "tests/integration/test_portfolio_control_persistence_postgres_live.py"
-      - "tests/integration/test_enterprise_organization_access_postgres_live.py"\n      - "tests/integration/test_portfolio_control_persistence_postgres_live.py"
+      - "tests/integration/test_enterprise_organization_access_postgres_live.py"
+      - "tests/integration/test_portfolio_control_persistence_postgres_live.py"
 
   pull_request:
     paths:
