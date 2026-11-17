@@ -11,6 +11,8 @@ from construction_pm.p6_global_security import (
     global_profile_has_global_read_only,
     global_profile_has_project_access_bypass,
     user_has_all_resource_access,
+    P6_GLOBAL_PRIVILEGE_DEFINITIONS,
+    normalize_global_privileges,
 )
 
 
@@ -28,7 +30,7 @@ def profile(name, *, built_in=True, privileges=()):
 
 def test_only_application_generated_admin_superuser_bypasses_project_profile_gate():
     admin = profile(ADMIN_SUPERUSER)
-    ordinary = profile("Portfolio Admin", built_in=False, privileges=("portfolio.view",))
+    ordinary = profile("Portfolio Admin", built_in=False, privileges=("add_edit_delete_users",))
     no_global = profile(NO_GLOBAL_PRIVILEGES)
 
     assert global_profile_has_project_access_bypass(admin)
@@ -97,9 +99,9 @@ def test_user_global_security_requires_explicit_module_access_and_aware_timestam
 
 def test_builtin_profile_privileges_are_implicit_or_empty():
     with pytest.raises(GlobalSecurityError, match="ADMIN_SUPERUSER_PRIVILEGES_ARE_IMPLICIT"):
-        profile(ADMIN_SUPERUSER, privileges=("global.user.edit",)).validate()
+        profile(ADMIN_SUPERUSER, privileges=("add_edit_delete_users",)).validate()
     with pytest.raises(GlobalSecurityError, match="NO_GLOBAL_PRIVILEGES_MUST_BE_EMPTY"):
-        profile(NO_GLOBAL_PRIVILEGES, privileges=("global.user.view",)).validate()
+        profile(NO_GLOBAL_PRIVILEGES, privileges=("add_edit_delete_users",)).validate()
     with pytest.raises(GlobalSecurityError, match="UNKNOWN_BUILTIN_GLOBAL_SECURITY_PROFILE"):
         profile("Custom", privileges=()).validate()
 
@@ -116,7 +118,7 @@ def test_v26_module_access_catalogue_and_contributor_exclusivity():
         assignment(("p6-web",)).validate()
     with pytest.raises(GlobalSecurityError, match="CONTRIBUTOR_MODULE_ACCESS_EXCLUSIVE"):
         assignment(("contributor", "projects")).validate()
-    assignment(("projects", "resources", "enterprise_reporting")).validate()
+    assignment(("projects", "resources", "enterprise_reports")).validate()
 
 
 def test_selected_resource_access_is_limited_to_five_roots():
@@ -146,3 +148,31 @@ def test_admin_superuser_always_has_all_resource_access():
     )
     assert user_has_all_resource_access(profile(ADMIN_SUPERUSER), assignment)
     assert not user_has_all_resource_access(profile(NO_GLOBAL_PRIVILEGES), assignment)
+
+
+def test_v26_global_privilege_catalogue_matches_help_categories_and_source():
+    assert len(P6_GLOBAL_PRIVILEGE_DEFINITIONS) == 72
+    assert {row[2] for row in P6_GLOBAL_PRIVILEGE_DEFINITIONS} == {
+        "Administration", "Codes", "Global Data", "Resources",
+        "Templates", "Tools", "Views and Reports",
+    }
+
+@pytest.mark.parametrize(
+    ("selected", "expected"),
+    [
+        (("global_activity_codes_add",), {"global_activity_codes_add", "global_activity_codes_edit"}),
+        (("global_activity_codes_delete",), {"global_activity_codes_delete", "global_activity_codes_add", "global_activity_codes_edit"}),
+        (("secure_codes_add_delete",), {"secure_codes_add_delete", "secure_codes_edit", "secure_codes_assign", "secure_codes_view"}),
+        (("resources_delete",), {"resources_delete", "resources_add", "resources_edit"}),
+    ],
+)
+def test_v26_global_privilege_dependencies_are_auto_selected(selected, expected):
+    assert set(normalize_global_privileges(selected)) == expected
+
+def test_custom_profile_rejects_unknown_global_privilege_and_missing_dependencies():
+    with pytest.raises(GlobalSecurityError, match="UNKNOWN_GLOBAL_SECURITY_PRIVILEGE"):
+        profile("Custom", built_in=False, privileges=("made_up_privilege",)).validate()
+    with pytest.raises(GlobalSecurityError, match="GLOBAL_SECURITY_PRIVILEGE_DEPENDENCY_MISSING"):
+        profile("Custom", built_in=False, privileges=("global_activity_codes_add",)).validate()
+    normalized = normalize_global_privileges(("global_activity_codes_add",))
+    profile("Custom", built_in=False, privileges=normalized).validate()
