@@ -23,7 +23,8 @@
     "revision",
     "created_at",
     "updated_at",
-    "restrict_filter_override"
+    "restrict_filter_override",
+    "max_portlet_rows"
   ],
   "properties": {
     "contract_version": {
@@ -512,6 +513,13 @@
     "restrict_filter_override": {
       "type": "boolean",
       "default": false
+    },
+    "max_portlet_rows": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000,
+      "default": 100,
+      "description": "Maximum number of rows returned for each dashboard portlet; CUBI default is 100."
     }
   },
   "allOf": [
@@ -758,7 +766,8 @@
         "drill_through_refs",
         "saved_filters",
         "filtered_out",
-        "applied_filters"
+        "applied_filters",
+        "row_limit"
       ],
       "properties": {
         "instance_id": {
@@ -1413,6 +1422,11 @@
               }
             ]
           }
+        },
+        "row_limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000
         }
       }
     },
