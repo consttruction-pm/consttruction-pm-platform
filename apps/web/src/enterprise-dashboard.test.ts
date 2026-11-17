@@ -6,7 +6,7 @@ import {
   ENTERPRISE_DASHBOARD_FILTER_CATALOG,
   effectiveDashboardPortletLimit,
   mapEnterprisePortletState,
-  moveDashboardPortletHorizontally,
+  moveDashboardPortletHorizontally,\n  moveDashboardPortletToPosition,
   moveDashboardPortletVertically,
   orderDashboardCatalog,
   reorderDashboardPortlets,
@@ -169,4 +169,14 @@ test("Filter By catalog mirrors every backend-supported key and operator without
   ]);
   assert.equal(dashboardFilterDefinition("project_code"), undefined);
   assert.equal(dashboardFilterDefinition("arbitrary_sql"), undefined);
+});
+
+test("dashboard layout drag-and-drop swaps two-dimensional positions only when the result is valid", () => {
+  const items = [portlet("left-top", 0, 0, 6), portlet("right-top", 6, 0, 6), portlet("left-bottom", 0, 4, 6)];
+  const moved = moveDashboardPortletToPosition(items, 0, 1);
+  assert.deepEqual(moved.map((item) => [item.layout.x, item.layout.y]), [[6, 0], [0, 0], [0, 4]]);
+  assert.equal(validateDashboardLayout(moved), true);
+  const unchanged = moveDashboardPortletToPosition(items, 0, 2);
+  assert.deepEqual(unchanged.map((item) => [item.layout.x, item.layout.y]), [[0, 0], [6, 0], [0, 4]]);
+  assert.deepEqual(moveDashboardPortletToPosition(items, -1, 1).map((item) => item.layout), items.map((item) => item.layout));
 });
