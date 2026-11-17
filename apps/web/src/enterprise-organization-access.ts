@@ -325,6 +325,18 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
       `<option value="${value}" ${globalUserAccess?.module_access.includes(value) ? "selected" : ""}>${escapeHtml(label)}</option>`
     ).join("");
     const selectedResourceAccess = globalUserAccess?.resource_access_mode ?? "none";
+    const projectUserOptions = accounts.filter((account) => account.active).map((account) =>
+      `<option value="${escapeHtml(account.user_id)}" ${account.user_id === selectedProjectUserId ? "selected" : ""}>${escapeHtml(account.display_name || account.email)} · ${escapeHtml(account.email)}</option>`
+    ).join("");
+    const obsOptions = obsNodes.map((node) => {
+      const prefix = node.parent_obs_id ? "↳ " : "";
+      const label = [node.code, node.name].filter(Boolean).join(" · ") || node.obs_id;
+      return `<option value="${escapeHtml(node.obs_id)}" ${node.obs_id === selectedProjectObsId ? "selected" : ""}>${escapeHtml(prefix + label)}</option>`;
+    }).join("");
+    const selectedProjectAssignment = userProjectAssignments.find((item) => item.obs_id === selectedProjectObsId) ?? null;
+    const currentProjectAssignmentRows = userProjectAssignments.map((item) => `<tr>
+      <td>${escapeHtml(item.obs_id)}</td><td>${escapeHtml(item.profile_name)}</td><td>${item.revision}</td>
+    </tr>`).join("");
     const accountRows = accounts.map((account) => `<tr>
       <td><strong>${escapeHtml(account.display_name || account.email)}</strong><small>${escapeHtml(account.email)} · ${escapeHtml(account.user_id)}</small></td>
       <td><span class="cubi-oa-status ${account.active ? "cubi-oa-active" : "cubi-oa-removed"}">${account.active ? t.active : t.removed}</span></td>
