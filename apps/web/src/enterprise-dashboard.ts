@@ -589,6 +589,10 @@ export async function mountEnterpriseDashboard(
       } else if (currentSection === 1) {
         draftPortlets = readEditorPortlets(dialog, draftPortlets, layoutOrder);
         layoutOrder = draftPortlets.map((_, index) => index);
+      } else if (currentSection === 2) {
+        draftPortlets = layoutOrder.map((index) => draftPortlets[index]).filter((item): item is EnterpriseDashboardPortlet => Boolean(item));
+        draftPortlets.forEach((item, index) => { item.layout = { ...item.layout, y: index * 4 }; });
+        layoutOrder = draftPortlets.map((_, index) => index);
       }
     }
     function activateSection(index: number): void {
