@@ -12,4 +12,6 @@ def test_portfolio_control_snapshot_contract_is_versioned_and_closed() -> None:
     assert payload["additionalProperties"] is False
     assert payload["properties"]["contract_version"]["const"] == "portfolio-control-snapshot.v1"
     assert payload["properties"]["summary"]["additionalProperties"] is False
+    assert payload["properties"]["portfolio_revision"]["minimum"] == 1
+    assert "portfolio_revision" in payload["required"]
     assert payload["properties"]["projects"]["minItems"] == 1
