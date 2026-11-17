@@ -2035,6 +2035,7 @@ def open_preview_runtime(
             repositories.resource_period_service,
             repositories.resource_spread_service,
             policy,
+            resource_repository=repositories.resources,
         ),
         resource_write_api=P6ResourceWriteAPI(
             repositories.resource_period_service,
