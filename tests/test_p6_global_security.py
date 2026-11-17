@@ -11,6 +11,7 @@ from construction_pm.p6_global_security import (
     global_profile_has_global_read_only,
     global_profile_has_project_access_bypass,
     user_has_all_resource_access,
+    user_can_access_resource,
     P6_GLOBAL_PRIVILEGE_DEFINITIONS,
     normalize_global_privileges,
 )
@@ -378,3 +379,69 @@ def test_no_global_privileges_fails_closed_without_obs_assignment_or_projects_mo
     assert resolver.calls == []
     assert not no_resolver.is_allowed(_authorization_context(), Permission.PROJECT_READ)
 
+
+def _resource_assignment(mode, roots=(), *, tenant="tenant-a", user="user-1"):
+    return UserGlobalSecurity(
+        tenant_id=tenant,
+        user_id=user,
+        profile_id="planner",
+        module_access=("projects",),
+        resource_access_mode=mode,
+        resource_root_ids=tuple(roots),
+        revision=1,
+        updated_by="admin",
+        updated_at=datetime.now(timezone.utc),
+    )
+
+
+def test_v26_selected_resource_access_includes_descendants_but_not_siblings():
+    planner = profile("Planner", built_in=False)
+    assignment = _resource_assignment("selected", ("resource-root",))
+
+    assert user_can_access_resource(
+        planner, assignment, tenant_id="tenant-a", user_id="user-1",
+        resource_id="resource-child",
+        ancestor_resource_ids=("resource-child", "resource-root", "enterprise-root"),
+    )
+    assert not user_can_access_resource(
+        planner, assignment, tenant_id="tenant-a", user_id="user-1",
+        resource_id="resource-sibling",
+        ancestor_resource_ids=("resource-sibling", "other-root", "enterprise-root"),
+    )
+
+
+def test_v26_resource_access_none_all_and_admin_superuser_semantics():
+    planner = profile("Planner", built_in=False)
+    admin = profile(ADMIN_SUPERUSER)
+    ancestry = ("resource-1", "resource-root")
+
+    assert not user_can_access_resource(
+        planner, _resource_assignment("none"), tenant_id="tenant-a",
+        user_id="user-1", resource_id="resource-1",
+        ancestor_resource_ids=ancestry,
+    )
+    assert user_can_access_resource(
+        planner, _resource_assignment("all"), tenant_id="tenant-a",
+        user_id="user-1", resource_id="resource-1",
+        ancestor_resource_ids=ancestry,
+    )
+    assert user_can_access_resource(
+        admin, _resource_assignment("none"), tenant_id="tenant-a",
+        user_id="user-1", resource_id="resource-1",
+        ancestor_resource_ids=ancestry,
+    )
+
+
+def test_v26_resource_access_fails_closed_for_tenant_identity_and_ancestry_mismatch():
+    planner = profile("Planner", built_in=False)
+    assignment = _resource_assignment("selected", ("resource-root",))
+    assert not user_can_access_resource(
+        planner, assignment, tenant_id="tenant-b", user_id="user-1",
+        resource_id="resource-child",
+        ancestor_resource_ids=("resource-child", "resource-root"),
+    )
+    assert not user_can_access_resource(
+        planner, assignment, tenant_id="tenant-a", user_id="user-1",
+        resource_id="resource-child",
+        ancestor_resource_ids=("resource-root",),
+    )
