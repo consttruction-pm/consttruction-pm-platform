@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   displaySummaryMetric,
+  effectiveDashboardPortletLimit,
   mapEnterprisePortletState,
   orderDashboardCatalog,
   reorderDashboardPortlets,
@@ -71,7 +72,21 @@ test("only the two registered source-backed portlet types are selectable", () =>
   assert.deepEqual(supportedDashboardPortlets([supported, unknown]).map((item) => item.instance_id), ["supported"]);
 });
 
-test("layout validation enforces bounds, 12-portlet cap and no overlap", () => {
+test("layout validation follows the effective tenant portlet limit with 12 as legacy fallback", () => {
+  const eight = Array.from({ length: 8 }, (_, i) => portlet(String(i), 0, i * 4, 12));
+  const twelve = Array.from({ length: 12 }, (_, i) => portlet(String(i), 0, i * 4, 12));
+  const twenty = Array.from({ length: 20 }, (_, i) => portlet(String(i), 0, i * 4, 12));
+  assert.equal(effectiveDashboardPortletLimit(undefined), 12);
+  assert.equal(effectiveDashboardPortletLimit({ max_portlets: 8 }), 8);
+  assert.equal(effectiveDashboardPortletLimit({ max_portlets: 12 }), 12);
+  assert.equal(effectiveDashboardPortletLimit({ max_portlets: 20 }), 20);
+  assert.equal(effectiveDashboardPortletLimit({ max_portlets: 0 }), 12);
+  assert.equal(validateDashboardLayout(eight, 8), true);
+  assert.equal(validateDashboardLayout(twelve, 8), false);
+  assert.equal(validateDashboardLayout(twelve, 12), true);
+  assert.equal(validateDashboardLayout(twenty, 20), true);
+  assert.equal(validateDashboardLayout(twenty, 12), false);
+
   assert.equal(validateDashboardLayout([portlet("left", 0, 0, 6), portlet("right", 6, 0, 6)]), true);
   assert.equal(validateDashboardLayout([portlet("a", 0, 0, 12), portlet("b", 0, 2, 12)]), false);
   assert.equal(validateDashboardLayout([portlet("bad", 6, 0, 12)]), false);
