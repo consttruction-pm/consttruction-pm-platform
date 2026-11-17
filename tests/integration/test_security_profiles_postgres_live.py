@@ -417,6 +417,8 @@ def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded(
             app, "GET", "/api/enterprise/users", session_id="limited-user-admin-session",
         )
         assert status == 200
+        assert limited_users["current_user_id"] == limited_user_admin_id
+        assert limited_users["can_manage_other_users"] is False
         assert [item["user_id"] for item in limited_users["users"]] == [limited_user_admin_id]
         status, hidden_user_access = _http_request(
             app, "GET", f"/api/enterprise/users/{target_id}/global-access",
@@ -464,6 +466,8 @@ def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded(
             app, "GET", "/api/enterprise/users", session_id="user-admin-session",
         )
         assert status == 200
+        assert listed_users["current_user_id"] == user_admin_id
+        assert listed_users["can_manage_other_users"] is True
         assert {item["user_id"] for item in listed_users["users"]} >= {target_id, user_admin_id}
         status, obs_options = _http_request(
             app, "GET", "/api/enterprise/obs", session_id="user-admin-session",
