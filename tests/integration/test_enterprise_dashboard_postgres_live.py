@@ -379,3 +379,91 @@ def test_postgres_dashboard_display_preferences_are_actor_and_tenant_scoped():
         }
         assert repository.get(tenant, dashboard_id).revision == created.revision
         assert repository.get(other_tenant, other_dashboard_id).revision == other_created.revision
+
+
+def test_postgres_dashboard_actor_preferences_persist_show_hide_order_filter_and_reset():
+    psycopg = pytest.importorskip("psycopg")
+    tenant = new_scope()
+    first_id = f"dashboard-{uuid.uuid4().hex}"
+    second_id = f"dashboard-{uuid.uuid4().hex}"
+
+    with psycopg.connect(DSN) as connection:
+        repository = PostgresEnterpriseDashboardRepository(connection)
+        repository.initialize()
+        repository.create(
+            make_dashboard(tenant, first_id, title="First"),
+            idempotency_key="preference-create-first",
+            actor_id="integration-owner",
+            occurred_at=NOW + timedelta(seconds=1),
+        )
+        repository.create(
+            make_dashboard(tenant, second_id, title="Second"),
+            idempotency_key="preference-create-second",
+            actor_id="integration-owner",
+            occurred_at=NOW + timedelta(seconds=2),
+        )
+        repository.set_dashboard_display_preference(
+            tenant, "integration-viewer", first_id, True
+        )
+        repository.set_dashboard_display_preference(
+            tenant, "integration-viewer", second_id, True
+        )
+        repository.set_dashboard_filter_override(
+            tenant,
+            "integration-viewer",
+            first_id,
+            [{"key": "project_status", "operator": "eq", "value": "active"}],
+        )
+        preferences = repository.list_user_preferences(tenant, "integration-viewer")
+        assert preferences[first_id]["displayed"] is True
+        assert preferences[first_id]["filter_override"] == [
+            {"key": "project_status", "operator": "eq", "value": "active"}
+        ]
+
+        repository.reorder_dashboard_tabs(
+            tenant, "integration-viewer", (second_id, first_id)
+        )
+        reordered = repository.list_user_preferences(tenant, "integration-viewer")
+        assert reordered[second_id]["display_order"] < reordered[first_id]["display_order"]
+
+        repository.set_dashboard_display_preference(
+            tenant, "integration-viewer", first_id, False
+        )
+        hidden = repository.list_user_preferences(tenant, "integration-viewer")
+        assert hidden[first_id]["displayed"] is False
+        assert repository.list_user_preferences(tenant + "-other", "integration-viewer") == {}
+
+        repository.reset_dashboard_preferences(tenant, "integration-viewer", first_id)
+        reset = repository.list_user_preferences(tenant, "integration-viewer")
+        assert first_id not in reset
+        assert second_id in reset
+        connection.commit()
+
+
+def test_postgres_dashboard_empty_definition_and_row_limit_round_trip():
+    psycopg = pytest.importorskip("psycopg")
+    tenant = new_scope()
+    dashboard_id = f"dashboard-{uuid.uuid4().hex}"
+    empty = replace(
+        make_dashboard(tenant, dashboard_id),
+        portlets=(),
+        max_rows_per_portlet=25,
+    )
+    with psycopg.connect(DSN) as connection:
+        repository = PostgresEnterpriseDashboardRepository(connection)
+        repository.initialize()
+        stored = repository.create(
+            empty,
+            idempotency_key="empty-dashboard",
+            actor_id="integration-owner",
+            occurred_at=NOW + timedelta(seconds=1),
+        )
+        assert stored.dashboard.portlets == ()
+        assert stored.dashboard.max_rows_per_portlet == 25
+        connection.commit()
+    with psycopg.connect(DSN) as connection:
+        persisted = PostgresEnterpriseDashboardRepository(connection).get(
+            tenant, dashboard_id
+        )
+        assert persisted.dashboard == stored.dashboard
+
