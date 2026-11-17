@@ -474,6 +474,8 @@ class ProjectLifecycleHttpRoutes:
 
             if route == "/api/admin/p6/obs" and self._p6_project_security_api is not None and method == "GET":
                 return self._json(200, self._p6_project_security_api.list_obs_nodes(auth_context=auth))
+            if route == f"{profile_root}/catalog" and self._p6_project_security_api is not None and method == "GET":
+                return self._json(200, self._p6_project_security_api.catalog(auth_context=auth))
             if route == profile_root and self._p6_project_security_api is not None:
                 if method == "GET":
                     return self._json(200, self._p6_project_security_api.list_profiles(auth_context=auth))
