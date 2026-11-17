@@ -244,3 +244,32 @@ Do not calculate a single combined “employer loss” or “contractor claim am
 - Crosswalk corrections specifically clarify EPPM's native baseline/variance fields, two-baseline comparison limit, mutable baseline update lifecycle, exact critical-path/float settings, Check Schedule diagnostics and EVM semantics.
 - Product-family comparison was tightened after reviewing Oracle's feature matrix: EPPM Web's Activities-level Schedule Comparison is not the same thing as the combined Claim Digger / Schedule Comparison capability and Project Differences Report in the client/Professional columns, nor Cloud's point-in-time Schedule Comparison page. This avoids a false-negative parity claim.
 - Cloud Schedule Comparison's read-only Compare Mode is distinguished from its separate Merge Mode; Cloud baseline categories and count are not imported into EPPM semantics.
+
+
+## 13. Repository implementation boundary verified against current main
+
+The following existing components were inspected at main SHA `20e8b6509704c8225bba81e722a835b5b1bb1ea0`:
+
+| Existing component | Verified responsibility | Delay Analysis implication |
+|---|---|---|
+| `src/construction_pm/schedule_input_snapshot_repository.py` | Persists canonical authoritative schedule-input payload, immutable snapshot ID/hash, calculation identity and revision-bound scope. | Reuse its immutable snapshot identity/provenance. Do not create a competing schedule snapshot format or trust a client-supplied hash. |
+| `src/construction_pm/p6_baseline_repository.py` and `docs/architecture/P6_BASELINE_PERSISTENCE_V1.md` | Persist baseline metadata and source revision identity. The architecture explicitly excludes baseline activity data, date/cost comparison and schedule calculations. | Baseline metadata alone is not a forensic baseline snapshot. A separate approved baseline-content capture/adapter is a prerequisite; otherwise the analysis must block or record a missing-baseline limitation. |
+| `src/construction_pm/scheduling/p6_activity_scheduler_outputs.py` | Projects early/late dates and remaining float exclusively from the authoritative Shared Core `ScheduleResult`. | Consume scheduler outputs; do not independently calculate float, criticality, calendars or CPM dates. |
+| `docs/architecture/TIME_AWARE_BACKWARD_PASS_AND_FLOAT.md` | Records time-aware backward-pass/float semantics and explicitly notes remaining parity/runtime gates. | Analysis methods must record the exact scheduler/calculation version and supported time semantics; do not imply every P6 scheduling behavior is already runtime-certified. |
+| `docs/architecture/ACTIVITY_AND_LAG_CALENDAR_RESOLUTION.md` | Defines versioned project/activity/relationship-lag calendar resolution and inheritance. | Freeze resolved calendar identities and versions per analysis input. |
+
+**Verified gap:** the inspected main tree contains no dedicated `src/construction_pm/delay_analysis/` domain package or `tests/delay_analysis/` suite. The existing baseline repository is metadata persistence, not an immutable baseline-activity snapshot. Therefore a complete forensic analysis engine cannot honestly be claimed from the existing baseline and variance fields alone.
+
+## 14. Implementation sequencing and release gates
+
+The implementation follow-on is tracked separately in [#2044 — governed Technical Delay Analysis vertical slice](https://github.com/consttruction-pm/consttruction-pm-platform/issues/2044). Its sequencing is deliberate:
+
+1. Freeze schedule and baseline content provenance using existing authoritative snapshot identity; explicitly close the baseline-content gap before enabling a baseline-dependent method.
+2. Add immutable analysis request/revision/result persistence and authorization without modifying Shared Core scheduler internals.
+3. Deliver one method-specific, read-only vertical slice (TIA or a justified window method) only after its event/fragnet semantics and source evidence are validated.
+4. Add reviewer sign-off, immutable publication and a narrow result reference for ENT-13.
+5. Add further method families only with their own method contracts and acceptance evidence.
+
+The follow-on is blocked while Qoder owns the active P0 scheduling-core optimization and until the shared-path coordinator confirms a clean handoff. It is intentionally unassigned; it must not be redirected into Hassan's ENT-13 or #2028 Dashboard/Portlet paths. No public route, menu, duplicate scheduler, or legal/financial determination is authorized by this research artifact.
+
+**Completion rule:** documentation and a technical contract are not implementation credit. The feature remains not implemented until #2044's exact-head unit/integration/security tests, PostgreSQL coverage where applicable, deterministic replay evidence and any required browser/runtime checks pass. A Vercel rate-limit failure is infrastructure-blocked, not a passing check.
