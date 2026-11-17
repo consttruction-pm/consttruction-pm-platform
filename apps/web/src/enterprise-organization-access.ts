@@ -204,6 +204,8 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
   let accounts: Account[] = [];
   let canManage = false;
   let canAdminAccounts = false;
+  let canManageOtherAccounts = false;
+  let currentUserId = "";
   let profiles: SecurityProfile[] = [];
   let profileAssignments: ProfileAssignment[] = [];
   let privilegeCatalogs: PrivilegeCatalogs = { global: [], project: [] };
@@ -302,7 +304,7 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
     const profileAssignmentRows = profileAssignments.map((assignment) => `<tr>
       <td><strong>${escapeHtml(assignment.display_name || assignment.email)}</strong><small>${escapeHtml(assignment.email)} · ${escapeHtml(assignment.user_id)}</small></td>
       <td>${escapeHtml(assignment.obs_id || "—")}</td><td>${assignment.revision}</td>
-      <td>${selectedProfile?.scope === "project" && canAdminAccounts ? `<button class="cubi-oa-button cubi-oa-danger" type="button" data-profile-unassign="${escapeHtml(assignment.user_id)}" data-obs="${escapeHtml(assignment.obs_id)}" data-revision="${assignment.revision}">${t.removeAssignment}</button>` : "—"}</td>
+      <td>${selectedProfile?.scope === "project" && canManageOtherAccounts && assignment.user_id !== currentUserId ? `<button class="cubi-oa-button cubi-oa-danger" type="button" data-profile-unassign="${escapeHtml(assignment.user_id)}" data-obs="${escapeHtml(assignment.obs_id)}" data-revision="${assignment.revision}">${t.removeAssignment}</button>` : "—"}</td>
     </tr>`).join("");
     const activeAccountOptions = accounts.filter((account) => account.active).map((account) =>
       `<option value="${escapeHtml(account.user_id)}">${escapeHtml(account.display_name || account.email)} · ${escapeHtml(account.email)}</option>`
@@ -353,7 +355,7 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
     const accountRows = accounts.map((account) => `<tr>
       <td><strong>${escapeHtml(account.display_name || account.email)}</strong><small>${escapeHtml(account.email)} · ${escapeHtml(account.user_id)}</small></td>
       <td><span class="cubi-oa-status ${account.active ? "cubi-oa-active" : "cubi-oa-removed"}">${account.active ? t.active : t.removed}</span></td>
-      <td><button class="cubi-oa-button ${account.active ? "cubi-oa-danger" : ""}" data-account-status="${escapeHtml(account.user_id)}" data-active="${account.active}" type="button">${account.active ? t.deactivate : t.activate}</button></td>
+      <td>${canManageOtherAccounts && account.user_id !== currentUserId ? `<button class="cubi-oa-button ${account.active ? "cubi-oa-danger" : ""}" data-account-status="${escapeHtml(account.user_id)}" data-active="${account.active}" type="button">${account.active ? t.deactivate : t.activate}</button>` : "—"}</td>
     </tr>`).join("");
     container.innerHTML = `
       <style>
@@ -458,7 +460,7 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
             <h3>${t.assignedUsers}</h3>
             <div class="cubi-oa-tablewrap"><table><thead><tr><th>${t.user}</th><th>${t.obsId}</th><th>Revision</th><th></th></tr></thead>
               <tbody>${profileAssignmentRows || `<tr><td colspan="4">${t.noEligible}</td></tr>`}</tbody></table></div>
-            ${selectedProfile?.scope === "global" && canAdminAccounts && globalAssignmentOptions ? `<form class="cubi-oa-form" id="cubi-oa-global-access">
+            ${selectedProfile?.scope === "global" && canManageOtherAccounts && globalAssignmentOptions ? `<form class="cubi-oa-form" id="cubi-oa-global-access">
               <h3>${t.globalAccessTitle}</h3>
               <div class="cubi-oa-field"><label for="cubi-oa-global-access-user">${t.selectGlobalUser}</label>
                 <select id="cubi-oa-global-access-user" name="user_id">${globalAssignmentOptions}</select></div>
@@ -474,13 +476,13 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
               <button class="cubi-oa-button cubi-oa-primary" type="submit" ${busy || !globalUserAccess ? "disabled" : ""}>${t.saveGlobalAccess}</button>
               <small>Revision ${globalUserAccess?.revision ?? "—"}</small>
             </form>` : ""}
-            ${canAdminAccounts ? `<form class="cubi-oa-form" id="cubi-oa-profile-assign">
+            ${canManageOtherAccounts ? `<form class="cubi-oa-form" id="cubi-oa-profile-assign">
               <div class="cubi-oa-field"><label for="cubi-oa-profile-user">${t.user}</label><select id="cubi-oa-profile-user" name="user_id" required><option value="">${t.selectAccount}</option>${activeAccountOptions}</select></div>
               ${selectedProfile?.scope === "project" ? `<div class="cubi-oa-field"><label for="cubi-oa-profile-obs">${t.obsId}</label><select id="cubi-oa-profile-obs" name="obs_id" required><option value="">—</option>${obsOptions}</select></div>` : ""}
               <div class="cubi-oa-field"><label for="cubi-oa-profile-assignment-revision">${t.assignmentRevision}</label><input id="cubi-oa-profile-assignment-revision" name="expected_revision" type="number" min="1"></div>
               <button class="cubi-oa-button" type="submit" ${busy || !activeAccountOptions ? "disabled" : ""}>${t.assignProfile}</button>
             </form>` : `<p class="cubi-oa-note">${t.userAdminRequired}</p>`}
-            ${selectedProfile?.scope === "project" && canAdminAccounts ? `<form class="cubi-oa-form" id="cubi-oa-project-default-assign">
+            ${selectedProfile?.scope === "project" && canManageOtherAccounts ? `<form class="cubi-oa-form" id="cubi-oa-project-default-assign">
               <h3>${t.assignDefaultProjectTitle}</h3>
               <div class="cubi-oa-field"><label for="cubi-oa-project-user">${t.user}</label>
                 <select id="cubi-oa-project-user" name="user_id">${projectUserOptions}</select></div>
@@ -809,8 +811,13 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
       if (!teams.some(team => team.team_id === selectedTeamId)) selectedTeamId = teams[0]?.team_id ?? "";
       await loadTeam();
       try {
-        accounts = accountList(await api<unknown>("/api/enterprise/users"));
+        const usersResult = await api<unknown>("/api/enterprise/users");
+        accounts = accountList(usersResult);
         canAdminAccounts = true;
+        if (isRecord(usersResult)) {
+          currentUserId = typeof usersResult.current_user_id === "string" ? usersResult.current_user_id : "";
+          canManageOtherAccounts = usersResult.can_manage_other_users === true;
+        }
         const obsResult = await api<unknown>("/api/enterprise/obs");
         if (!isRecord(obsResult) || obsResult.contract_version !== "cubi-p6-obs-options.v1"
             || !Array.isArray(obsResult.obs_nodes)) throw new Error("INVALID_OBS_OPTIONS");
@@ -821,6 +828,7 @@ export async function mountEnterpriseOrganizationAccess(container: HTMLElement):
         await loadUserProjectAssignments();
       } catch (error) {
         accounts = []; obsNodes = []; userProjectAssignments = []; canAdminAccounts = false;
+        canManageOtherAccounts = false; currentUserId = "";
         if (error instanceof Error && error.message === "SESSION_REQUIRED") throw error;
       }
       try {
