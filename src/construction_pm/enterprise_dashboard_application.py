@@ -366,28 +366,63 @@ class EnterpriseDashboardApplicationService:
         )
 
     def read_portlets(
-        self, session_id: str, dashboard_id: str
+        self,
+        session_id: str,
+        dashboard_id: str,
+        *,
+        filter_overrides: object | None = None,
     ) -> dict[str, object]:
         stored = self.get_dashboard(session_id, dashboard_id)
         if stored.dashboard.status != "active":
             raise EnterpriseDashboardNotFound("ENTERPRISE_DASHBOARD_NOT_FOUND")
         session = self._session(session_id)
+        if filter_overrides is None:
+            effective_filters = stored.dashboard.filters
+        else:
+            effective_filters = self._filters(filter_overrides)
+            if (
+                stored.dashboard.restrict_filter_override
+                and session.user_id != stored.dashboard.owner_user_id
+                and not self._is_admin(session)
+            ):
+                raise EnterpriseDashboardAuthorizationError(
+                    "DASHBOARD_FILTER_OVERRIDE_RESTRICTED"
+                )
+        portfolio_filter = next(
+            (item for item in effective_filters if item.key == "portfolio_id"), None
+        )
+        if (
+            portfolio_filter is not None
+            and stored.dashboard.context == "portfolio"
+            and portfolio_filter.value != stored.dashboard.context_portfolio_id
+        ):
+            raise EnterpriseDashboardError(
+                "ENTERPRISE_DASHBOARD_FILTER_PORTFOLIO_CONTEXT_MISMATCH"
+            )
         auth_context = AuthorizationContext(
             session.tenant_id,
             "portfolio-context",
             session.user_id,
             frozenset(session.roles),
         )
+        ordered_portlets = sorted(
+            stored.dashboard.portlets,
+            key=lambda item: (item.layout.y, item.layout.x, item.instance_id),
+        )
         portlets = [
             self._read_portlet(
-                session_id, session, auth_context, item, stored.dashboard.filters
+                session_id,
+                session,
+                auth_context,
+                item,
+                effective_filters,
             )
-            for item in stored.dashboard.portlets
+            for item in ordered_portlets
         ]
         return {
             "contract_version": "cubi-enterprise-dashboard-read.v1",
             "dashboard": stored.dashboard.as_dict(),
-            "filters": [item.as_dict() for item in stored.dashboard.filters],
+            "filters": [item.as_dict() for item in effective_filters],
             "portlets": portlets,
             "read_at": self._now().isoformat(),
         }
@@ -401,62 +436,137 @@ class EnterpriseDashboardApplicationService:
         dashboard_filters: tuple[DashboardFilter, ...],
     ) -> dict[str, object]:
         definition = PORTLET_REGISTRY[portlet.type_id]
-        try:
-            if portlet.type_id == PORTFOLIO_CONTROL_SNAPSHOT:
-                if self._portfolio_query is None:
-                    raise EnterpriseDashboardSourceError("PORTFOLIO_QUERY_SOURCE_NOT_CONFIGURED")
-                portfolio_id = str(portlet.config["portfolio_id"])
+        filters = {item.key: item for item in dashboard_filters}
+        portfolio_filter = filters.get("portfolio_id")
+        portfolio_id = (
+            str(portfolio_filter.value)
+            if portfolio_filter is not None
+            else str(portlet.config["portfolio_id"])
+        )
+        source_revision: object = None
+        source_snapshot_id: object = None
+        generated_at: datetime | None = None
+        data: object = None
+        drill_refs: list[dict[str, object]] = []
+        filtered_out = False
+
+        if portlet.type_id == PORTFOLIO_CONTROL_SNAPSHOT:
+            if self._portfolio_query is None:
+                raise EnterpriseDashboardSourceError("PORTFOLIO_QUERY_SOURCE_NOT_CONFIGURED")
+            try:
                 snapshot = self._portfolio_query.get_snapshot(
                     portfolio_id, auth_context=auth_context
                 )
-                snapshot.validate()
-                if snapshot.tenant_id != session.tenant_id or snapshot.portfolio_id != portfolio_id:
-                    raise EnterpriseDashboardAuthorizationError("PORTFOLIO_SNAPSHOT_SCOPE_MISMATCH")
+            except KeyError:
+                return self._missing_portlet(
+                    portlet, definition.source_owner, dashboard_filters
+                )
+            snapshot.validate()
+            if snapshot.tenant_id != session.tenant_id or snapshot.portfolio_id != portfolio_id:
+                raise EnterpriseDashboardAuthorizationError("PORTFOLIO_SNAPSHOT_SCOPE_MISMATCH")
+
+            generated_at = snapshot.generated_at
+            source_revision = ",".join(
+                sorted(f"{item.source_id}:{item.revision}" for item in snapshot.source_refs)
+            )
+            source_snapshot_id = snapshot.snapshot_id
+            project_rows = list(snapshot.projects)
+            for key, attribute in (
+                ("project_id", "project_id"),
+                ("project_status", "status"),
+                ("membership_status", "membership_status"),
+            ):
+                rule = filters.get(key)
+                if rule is not None:
+                    project_rows = [
+                        item for item in project_rows
+                        if self._filter_matches(getattr(item, attribute), rule)
+                    ]
+            if not self._timestamp_matches(generated_at, filters):
+                filtered_out = True
+            if not project_rows:
+                filtered_out = True
+            if not self._include_stale(generated_at, filters):
+                filtered_out = True
+
+            if not filtered_out:
                 self._authorize_source_projects(
-                    session_id, session, tuple(item.project_id for item in snapshot.projects)
+                    session_id, session, tuple(item.project_id for item in project_rows)
                 )
                 data = snapshot.as_dict()
-                source_revision = ",".join(
-                    sorted(f"{item.source_id}:{item.revision}" for item in snapshot.source_refs)
-                )
-                generated_at = snapshot.generated_at
-                source_snapshot_id = snapshot.snapshot_id
+                data["projects"] = [item.as_dict() for item in project_rows]
+                summary = {
+                    "total_projects": len(project_rows),
+                    "included_projects": 0,
+                    "on_hold_projects": 0,
+                    "excluded_projects": 0,
+                }
+                for item in project_rows:
+                    summary[f"{item.membership_status}_projects"] += 1
+                data["summary"] = summary
                 drill_refs = [
                     {
                         "type": "project",
                         "id": item.project_id,
                         "source_revision": item.project_revision,
                     }
-                    for item in snapshot.projects
+                    for item in project_rows
                 ]
-            elif portlet.type_id == PORTFOLIO_DECISION:
-                if self._portfolio_decision is None:
-                    raise EnterpriseDashboardSourceError("PORTFOLIO_DECISION_SOURCE_NOT_CONFIGURED")
-                portfolio_id = str(portlet.config["portfolio_id"])
-                decision_id = str(portlet.config["decision_id"])
-                request = PortfolioDecisionReadRequest(
-                    PORTFOLIO_DECISION_API_VERSION,
-                    session.tenant_id,
-                    portfolio_id,
-                    decision_id,
+
+        elif portlet.type_id == PORTFOLIO_DECISION:
+            if self._portfolio_decision is None:
+                raise EnterpriseDashboardSourceError("PORTFOLIO_DECISION_SOURCE_NOT_CONFIGURED")
+            decision_id = str(portlet.config["decision_id"])
+            request = PortfolioDecisionReadRequest(
+                PORTFOLIO_DECISION_API_VERSION,
+                session.tenant_id,
+                portfolio_id,
+                decision_id,
+            )
+            try:
+                decision_data = self._portfolio_decision.get(
+                    request, auth_context=auth_context
                 )
-                data = self._portfolio_decision.get(request, auth_context=auth_context)
-                if (
-                    not isinstance(data, Mapping)
-                    or data.get("contract_version") != PORTFOLIO_DECISION_API_VERSION
-                    or data.get("tenant_id") != session.tenant_id
-                    or data.get("portfolio_id") != portfolio_id
-                    or data.get("decision_id") != decision_id
-                ):
-                    raise EnterpriseDashboardSourceError("INVALID_PORTFOLIO_DECISION_SOURCE_RESPONSE")
-                self._authorize_source_projects(
-                    session_id, session, tuple(data.get("affected_project_ids", ()))
+            except KeyError:
+                return self._missing_portlet(
+                    portlet, definition.source_owner, dashboard_filters
                 )
-                source_revision = data.get("revision")
-                source_snapshot_id = data.get("source_snapshot_id")
-                generated_at = data.get("generated_at")
-                if isinstance(generated_at, str):
-                    generated_at = datetime.fromisoformat(generated_at.replace("Z", "+00:00"))
+            if (
+                not isinstance(decision_data, Mapping)
+                or decision_data.get("contract_version") != PORTFOLIO_DECISION_API_VERSION
+                or decision_data.get("tenant_id") != session.tenant_id
+                or decision_data.get("portfolio_id") != portfolio_id
+                or decision_data.get("decision_id") != decision_id
+            ):
+                raise EnterpriseDashboardSourceError("INVALID_PORTFOLIO_DECISION_SOURCE_RESPONSE")
+            affected_project_ids = tuple(decision_data.get("affected_project_ids", ()))
+            self._authorize_source_projects(
+                session_id, session, affected_project_ids
+            )
+            source_revision = decision_data.get("revision")
+            source_snapshot_id = decision_data.get("source_snapshot_id")
+            raw_generated_at = decision_data.get("generated_at")
+            if isinstance(raw_generated_at, str):
+                generated_at = datetime.fromisoformat(
+                    raw_generated_at.replace("Z", "+00:00")
+                )
+            elif isinstance(raw_generated_at, datetime):
+                generated_at = raw_generated_at
+            if "decision_status" in filters and not self._filter_matches(
+                decision_data.get("status"), filters["decision_status"]
+            ):
+                filtered_out = True
+            if "project_id" in filters and not any(
+                self._filter_matches(project_id, filters["project_id"])
+                for project_id in affected_project_ids
+            ):
+                filtered_out = True
+            if not self._timestamp_matches(generated_at, filters):
+                filtered_out = True
+            if not self._include_stale(generated_at, filters):
+                filtered_out = True
+            if not filtered_out:
+                data = dict(decision_data)
                 drill_refs = [
                     {
                         "type": "portfolio_decision",
@@ -464,10 +574,8 @@ class EnterpriseDashboardApplicationService:
                         "source_revision": source_revision,
                     }
                 ]
-            else:
-                raise EnterpriseDashboardSourceError("UNREGISTERED_PORTLET_SOURCE")
-        except KeyError:
-            return self._missing_portlet(portlet, definition.source_owner, dashboard_filters)
+        else:
+            raise EnterpriseDashboardSourceError("UNREGISTERED_PORTLET_SOURCE")
 
         if generated_at is not None and (
             not isinstance(generated_at, datetime)
@@ -475,6 +583,7 @@ class EnterpriseDashboardApplicationService:
             or generated_at.utcoffset() is None
         ):
             raise EnterpriseDashboardSourceError("INVALID_PORTLET_SOURCE_TIMESTAMP")
+        freshness_state = self._freshness(generated_at)
         return {
             "instance_id": portlet.instance_id,
             "type_id": portlet.type_id,
@@ -483,11 +592,46 @@ class EnterpriseDashboardApplicationService:
             "source_snapshot_id": source_snapshot_id,
             "source_revision": source_revision,
             "generated_at": generated_at.isoformat() if generated_at else None,
-            "freshness_state": self._freshness(generated_at),
+            "freshness_state": freshness_state,
             "data": data,
             "drill_through_refs": drill_refs,
             "saved_filters": [item.as_dict() for item in dashboard_filters],
+            "filtered_out": filtered_out,
         }
+
+    @staticmethod
+    def _filter_matches(value: object, rule: DashboardFilter) -> bool:
+        if rule.operator == "in":
+            return value in rule.value
+        return value == rule.value
+
+    @staticmethod
+    def _timestamp_matches(
+        generated_at: datetime | None,
+        filters: Mapping[str, DashboardFilter],
+    ) -> bool:
+        for key in ("generated_after", "generated_before"):
+            rule = filters.get(key)
+            if rule is None:
+                continue
+            if generated_at is None:
+                return False
+            expected = datetime.fromisoformat(str(rule.value).replace("Z", "+00:00"))
+            if key == "generated_after" and generated_at < expected:
+                return False
+            if key == "generated_before" and generated_at > expected:
+                return False
+        return True
+
+    def _include_stale(
+        self,
+        generated_at: datetime | None,
+        filters: Mapping[str, DashboardFilter],
+    ) -> bool:
+        rule = filters.get("include_stale")
+        if rule is None or rule.value is True:
+            return True
+        return self._freshness(generated_at) == "fresh"
 
     @staticmethod
     def _missing_portlet(
