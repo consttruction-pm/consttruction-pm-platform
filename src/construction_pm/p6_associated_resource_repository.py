@@ -135,6 +135,22 @@ class SQLiteP6AssociatedResourceRepository(_AssociatedResourceBase):
           BEFORE DELETE ON p6_associated_resource_audit
           BEGIN SELECT RAISE(ABORT,'P6_ASSOCIATED_RESOURCE_AUDIT_APPEND_ONLY'); END;
         """)
+        identity_users = self.connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='identity_users'"
+        ).fetchone()
+        if identity_users is not None:
+            self.connection.executescript("""
+            CREATE TRIGGER IF NOT EXISTS p6_sync_associated_resource_personal_name
+            AFTER UPDATE OF name ON p6_enterprise_resource_identity
+            WHEN OLD.name <> NEW.name
+            BEGIN
+              UPDATE identity_users SET display_name=NEW.name
+              WHERE tenant_id=NEW.tenant_id AND user_id=(
+                SELECT user_id FROM p6_user_associated_resource
+                WHERE tenant_id=NEW.tenant_id AND resource_id=NEW.resource_id
+              );
+            END;
+            """)
 
     def assign(self, association: P6AssociatedResource, *, expected_revision=None):
         association.validate()
@@ -232,6 +248,24 @@ class PostgresP6AssociatedResourceRepository(_AssociatedResourceBase):
         CREATE TRIGGER p6_associated_resource_audit_immutable
         BEFORE UPDATE OR DELETE ON p6_associated_resource_audit
         FOR EACH ROW EXECUTE FUNCTION p6_associated_resource_audit_immutable()""")
+        self.connection.execute("""
+        CREATE OR REPLACE FUNCTION p6_sync_associated_resource_personal_name()
+        RETURNS trigger LANGUAGE plpgsql AS $p6_associated_name$
+        BEGIN
+          IF OLD.name IS DISTINCT FROM NEW.name THEN
+            UPDATE identity_users u SET display_name=NEW.name
+            FROM p6_user_associated_resource a
+            WHERE a.tenant_id=NEW.tenant_id AND a.resource_id=NEW.resource_id
+              AND u.tenant_id=a.tenant_id AND u.user_id=a.user_id;
+          END IF;
+          RETURN NEW;
+        END;
+        $p6_associated_name$""")
+        self.connection.execute("DROP TRIGGER IF EXISTS p6_sync_associated_resource_personal_name ON p6_enterprise_resource_identity")
+        self.connection.execute("""
+        CREATE TRIGGER p6_sync_associated_resource_personal_name
+        AFTER UPDATE OF name ON p6_enterprise_resource_identity
+        FOR EACH ROW EXECUTE FUNCTION p6_sync_associated_resource_personal_name()""")
 
     def assign(self, association: P6AssociatedResource, *, expected_revision=None):
         association.validate()
