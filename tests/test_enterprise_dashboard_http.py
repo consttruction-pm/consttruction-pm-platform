@@ -152,7 +152,7 @@ def test_dashboard_http_display_and_filter_preference_routes_are_typed():
 
 def test_dashboard_http_passes_through_unowned_paths():
     service = FakeService()
-    app = EnterpriseDashboardHttpMiddleware(lambda environ, start: [b"upstream"], service)
+    app = EnterpriseDashboardHttpMiddleware(lambda environ, start: start("200 OK", []) or [b"upstream"], service)
     status, payload, _ = request(app, "GET", "/api/enterprise/tasks")
     assert status.startswith("200")
     assert payload == "upstream"
