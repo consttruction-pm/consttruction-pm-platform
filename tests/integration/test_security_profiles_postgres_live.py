@@ -351,10 +351,11 @@ def test_security_profile_admin_http_api_is_tenant_and_global_privilege_guarded(
             return None
 
     with _connect() as connection:
+        profiles = PostgresSecurityProfileRepository(connection)
         service = EnterpriseOrganizationAccessService(
             PostgresEnterpriseOrganizationAccessRepository(connection),
             Sessions(),
-            security_profiles=PostgresSecurityProfileRepository(connection),
+            security_profiles=profiles,
         )
         app = EnterpriseOrganizationAccessHttpMiddleware(lambda environ, start: [], service)
 
