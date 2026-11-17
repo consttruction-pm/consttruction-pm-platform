@@ -80,6 +80,13 @@ def test_tenant_admin_routes_create_project_profile_assign_obs_and_associated_re
     assert json.loads(body)["association"]["resource_id"] == "R-1"
 
     status, _, body = routes._handle_p6_security_admin_route(
+        "GET", "/api/admin/p6/associated-resources",
+        session_id="session", now=now, body=b"",
+    )
+    assert status == 200
+    assert json.loads(body)["resources"][0]["resource_id"] == "R-1"
+
+    status, _, body = routes._handle_p6_security_admin_route(
         "GET", "/api/admin/p6/users/user-1/associated-resource",
         session_id="session", now=now, body=b"",
     )
