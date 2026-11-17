@@ -811,6 +811,24 @@ class P6GlobalSecurityAuthorizationPolicy:
             )
         )
 
+    def allows_global_privilege(self, context: Any, privilege_code: str) -> bool:
+        """Check a named V26 global privilege without falling back to CUBI roles."""
+        try:
+            context.validate()
+            if privilege_code not in P6_GLOBAL_PRIVILEGE_IDS:
+                return False
+            assignment = self._repository.get_user_security(context.tenant_id, context.user_id)
+            if assignment is None:
+                return False
+            profile = self._repository.get_profile(context.tenant_id, assignment.profile_id)
+            if profile is None or not profile.active:
+                return False
+            if global_profile_is_admin_superuser(profile):
+                return True
+            return privilege_code in profile.privileges
+        except (GlobalSecurityError, ValueError, AttributeError, TypeError):
+            return False
+
     def allows_secure_code_action(self, context: Any, action: str) -> bool:
         """Resolve the caller's persisted profile before any secure-code operation."""
         try:
