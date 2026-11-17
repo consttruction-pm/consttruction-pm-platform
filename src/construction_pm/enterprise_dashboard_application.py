@@ -464,7 +464,7 @@ class EnterpriseDashboardApplicationService:
             "freshness_state": self._freshness(generated_at),
             "data": data,
             "drill_through_refs": drill_refs,
-            "applied_filters": [item.as_dict() for item in dashboard_filters],
+            "saved_filters": [item.as_dict() for item in dashboard_filters],
         }
 
     @staticmethod
@@ -484,7 +484,7 @@ class EnterpriseDashboardApplicationService:
             "freshness_state": "missing",
             "data": None,
             "drill_through_refs": [],
-            "applied_filters": [item.as_dict() for item in dashboard_filters],
+            "saved_filters": [item.as_dict() for item in dashboard_filters],
         }
 
     def _freshness(self, generated_at: datetime | None) -> str:
