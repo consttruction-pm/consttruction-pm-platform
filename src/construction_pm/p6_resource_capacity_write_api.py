@@ -137,11 +137,11 @@ class P6ResourceCapacityWriteAPI:
             close_open_segment, bool
         ):
             raise ResourceCapacityError("INVALID_CAPACITY_CLOSE_FLAG")
-        require_resource_access(self.authorization_policy, self.resource_repository, scope, resource_id, auth_context)
         if not isinstance(resource_id, str) or not resource_id.strip():
             raise ResourceCapacityError("INVALID_RESOURCE_ID")
         if resource_id != resource_id.strip() or "/" in resource_id:
             raise ResourceCapacityError("INVALID_RESOURCE_ID")
+        require_resource_access(self.authorization_policy, self.resource_repository, scope, resource_id, auth_context)
         try:
             basis = ResourceCapacityBasis(str(unit_basis))
         except ValueError as exc:
