@@ -230,6 +230,23 @@ The Professional navigation is Enterprise → Project Portfolios → Add → Gen
 The overview describes the activity-list and timesheet surfaces, not a dashboard authoring page. Users see assigned activities, can filter/sort by project/status, update allowed status fields, use steps/codes/UDFs, inspect related activities, discussions and documents, and submit/review timesheets. The project manager configures the status fields and privileges. The complete Help TOC has no Dashboard topic. These activity and timesheet records remain Engineering/Team Member-owned; a future dashboard tile must re-authorize the underlying project/activity and must not inherit access from a dashboard share.
 
 
+## 4. Implemented-slice disposition
+
+The statuses below describe the backend v1 work package, not complete P6 EPPM UI parity.
+
+| Feature | Disposition | Evidence |
+|---|---|---|
+| Closed tenant-scoped dashboard definition and domain validation | Implemented | Versioned contract, strict field validation, context, visibility, revision, bounded portlet layout and typed filter validation. |
+| Governed registry for the two approved portfolio source contracts | Implemented | Closed registry with source owner, required permission, context, contract version, typed config and drill-through shape. |
+| PostgreSQL persistence, tenant isolation and revision history | Implemented | Dedicated tables, composite tenant/dashboard key, row locking and expected-revision checks. |
+| Create/list/read/update/duplicate/share/revoke/archive use cases | Implemented | Authenticated application service with server-derived actor/tenant and owner/admin/share rules. |
+| Immutable audit and idempotent create/update retries | Implemented | Same-transaction audit, append-only trigger, idempotency fingerprint and exact update retry recognition. |
+| Per-project source authorization on every portlet read | Implemented | Existing source API plus project lifecycle PROJECT_READ authorization for every referenced project. |
+| Source freshness and revision reporting | Partial | Snapshot freshness is fresh/stale/missing; Portfolio Decision currently has no generated timestamp and is explicitly unknown. |
+| Applying saved dashboard filters to source queries | Deferred | Filter metadata is validated and returned; no shared source filter AST exists yet, so no source filtering or KPI recomputation is claimed. |
+| EPPM dashboard UI, route mounting, drill-through navigation and browser acceptance | Deferred | Protected shared composition and UI paths are intentionally not changed in this backend slice. |
+| P6 Professional dashboard authoring and Team Member dashboard authoring | Not Applicable | Their official V26 Help surfaces do not define the EPPM dashboard/portlet authoring capability; overlap/applicability checks are recorded above. |
+
 ## 4. Acceptance mapping
 
 | Acceptance area | Implementation evidence | Current gate |
