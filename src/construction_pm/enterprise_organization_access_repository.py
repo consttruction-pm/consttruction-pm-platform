@@ -442,7 +442,6 @@ class PostgresEnterpriseOrganizationAccessRepository:
                     "WHERE tenant_id=%s AND user_id=%s AND revoked_at IS NULL",
                     (occurred_at, tenant_id, target_user_id),
                 )
-            from uuid import uuid4
             self._connection.execute(
                 "INSERT INTO enterprise_user_access_audit "
                 "(audit_id,tenant_id,actor_user_id,target_user_id,action,before_active,after_active,occurred_at) "
