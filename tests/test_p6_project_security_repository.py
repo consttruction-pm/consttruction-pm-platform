@@ -290,3 +290,18 @@ def test_user_admin_can_list_profiles_for_assignment_but_cannot_edit_catalog():
     assert len(api.list_profiles(auth_context=context())["profiles"]) == 1
     with pytest.raises(AuthorizationError, match="P6_PROJECT_SECURITY_PROFILE_ADMIN_NOT_AUTHORIZED"):
         api.save_profile(profile(), expected_revision=None, auth_context=context())
+
+
+def test_project_profile_api_applies_v26_auto_selected_privileges():
+    _, repo = setup_repository()
+    api = P6ProjectSecurityAPI(repo, GlobalAdminPolicy())
+    result = api.save_profile(
+        P6ProjectSecurityProfile(
+            "tenant-a", "profile-codes", "Code Manager", ("delete_project_activity_codes",)
+        ), auth_context=context(),
+    )
+    selected = {item["code"] for item in result["profile"]["privileges"]}
+    assert selected == {
+        "delete_project_activity_codes", "add_project_activity_codes",
+        "edit_project_activity_codes",
+    }
