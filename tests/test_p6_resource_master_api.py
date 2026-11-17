@@ -222,3 +222,69 @@ def test_resource_without_calendar_uses_project_default():
     service = api(sqlite3.connect(":memory:"))
     created = service.create(resource("R-DEFAULT"), auth_context=auth())
     assert created["resource"]["calendar_id"] is None
+
+
+class SelectedResourcePolicy:
+    def __init__(self, roots):
+        self.roots = frozenset(roots)
+
+    def is_allowed(self, context, permission):
+        return True
+
+    def can_access_resource(self, context, resource_id, ancestor_resource_ids):
+        return any(root in ancestor_resource_ids for root in self.roots)
+
+
+def test_persisted_resource_access_filters_list_and_hides_out_of_scope_detail():
+    connection = sqlite3.connect(":memory:")
+    repository = SQLiteP6ResourceRepository(connection)
+    seed_calendar(connection)
+    policy = SelectedResourcePolicy({"R-SELECTED"})
+    service = P6ResourceAPI(repository, policy, SQLiteCalendarMasterRepository(connection))
+    service.create(resource("R-SELECTED"), auth_context=auth())
+    service.create(
+        resource("R-CHILD", parent_resource_id="R-SELECTED"), auth_context=auth()
+    )
+    # Seed a sibling directly as an administrator/bootstrap fixture so the
+    # restricted actor cannot create or discover it through the API.
+    repository.save(resource("R-SIBLING"))
+
+    visible = service.list("t1", "p1", 3, auth_context=auth())
+    assert [row["resource"]["resource_id"] for row in visible] == [
+        "R-SELECTED", "R-CHILD"
+    ]
+    assert service.get("t1", "p1", 3, "R-SIBLING", auth_context=auth()) is None
+
+
+def test_resource_access_blocks_create_and_update_outside_selected_ancestry():
+    connection = sqlite3.connect(":memory:")
+    repository = SQLiteP6ResourceRepository(connection)
+    seed_calendar(connection)
+    service = P6ResourceAPI(
+        repository, SelectedResourcePolicy({"R-ALLOWED"}),
+        SQLiteCalendarMasterRepository(connection),
+    )
+    service.create(resource("R-ALLOWED"), auth_context=auth())
+    repository.save(resource("R-OUTSIDE"))
+
+    with pytest.raises(AuthorizationError, match="RESOURCE_ACCESS_DENIED"):
+        service.create(resource("R-NEW"), auth_context=auth())
+    with pytest.raises(AuthorizationError, match="RESOURCE_ACCESS_DENIED"):
+        service.update(
+            resource("R-OUTSIDE", name="Attempted takeover"),
+            expected_revision=1, auth_context=auth(),
+        )
+
+
+def test_resource_access_allows_new_descendant_under_selected_root():
+    connection = sqlite3.connect(":memory:")
+    seed_calendar(connection)
+    service = P6ResourceAPI(
+        SQLiteP6ResourceRepository(connection), SelectedResourcePolicy({"R-ROOT"}),
+        SQLiteCalendarMasterRepository(connection),
+    )
+    service.create(resource("R-ROOT"), auth_context=auth())
+    child = service.create(
+        resource("R-NEW-CHILD", parent_resource_id="R-ROOT"), auth_context=auth()
+    )
+    assert child["resource"]["resource_id"] == "R-NEW-CHILD"
