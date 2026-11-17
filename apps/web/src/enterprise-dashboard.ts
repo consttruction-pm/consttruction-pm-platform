@@ -255,7 +255,7 @@ const COPY = {
     owner: "Owner", revision: "Revision", unsupported: "This portlet type is not enabled in this release.",
     drill: "Open source record", projects: "Projects", status: "Status", membership: "Membership", total: "Total",
     included: "Included", onHold: "On hold", excluded: "Excluded", noData: "No source data was returned.",
-    archiveConfirm: "Archive this dashboard?", createName: "Enter a dashboard name.",
+    archiveConfirm: "Archive this dashboard?", createName: "Enter a dashboard name.", createMode: "Start from", blankDashboard: "Blank dashboard", copyExisting: "Copy existing dashboard", defaultTemplate: "Default Dashboard template", defaultTemplateUnavailable: "The Default Dashboard template is not configured in this release.", sourceDashboard: "Source dashboard", createAction: "Create dashboard",
     projectFilter: "Filter by", applyFilter: "Apply filters", resetFilter: "Reset filters", filterDialog: "Filter by", addFilter: "Add condition", field: "Field", operator: "Operator", value: "Value", removeFilter: "Remove", noFilters: "No filter conditions.", filterValueHint: "Separate multiple values with commas.", filterScopeConflict: "Choose either a portfolio or project filter, not both.", filterPortfolio: "Portfolio", filterProject: "Project", filterProjectStatus: "Project status", filterMembership: "Portfolio membership", filterDecisionStatus: "Decision status", filterGeneratedAfter: "Generated after", filterGeneratedBefore: "Generated before", filterIncludeStale: "Include stale data", opEq: "Equals", opIn: "Is one of", opGte: "On or after", opLte: "On or before", statusIncluded: "Included", statusOnHold: "On hold", statusExcluded: "Excluded", decisionProposed: "Proposed", decisionUnderReview: "Under review", decisionApproved: "Approved", decisionRejected: "Rejected", decisionImplemented: "Implemented", decisionClosed: "Closed", decisionCancelled: "Cancelled",
     moveUp: "Move up", moveDown: "Move down", moveLeft: "Move left", moveRight: "Move right", moveDashboardUp: "Move dashboard tab up", moveDashboardDown: "Move dashboard tab down", filterLocked: "The dashboard owner has restricted filter overrides.",
   },
@@ -277,7 +277,7 @@ const COPY = {
     owner: "مالک", revision: "بازبینی", unsupported: "این نوع پورلت در این نسخه فعال نیست.",
     drill: "بازکردن رکورد منبع", projects: "پروژه‌ها", status: "وضعیت", membership: "عضویت", total: "مجموع",
     included: "داخل سبد", onHold: "متوقف", excluded: "خارج از سبد", noData: "داده‌ای از منبع دریافت نشد.",
-    archiveConfirm: "این داشبورد بایگانی شود؟", createName: "نام داشبورد را وارد کنید.",
+    archiveConfirm: "این داشبورد بایگانی شود؟", createName: "نام داشبورد را وارد کنید.", createMode: "ایجاد بر پایه", blankDashboard: "داشبورد خالی", copyExisting: "تکثیر داشبورد موجود", defaultTemplate: "الگوی داشبورد پیش‌فرض", defaultTemplateUnavailable: "الگوی داشبورد پیش‌فرض در این نسخه پیکربندی نشده است.", sourceDashboard: "داشبورد مبنا", createAction: "ایجاد داشبورد",
     projectFilter: "فیلتر بر اساس", applyFilter: "اعمال فیلترها", resetFilter: "پاک‌کردن فیلترها", filterDialog: "فیلتر بر اساس", addFilter: "افزودن شرط", field: "فیلد", operator: "عملگر", value: "مقدار", removeFilter: "حذف", noFilters: "شرط فیلتری وجود ندارد.", filterValueHint: "برای چند مقدار از ویرگول استفاده کنید.", filterScopeConflict: "فیلتر سبد پروژه و فیلتر پروژه را هم‌زمان انتخاب نکنید.", filterPortfolio: "سبد پروژه", filterProject: "پروژه", filterProjectStatus: "وضعیت پروژه", filterMembership: "عضویت در سبد", filterDecisionStatus: "وضعیت تصمیم", filterGeneratedAfter: "ایجادشده پس از", filterGeneratedBefore: "ایجادشده پیش از", filterIncludeStale: "شامل داده قدیمی", opEq: "برابر با", opIn: "یکی از", opGte: "در یا پس از", opLte: "در یا پیش از", statusIncluded: "داخل سبد", statusOnHold: "متوقف", statusExcluded: "خارج از سبد", decisionProposed: "پیشنهادشده", decisionUnderReview: "در دست بررسی", decisionApproved: "تأییدشده", decisionRejected: "ردشده", decisionImplemented: "اجراشده", decisionClosed: "بسته", decisionCancelled: "لغوشده",
     moveUp: "انتقال به بالا", moveDown: "انتقال به پایین", moveLeft: "انتقال به چپ", moveRight: "انتقال به راست", moveDashboardUp: "انتقال تب داشبورد به بالا", moveDashboardDown: "انتقال تب داشبورد به پایین", filterLocked: "مالک داشبورد تغییر فیلتر را محدود کرده است.",
   },
@@ -478,10 +478,74 @@ export async function mountEnterpriseDashboard(
     }
   }
   async function createDashboard(): Promise<void> {
-    const title = window.prompt(t.createName);
-    if (!title?.trim()) return;
-    await client.createDashboard({ title: title.trim(), description: "", context: "enterprise_home" });
-    await loadCatalog();
+    if (!catalog) return;
+    const dialog = node("dialog", "ced-dialog");
+    const inner = node("div", "ced-dialog-inner");
+    inner.append(node("h2", "", t.create));
+    const titleInput = input("new-dashboard-title", "");
+    titleInput.maxLength = 200;
+    titleInput.placeholder = t.createName;
+    const mode = node("select", "ced-select");
+    const blankOption = node("option", "", t.blankDashboard);
+    blankOption.value = "blank";
+    mode.append(blankOption);
+    const copyOption = node("option", "", t.copyExisting);
+    copyOption.value = "existing";
+    mode.append(copyOption);
+    const defaultOption = node("option", "", t.defaultTemplate);
+    defaultOption.value = "default";
+    defaultOption.disabled = true;
+    defaultOption.title = t.defaultTemplateUnavailable;
+    mode.append(defaultOption);
+    const sourceSelect = node("select", "ced-select");
+    const emptySource = node("option", "", t.sourceDashboard);
+    emptySource.value = "";
+    sourceSelect.append(emptySource);
+    const accessible = new Map<string, EnterpriseDashboardCatalogItem>();
+    for (const item of [...catalog.displayed_dashboards, ...catalog.available_dashboards]) {
+      accessible.set(item.dashboard.dashboard_id, item);
+    }
+    for (const item of orderDashboardCatalog([...accessible.values()])) {
+      const option = node("option", "", item.dashboard.title);
+      option.value = item.dashboard.dashboard_id;
+      sourceSelect.append(option);
+    }
+    const sourceField = field(t.sourceDashboard, sourceSelect);
+    sourceField.hidden = true;
+    mode.addEventListener("change", () => { sourceField.hidden = mode.value !== "existing"; });
+    const footer = node("div", "ced-row");
+    footer.append(button(t.createAction, async () => {
+      const title = titleInput.value.trim();
+      if (!title) {
+        status.textContent = t.createName;
+        return;
+      }
+      try {
+        status.textContent = t.loading;
+        if (mode.value === "existing") {
+          if (!sourceSelect.value) {
+            status.textContent = t.sourceDashboard;
+            return;
+          }
+          await client.duplicateDashboard(sourceSelect.value, title);
+        } else if (mode.value === "blank") {
+          await client.createDashboard({ title, description: "", context: "enterprise_home" });
+        } else {
+          return;
+        }
+        dialog.close();
+        dialog.remove();
+        await loadCatalog();
+      } catch {
+        status.textContent = t.error;
+      }
+    }, "ced-button primary"));
+    footer.append(button(t.cancel, () => { dialog.close(); dialog.remove(); }));
+    inner.append(field(t.name, titleInput), field(t.createMode, mode), sourceField, node("p", "ced-muted", t.defaultTemplateUnavailable), footer);
+    dialog.append(inner);
+    container.append(dialog);
+    dialog.showModal();
+    titleInput.focus();
   }
   async function openDashboard(dashboardId: string): Promise<void> {
     activeDashboardId = dashboardId;
