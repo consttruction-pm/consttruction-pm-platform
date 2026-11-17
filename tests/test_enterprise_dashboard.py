@@ -902,6 +902,6 @@ def test_official_oracle_help_sources_have_exact_documentation_traceability():
         "Narrow option",
         "Filter by",
         "restrict_filter_override",
-        "GLOBAL_DASHBOARD_ADMIN_REQUIRED",
+        "administrator-only",
     ):
         assert navigation_or_access_term in document
