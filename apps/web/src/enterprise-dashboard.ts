@@ -648,7 +648,7 @@ export async function mountEnterpriseDashboard(
         type_id: type,
         contract_version: type,
         config,
-        layout: { x: 0, y: nextY + (index - original.length) * 4, w: 12, h: 4 },
+        layout: { x: 0, y: nextY + addedIndex * 4, w: 12, h: 4 },
         title: null,
         hide_title: false,
       });
