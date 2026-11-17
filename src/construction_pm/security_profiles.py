@@ -1009,8 +1009,6 @@ class PostgresSecurityProfileRepository:
                 (revision, actor_user_id, occurred_at, tenant_id, profile_id, user_id, obs_id),
             )
         else:
-            if expected_revision not in (None, 0):
-                raise SecurityProfileError("SECURITY_PROFILE_ASSIGNMENT_REVISION_CONFLICT")
             if scope == "global":
                 occupied = self._connection.execute(
                     "SELECT profile_id,revision FROM p6_security_profile_assignments "
@@ -1018,6 +1016,9 @@ class PostgresSecurityProfileRepository:
                     (tenant_id, user_id),
                 ).fetchone()
                 if occupied is not None:
+                    # expected_revision is the current assignment revision when
+                    # replacing a user's existing Global profile, not a new-row
+                    # revision. Check it before enforcing the last-admin guard.
                     if expected_revision is None or int(occupied[1]) != expected_revision:
                         raise SecurityProfileError("SECURITY_PROFILE_ASSIGNMENT_REVISION_CONFLICT")
                     if str(occupied[0]) == ADMIN_SUPERUSER_PROFILE_ID and profile_id != ADMIN_SUPERUSER_PROFILE_ID:
@@ -1047,6 +1048,8 @@ class PostgresSecurityProfileRepository:
                         occurred_at,
                     )
                     return revision
+            if expected_revision not in (None, 0):
+                raise SecurityProfileError("SECURITY_PROFILE_ASSIGNMENT_REVISION_CONFLICT")
             revision = 1
             self._connection.execute(
                 "INSERT INTO p6_security_profile_assignments "
