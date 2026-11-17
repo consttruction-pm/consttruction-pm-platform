@@ -219,7 +219,10 @@ class EnterpriseOrganizationAccessService:
     def list_accounts(self, session_id: str) -> tuple[dict[str, object], ...]:
         session = self._session(session_id)
         self._require_global_privilege(session, "add_edit_delete_users")
-        return self._repository.list_tenant_users(session.tenant_id)
+        accounts = self._repository.list_tenant_users(session.tenant_id)
+        if self._has_all_resource_access(session):
+            return accounts
+        return tuple(item for item in accounts if item["user_id"] == session.user_id)
 
     def set_account_active(
         self, session_id: str, target_user_id: str, *, active: bool,
@@ -230,6 +233,7 @@ class EnterpriseOrganizationAccessService:
             raise OrganizationAccessError("ACCOUNT_ACTIVE_FLAG_INVALID")
         if not isinstance(target_user_id, str) or not target_user_id.strip():
             raise OrganizationAccessError("ACCOUNT_USER_ID_INVALID")
+        self._require_target_user_resource_access(session, target_user_id)
         if target_user_id == session.user_id and not active:
             raise OrganizationAccessDenied("SELF_DEACTIVATION_NOT_ALLOWED")
         return self._repository.set_account_active(
@@ -244,6 +248,26 @@ class EnterpriseOrganizationAccessService:
         ):
             raise OrganizationAccessDenied("P6_GLOBAL_PRIVILEGE_REQUIRED")
 
+    def _has_all_resource_access(self, session: object) -> bool:
+        if self._security_profiles is None:
+            return False
+        try:
+            access = self._security_profiles.get_global_user_access(
+                session.tenant_id, session.user_id
+            )
+        except Exception:
+            return False
+        return (
+            access["profile_id"] == ADMIN_SUPERUSER_PROFILE_ID
+            or access["resource_access_mode"] == "all"
+        )
+
+    def _require_target_user_resource_access(self, session: object, target_user_id: str) -> None:
+        if target_user_id == session.user_id:
+            return
+        if not self._has_all_resource_access(session):
+            raise OrganizationAccessDenied("P6_RESOURCE_ACCESS_REQUIRED")
+
     def list_security_profiles(self, session_id: str, *, scope: str | None = None):
         session = self._session(session_id)
         self._require_global_privilege(session, "add_edit_delete_security_profiles")
@@ -252,7 +276,10 @@ class EnterpriseOrganizationAccessService:
     def list_security_profile_assignments(self, session_id: str, profile_id: str):
         session = self._session(session_id)
         self._require_global_privilege(session, "add_edit_delete_security_profiles")
-        return self._security_profiles.list_assignments(session.tenant_id, profile_id)
+        assignments = self._security_profiles.list_assignments(session.tenant_id, profile_id)
+        if self._has_all_resource_access(session):
+            return assignments
+        return tuple(item for item in assignments if item["user_id"] == session.user_id)
 
     def create_security_profile(
         self, session_id: str, *, profile_id: str, name: str, scope: str,
@@ -347,6 +374,7 @@ class EnterpriseOrganizationAccessService:
             self._require_global_privilege(session, "add_edit_delete_users")
         if user_id == session.user_id:
             raise OrganizationAccessDenied("SECURITY_PROFILE_SELF_ASSIGNMENT_NOT_ALLOWED")
+        self._require_target_user_resource_access(session, user_id)
         if self._security_profiles is None:
             raise OrganizationAccessError("SECURITY_PROFILE_SERVICE_UNAVAILABLE")
         return self._security_profiles.assign(
@@ -358,6 +386,7 @@ class EnterpriseOrganizationAccessService:
     def list_user_project_access(self, session_id: str, target_user_id: str):
         session = self._session(session_id)
         self._require_global_privilege(session, "add_edit_delete_users")
+        self._require_target_user_resource_access(session, target_user_id)
         if self._security_profiles is None:
             raise OrganizationAccessError("SECURITY_PROFILE_SERVICE_UNAVAILABLE")
         return self._security_profiles.list_user_project_assignments(
@@ -379,6 +408,8 @@ class EnterpriseOrganizationAccessService:
         self._require_global_privilege(session, "add_edit_delete_users")
         if target_user_id == session.user_id:
             raise OrganizationAccessDenied("SECURITY_PROFILE_SELF_ASSIGNMENT_NOT_ALLOWED")
+        self._require_target_user_resource_access(session, target_user_id)
+        self._require_target_user_resource_access(session, target_user_id)
         if self._security_profiles is None:
             raise OrganizationAccessError("SECURITY_PROFILE_SERVICE_UNAVAILABLE")
         return self._security_profiles.assign_default_project_profile(
@@ -390,6 +421,7 @@ class EnterpriseOrganizationAccessService:
     def get_user_global_access(self, session_id: str, target_user_id: str):
         session = self._session(session_id)
         self._require_global_privilege(session, "add_edit_delete_users")
+        self._require_target_user_resource_access(session, target_user_id)
         if self._security_profiles is None:
             raise OrganizationAccessError("SECURITY_PROFILE_SERVICE_UNAVAILABLE")
         return self._security_profiles.get_global_user_access(session.tenant_id, target_user_id)
