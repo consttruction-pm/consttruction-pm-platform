@@ -45,7 +45,30 @@ class PortfolioQueryApplicationService:
                 "INVALID_PORTFOLIO_ID",
                 "Portfolio id is required",
             )
-        snapshot = self.provider.get_snapshot(portfolio_id, tenant_id=auth_context.tenant_id)
+        try:
+            snapshot = self.provider.get_snapshot(
+                portfolio_id, tenant_id=auth_context.tenant_id
+            )
+        except KeyError as exc:
+            raise BackendApplicationError(
+                ErrorCategory.NOT_FOUND,
+                "PORTFOLIO_SOURCE_NOT_FOUND",
+                "Portfolio or an authoritative source record was not found",
+            ) from exc
+        except ValueError as exc:
+            raw_code = str(exc)
+            code = (
+                raw_code if raw_code.startswith(("PORTFOLIO_", "ENGINEERING_"))
+                else "PORTFOLIO_SOURCE_INVALID"
+            )
+            category = (
+                ErrorCategory.CONFLICT
+                if "STALE" in code or "REVISION_CONFLICT" in code
+                else ErrorCategory.VALIDATION
+            )
+            raise BackendApplicationError(
+                category, code, "Portfolio source data is invalid or out of date"
+            ) from exc
         if not isinstance(snapshot, PortfolioControlSnapshot):
             raise BackendApplicationError(
                 ErrorCategory.VALIDATION,
