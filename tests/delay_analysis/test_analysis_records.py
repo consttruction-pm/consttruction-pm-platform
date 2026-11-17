@@ -193,6 +193,12 @@ def test_postgres_analysis_records_round_trip_and_append_only(postgres_dsn):
             decision="APPROVE", rationale="Independent review completed.", reviewed_at=now,
         ))
         assert repository.is_review_approved(scope, case.case_id, 1)
+        repository.record_review(DelayAnalysisReview(
+            scope=scope, case_id=case.case_id, revision=1, reviewer_id="reviewer-2",
+            decision="REJECT", rationale="Independent rejection blocks publication.",
+            reviewed_at=now,
+        ))
+        assert not repository.is_review_approved(scope, case.case_id, 1)
         with pytest.raises(psycopg.errors.RaiseException, match="APPEND_ONLY_DELAY_ANALYSIS_RECORD"):
             connection.execute(
                 "UPDATE eng_delay_analysis_revision SET payload_json='{}' "
