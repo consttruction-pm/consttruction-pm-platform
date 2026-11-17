@@ -261,6 +261,141 @@ class EnterpriseDashboardApplicationService:
         )
         return self.list_dashboard_catalog(session_id, limit=500)
 
+    def list_dashboard_tabs(
+        self, session_id: str, *, limit: int = 200
+    ) -> dict[str, object]:
+        session = self._session(session_id)
+        self._require_enterprise(session, write=False)
+        items = self.list_dashboards(session_id, limit=limit)
+        preferences = self._repository.list_user_preferences(
+            session.tenant_id, session.user_id
+        )
+        displayed: list[dict[str, object]] = []
+        available: list[dict[str, object]] = []
+        for default_order, item in enumerate(items):
+            preference = preferences.get(item.dashboard.dashboard_id, {})
+            is_displayed = preference.get("displayed", True)
+            entry = {
+                "dashboard": item.dashboard.as_dict(),
+                "revision": item.revision,
+                "display_order": preference.get("display_order", default_order),
+            }
+            (displayed if is_displayed else available).append(entry)
+        displayed.sort(
+            key=lambda item: (
+                item["display_order"],
+                str(item["dashboard"]["title"]).casefold(),
+                str(item["dashboard"]["dashboard_id"]),
+            )
+        )
+        available.sort(
+            key=lambda item: (
+                str(item["dashboard"]["title"]).casefold(),
+                str(item["dashboard"]["dashboard_id"]),
+            )
+        )
+        return {
+            "contract_version": "cubi-enterprise-dashboard-tabs.v1",
+            "displayed": displayed,
+            "available": available,
+        }
+
+    def set_dashboard_display(
+        self, session_id: str, dashboard_id: str, *, displayed: bool
+    ) -> dict[str, object]:
+        session = self._session(session_id)
+        self._require_enterprise(session, write=False)
+        stored = self._get_in_tenant(session, dashboard_id)
+        if stored.dashboard.status != "active" or not self._can_view(stored.dashboard, session):
+            raise EnterpriseDashboardNotFound("ENTERPRISE_DASHBOARD_NOT_FOUND")
+        self._repository.set_dashboard_display_preference(
+            session.tenant_id, session.user_id, dashboard_id, displayed
+        )
+        return self.list_dashboard_tabs(session_id)
+
+    def reorder_dashboard_tabs(
+        self, session_id: str, dashboard_ids: object
+    ) -> dict[str, object]:
+        session = self._session(session_id)
+        self._require_enterprise(session, write=False)
+        if (
+            not isinstance(dashboard_ids, (tuple, list))
+            or any(not isinstance(item, str) or not item.strip() for item in dashboard_ids)
+            or len(set(dashboard_ids)) != len(dashboard_ids)
+        ):
+            raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_TAB_ORDER")
+        tabs = self.list_dashboard_tabs(session_id)
+        displayed_ids = tuple(
+            item["dashboard"]["dashboard_id"] for item in tabs["displayed"]
+        )
+        if set(dashboard_ids) != set(displayed_ids) or len(dashboard_ids) != len(displayed_ids):
+            raise EnterpriseDashboardError("DASHBOARD_TAB_ORDER_MUST_MATCH_DISPLAYED_SET")
+        self._repository.reorder_dashboard_tabs(
+            session.tenant_id, session.user_id, tuple(dashboard_ids)
+        )
+        return self.list_dashboard_tabs(session_id)
+
+    def save_dashboard_filter_override(
+        self, session_id: str, dashboard_id: str, filters: object | None
+    ) -> dict[str, object]:
+        session = self._session(session_id)
+        self._require_enterprise(session, write=False)
+        stored = self._get_in_tenant(session, dashboard_id)
+        if stored.dashboard.status != "active" or not self._can_view(stored.dashboard, session):
+            raise EnterpriseDashboardNotFound("ENTERPRISE_DASHBOARD_NOT_FOUND")
+        if (
+            stored.dashboard.restrict_filter_override
+            and session.user_id != stored.dashboard.owner_user_id
+            and not self._is_admin(session)
+        ):
+            raise EnterpriseDashboardAuthorizationError(
+                "DASHBOARD_FILTER_OVERRIDE_RESTRICTED"
+            )
+        parsed = None if filters is None else self._filters(filters)
+        if parsed is not None:
+            portfolio_filter = next(
+                (item for item in parsed if item.key == "portfolio_id"), None
+            )
+            project_filter = next(
+                (item for item in parsed if item.key == "project_id"), None
+            )
+            if (
+                portfolio_filter is not None
+                and stored.dashboard.context == "portfolio"
+                and portfolio_filter.value != stored.dashboard.context_portfolio_id
+            ):
+                raise EnterpriseDashboardError(
+                    "ENTERPRISE_DASHBOARD_FILTER_PORTFOLIO_CONTEXT_MISMATCH"
+                )
+            if portfolio_filter is not None:
+                self._authorize_portfolio_context(
+                    session_id, session, str(portfolio_filter.value)
+                )
+            if project_filter is not None:
+                self._authorize_source_projects(
+                    session_id, session, (str(project_filter.value),)
+                )
+        self._repository.set_dashboard_filter_override(
+            session.tenant_id,
+            session.user_id,
+            dashboard_id,
+            [item.as_dict() for item in parsed] if parsed is not None else None,
+        )
+        return self.list_dashboard_tabs(session_id)
+
+    def reset_dashboard_preferences(
+        self, session_id: str, dashboard_id: str
+    ) -> dict[str, object]:
+        session = self._session(session_id)
+        self._require_enterprise(session, write=False)
+        stored = self._get_in_tenant(session, dashboard_id)
+        if stored.dashboard.status != "active" or not self._can_view(stored.dashboard, session):
+            raise EnterpriseDashboardNotFound("ENTERPRISE_DASHBOARD_NOT_FOUND")
+        self._repository.reset_dashboard_preferences(
+            session.tenant_id, session.user_id, dashboard_id
+        )
+        return self.list_dashboard_tabs(session_id)
+
     def get_dashboard(
         self, session_id: str, dashboard_id: str
     ) -> StoredEnterpriseDashboard:
@@ -533,18 +668,29 @@ class EnterpriseDashboardApplicationService:
         if stored.dashboard.status != "active":
             raise EnterpriseDashboardNotFound("ENTERPRISE_DASHBOARD_NOT_FOUND")
         session = self._session(session_id)
+        preferences = self._repository.list_user_preferences(
+            session.tenant_id, session.user_id
+        )
+        preference = preferences.get(dashboard_id, {})
+        persisted_override = preference.get("filter_override")
         if filter_overrides is None:
-            effective_filters = stored.dashboard.filters
+            effective_filters = (
+                self._filters(persisted_override)
+                if persisted_override is not None
+                else stored.dashboard.filters
+            )
         else:
             effective_filters = self._filters(filter_overrides)
-            if (
-                stored.dashboard.restrict_filter_override
-                and session.user_id != stored.dashboard.owner_user_id
-                and not self._is_admin(session)
-            ):
-                raise EnterpriseDashboardAuthorizationError(
-                    "DASHBOARD_FILTER_OVERRIDE_RESTRICTED"
-                )
+        has_override = filter_overrides is not None or persisted_override is not None
+        if (
+            has_override
+            and stored.dashboard.restrict_filter_override
+            and session.user_id != stored.dashboard.owner_user_id
+            and not self._is_admin(session)
+        ):
+            raise EnterpriseDashboardAuthorizationError(
+                "DASHBOARD_FILTER_OVERRIDE_RESTRICTED"
+            )
         portfolio_filter = next(
             (item for item in effective_filters if item.key == "portfolio_id"), None
         )
