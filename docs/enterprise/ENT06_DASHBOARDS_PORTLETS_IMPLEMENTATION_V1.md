@@ -109,7 +109,7 @@ Filters are stored and validated against a closed key/operator/value catalogue:
 
 - `portfolio_id` (selects the portfolio used by configured portlets; in portfolio context it must equal the context portfolio);
 - `project_id` (P6-compatible single-project `eq`, mutually exclusive with `portfolio_id`; CUBI also supports a bounded `in` multi-project selector as an additive filter extension, with every selected project re-authorized);
-- `project_status` and `membership_status` (applied to Portfolio Control Snapshot project rows);
+- `project_status` (bounded source-native string values; no P6 status remapping is invented) and `membership_status` (allow-listed values, both applied to Portfolio Control Snapshot project rows);
 - `decision_status` (applied to Portfolio Decision);
 - `generated_after` / `generated_before` (source timestamp bounds);
 - `include_stale` (when false, stale and unknown source data are suppressed while freshness remains explicit).
@@ -388,7 +388,7 @@ The statuses below describe the backend v1 work package, not complete P6 EPPM UI
 | Audit atomicity and immutability | Same transaction; append-only trigger; RESTRICT foreign key | Run PostgreSQL integration |
 | Source authorization | Portfolio source boundary plus per-project lifecycle authorization | Run unit and PostgreSQL CI |
 | Stale/missing/filtered-out source states | Explicit fresh/stale/missing/unknown freshness, filtered_out flag and separate saved/applied filter lists | Run unit tests |
-| Exact Oracle traceability | 109 official HTML URLs across the EPPM dashboard, content, portlet, performance and portfolio branches plus Cloud/Professional/Team Member comparisons | Review source coverage |
+| Exact Oracle traceability | 115 official HTML URLs across the EPPM dashboard, content, portlet, performance and portfolio branches plus Cloud/Professional/Team Member comparisons | Review source coverage |
 | P6 row limit and actor-specific dashboard display | Domain, repository, application service and unit/PostgreSQL tests | Exact-head CI |
 | Production route/UI/browser parity | Explicitly not included | Later handoff required |
 
