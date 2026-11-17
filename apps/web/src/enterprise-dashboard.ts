@@ -92,6 +92,8 @@ export interface EnterpriseDashboardClient {
     max_rows_per_portlet: number;
   }, expectedRevision: number): Promise<unknown>;
   archiveDashboard(dashboardId: string, expectedRevision: number): Promise<unknown>;
+  assignShare(dashboardId: string, targetType: "user" | "role" | "all_users", targetId: string, expectedRevision: number): Promise<unknown>;
+  revokeShare(dashboardId: string, targetType: "user" | "role" | "all_users", targetId: string, expectedRevision: number): Promise<unknown>;
 }
 
 export type EnterpriseDashboardFilter = { key: string; operator: string; value: unknown };
@@ -257,7 +259,7 @@ const COPY = {
     included: "Included", onHold: "On hold", excluded: "Excluded", noData: "No source data was returned.",
     archiveConfirm: "Archive this dashboard?", createName: "Enter a dashboard name.", createMode: "Start from", blankDashboard: "Blank dashboard", copyExisting: "Copy existing dashboard", defaultTemplate: "Default Dashboard template", defaultTemplateUnavailable: "The Default Dashboard template is not configured in this release.", sourceDashboard: "Source dashboard", createAction: "Create dashboard",
     projectFilter: "Filter by", applyFilter: "Apply filters", resetFilter: "Reset filters", filterDialog: "Filter by", addFilter: "Add condition", field: "Field", operator: "Operator", value: "Value", removeFilter: "Remove", noFilters: "No filter conditions.", filterValueHint: "Separate multiple values with commas.", filterScopeConflict: "Choose either a portfolio or project filter, not both.", filterPortfolio: "Portfolio", filterProject: "Project", filterProjectStatus: "Project status", filterMembership: "Portfolio membership", filterDecisionStatus: "Decision status", filterGeneratedAfter: "Generated after", filterGeneratedBefore: "Generated before", filterIncludeStale: "Include stale data", opEq: "Equals", opIn: "Is one of", opGte: "On or after", opLte: "On or before", statusIncluded: "Included", statusOnHold: "On hold", statusExcluded: "Excluded", decisionProposed: "Proposed", decisionUnderReview: "Under review", decisionApproved: "Approved", decisionRejected: "Rejected", decisionImplemented: "Implemented", decisionClosed: "Closed", decisionCancelled: "Cancelled",
-    moveUp: "Move up", moveDown: "Move down", moveLeft: "Move left", moveRight: "Move right", moveDashboardUp: "Move dashboard tab up", moveDashboardDown: "Move dashboard tab down", filterLocked: "The dashboard owner has restricted filter overrides.",
+    moveUp: "Move up", moveDown: "Move down", moveLeft: "Move left", moveRight: "Move right", moveDashboardUp: "Move dashboard tab up", moveDashboardDown: "Move dashboard tab down", filterLocked: "The dashboard owner has restricted filter overrides.", accessUserId: "User ID", accessAddUser: "Add user", accessAddRole: "Add role", accessRole: "Enterprise role", accessUsers: "Shared users", accessRoles: "Shared roles", accessGlobal: "Share with all Enterprise users", accessRevokeGlobal: "Revoke all-user access", accessDirectoryPending: "User directory search is not connected yet. Enter an account ID; the server verifies that it is active and belongs to this tenant.", accessNoUsers: "No individual users are shared.", accessNoRoles: "No roles are shared.", accessSaveError: "The access change could not be saved.",
   },
   fa: {
     eyebrow: "کوبی سازمانی", title: "داشبوردها", subtitle: "نماهای سازمانی و سبد پروژه بر پایه داده‌های مجاز و معتبر.",
@@ -279,7 +281,7 @@ const COPY = {
     included: "داخل سبد", onHold: "متوقف", excluded: "خارج از سبد", noData: "داده‌ای از منبع دریافت نشد.",
     archiveConfirm: "این داشبورد بایگانی شود؟", createName: "نام داشبورد را وارد کنید.", createMode: "ایجاد بر پایه", blankDashboard: "داشبورد خالی", copyExisting: "تکثیر داشبورد موجود", defaultTemplate: "الگوی داشبورد پیش‌فرض", defaultTemplateUnavailable: "الگوی داشبورد پیش‌فرض در این نسخه پیکربندی نشده است.", sourceDashboard: "داشبورد مبنا", createAction: "ایجاد داشبورد",
     projectFilter: "فیلتر بر اساس", applyFilter: "اعمال فیلترها", resetFilter: "پاک‌کردن فیلترها", filterDialog: "فیلتر بر اساس", addFilter: "افزودن شرط", field: "فیلد", operator: "عملگر", value: "مقدار", removeFilter: "حذف", noFilters: "شرط فیلتری وجود ندارد.", filterValueHint: "برای چند مقدار از ویرگول استفاده کنید.", filterScopeConflict: "فیلتر سبد پروژه و فیلتر پروژه را هم‌زمان انتخاب نکنید.", filterPortfolio: "سبد پروژه", filterProject: "پروژه", filterProjectStatus: "وضعیت پروژه", filterMembership: "عضویت در سبد", filterDecisionStatus: "وضعیت تصمیم", filterGeneratedAfter: "ایجادشده پس از", filterGeneratedBefore: "ایجادشده پیش از", filterIncludeStale: "شامل داده قدیمی", opEq: "برابر با", opIn: "یکی از", opGte: "در یا پس از", opLte: "در یا پیش از", statusIncluded: "داخل سبد", statusOnHold: "متوقف", statusExcluded: "خارج از سبد", decisionProposed: "پیشنهادشده", decisionUnderReview: "در دست بررسی", decisionApproved: "تأییدشده", decisionRejected: "ردشده", decisionImplemented: "اجراشده", decisionClosed: "بسته", decisionCancelled: "لغوشده",
-    moveUp: "انتقال به بالا", moveDown: "انتقال به پایین", moveLeft: "انتقال به چپ", moveRight: "انتقال به راست", moveDashboardUp: "انتقال تب داشبورد به بالا", moveDashboardDown: "انتقال تب داشبورد به پایین", filterLocked: "مالک داشبورد تغییر فیلتر را محدود کرده است.",
+    moveUp: "انتقال به بالا", moveDown: "انتقال به پایین", moveLeft: "انتقال به چپ", moveRight: "انتقال به راست", moveDashboardUp: "انتقال تب داشبورد به بالا", moveDashboardDown: "انتقال تب داشبورد به پایین", filterLocked: "مالک داشبورد تغییر فیلتر را محدود کرده است.", accessUserId: "شناسه کاربر", accessAddUser: "افزودن کاربر", accessAddRole: "افزودن نقش", accessRole: "نقش سازمانی", accessUsers: "کاربران دارای اشتراک", accessRoles: "نقش‌های دارای اشتراک", accessGlobal: "اشتراک با همه کاربران سازمان", accessRevokeGlobal: "لغو دسترسی همگانی", accessDirectoryPending: "جستجوی فهرست کاربران هنوز متصل نشده است. شناسه حساب را وارد کنید؛ سرور فعال‌بودن حساب و عضویت آن در همین سازمان را بررسی می‌کند.", accessNoUsers: "اشتراک کاربری جداگانه‌ای وجود ندارد.", accessNoRoles: "اشتراک نقشی وجود ندارد.", accessSaveError: "ذخیره تغییر دسترسی انجام نشد.",
   },
 } as const;
 
@@ -990,11 +992,88 @@ export async function mountEnterpriseDashboard(
       panel.append(list, node("p", "ced-muted", "Arrow controls move portlets within the two-column layout; horizontal controls move Narrow portlets between columns. Narrow/Wide sizing is configured in Content."));
     }
     function renderAccess(): void {
-      const mode = node("div", "ced-panel");
-      mode.append(node("strong", "", t.visibility), node("p", "", t[activeDefinition!.visibility]));
-      mode.append(node("p", "ced-muted", t.accessNote));
-      mode.append(node("p", "ced-muted", `${t.owner}: ${activeDefinition!.owner_user_id}`));
-      panel.append(mode);
+      if (!activeDefinition) return;
+      panel.replaceChildren();
+      const definition = activeDefinition;
+      const summary = node("div", "ced-panel");
+      summary.append(node("strong", "", t.visibility), node("p", "", t[definition.visibility]));
+      summary.append(node("p", "ced-muted", t.accessNote));
+      summary.append(node("p", "ced-muted", `${t.owner}: ${definition.owner_user_id}`));
+      panel.append(summary);
+
+      const users = node("section", "ced-section");
+      users.append(node("h3", "", t.accessUsers));
+      if (definition.visibility === "global") users.append(node("p", "ced-muted", t.global));
+      else if (!definition.shared_user_ids.length) users.append(node("p", "ced-muted", t.accessNoUsers));
+      for (const userId of definition.shared_user_ids) {
+        const row = node("div", "ced-row ced-panel");
+        row.append(node("span", "", userId));
+        row.append(button(t.remove, async () => {
+          await changeShare("user", userId, false);
+        }));
+        users.append(row);
+      }
+      const userInput = input("dashboard-share-user", "");
+      userInput.autocomplete = "off";
+      const addUser = button(t.accessAddUser, async () => {
+        await changeShare("user", userInput.value.trim(), true);
+      });
+      addUser.disabled = definition.visibility === "global";
+      users.append(field(t.accessUserId, userInput), addUser);
+      users.append(node("p", "ced-muted", t.accessDirectoryPending));
+      panel.append(users);
+
+      const roles = node("section", "ced-section");
+      roles.append(node("h3", "", t.accessRoles));
+      if (!definition.shared_role_ids.length) roles.append(node("p", "ced-muted", t.accessNoRoles));
+      for (const roleId of definition.shared_role_ids) {
+        const row = node("div", "ced-row ced-panel");
+        row.append(node("span", "", roleId));
+        row.append(button(t.remove, async () => { await changeShare("role", roleId, false); }));
+        roles.append(row);
+      }
+      const roleSelect = node("select", "ced-select");
+      for (const roleId of ["enterprise_admin", "enterprise_user", "enterprise_viewer"] as const) {
+        if (definition.shared_role_ids.includes(roleId)) continue;
+        const option = node("option", "", roleId);
+        option.value = roleId;
+        roleSelect.append(option);
+      }
+      const addRole = button(t.accessAddRole, async () => { await changeShare("role", roleSelect.value, true); });
+      addRole.disabled = definition.visibility === "global" || !roleSelect.options.length;
+      roles.append(field(t.accessRole, roleSelect), addRole);
+      panel.append(roles);
+
+      const global = node("section", "ced-section ced-panel");
+      if (definition.visibility === "global") {
+        global.append(button(t.accessRevokeGlobal, async () => { await changeShare("all_users", "", false); }));
+      } else {
+        global.append(button(t.accessGlobal, async () => { await changeShare("all_users", "", true); }));
+      }
+      global.append(node("p", "ced-muted", t.accessNote));
+      panel.append(global);
+    }
+
+    async function changeShare(targetType: "user" | "role" | "all_users", targetId: string, assign: boolean): Promise<void> {
+      if (!activeDefinition) return;
+      if (targetType !== "all_users" && !targetId.trim()) {
+        status.textContent = t.accessSaveError;
+        return;
+      }
+      try {
+        status.textContent = t.loading;
+        const id = activeDefinition.dashboard_id;
+        const revision = activeDefinition.revision;
+        if (assign) await client.assignShare(id, targetType, targetId, revision);
+        else await client.revokeShare(id, targetType, targetId, revision);
+        const fresh = await client.getDashboard(id);
+        activeDefinition = fresh.dashboard;
+        status.textContent = "";
+        renderAccess();
+        await loadCatalog();
+      } catch (error) {
+        status.textContent = error instanceof Error && error.message.includes("FORBIDDEN") ? t.denied : t.accessSaveError;
+      }
     }
     inner.append(title, tabBar, panel, footer);
     dialog.append(inner);
