@@ -19,7 +19,7 @@ class GlobalAdminPolicy:
         self.allowed = allowed
 
     def allows_global_privilege(self, context, code):
-        return self.allowed and code == "add_edit_delete_security_profiles"
+        return self.allowed and code in {"add_edit_delete_security_profiles", "add_edit_delete_users"}
 
 
 def setup_repository():
