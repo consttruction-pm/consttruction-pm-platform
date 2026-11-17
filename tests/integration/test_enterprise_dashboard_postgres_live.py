@@ -177,9 +177,11 @@ def test_postgres_dashboard_create_and_audit_are_atomic_on_rollback():
     tenant = new_scope()
     dashboard_id = f"dashboard-{uuid.uuid4().hex}"
 
+    with psycopg.connect(DSN) as setup_connection:
+        PostgresEnterpriseDashboardRepository(setup_connection).initialize()
+
     with psycopg.connect(DSN) as connection:
         repository = PostgresEnterpriseDashboardRepository(connection)
-        repository.initialize()
         repository.create(
             make_dashboard(tenant, dashboard_id),
             idempotency_key="rollback-create",
