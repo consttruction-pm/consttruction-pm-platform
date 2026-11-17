@@ -18,7 +18,7 @@
 
 ## 2. Required source crosswalk for every capability
 
-Every implementation slice must record: exact P6 EPPM V26 HTML topic(s) and canonical URL or NOT PRESENT after searching TOC, relevant guide and applicable API/data dictionary; exact P6 Team Member V26 topic(s) or NOT APPLICABLE; exact Primavera Cloud HTML topic(s) and URL or NOT APPLICABLE; classification (EPPM parity, Cloud-origin extension, shared/reconciled, CUBI-native, open/source verification); behavior differences and chosen CUBI resolution; authoritative environment, record/calculation owner, menu/context placement, API and persistence boundary; dependencies, migrations, authorization, audit, concurrency/idempotency and negative-security tests; acceptance journeys and evidence tied to exact commit SHA. Unavailable/ambiguous references remain MISSING / VERIFY.
+Every implementation slice must record: exact P6 EPPM V26 HTML topic(s) and canonical URL or NOT PRESENT after searching TOC, relevant guide and applicable API/data dictionary; exact P6 Team Member V26 topic(s) or NOT APPLICABLE; exact Primavera Cloud HTML topic(s) and URL or NOT APPLICABLE; exact Primavera Unifier Help topic(s) and URL for commercial/procurement/cost capabilities or NOT APPLICABLE; applicable PMI/domain-standard reference and edition; classification (EPPM parity, Cloud-origin extension, shared/reconciled, CUBI-native, open/source verification); behavior differences and chosen CUBI resolution; authoritative environment, record/calculation owner, menu/context placement, API and persistence boundary; dependencies, migrations, authorization, audit, concurrency/idempotency and negative-security tests; acceptance journeys and evidence tied to exact commit SHA. Unavailable/ambiguous references remain MISSING / VERIFY.
 
 
 
@@ -89,6 +89,7 @@ Status below is a planning disposition, not a claim of full implementation. Exis
 | ENT-10 | Enterprise reports and cross-project analytics/publication | Enterprise P2 | EPPM Reports/Reporting Guide/schema; Cloud API/Data Services | Enterprise > Reports and portfolio dashboards | Governed read-only aggregation with units, currency, data date, source revision and freshness | Read-model foundation; full UX unproven |
 | ENT-11 | Integration Hub, APIs, webhooks, import/export, credentials, replay, audit | Enterprise P2 | EPPM Integration/API/Import-Export guides; Cloud API/Integration/Data Services | Enterprise > Integration Hub / Operations & Jobs | Enterprise governs credentials/tenant scope/replay; adapters call owner APIs | Varying foundations; governance gap |
 | ENT-12 | Benefits/value realization, PMO knowledge and strategic measures | Enterprise P2 | EPPM Portfolio/Project/Reports where present; Cloud Portfolio/Ideas; else CUBI-native | Portfolio & Executive > Benefits / Knowledge | Enterprise owns benefits; Engineering owns actual progress/cost/schedule | New CUBI-native/Cloud-informed feasibility |
+| ENT-13 | Contract & Commercial Management: sourcing/tender, award, contract execution, obligations, SOV, payment applications/certification, variations/change orders, claims/disputes, forecast/cash flow and closeout | Enterprise P2 | Primavera Unifier Help: Contracts BP, Cost Type BP, Change Orders, Payment Applications, Cost Manager/SOV, Cost Management Levels; PMI procurement/contract/cost practices; jurisdictional law/policy | Enterprise > Contracts & Commercial; project links are typed references to Engineering | Enterprise owns contract/commercial records and approval evidence; Engineering owns schedule, project cost/EVM and resource calculations; approved events integrate via revision-pinned APIs; no duplicate project cost/payment engine | Added to target scope; initial source anchors recorded; exhaustive current-release Help crosswalk MISSING / VERIFY |
 | SH-01 | Workbench home, navigation, recent projects and environment switching | Workbench P0 | EPPM workspace/navigation; Cloud common navigation as comparative | One shared Workbench entry; specialist shells remain canonical | No business-data ownership; deep links only | Shell decision exists; verify single route |
 | SH-02 | Personal inbox and notifications | Workbench projection P0 | EPPM notifications/approvals where present; Cloud workflow/task notifications | Workbench > My Work / Notifications | Project source-owned action state; Workbench projects typed links/unread state | Contract needed |
 | SH-03 | Permission-filtered global search | Workbench P0 | EPPM search/navigation; Cloud search/API where documented | Workbench global search | Federated index; source rechecks access on open; no copied authoritative record | Feasibility required |
@@ -242,7 +243,7 @@ The open-PR search also returned unrelated public-site and legacy workspace PRs;
 
 ## 9. Full-program feasibility blueprint
 
-The row-by-row delivery feasibility, dependency graph, single-owner technical boundaries, persistence/API/UI/security/offline/job considerations and implementation acceptance gates for **all ENG-01–14, ENT-01–12 and SH-01–10** are maintained in:
+The row-by-row delivery feasibility, dependency graph, single-owner technical boundaries, persistence/API/UI/security/offline/job considerations and implementation acceptance gates for **all ENG-01–14, ENT-01–13 and SH-01–10** are maintained in:
 
 `docs/architecture/CUBI_MASTER_PROGRAM_FEASIBILITY_AND_EXECUTION_BLUEPRINT_V1.md`
 
@@ -280,3 +281,42 @@ For each Cloud-derived capability:
 - Run regression and acceptance tests in **both environments**. A Cloud enhancement must not break Professional-aligned workflows; a Professional-aligned improvement must not strip or regress Cloud-aligned workflows.
 
 **Acceptance gate:** a capability is not complete until its full Cloud Help scope is retained in CUBI, all applicable shared improvements are demonstrated in both environments, Cloud-only additions remain usable in the Cloud-aligned environment, and tests prove no destructive cross-environment regression. "Parity" means faithful preservation plus additive CUBI integration and dual-environment uplift—not reduction to the smaller feature set.
+
+
+## 10. Enterprise layered ownership refinement — 2026-11-16
+
+The detailed layered Enterprise architecture and Cloud-to-environment deduplication matrix are maintained in `docs/enterprise/CUBI_ENTERPRISE_LAYERED_CAPABILITY_ARCHITECTURE_V1.md`.
+
+Binding interpretation for this register:
+- Enterprise is organized into layers: shared platform foundations (reuse only), organization/governance, portfolio/strategy/executive oversight, enterprise coordination/stakeholder services, and contextual shared tools.
+- The earlier flat 12-heading Enterprise sketch is reconciled into the canonical eight-module architecture in `CUBI_TWO_ENVIRONMENT_PRODUCT_ARCHITECTURE.md`; it is not a license to create 12 new modules or duplicate existing product contexts.
+- Cloud schedule scenarios, Monte Carlo project risk, Field Work Plan/Last Planner, Team Member activity updates, project timesheets, project resource assignments/leveling, project risk registers, structured project attachments and schedule diagnostics remain Engineering-owned (ENG-04..ENG-13 as applicable). Enterprise may consume authorized summaries or coordinate generic actions but must not implement competing records or calculations.
+- Enterprise owns portfolio lifecycle/decisions, enterprise resource pool and portfolio capacity envelopes/scenarios, portfolio risk governance, workflow definitions/approval evidence, generic organizational tasks, executive read models, stakeholder grants, integration governance, benefits and organizational knowledge (ENT-01..ENT-12), subject to source crosswalk and evidence.
+- Form Builder remains the explicitly shared cross-environment capability; platform primitives are reused services, not duplicate Enterprise modules.
+- Enterprise Executive Portfolio Decision Scenario is a proposal only and remains **OPEN — PRODUCT-OWNER DECISION REQUIRED**. It is distinct from Engineering project schedule scenarios and the already-listed ENT-04 portfolio resource-planning scenarios. No implementation or menu is authorized until explicit approval.
+- Quality & Safety Center and Unifier-informed Contract/Commercial Management are not approved additions; obtain a separate product-owner decision after source/ownership analysis.
+- This refinement is architecture/documentation only. It does not claim any capability is implemented, tested, parity-complete or released.
+
+
+## 11. Source inheritance, traceability and build-time gates — binding
+
+Every capability row in this register must link to its exact software Help source(s), applicable standards and implementation crosswalk. Apply the source hierarchy and mandatory inheritance packet defined in `docs/enterprise/CUBI_ENTERPRISE_LAYERED_CAPABILITY_ARCHITECTURE_V1.md` §§8–9.
+
+Minimum rule:
+- P6 EPPM V26 Help for inherited EPPM behavior.
+- Primavera Cloud Help for Cloud-only/additive behavior, preserving the complete Cloud scope.
+- Primavera Unifier Help for contract/commercial/procurement/cost-BP/SOV/payment lifecycle behavior.
+- PMI and domain standards for theory/control only, never as a substitute for software Help.
+- Machine-readable source manifest, formula register, lifecycle/state model, permissions, UI/procedure crosswalk and mapped tests required before implementation acceptance.
+- CI validation is implemented in `scripts/validate_capability_sources.py` and `.github/workflows/ci.yml`. Current manifest coverage starts with ENT-13; every other capability must add its own manifest before changing mapped implementation code. The validator checks structure, source references, lifecycle, permissions, formula/test traceability and changed-code mapping; it does not certify source completeness or parity by itself.
+
+## 12. New Enterprise capability family — ENT-13 Contract & Commercial Management
+
+**Status:** Added to Enterprise target scope by product-owner direction on 2026-11-16.  
+**Canonical source family:** Primavera Unifier Help, with PMI procurement/contract and cost-management practices; applicable law/policy is jurisdiction-configured.  
+**Lifecycle:** sourcing strategy → solicitation/tender → evaluation → award → contract formation/execution → administration/obligations → SOV/progress/payment applications/certification → variations/change orders → claims/disputes/notices → forecast/cash flow → suspension/termination → final account/closeout/archive.  
+**Ownership:** Enterprise owns contract/commercial records and governance; Engineering owns schedule, activity, project cost/EVM and resource calculations. Approved commercial events integrate through revision-pinned domain APIs. Shared forms/workflows/audit/storage/jobs are reused. No duplicate cost sheet, EVM, schedule or payment execution ledger.  
+**Required source anchors:** Unifier Contracts BP, Cost Type BP, Change Orders, Payment Applications, Cost Manager/SOV and Cost Management Levels Help; see the Enterprise architecture §9 for official URLs, field/lifecycle expectations and formula gates.  
+**Evidence status:** Initial official topic anchors identified; exhaustive current-release topic-by-topic crosswalk remains MISSING / VERIFY. No implementation or parity-complete claim.
+
+**Register cardinality:** 37 capability families (ENG-01..14, ENT-01..13, SH-01..10). Existing IDs are unchanged.

@@ -1354,3 +1354,47 @@ Acceptance requires exact Help crosswalk, Professional/EPPM overlap matrix, sour
 - Both CUBI environments must be upgraded: shared capabilities improve both the Professional-aligned and Cloud-aligned environments; Cloud-specific additions remain fully available in the Cloud-aligned environment and are surfaced in the Professional-aligned environment wherever semantically compatible.
 - Professional parity is not a ceiling or reason to reduce Cloud. Preserve source-specific distinctions, reconcile overlap as a full union/superset, maintain singular canonical domain/data/calculation ownership, and test both environments for regressions.
 - Binding rules added to capability register section 2C and master feasibility/execution blueprint. This records acceptance criteria, not completed feature implementation or test evidence.
+
+
+## 2026-11-16 — Enterprise layered architecture and Cloud capability ownership
+
+- Added `docs/enterprise/CUBI_ENTERPRISE_LAYERED_CAPABILITY_ARCHITECTURE_V1.md` and linked it from the master capability register.
+- Reconciled the earlier flat 12-section sketch with the canonical two-environment architecture: layered Enterprise governance/portfolio/coordination; shared platform services reused; Form Builder explicitly shared; Workbench remains the shared entry/personal projection.
+- Recorded the non-duplication boundary: Cloud project schedule scenarios, Monte Carlo project risk, Work Plan/Last Planner, Team Member activity updates, timesheets, project resource assignments/leveling, project risk register, structured project attachments and schedule diagnostics stay Engineering-owned. Enterprise consumes only authorized summaries or coordinates generic actions.
+- Clarified Enterprise ownership of portfolio lifecycle, enterprise resource pool and portfolio capacity planning, portfolio risk governance, workflow definitions/approval evidence, generic organizational tasks, executive reporting, stakeholder grants, integration governance, benefits and organizational knowledge.
+- Executive Portfolio Decision Scenario is **proposed only / OPEN — PRODUCT-OWNER DECISION REQUIRED**. It is distinct from Engineering schedule scenarios and the existing ENT-04 portfolio resource-planning scenarios. No implementation, route, menu or persistence is authorized pending explicit product-owner approval.
+- Quality & Safety Center and Unifier-informed Contract/Commercial Management are not approved additions and require separate consultation.
+- This is a documentation/architecture refinement only; no product capability completion, tests, runtime acceptance, merge to main or deployment is claimed.
+- Branch: `docs/enterprise-layered-scope-cloud-dedup-v1`. PR to be opened for review; Enterprise remains P2 and Engineering P1 is unchanged.
+
+
+## 2026-11-16 — Binding source inheritance and Contract & Commercial lifecycle addition
+
+- Product-owner direction recorded: each capability must explicitly identify the exact software Help topics and standards from which its UI, data model, workflows and calculations are inherited. During build, the relevant Help must be used as an implementation specification, not merely cited in a planning document.
+- Established source precedence: P6 EPPM V26 HTML Help for EPPM behavior; Primavera Cloud Help for Cloud-only/additive behavior without feature reduction; Primavera Unifier Help for contract/commercial/procurement/cost business processes/SOV/payment lifecycle; PMI standards for management theory; domain standards for their specific control areas.
+- Added a mandatory capability inheritance packet: official source URLs/topic IDs and procedures; bidirectional Help↔CUBI crosswalk; screen/field/option/state/permission inventory; data dictionary; lifecycle model; formula register with units/rounding/independent expected-value tests; API/event ownership; audit/idempotency; UI parity evidence; and acceptance tests.
+- Required machine-readable source manifest and future CI validation gate to prevent building or accepting an undocumented capability, unowned formula, incomplete lifecycle, missing authorization matrix or duplicate canonical owner. Validator implementation is not claimed complete.
+- Added **ENT-13 Contract & Commercial Management** to the Enterprise target capability scope. Rationale: without the commercial lifecycle, the product has a gap between portfolio/project approval and procurement, award, contract execution, obligations, SOV, progress/payment certification, variations/change orders, claims/disputes, forecast/cash flow, termination and closeout.
+- Defined Enterprise ownership of contract/commercial records and governance; Engineering retains project schedule, activities, project cost/EVM and resource calculations. Approved commercial events integrate through revision-pinned APIs; shared Form Builder, Workflow Studio, audit, storage and jobs are reused. No duplicate cost/EVM/schedule/payment-execution engine is authorized.
+- Initial Oracle Help anchors include Unifier Contracts BP, Cost Type BP, Change Orders, Payment Applications, Cost Manager/SOV and Cost Management Levels; exact current-release topic coverage for tendering, vendor, claims, notices, securities, closeout and workflow variants remains MISSING / VERIFY pending extraction.
+- Updated target register cardinality to **37 capability families**: ENG-01..14, ENT-01..13, SH-01..10. Existing IDs are unchanged. This is architecture/documentation scope, not implementation, legal review, CI validation or parity completion.
+- Branch: `docs/enterprise-layered-scope-cloud-dedup-v1`; PR #2001 remains Draft pending review. Engineering P1 remains protected; Enterprise remains P2.
+
+
+## 2026-11-16 — Capability Help inheritance validator implemented
+
+- Implemented `scripts/validate_capability_sources.py` using the Python standard library. It validates manifest schema/version, unique capability IDs, owner, environments, inheritance, official software Help URLs, formula policy and formula/test traceability, lifecycle model, permission matrix and acceptance-test paths.
+- Added PR changed-code enforcement to `.github/workflows/ci.yml`: implementation paths under `apps/`, `src/`, `api/` and `shared/` must map to exactly one manifest and that capability must be `implementation-ready`. Full Git history is fetched for the base/head comparison. Push-to-main validates all present manifests.
+- Added the first capability manifest for ENT-13, plus lifecycle, permission and formula registers and validator/formula example tests. Existing procurement RFQ/quote/bid/PO/commitment/delivery tests are linked only as the implemented subset; full Unifier contract lifecycle is not claimed complete.
+- ENT-13 remains `source-mapped` with MISSING / VERIFY gaps; it cannot pass implementation-ready until current-release Unifier Help, UI/state parity and formula/permission evidence are complete.
+- Coverage is incremental: all other capabilities must add their own manifest before implementation code in their paths can be changed in a PR. The validator checks traceability structure, not source truth or visual parity.
+- GitHub Actions execution is pending on the exact PR head; no green CI claim is made yet. Engineering P1 implementation paths were not changed.
+- Branch: `docs/enterprise-layered-scope-cloud-dedup-v1`; PR #2001 remains Draft and unmerged.
+
+
+## 2026-11-16 — Exact-head verification result for Help inheritance gate
+
+- First CI attempt exposed a defect in the validator's temporary test fixture: its acceptance-test ID was not written into the fixture file. The fixture was corrected; no production capability code was changed.
+- On commit `33711b14bfe22abeb7cdccc4d3995591ea629e13`, **ConstructionPM CI passed on Python 3.11, 3.12 and 3.13**, including the PR changed-code manifest gate on Python 3.11. **Client Typecheck passed** for web, mobile, desktop and client-sync.
+- This verifies the validator/tests and PR gate at that exact commit. It does not establish complete Unifier parity or make ENT-13 implementation-ready.
+- Vercel preview status is separate: the PR's latest deployment attempts reported the account's daily deployment limit; no new preview is claimed from this verification.

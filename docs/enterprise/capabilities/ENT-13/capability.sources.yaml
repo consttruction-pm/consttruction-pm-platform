@@ -1,0 +1,181 @@
+{
+  "schema_version": 1,
+  "capabilities": [
+    {
+      "id": "ENT-13",
+      "canonical_owner": "Enterprise",
+      "environments": ["Enterprise"],
+      "status": "source-mapped",
+      "inheritance_type": "adapted",
+      "implementation_paths": [
+        "apps/web/src/workspace-procurement.ts",
+        "apps/web/src/workspace-change-claim.ts",
+        "tests/backend_p0/test_procurement_commercial_core.py",
+        "shared/contracts/p0-procurement-commercial.v1.schema.json"
+      ],
+      "sources": [
+        {
+          "kind": "software_help",
+          "product": "Oracle Primavera Unifier",
+          "release": "V25 anchor; current applicable release must be rechecked",
+          "topic": "Cost Type Business Process",
+          "help_url": "https://docs.oracle.com/cd/G18097_01/help/user/en/10292725.htm",
+          "official": true,
+          "source_status": "anchor_only",
+          "notes": "Topic anchor only; extract current-release field, workflow and UI inventory before parity claim."
+        },
+        {
+          "kind": "software_help",
+          "product": "Oracle Primavera Unifier",
+          "release": "Help release to verify",
+          "topic": "Contracts Business Process",
+          "help_url": "https://docs.oracle.com/cd/F50962_01/English/User_Guides/proj_controls/80340.htm",
+          "official": true,
+          "source_status": "anchor_only"
+        },
+        {
+          "kind": "software_help",
+          "product": "Oracle Primavera Unifier",
+          "release": "Help release to verify",
+          "topic": "Change Orders",
+          "help_url": "https://docs.oracle.com/cd/F50962_01/English/User_Guides/proj_controls/10284927.htm",
+          "official": true,
+          "source_status": "anchor_only"
+        },
+        {
+          "kind": "software_help",
+          "product": "Oracle Primavera Unifier",
+          "release": "Help release to verify",
+          "topic": "Payment Applications",
+          "help_url": "https://docs.oracle.com/cd/F50962_01/English/User_Guides/proj_controls/80345.htm",
+          "official": true,
+          "source_status": "anchor_only"
+        },
+        {
+          "kind": "software_help",
+          "product": "Oracle Primavera Unifier",
+          "release": "Help release to verify",
+          "topic": "Cost Manager Overview / Cost Sheets / Schedule of Values",
+          "help_url": "https://docs.oracle.com/cd/E37673_01/English/User_Guides/UnifierHelp/WebHelp/content/unifier_user_guide/cost_manager/cost_manager_overview.htm",
+          "official": true,
+          "source_status": "anchor_only"
+        },
+        {
+          "kind": "software_help",
+          "product": "Oracle Primavera Unifier",
+          "release": "V26",
+          "topic": "Cost Management Levels / Schedule of Values",
+          "help_url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-unifier/26/udesigner/costmanagementlevels-77650a.html",
+          "official": true,
+          "source_status": "anchor_only"
+        },
+        {
+          "kind": "theory",
+          "product": "PMI",
+          "release": "Standard edition to confirm against licensed/current copy",
+          "topic": "Procurement, contract and cost management practices",
+          "help_url": "https://www.pmi.org/standards",
+          "official": true,
+          "source_status": "anchor_only"
+        }
+      ],
+      "formula_policy": "local",
+      "formulas": [
+        {
+          "formula_id": "ENT13-F01",
+          "expression": "original_contract_value + sum(approved_change_values)",
+          "variables": ["original_contract_value", "approved_change_values"],
+          "unit": "contract_currency",
+          "rounding": "currency_minor_unit_half_up",
+          "expected_test_id": "ENT13-FORMULA-01",
+          "test_path": "tests/architecture/test_contract_commercial_formula_examples.py"
+        },
+        {
+          "formula_id": "ENT13-F02",
+          "expression": "sum(pending_change_estimates)",
+          "variables": ["pending_change_estimates"],
+          "unit": "contract_currency",
+          "rounding": "currency_minor_unit_half_up",
+          "expected_test_id": "ENT13-FORMULA-02",
+          "test_path": "tests/architecture/test_contract_commercial_formula_examples.py"
+        },
+        {
+          "formula_id": "ENT13-F03",
+          "expression": "sum(sov_line_revised_amount - sov_line_certified_to_date)",
+          "variables": ["sov_line_revised_amount", "sov_line_certified_to_date"],
+          "unit": "contract_currency",
+          "rounding": "currency_minor_unit_half_up",
+          "expected_test_id": "ENT13-FORMULA-03",
+          "test_path": "tests/architecture/test_contract_commercial_formula_examples.py"
+        },
+        {
+          "formula_id": "ENT13-F04",
+          "expression": "current_gross_work - retention - advance_recovery - deductions + tax",
+          "variables": ["current_gross_work", "retention", "advance_recovery", "deductions", "tax"],
+          "unit": "contract_currency",
+          "rounding": "currency_minor_unit_half_up",
+          "expected_test_id": "ENT13-FORMULA-04",
+          "test_path": "tests/architecture/test_contract_commercial_formula_examples.py"
+        },
+        {
+          "formula_id": "ENT13-F05",
+          "expression": "certified_to_date - paid_to_date",
+          "variables": ["certified_to_date", "paid_to_date"],
+          "unit": "contract_currency",
+          "rounding": "currency_minor_unit_half_up",
+          "expected_test_id": "ENT13-FORMULA-05",
+          "test_path": "tests/architecture/test_contract_commercial_formula_examples.py"
+        },
+        {
+          "formula_id": "ENT13-F06",
+          "expression": "retention_withheld_to_date - retention_released_to_date",
+          "variables": ["retention_withheld_to_date", "retention_released_to_date"],
+          "unit": "contract_currency",
+          "rounding": "currency_minor_unit_half_up",
+          "expected_test_id": "ENT13-FORMULA-06",
+          "test_path": "tests/architecture/test_contract_commercial_formula_examples.py"
+        },
+        {
+          "formula_id": "ENT13-F07",
+          "expression": "revised_contract_value + forecast_unapproved_scope",
+          "variables": ["revised_contract_value", "forecast_unapproved_scope"],
+          "unit": "contract_currency",
+          "rounding": "currency_minor_unit_half_up",
+          "expected_test_id": "ENT13-FORMULA-07",
+          "test_path": "tests/architecture/test_contract_commercial_formula_examples.py"
+        }
+      ],
+      "lifecycle_model": "docs/enterprise/capabilities/ENT-13/lifecycle.md",
+      "permission_matrix": "docs/enterprise/capabilities/ENT-13/permissions.md",
+      "acceptance_tests": [
+        {
+          "id": "ENT13-MANIFEST-01",
+          "path": "tests/architecture/test_capability_source_manifest.py"
+        },
+        {
+          "id": "ENT13-FORMULAS-01",
+          "path": "tests/architecture/test_contract_commercial_formula_examples.py"
+        },
+        {
+          "id": "ENT13-PROCUREMENT-CORE-01",
+          "path": "tests/backend_p0/test_procurement_commercial_core.py"
+        }
+      ],
+      "open_gaps": [
+        "MISSING / VERIFY: exhaustive current-release Unifier Help topic inventory for tendering, vendor, contract administration, bonds/insurance, claims, notices, payment, closeout and workflow variants.",
+        "MISSING / VERIFY: exact topic IDs, section anchors and procedure-step crosswalk for every inherited screen and field.",
+        "MISSING / VERIFY: validate all commercial formula semantics against the selected Unifier business-process configuration and finance/ERP owner.",
+        "MISSING / VERIFY: complete UI/state/permission parity evidence before implementation-ready status."
+      ],
+      "implemented_scope": [
+        "Existing RFQ, quote, bid comparison, purchase order, commitment and delivery resource boundary; this manifest does not assert the full contract lifecycle is implemented."
+      ],
+      "delegated_calculation_owners": {
+        "project_schedule_and_time_impact": "Engineering",
+        "project_cost_and_EVM": "Engineering",
+        "resource_assignment_and_leveling": "Engineering",
+        "payment_disbursement_and_accounting_reconciliation": "Designated finance/ERP owner"
+      }
+    }
+  ]
+}
