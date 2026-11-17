@@ -34,6 +34,7 @@ import threading
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from datetime import timedelta
 from pathlib import Path
 
@@ -93,13 +94,86 @@ def _summary(values: list[float]) -> dict[str, object]:
     }
 
 
+def _median(values: list[float]) -> float | None:
+    if not values:
+        return None
+    return round(statistics.median(values), 3)
+
+
+def _aggregate_cases(runs: list[dict[str, object]]) -> list[dict[str, object]]:
+    """Median and spread per (users, workers) over the measured repeats."""
+    groups: dict[tuple[int, int], list[dict[str, object]]] = {}
+    for run in runs:
+        if run.get("warmup") or run.get("status") == "refused":
+            continue
+        key = (int(run["users"]), int(run["workers_requested"]))
+        groups.setdefault(key, []).append(run)
+    cases: list[dict[str, object]] = []
+    for (users, workers), samples in sorted(groups.items()):
+        walls = [float(item["wall_ms"]) for item in samples]
+        throughput = [float(item["job_throughput_jobs_per_s"]) for item in samples]
+        median_wall = statistics.median(walls)
+        cases.append(
+            {
+                "users": users,
+                "workers": workers,
+                "runs": len(samples),
+                "all_ok": all(item.get("status") == "ok" for item in samples),
+                "error_count_total": sum(int(item["error_count"]) for item in samples),
+                "wall_ms_median": _median(walls),
+                "wall_ms_min": round(min(walls), 3),
+                "wall_ms_max": round(max(walls), 3),
+                "wall_spread_pct": (
+                    round((max(walls) - min(walls)) / median_wall * 100.0, 3)
+                    if median_wall
+                    else None
+                ),
+                "jobs_per_s_median": _median(throughput),
+                "queue_wait_p50_ms_median": _median(
+                    [float(item["queue_wait_ms"]["p50"]) for item in samples]
+                    if all(item["queue_wait_ms"].get("p50") is not None for item in samples)
+                    else []
+                ),
+                "queue_wait_p95_ms_median": _median(
+                    [float(item["queue_wait_ms"]["p95"]) for item in samples]
+                    if all(item["queue_wait_ms"].get("p95") is not None for item in samples)
+                    else []
+                ),
+                "status_p50_ms_median": _median(
+                    [float(item["status_ms"]["p50"]) for item in samples]
+                ),
+                "submit_p50_ms_median": _median(
+                    [float(item["submit_ms"]["p50"]) for item in samples]
+                ),
+                "submit_p99_ms_median": _median(
+                    [float(item["submit_ms"]["p99"]) for item in samples]
+                ),
+                "cpu_cores_median": _median(
+                    [float(item["cpu_utilisation_cores"]) for item in samples]
+                ),
+                "pg_connections_max": max(
+                    int(item["pg_connections_max"] or 0) for item in samples
+                ),
+                "states": samples[0]["states"],
+                "canonical_hash_equal_every_run": len(
+                    {tuple(item["output_hashes_observed"]) for item in samples}
+                )
+                == 1,
+                "drain_tail_ms_median": _median(
+                    [float(item["drain_tail_ms"]) for item in samples]
+                ),
+            }
+        )
+    return cases
+
+
 def _cleanup(connection, tenant: str) -> None:
     connection.execute("DELETE FROM scheduling_job_results WHERE tenant_id=%s", (tenant,))
     connection.execute("DELETE FROM scheduling_jobs WHERE tenant_id=%s", (tenant,))
 
 
 def _virtual_user(
-    service: SchedulingJobService,
+    pool: "_ClientPool",
     tenant: str,
     *,
     user_index: int,
@@ -107,6 +181,7 @@ def _virtual_user(
     poll_interval: float,
     cancel_fraction: float,
     resubmit: bool,
+    deadline: float,
     metrics: dict[str, list[float]],
     outcomes: dict[str, int],
     errors: list[str],
@@ -117,17 +192,18 @@ def _virtual_user(
     def submit(fingerprint: str) -> str:
         start = time.perf_counter()
         try:
-            submission = service.submit(
-                SchedulingJobRequest(
-                    tenant_id=tenant,
-                    project_id=PROJECT,
-                    submitted_by=user,
-                    request_fingerprint=fingerprint,
-                    engine_version=ENGINE,
-                    calculation_identity=WORKER_CALCULATION,
-                    max_attempts=2,
+            with pool.lease() as service:
+                submission = service.submit(
+                    SchedulingJobRequest(
+                        tenant_id=tenant,
+                        project_id=PROJECT,
+                        submitted_by=user,
+                        request_fingerprint=fingerprint,
+                        engine_version=ENGINE,
+                        calculation_identity=WORKER_CALCULATION,
+                        max_attempts=2,
+                    )
                 )
-            )
             metrics["submit_ms"].append((time.perf_counter() - start) * 1000.0)
             outcomes["submitted"] += 1
             return submission.job.job_id
@@ -138,10 +214,17 @@ def _virtual_user(
     def poll(job_id: str) -> str:
         state = "UNKNOWN"
         for _ in range(max(1, polls)):
+            if time.monotonic() > deadline:
+                outcomes["poll_deadline"] += 1
+                return "DEADLINE"
             start = time.perf_counter()
-            job = service.get(
-                tenant_id=tenant, project_id=PROJECT, job_id=job_id, user_id=user
-            )
+            with pool.lease() as service:
+                job = service.get(
+                    tenant_id=tenant,
+                    project_id=PROJECT,
+                    job_id=job_id,
+                    user_id=user,
+                )
             metrics["status_ms"].append((time.perf_counter() - start) * 1000.0)
             state = job.state.value
             if job.is_terminal:
@@ -154,19 +237,71 @@ def _virtual_user(
         job_id = submit(f"{user}-{attempt}")
         if should_cancel and attempt == 0:
             start = time.perf_counter()
-            job = service.cancel(
-                tenant_id=tenant, project_id=PROJECT, job_id=job_id, user_id=user
-            )
+            with pool.lease() as service:
+                job = service.cancel(
+                    tenant_id=tenant,
+                    project_id=PROJECT,
+                    job_id=job_id,
+                    user_id=user,
+                )
             metrics["cancel_ms"].append((time.perf_counter() - start) * 1000.0)
             outcomes["cancel_requested"] += 1
             if job.state is SchedulingJobState.CANCELLED:
                 outcomes["cancelled_terminal"] += 1
                 continue
         state = poll(job_id)
-        outcomes[state.lower()] += 1
+        key = state.lower()
+        outcomes[key] = outcomes.get(key, 0) + 1
         if state == SchedulingJobState.CANCELLED.value and attempt == 0 and resubmit:
             continue
         break
+
+
+class _ClientPool:
+    """A bounded set of request-scoped PostgreSQL client connections.
+
+    An application server rents a connection for one HTTP request and returns
+    it immediately. Holding a connection for a whole scripted journey would
+    turn this measurement into a client-pool benchmark and starve users behind
+    16 sockets, so every operation leases and returns its own connection and
+    the wait is recorded honestly as ``client_pool_wait_ms``.
+    """
+
+    def __init__(self, dsn: str, size: int, lease_ttl: float) -> None:
+        import psycopg
+
+        self._queue: "queue_module.Queue[SchedulingJobService]" = (
+            queue_module.Queue()
+        )
+        self._connections = []
+        self._lock = threading.Lock()
+        self.waits: list[float] = []
+        self.size = size
+        for _ in range(size):
+            connection = psycopg.connect(dsn, autocommit=True)
+            self._connections.append(connection)
+            self._queue.put(
+                SchedulingJobService(
+                    PostgresSchedulingJobRepository(connection),
+                    lease_ttl=timedelta(seconds=lease_ttl),
+                )
+            )
+
+    @contextmanager
+    def lease(self):
+        started = time.perf_counter()
+        service = self._queue.get()
+        waited = (time.perf_counter() - started) * 1000.0
+        with self._lock:
+            self.waits.append(waited)
+        try:
+            yield service
+        finally:
+            self._queue.put(service)
+
+    def close(self) -> None:
+        for connection in self._connections:
+            connection.close()
 
 
 def _run_case(
@@ -183,6 +318,7 @@ def _run_case(
     resubmit: bool,
     oversubscribed: bool,
     client_pool: int = 16,
+    case_timeout: float = 600.0,
 ) -> dict[str, object]:
     import psycopg
 
@@ -198,19 +334,11 @@ def _run_case(
     # Virtual users borrow a bounded client connection pool, the way an
     # application server would. Each connection owns its own service instance,
     # so the measurement includes real connection/queue pressure instead of
-    # serialising every user behind one shared connection.
+    # serialising every user behind one shared connection. Connections are
+    # leased per operation, never for a whole journey. The pool is created
+    # *after* the worker processes are forked so a child never inherits a
+    # client socket it could terminate on exit.
     client_pool_size = max(1, min(users, client_pool))
-    clients: "queue_module.Queue" = queue_module.Queue()
-    client_connections = []
-    for _ in range(client_pool_size):
-        connection = psycopg.connect(dsn, autocommit=True)
-        client_connections.append(connection)
-        clients.put(
-            SchedulingJobService(
-                PostgresSchedulingJobRepository(connection),
-                lease_ttl=timedelta(seconds=max(60.0, timeout)),
-            )
-        )
 
     context = multiprocessing.get_context("fork")
     queue = context.Queue()
@@ -221,6 +349,11 @@ def _run_case(
         "timeout": timeout,
         "lease_ttl": max(60.0, timeout),
         "budget_per_process": 1,
+        # A production worker does not exit after 4 ms of an empty queue. Give
+        # it a real idle grace so a staggered submission stream is served by a
+        # persistent pool instead of outliving it.
+        "poll_interval": 0.01,
+        "idle_polls_before_exit": int(10.0 / 0.01),
     }
     processes = [
         context.Process(target=_worker_main, args=(config, queue))
@@ -245,9 +378,33 @@ def _run_case(
     monitor_thread = threading.Thread(target=monitor, daemon=True)
     monitor_thread.start()
 
+    # Drain worker events concurrently. A multiprocessing queue whose reader
+    # only starts after every virtual user finishes fills its pipe and leaves
+    # the workers blocked flushing events at interpreter shutdown, which looks
+    # exactly like a stalled queue. Drain from the first claim onwards.
+    records: list[dict[str, object]] = []
+    records_lock = threading.Lock()
+    stop_drain = threading.Event()
+
+    def drain() -> None:
+        while True:
+            try:
+                record = queue.get(timeout=0.2)
+            except queue_module.Empty:
+                if stop_drain.is_set():
+                    return
+                continue
+            with records_lock:
+                records.append(record)
+
+    drain_thread = threading.Thread(target=drain, daemon=True)
+    drain_thread.start()
+
     wall_start = time.perf_counter()
+    deadline = wall_start + case_timeout
     for process in processes:
         process.start()
+    clients = _ClientPool(dsn, client_pool_size, max(60.0, timeout))
 
     metrics: dict[str, list[float]] = {
         "submit_ms": [],
@@ -257,6 +414,7 @@ def _run_case(
     outcomes: dict[str, int] = {
         "submitted": 0,
         "poll_timeout": 0,
+        "poll_deadline": 0,
         "cancel_requested": 0,
         "cancelled_terminal": 0,
         "queued": 0,
@@ -267,48 +425,62 @@ def _run_case(
     }
     errors: list[str] = []
     user_latency: list[float] = []
-    pool_wait: list[float] = []
 
     def journey(index: int) -> None:
         started = time.perf_counter()
-        wait_start = time.perf_counter()
-        service = clients.get()
-        pool_wait.append((time.perf_counter() - wait_start) * 1000.0)
         try:
             _virtual_user(
-                service,
+                clients,
                 tenant,
                 user_index=index,
                 polls=polls,
                 poll_interval=poll_interval,
                 cancel_fraction=cancel_fraction,
                 resubmit=resubmit,
+                deadline=deadline,
                 metrics=metrics,
                 outcomes=outcomes,
                 errors=errors,
             )
         finally:
-            clients.put(service)
-        user_latency.append((time.perf_counter() - started) * 1000.0)
+            user_latency.append((time.perf_counter() - started) * 1000.0)
 
     with ThreadPoolExecutor(max_workers=users) as pool:
         list(pool.map(journey, range(users)))
 
-    for process in processes:
-        process.join(timeout)
+    # Client-observed throughput ends when the last virtual user returns; the
+    # worker idle grace after that is reported separately as drain tail so a
+    # 10 s grace is never misreported as queue latency.
     wall = time.perf_counter() - wall_start
+
+    # Workers stop on their own after the idle grace; the deadline is the outer
+    # bound so a stuck case can never hang the evidence run.
+    killed: list[int] = []
+    join_budget = max(1.0, deadline - time.monotonic())
+    for process in processes:
+        process.join(join_budget)
+    for process in processes:
+        if process.is_alive():
+            process.terminate()
+            process.join(5.0)
+            killed.append(process.pid)
+    drain_tail = time.perf_counter() - wall_start - wall
     stop_monitor.set()
     monitor_thread.join(1.0)
-    for connection in client_connections:
-        connection.close()
+    stop_drain.set()
+    drain_thread.join(5.0)
+    while True:
+        try:
+            record = queue.get_nowait()
+        except queue_module.Empty:
+            break
+        with records_lock:
+            records.append(record)
+    clients.close()
 
     events: list[dict[str, object]] = []
     summaries: list[dict[str, object]] = []
-    while True:
-        try:
-            record = queue.get(timeout=0.5)
-        except queue_module.Empty:
-            break
+    for record in records:
         if record.get("kind") == "SUMMARY":
             summaries.append(record)
         else:
@@ -371,6 +543,7 @@ def _run_case(
         "oversubscribed": oversubscribed,
         "jobs_created": total_jobs,
         "wall_ms": round(wall * 1000.0, 3),
+        "drain_tail_ms": round(drain_tail * 1000.0, 3),
         "journey_throughput_users_per_s": round(users / wall, 3) if wall else None,
         "job_throughput_jobs_per_s": round(total_jobs / wall, 3) if wall else None,
         "states": states,
@@ -392,7 +565,7 @@ def _run_case(
         "cancel_ms": _summary(metrics["cancel_ms"]),
         "journey_ms": _summary(user_latency),
         "client_pool_size": client_pool_size,
-        "client_pool_wait_ms": _summary(pool_wait),
+        "client_pool_wait_ms": _summary(clients.waits),
         "queue_wait_ms": _summary(queue_wait),
         "run_ms": _summary(run_ms),
         "cpu_seconds_total": round(cpu_seconds, 3),
@@ -405,8 +578,10 @@ def _run_case(
         ),
         "pg_samples": len(connections),
         "worker_exitcodes": [process.exitcode for process in processes],
+        "workers_terminated_at_deadline": killed,
         "ok": (
             not errors
+            and not killed
             and pending == 0
             and hashes == {expected}
             and all(process.exitcode == 0 for process in processes)
@@ -428,8 +603,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--poll-interval", type=float, default=0.02)
     parser.add_argument("--cancel-fraction", type=float, default=0.1)
     parser.add_argument("--no-resubmit", action="store_true")
-    parser.add_argument("--client-pool", type=int, default=16)
+    parser.add_argument("--client-pool", type=int, default=32)
+    parser.add_argument("--case-timeout", type=float, default=600.0)
     parser.add_argument("--allow-oversubscription", action="store_true")
+    parser.add_argument("--case-repeats", type=int, default=1)
+    parser.add_argument(
+        "--case-warmups",
+        type=int,
+        default=0,
+        help="case runs per cell discarded before the measured repeats",
+    )
     parser.add_argument("--git-sha", default=None)
     parser.add_argument("--out", type=Path, default=None)
     args = parser.parse_args(argv)
@@ -446,6 +629,8 @@ def main(argv: list[str] | None = None) -> int:
     suppliable = max(1, int(capacity.effective_cores))
 
     runs: list[dict[str, object]] = []
+    repeats = max(1, args.case_repeats)
+    warmups = max(0, args.case_warmups)
     for users in user_counts:
         for workers in worker_counts:
             if workers > suppliable and not args.allow_oversubscription:
@@ -461,24 +646,32 @@ def main(argv: list[str] | None = None) -> int:
                     }
                 )
                 continue
-            print(f"users={users} workers={workers} ...", flush=True)
-            record = _run_case(
-                dsn=args.dsn,
-                users=users,
-                workers=workers,
-                jobs_size=args.size,
-                seed=args.seed,
-                timeout=args.timeout,
-                polls=args.polls,
-                poll_interval=args.poll_interval,
-                cancel_fraction=args.cancel_fraction,
-                resubmit=not args.no_resubmit,
-                oversubscribed=workers > suppliable,
-                client_pool=args.client_pool,
-            )
-            record["status"] = "ok" if record["ok"] else "failed"
-            runs.append(record)
-            print(
+            for index in range(warmups + repeats):
+                warmup = index < warmups
+                label = "warm-up" if warmup else f"run {index - warmups + 1}/{repeats}"
+                print(f"users={users} workers={workers} {label} ...", flush=True)
+                record = _run_case(
+                    dsn=args.dsn,
+                    users=users,
+                    workers=workers,
+                    jobs_size=args.size,
+                    seed=args.seed,
+                    timeout=args.timeout,
+                    polls=args.polls,
+                    poll_interval=args.poll_interval,
+                    cancel_fraction=args.cancel_fraction,
+                    resubmit=not args.no_resubmit,
+                    oversubscribed=workers > suppliable,
+                    client_pool=args.client_pool,
+                    case_timeout=args.case_timeout,
+                )
+                record["status"] = "ok" if record["ok"] else "failed"
+                record["repeat_index"] = index
+                record["warmup"] = warmup
+                runs.append(record)
+                if warmup:
+                    continue
+                print(
                 json.dumps(
                     {
                         key: record[key]
@@ -517,7 +710,10 @@ def main(argv: list[str] | None = None) -> int:
         "seed": args.seed,
         "cancel_fraction": args.cancel_fraction,
         "resubmit": not args.no_resubmit,
+        "case_repeats": repeats,
+        "case_warmups": warmups,
         "runs": runs,
+        "cases": _aggregate_cases(runs),
     }
     if args.out is not None:
         args.out.parent.mkdir(parents=True, exist_ok=True)

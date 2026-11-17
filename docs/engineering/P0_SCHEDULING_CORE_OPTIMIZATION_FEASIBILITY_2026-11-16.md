@@ -917,3 +917,139 @@ should be a new, explicitly scoped change (for example leveling inputs in the
 bundle, or a proven mobile runtime) rather than an extension of this record.
 
 Evidence: `docs/workspace/evidence/p0i-offline-runtime-2026-11-16/`.
+
+## 16. P0-J execution record (2026-11-17)
+
+P0-J is the continuation registered as [Issue #2020](https://github.com/consttruction-pm/consttruction-pm-platform/issues/2020) and linked to #1992. It starts from merged main after #1998/#1999/#2000 and does not re-implement P0-A … P0-I. Phases 1–2 (profiling, leveling, closed forms) were merged as `92a62afd`; phases 3–5 (parallel float, job path, stress) were measured on `87fc5c4a`. Nothing below removes a capability, option, validation, calendar rule, relationship type, float/critical-path rule, leveling decision or calculation output.
+
+### 16.1 Measured profiling (phase 1)
+
+Profiling used `scripts/p0j_profile.py` (phase wrappers plus cProfile) on the real pre-change commit `ee9753e6`, with per-size benchmarks to confirm the shares. cProfile inflates absolute time ~2–3×; only shares are used from it.
+
+| Path | Dominant cost before P0-J | Share |
+| --- | --- | --- |
+| Date CPM | `_max_holding_delay` probe search for Free Float | ~70 % |
+| Time-aware CPM | `_free_float_limit` prefix + exponential/binary probe | ~76 % |
+| Forward leveling | full ledger rebuild + rescan per overloaded period per accepted 1-day shift | 18.6 s at 250, ~158 s at 500 activities |
+| Backward leveling | same rebuild shape and cumulative replay | 45.7 s at 100, >600 s at 250 |
+
+The qualitative finding matters more than the percentage: every hot spot was repeated *recomputation* of something already determined (a limit, a demand ledger), not an intrinsically expensive P6 calculation. That is why closed forms and incremental ledgers could remove the cost without touching a single decision rule.
+
+### 16.2 Resource Leveling first (phase 2)
+
+Both passes now keep a per-`(resource, period)` member map, exact `Fraction` totals, a maintained over-allocation set, a version-stamped lazy min-heap of candidates, per-activity demand caches and an O(1) contiguous working-day series. Candidate ordering, priority keys, protected activities, shift bounds and every recorded shift are unchanged. The previous rebuild algorithms are kept as an executable oracle in `tests/scheduling/test_leveling_incremental_equivalence.py` (183 tests, 80 randomized seeds per direction, four calendars including holidays, multiple resolvers, signed/absent priorities, multi-resource demands, over-allocation percentages, beyond-float bounds, two golden decision sequences).
+
+| Case | Reference `ee9753e6` | Current | Speedup | Shifts | Canonical hash |
+| --- | --- | --- | --- | --- | --- |
+| forward 100 | 1,074.2 ms | 14 ms | 75× | 84 | identical |
+| forward 250 | 18,317.6 ms | 48 ms | 380× | 226 | identical |
+| forward 500 | 156,983.4 ms | 83 ms | 1,888× | 476 | identical |
+| forward 25,000 | – | 5,329 ms | – | – | `7c142e0b…` |
+| forward 50,000 | – | 11,068 ms | – | – | `fc188c3e…` |
+| backward 100 | 45,672.6 ms | 17 ms | 2,669× | 864 cumulative | identical `53429109…` |
+| backward 250 | not finished in 600 s | 53 ms | ≥ 11,400× (lower bound) | – | – |
+| backward 25,000 | – | 7,690 ms | – | – | `7509be0b…` |
+
+Orchestration (CPM + forward + backward + validation) at 20/50/100 activities is 10/52/197 ms with the same hashes as the P0-E evidence, so CPM reuse is preserved.
+
+### 16.3 Verified closed forms (phase 2, CPM)
+
+`_holding_delay_boundary` derives the holding-delay limit from working-day index arithmetic; `_float_limit_interval_bound` does the same for working time. Both fall back to the original probe path whenever any calendar, unit or lag combination is outside the proven case (different lag calendar, non-working units). Accuracy is established by differential tests against a reconstruction of the probe predicate: `tests/scheduling/test_free_float_closed_form.py` (12 seeds × 300 random cases × all relationship types, lags −4..5, plus a full-schedule equality check with the closed form disabled) and `tests/scheduling/test_time_float_search.py` (shape × float-day equality with the interval bound disabled, signed lags, WORKING_DAY fallback).
+
+| Shape | Activities | Before | After | Speedup | Hash equal |
+| --- | --- | --- | --- | --- | --- |
+| date dag | 25,000 | 3,765.3 ms | 1,725.5 ms | 2.18× | yes |
+| date dag | 100,000 | 15,725.3 ms | 7,401.6 ms | 2.12× | yes |
+| time dag | 25,000 | 17,043.9 ms | 8,153.0 ms | 2.09× | yes |
+| time dag | 100,000 | 69,038.8 ms | 33,641.9 ms | 2.05× | yes |
+
+The 50,000/100,000 reference numbers were produced in a worktree at `ee9753e6` with the same fixture (`dag`, seed 20261116, `float_days=0`), 1 warm-up and 3 repeats. The older P0 baseline file at 100,000 is not used for this ratio because it ran `float_days=2`, a different fixture condition.
+
+The time-aware path also fixes a real crash: `calculate_time_hours` raised `finish must not precede start` for negative total float because the magnitude was computed in the wrong direction before negation. Signed results are now covered for every relationship type and lag.
+
+### 16.4 Safe parallel float in the real worker path (phase 3)
+
+`FloatExecutionPolicy(workers, admission, allow_spawn)` now crosses the authoritative boundary: `evaluate_schedule_snapshot(..., float_execution=...)` forwards it through `_evaluate_materialized` into `time_schedule(float_policy=...)`, and `AuthoritativeScheduleQueryProvider` and `OfflineSchedulingRuntime` accept it. The offline runtime defaults to one slot per effective core; the job executor defaults to sequential.
+
+Safety rules, all enforced in code and tested:
+
+* `fork` only when `threading.active_count() == 1` and there is no parent process (a forked child must never inherit another thread's locks).
+* `spawn` only with explicit `allow_spawn` and only if the immutable float context pickles.
+* One `_FLOAT_POOL_GUARD` per process, so a nested pool is refused rather than multiplied.
+* Extra slots come from `GlobalExecutionBudget.admit_extra`, which grants only what the process-wide permit set can actually give, non-blocking by default to avoid holder-waits-on-holder deadlock; extra slots are accounted separately from job permits.
+* Deterministic merge by activity id in canonical order; any failure (`OSError`, `RuntimeError`, budget exhaustion, one chunk) falls back to the exact sequential loop.
+
+Measured with `scripts/p0j_float_parallel.py` (2 warm-ups, 7 repeats; spawn 5), whole time-aware schedule:
+
+| Activities | Context | 1 slot | 2 | 4 | Speedup at 4 | Canonical hash |
+| --- | --- | --- | --- | --- | --- | --- |
+| 500 | main (`fork`) | 183.7 ms | 146.2 ms | 125.6 ms | 1.46× | equal |
+| 2,000 | main (`fork`) | 736.0 ms | 579.1 ms | 504.1 ms | 1.46× | equal |
+| 5,000 | main (`fork`) | 1,864.9 ms | 1,447.6 ms | 1,229.1 ms | 1.52× | equal |
+| 25,000 | main (`fork`) | 9,485.3 ms | 7,512.8 ms | 6,262.4 ms | 1.51× | equal |
+| 25,000 | thread, default | 9,490.5 ms | – | 9,464.0 ms | sequential by design | equal |
+| 25,000 | thread, `allow_spawn` | 9,436.8 ms | 10,170.6 ms | 10,311.5 ms | 0.92× | equal |
+
+The float pass alone is ~3.3× faster with fork (4.60 s → 1.30 s at 25,000); the whole schedule gains 1.5× because forward and backward passes stay serial (they are relationship-dependent and are not parallelised without a proof). In the threaded executor, the only safe method is `spawn`, and the float context pickles to 11.6 MB at 25,000 activities: ~25 µs per activity of transfer against ~169 µs of parallelisable work, i.e. a measured loss, so `allow_spawn` is `False` and the executor stays exactly sequential with `pool_slots_used = 1`. The architecture solves the safety problem rather than disabling the feature: the same policy is profitable in the offline/CLI runtime, and opting into spawn is one field for hosts with cheaper transfer.
+
+### 16.5 Real Scheduling Job path (phase 4)
+
+The float policy completed the query provider path, which had no way to express execution policy without bypassing the authoritative boundary. `tests/scheduling/test_scheduling_job_authoritative_path.py` exercises the real `SchedulingJobService` + `SchedulingJobExecutor` + `AuthoritativeScheduleQueryProvider` over a SQLite snapshot repository: three jobs on the same snapshot produce the same `output_hash`, a resubmission after completion deduplicates, tenant/project isolation rejects cross-scope reads (`SchedulingJobError`), and a job whose `calculation_identity` does not match the engine is `FAILED` with no result row. Duplicate/single-flight, concurrent same-snapshot, retry/lease expiry, crash recovery, cancellation and no-partial-result behaviour remain covered by the P0-F/P0-G suites and were not weakened.
+
+Performance of the budgeted executor was re-confirmed by phase 5 rather than re-measured in isolation: the stress matrix below runs the production executor in every worker process.
+
+### 16.6 Reproducible stress (phase 5)
+
+Pure engine (1,000 → 100,000 activities, date/time/leveling, wide/fan/dag) is recorded in the evidence directory with 2 warm-ups and 3–7 repeats; 50,000/100,000 results are in §16.3. The queue/DB/worker path is measured separately by `scripts/p0j_job_stress.py`, because mixing API latency with engine time would make both unreadable.
+
+Method: fixed 200-activity fixture, real PostgreSQL 14.24, one production `SchedulingJobExecutor` per OS process with one budget permit, 32 request-scoped client connections, 10% of users cancelling and resubmitting, status polling at 20 Hz, per cell one warm-up plus three measured repeats.
+
+| Users | Workers | Wall median (spread) | Jobs/s | Queue p50 / p95 | Status p50 | Submit p99 | CPU cores | PG conns |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 100 | 1 | 2.652 s (1.7 %) | 41.5 | 1,258 / 2,354 ms | 0.13 ms | 14.6 ms | 0.62 | 34 |
+| 100 | 2 | 1.361 s (1.1 %) | 80.8 | 623 / 1,154 ms | 0.11 ms | 14.9 ms | 1.22 | 35 |
+| 100 | 4 | 0.798 s (2.5 %) | 137.9 | 329 / 524 ms | 0.16 ms | 30.9 ms | 2.38 | 38 |
+| 500 | 1 | 9.535 s (3.0 %) | 57.7 | 6,365 / 11,686 ms | 8.84 ms | 199.8 ms | 0.84 | 35 |
+| 500 | 2 | 6.793 s (0.7 %) | 81.0 | 2,983 / 5,315 ms | 5.86 ms | 228.9 ms | 1.20 | 36 |
+| 500 | 4 | 4.088 s (2.0 %) | 134.6 | 1,635 / 2,563 ms | 6.59 ms | 178.3 ms | 2.04 | 38 |
+| 1,000 | 1 | 19.137 s (2.6 %) | 57.5 | 12,502 / 22,884 ms | 38.37 ms | 596.7 ms | 0.84 | 35 |
+| 1,000 | 2 | 13.138 s (0.3 %) | 83.7 | 5,811 / 10,520 ms | 12.15 ms | 518.5 ms | 1.23 | 36 |
+| 1,000 | 4 | 8.467 s (2.3 %) | 129.9 | 2,973 / 4,975 ms | 15.62 ms | 438.5 ms | 1.95 | 38 |
+
+Oversubscription on the same host (100 users): 8 processes 0.620 s / 177.4
+jobs/s / 3.23 cores / 26 connections; 16 processes 0.632 s / 173.9 / 4.04 / 33;
+32 processes 0.763 s / 144.1 / 4.58 / 49; 64 processes 1.118 s / 98.4 / 5.30 /
+82, with a 50.5 % spread across its three runs. The median of three repeats is
+used everywhere; the warm-up run is stored but excluded.
+
+The scripted cancels are exact (every `cancel_requested` reached terminal `CANCELLED`), every case persisted one canonical hash equal to the in-process engine result, and no case left a pending job, a failed job, a partial result, or a worker that exited non-zero. Scaling is real but bounded by the client path: 1→4 workers gives 3.32× at 100 users, 2.33× at 500 and 2.26× at 1,000, while CPU use never exceeds 2.38 of 4 cores and submit p99 grows to 597 ms at 1,000 users. Oversubscription confirms the limit instead of assuming it: 8/16 processes reach 177.4/173.9 jobs/s, 32 drops to 144.1 and 64 to 98.4, with 82 PostgreSQL connections and 5.30 cores of CPU time at 64. The harness therefore refuses `workers > effective_cores` unless a run is explicitly labelled simulated.
+
+### 16.7 Invariants held
+
+| Invariant | Status |
+| --- | --- |
+| Exactly one authoritative calculation engine | Yes: all paths call `evaluate_schedule_snapshot`; no per-surface engine was added |
+| Identical canonical hash for 1 vs N workers | Yes: float 1/2/4 slots, 3 runs per case, and every job-stress repeat |
+| No relationship-dependent phase parallelised | Yes: only per-activity floats; forward/backward passes and leveling decisions stay serial |
+| Final CPM validation retained | Yes: unchanged and exercised by every benchmark and job |
+| Final resource-capacity validation retained | Yes: unchanged; leveling equivalence tests include over-allocation and capacity checks |
+| Worker count from real capacity | Yes: `detect_effective_capacity` + `GlobalExecutionBudget`; 8–64 recorded only as simulated |
+| No capability/validation removed for speed | Yes: the only algorithm changes are exact closed forms and incremental ledgers with oracles |
+
+### 16.8 Verification
+
+* Full suite on `87fc5c4a`: 4,873 passed, 131 skipped (Python 3.12, local PostgreSQL 14.24).
+* New tests: `tests/scheduling/test_time_float_execution_policy.py` (11) and `tests/scheduling/test_scheduling_job_authoritative_path.py` (3), plus the existing differential suites (`test_free_float_closed_form.py`, `test_time_float_search.py`, `test_leveling_incremental_equivalence.py`).
+* Required CI: GitHub Actions Python 3.11/3.12/3.13, PostgreSQL integration and the four typechecks. Vercel deployments are infrastructure-only for this change (no Web/UI change).
+
+### 16.9 Limits and phase status
+
+* 4 effective CPUs; no multi-host, multi-node or >4-worker capacity is claimed. 8/16/32/64 results are simulated-quota behaviour on this host.
+* The job-stress fixture is deliberately small and constant; engine scaling is §16.3, not the queue table.
+* The stress harness does not kill workers mid-job; crash recovery and lease expiry are covered by the lifecycle suites, not by this matrix.
+* Time-aware peak RSS is 9–10% higher than the reference at 50,000/100,000 activities, a measured trade for the closed-form interval candidates.
+* Desktop packaging, mobile runtime, leveling bundles and HTTP admission remain out of scope, as recorded in §15.5.
+
+P0-A … P0-J are implemented and measured. No further phase is implied by this record; any follow-up (leveling inputs in the offline bundle, multi-host PostgreSQL, a different worker topology) requires a new, explicitly scoped decision.
+
+Evidence: `docs/workspace/evidence/p0j-scheduling-optimization-2026-11-17/`.
