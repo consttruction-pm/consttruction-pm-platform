@@ -24,6 +24,8 @@ from ..p6_resource_assignment_repository import (
 from ..p6_resource_spread_repository import PostgresP6ResourceSpreadRepository
 from ..p6_resource_capacity_repository import PostgresP6ResourceCapacityRepository
 from ..p6_resource_rate_repository import PostgresP6ResourceRateRepository
+from ..p6_code_repository import PostgresP6CodeRepository
+from ..p6_code_assignment_repository import PostgresP6CodeAssignmentRepository
 from ..p6_field_registry_repository import PostgresP6FieldRegistryRepository
 from ..p6_global_security import PostgresP6GlobalSecurityRepository
 from ..p6_layout_definition_repository import PostgresP6LayoutRepository
@@ -59,6 +61,8 @@ def initialize_production_schema(connection: Any) -> None:
     PostgresP6ResourceSpreadRepository(connection).initialize()
     PostgresP6ResourceCapacityRepository(connection).initialize()
     PostgresP6ResourceRateRepository(connection).initialize()
+    PostgresP6CodeRepository(connection).initialize()
+    PostgresP6CodeAssignmentRepository(connection).initialize()
     def project_obs_lookup(tenant_id: str, project_id: str) -> str | None:
         row = connection.execute(
             "SELECT obs_id FROM project_lifecycle_projects WHERE tenant_id=%s AND project_id=%s",
