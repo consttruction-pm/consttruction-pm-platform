@@ -326,3 +326,22 @@ Named V26 project privilege checks now cover activity create/update, WBS writes,
 3. The Team Member and personal resource-calendar eligibility methods are available in the policy, but the full Team Member web/mobile and My Calendar route surfaces are not yet present/wired here.
 4. The project privilege gates listed above are not yet exhaustive across every project-data route, import/export, copy/paste, report, UDF/cost, external integration and UI action. The route matrix must be completed before claiming full V26 parity.
 5. Live PostgreSQL, browser end-to-end and exact-head CI checks are still required. Keep PR #1984 open/Draft until the same final SHA passes them.
+
+
+### Tenant administration and project lifecycle wiring — 2026-11-17
+
+The tenant administration API now also exposes the OBS hierarchy selector at
+`GET /api/admin/p6/obs` and the tenant resource selector at
+`GET /api/admin/p6/associated-resources`. OBS assignment and Associated
+Resource mutation use the V26 Add/Edit/Delete Users privilege; OBS structure
+mutation uses Add/Edit/Delete OBS. Project creation is checked against the
+Add Projects privilege on the target OBS before the project record exists.
+Project metadata edits and project checkout use Edit Project Details and
+Check In/Check Out Projects and Open Projects Exclusively, respectively.
+
+The production project lifecycle policy derives project read visibility from
+OBS grants and Contributor read visibility from the associated resource's
+project assignments. For non-Admin users, project-level OBS assignment is
+still the only full project-profile scope represented in the current project
+schema. EPS/WBS-level OBS assignment and their distinct read-only/editable
+boundaries remain open as described above.
