@@ -81,10 +81,13 @@ class _ProjectSecurityRepositoryBase:
             f"INSERT INTO p6_project_security_profile "
             f"(tenant_id,profile_id,name,privileges,active,revision,is_default,built_in,description) "
             f"VALUES({self.placeholder},{self.placeholder},{self.placeholder},{self.audit_payload_placeholder},{self.placeholder},{self.placeholder},{self.placeholder},{self.placeholder},{self.placeholder}) "
-            f"ON CONFLICT (tenant_id,profile_id) DO NOTHING",
+            f"ON CONFLICT (tenant_id,profile_id) DO NOTHING RETURNING profile_id",
             (tenant_id, profile.profile_id, profile.name, json.dumps(list(profile.privileges)),
              True, 1, False, True, profile.description),
-        )
+        ).fetchone()
+        if inserted is not None:
+            self._audit(tenant_id, actor_id, "project_superuser_profile_provisioned",
+                        {"profile_id": profile.profile_id, "revision": 1})
         stored = self.get_profile(tenant_id, profile.profile_id)
         if stored is None or not stored.built_in or set(stored.privileges) != set(profile.privileges):
             raise P6ProjectSecurityPersistenceError("PROJECT_SUPERUSER_PROFILE_INTEGRITY_ERROR")
@@ -256,6 +259,12 @@ class SQLiteP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
           audit_id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, actor_id TEXT NOT NULL,
           action TEXT NOT NULL, payload TEXT NOT NULL
         );
+        CREATE TRIGGER IF NOT EXISTS p6_project_security_audit_no_update
+          BEFORE UPDATE ON p6_project_security_audit
+          BEGIN SELECT RAISE(ABORT,'P6_PROJECT_SECURITY_AUDIT_APPEND_ONLY'); END;
+        CREATE TRIGGER IF NOT EXISTS p6_project_security_audit_no_delete
+          BEFORE DELETE ON p6_project_security_audit
+          BEGIN SELECT RAISE(ABORT,'P6_PROJECT_SECURITY_AUDIT_APPEND_ONLY'); END;
         """)
         columns = {row[1] for row in self.connection.execute("PRAGMA table_info(p6_project_security_profile)")}
         if "built_in" not in columns:
@@ -403,6 +412,15 @@ class PostgresP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
           audit_id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, actor_id TEXT NOT NULL,
           action TEXT NOT NULL, payload JSONB NOT NULL, occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )""")
+        self.connection.execute("""
+        CREATE OR REPLACE FUNCTION p6_project_security_audit_immutable()
+        RETURNS trigger LANGUAGE plpgsql AS $
+        BEGIN RAISE EXCEPTION 'P6_PROJECT_SECURITY_AUDIT_APPEND_ONLY'; END; $""")
+        self.connection.execute("DROP TRIGGER IF EXISTS p6_project_security_audit_immutable ON p6_project_security_audit")
+        self.connection.execute("""
+        CREATE TRIGGER p6_project_security_audit_immutable
+        BEFORE UPDATE OR DELETE ON p6_project_security_audit
+        FOR EACH ROW EXECUTE FUNCTION p6_project_security_audit_immutable()""")
 
     def save_profile(self, profile, *, actor_id: str, expected_revision=None):
         profile.validate()
