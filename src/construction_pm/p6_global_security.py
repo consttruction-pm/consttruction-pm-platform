@@ -693,9 +693,35 @@ class P6GlobalSecurityAuthorizationPolicy:
     the authoritative OBS-to-project assignment resolver is wired; a generic
     CUBI role is never treated as an OBS assignment.
     """
-    def __init__(self, repository: P6GlobalSecurityRepository, project_policy: Any) -> None:
+    def __init__(
+        self,
+        repository: P6GlobalSecurityRepository,
+        project_policy: Any,
+        *,
+        obs_project_access: Any | None = None,
+    ) -> None:
         self._repository = repository
         self._project_policy = project_policy
+        self._obs_project_access = obs_project_access
+
+    def _has_authoritative_obs_project_access(
+        self, context: Any, permission: Any
+    ) -> bool:
+        """Resolve project scope through the tenant's user↔OBS↔profile grants."""
+        resolver = getattr(self._obs_project_access, "project_permission", None)
+        if not callable(resolver):
+            return False
+        permission_code = getattr(permission, "value", permission)
+        if not isinstance(permission_code, str) or not permission_code:
+            return False
+        return bool(
+            resolver(
+                context.tenant_id,
+                context.user_id,
+                context.project_id,
+                permission_code,
+            )
+        )
 
     def is_allowed(self, context: Any, permission: Any) -> bool:
         try:
@@ -709,7 +735,10 @@ class P6GlobalSecurityAuthorizationPolicy:
             if global_profile_has_project_access_bypass(profile):
                 return True
             if global_profile_has_global_read_only(profile):
-                return False
+                # V26 No Global Privileges has no global grants, but project
+                # access remains independently possible through OBS + Project
+                # Security Profile assignments. Never infer it from CUBI roles.
+                return self._has_authoritative_obs_project_access(context, permission)
             if "projects" not in assignment.module_access:
                 return False
             return bool(self._project_policy.is_allowed(context, permission))
