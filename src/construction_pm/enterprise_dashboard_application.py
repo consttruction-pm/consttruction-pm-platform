@@ -130,6 +130,137 @@ class EnterpriseDashboardApplicationService:
             and (item.dashboard.status == "active" or item.dashboard.owner_user_id == session.user_id or self._is_admin(session))
         )
 
+    def list_dashboard_catalog(
+        self,
+        session_id: str,
+        *,
+        limit: int = 200,
+        search: str | None = None,
+    ) -> dict[str, object]:
+        """Return P6-style displayed/available dashboards for the authenticated actor."""
+        session = self._session(session_id)
+        self._require_enterprise(session, write=False)
+        if search is not None and (
+            not isinstance(search, str) or len(search) > 200
+        ):
+            raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_SEARCH")
+        query = search.strip().casefold() if isinstance(search, str) else ""
+        visible = tuple(
+            item for item in self.list_dashboards(session_id, limit=limit)
+            if item.dashboard.status == "active"
+            and (not query or query in item.dashboard.title.casefold())
+        )
+        preferences = self._repository.list_display_preferences(
+            session.tenant_id, session.user_id
+        )
+        displayed_items: list[tuple[int, StoredEnterpriseDashboard]] = []
+        available_items: list[StoredEnterpriseDashboard] = []
+        for default_order, item in enumerate(visible):
+            preference = preferences.get(item.dashboard.dashboard_id)
+            is_displayed, display_order = (
+                preference if preference is not None else (True, default_order)
+            )
+            if is_displayed:
+                displayed_items.append((display_order, item))
+            else:
+                available_items.append(item)
+        displayed_items.sort(
+            key=lambda entry: (
+                entry[0],
+                entry[1].dashboard.title.casefold(),
+                entry[1].dashboard.dashboard_id,
+            )
+        )
+        available_items.sort(
+            key=lambda item: (item.dashboard.title.casefold(), item.dashboard.dashboard_id)
+        )
+
+        def catalog_item(item: StoredEnterpriseDashboard, order: int) -> dict[str, object]:
+            return {
+                "dashboard": item.dashboard.as_dict(),
+                "revision": item.revision,
+                "display_order": order,
+            }
+
+        return {
+            "contract_version": "cubi-enterprise-dashboard-catalog.v1",
+            "displayed_dashboards": [
+                catalog_item(item, order)
+                for order, item in displayed_items
+            ],
+            "available_dashboards": [
+                catalog_item(item, preferences.get(item.dashboard.dashboard_id, (False, 0))[1])
+                for item in available_items
+            ],
+            "read_at": self._now().isoformat(),
+        }
+
+    def set_dashboard_display_preference(
+        self,
+        session_id: str,
+        dashboard_id: str,
+        *,
+        displayed: bool,
+        position: int | None = None,
+    ) -> dict[str, object]:
+        """Show/hide a dashboard and reorder the actor's displayed dashboard tabs."""
+        session = self._session(session_id)
+        self._require_enterprise(session, write=False)
+        if not isinstance(displayed, bool):
+            raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_DISPLAY_STATE")
+        if position is not None and (
+            isinstance(position, bool) or not isinstance(position, int) or position < 0
+        ):
+            raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_DISPLAY_ORDER")
+        if not displayed and position is not None:
+            raise EnterpriseDashboardError("HIDDEN_DASHBOARD_CANNOT_HAVE_DISPLAY_POSITION")
+
+        current = self._get_in_tenant(session, dashboard_id)
+        if (
+            not self._can_view(current.dashboard, session)
+            or current.dashboard.status != "active"
+        ):
+            raise EnterpriseDashboardNotFound("ENTERPRISE_DASHBOARD_NOT_FOUND")
+
+        visible = tuple(
+            item for item in self.list_dashboards(session_id, limit=500)
+            if item.dashboard.status == "active"
+        )
+        visible_ids = [item.dashboard.dashboard_id for item in visible]
+        if dashboard_id not in visible_ids:
+            raise EnterpriseDashboardNotFound("ENTERPRISE_DASHBOARD_NOT_FOUND")
+        preferences = self._repository.list_display_preferences(
+            session.tenant_id, session.user_id
+        )
+        displayed_ids = [
+            item_id for item_id in visible_ids
+            if preferences.get(item_id, (True, visible_ids.index(item_id)))[0]
+        ]
+        displayed_ids = [item_id for item_id in displayed_ids if item_id != dashboard_id]
+        if displayed:
+            insert_at = len(displayed_ids) if position is None else position
+            if insert_at > len(displayed_ids):
+                raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_DISPLAY_ORDER")
+            displayed_ids.insert(insert_at, dashboard_id)
+
+        displayed_order = {item_id: index for index, item_id in enumerate(displayed_ids)}
+        hidden_order = len(displayed_ids)
+        persisted: list[tuple[str, bool, int]] = []
+        for item_id in visible_ids:
+            if item_id in displayed_order:
+                persisted.append((item_id, True, displayed_order[item_id]))
+            else:
+                old_order = preferences.get(item_id, (False, hidden_order))[1]
+                persisted.append((item_id, False, max(hidden_order, old_order)))
+                hidden_order += 1
+        self._repository.replace_display_preferences(
+            session.tenant_id,
+            session.user_id,
+            tuple(persisted),
+            updated_at=self._now(),
+        )
+        return self.list_dashboard_catalog(session_id, limit=500)
+
     def get_dashboard(
         self, session_id: str, dashboard_id: str
     ) -> StoredEnterpriseDashboard:
