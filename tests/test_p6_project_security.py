@@ -1,6 +1,7 @@
 import pytest
 
 from construction_pm.p6_project_security import (
+    P6_PROJECT_SECURITY_HELP_URL,
     P6_PROJECT_PRIVILEGE_CATEGORIES,
     P6_PROJECT_PRIVILEGE_DEFINITIONS,
     P6_PROJECT_PRIVILEGE_DEPENDENCIES,
@@ -12,6 +13,7 @@ from construction_pm.p6_project_security import (
 
 
 def test_v26_project_privilege_catalogue_has_all_eight_help_categories():
+    assert P6_PROJECT_SECURITY_HELP_URL == "https://docs.oracle.com/cd/G48897_01/p6help/en/102786.htm"
     assert tuple(dict.fromkeys(category for _, _, category in P6_PROJECT_PRIVILEGE_DEFINITIONS)) == P6_PROJECT_PRIVILEGE_CATEGORIES
     assert len(P6_PROJECT_PRIVILEGE_IDS) == len(P6_PROJECT_PRIVILEGE_DEFINITIONS)
     assert len(P6_PROJECT_PRIVILEGE_IDS) >= 50
