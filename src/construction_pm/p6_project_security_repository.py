@@ -491,6 +491,13 @@ class PostgresP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
         BEFORE UPDATE OR DELETE ON p6_project_security_audit
         FOR EACH ROW EXECUTE FUNCTION p6_project_security_audit_immutable()""")
 
+    def get_default_profile(self, tenant_id: str):
+        self.connection.execute(
+            "SELECT pg_advisory_xact_lock(hashtext(%s))",
+            (f"{tenant_id}:p6-project-security-default",),
+        )
+        return super().get_default_profile(tenant_id)
+
     def save_profile(self, profile, *, actor_id: str, expected_revision=None):
         profile.validate()
         if profile.built_in:
@@ -543,6 +550,10 @@ class PostgresP6ProjectSecurityRepository(_ProjectSecurityRepositoryBase):
         self.connection.execute(
             "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
             (f"p6-project-security:{tenant_id}",),
+        )
+        self.connection.execute(
+            "SELECT pg_advisory_xact_lock(hashtext(%s))",
+            (f"{tenant_id}:p6-project-security-default",),
         )
         current = self.get_profile(tenant_id, profile_id)
         if current is None or not current.active:
