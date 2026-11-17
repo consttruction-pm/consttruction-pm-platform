@@ -14,6 +14,7 @@ Status: implemented in this branch as a focused persistence/authorization founda
 - [Assigning Resource Access — V26](https://docs.oracle.com/cd/G48897_01/p6help/en/7793.htm)
 - [Project Access Detail Window — V26](https://docs.oracle.com/cd/G48897_01/p6help/en/6186.htm)
 - [Assigning OBS Elements to Users — V26](https://docs.oracle.com/cd/G48897_01/p6help/en/35460.htm)
+- [Assigning Global Security Profiles — V26](https://docs.oracle.com/cd/G48897_01/p6help/en/8117.htm)
 
 ## Required behavior
 
@@ -41,6 +42,10 @@ Each scope has one active default profile. The defaults are independent: changin
 - Validates the V26 module list and Contributor exclusivity; the bilingual administration UI edits module access. Server-side project and global resource authorization checks the corresponding module access.
 - Uses No Resources as the default Resource Access mode; All Resources is supported, and Admin Superuser always receives all-resource access.
 - Deliberately rejects Select Resources until CUBI has an enterprise-wide resource hierarchy with authoritative root/descendant resolution. The existing resource master is project/revision scoped and cannot safely be used as a substitute for the V26 global resource hierarchy.
+- During operator bootstrap, provisions a protected, read-only `p6-default-project-readonly` profile as the Project default when a tenant has not selected one.
+- Adds a canonical OBS assignment operation: assigning an OBS without an explicit Project profile resolves the current Project default and records the profile in `p6_security_profile_assignments`; the operation shares the Project-default advisory lock so a concurrent default change cannot race the assignment.
+- Enforces one Project profile per user/OBS with a partial unique index. Replacing a profile is revision-guarded and audited in place; it does not accumulate additive grants.
+- Adds a tenant-scoped OBS options endpoint and a bilingual selector/form in the Enterprise access UI. The selector reads `p6_obs_node`, not the duplicate `enterprise_user_obs_assignments` store.
 
 ## Acceptance evidence added
 
@@ -53,8 +58,9 @@ Each scope has one active default profile. The defaults are independent: changin
 - current-revision enforcement when replacing Global assignments and protection of the final Admin Superuser assignment;
 - automatic safe Global-default assignment for existing/new users and bootstrap Admin module/resource settings;
 - Module Access normalization, Contributor exclusivity, revisioned updates, immutable audit, and project-module authorization gating;
-- rejection of arbitrary selected-resource IDs while no enterprise-wide resource hierarchy exists.
+- rejection of arbitrary selected-resource IDs while no enterprise-wide resource hierarchy exists;
+- safe Project default bootstrap, automatic default profile application on OBS assignment, single user/OBS profile enforcement, and revisioned replacement.
 
 ## Explicitly not claimed by this slice
 
-Automatic Global-default assignment is now wired to user insertion/reactivation and the operator bootstrap. Automatic Project-default assignment when OBS access is assigned is still open and must be implemented through the same canonical repository. Select Resources remains unavailable until the enterprise-wide resource hierarchy exists; do not treat the project-scoped resource master as an equivalent. The work does not introduce a second `p6_global_security_profiles` table or a second project-profile/OBS assignment authority.
+Automatic Global-default assignment is wired to user insertion/reactivation and the operator bootstrap. Automatic Project-default assignment is wired through the canonical Enterprise user-access endpoint and UI; however, the existing #1983 branch still contains a second project-profile/OBS assignment store and must be reconciled before E0 can merge. Select Resources remains unavailable until the enterprise-wide resource hierarchy exists; do not treat the project-scoped resource master as an equivalent. The work does not introduce a second `p6_global_security_profiles` table or a second project-profile/OBS assignment authority.
