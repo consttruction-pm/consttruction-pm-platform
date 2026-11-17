@@ -287,6 +287,10 @@ class PostgresP6AssociatedResourceRepository(_AssociatedResourceBase):
         if not self.user_exists(association.tenant_id, association.user_id):
             raise P6AssociatedResourceError("ASSOCIATED_RESOURCE_USER_NOT_FOUND")
         resource_name = self._require_resource(association.tenant_id, association.resource_id)
+        self.connection.execute(
+            "SELECT pg_advisory_xact_lock(hashtext(%s))",
+            (f"{association.tenant_id}:{association.resource_id}",),
+        )
         resource_owner = self.get_for_resource(association.tenant_id, association.resource_id)
         if resource_owner is not None and resource_owner.user_id != association.user_id:
             raise P6AssociatedResourceError("RESOURCE_ALREADY_ASSOCIATED")
@@ -305,19 +309,14 @@ class PostgresP6AssociatedResourceRepository(_AssociatedResourceBase):
                 raise P6AssociatedResourceError("ASSOCIATED_RESOURCE_REVISION_INVALID")
             before = json.dumps({"resource_id": current.resource_id, "revision": current.revision})
             action = "associated_resource_changed"
-        try:
-            self.connection.execute(
-                "INSERT INTO p6_user_associated_resource "
-                "(tenant_id,user_id,resource_id,revision,updated_by,updated_at) VALUES(%s,%s,%s,%s,%s,%s) "
-                "ON CONFLICT(tenant_id,user_id) DO UPDATE SET resource_id=EXCLUDED.resource_id,"
-                "revision=EXCLUDED.revision,updated_by=EXCLUDED.updated_by,updated_at=EXCLUDED.updated_at",
-                (association.tenant_id, association.user_id, association.resource_id,
-                 association.revision, association.updated_by, association.updated_at),
-            )
-        except Exception as exc:
-            if getattr(exc, "sqlstate", None) == "23505":
-                raise P6AssociatedResourceError("RESOURCE_ALREADY_ASSOCIATED") from exc
-            raise
+        self.connection.execute(
+            "INSERT INTO p6_user_associated_resource "
+            "(tenant_id,user_id,resource_id,revision,updated_by,updated_at) VALUES(%s,%s,%s,%s,%s,%s) "
+            "ON CONFLICT(tenant_id,user_id) DO UPDATE SET resource_id=EXCLUDED.resource_id,"
+            "revision=EXCLUDED.revision,updated_by=EXCLUDED.updated_by,updated_at=EXCLUDED.updated_at",
+            (association.tenant_id, association.user_id, association.resource_id,
+             association.revision, association.updated_by, association.updated_at),
+        )
         if self.native_auth_name_sync is not None:
             self.native_auth_name_sync(association.tenant_id, association.user_id, resource_name)
         self._audit(association, action, before)
