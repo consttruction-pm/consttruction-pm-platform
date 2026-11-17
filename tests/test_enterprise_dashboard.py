@@ -872,6 +872,44 @@ def test_dashboard_share_never_bypasses_source_project_authorization():
     assert result["portlets"][0]["source_revision"] == "source-1:7"
 
 
+def test_filtered_out_portlet_still_reauthorizes_all_source_projects_before_metadata():
+    service, _, lifecycle, _ = make_service()
+    created = create_dashboard(service, payload=create_payload(filters=[]))
+    service.assign_share(
+        "alice-session",
+        created.dashboard.dashboard_id,
+        target_type="user",
+        target_id="bob",
+        expected_revision=1,
+    )
+
+    # A filter that removes every row must not bypass authorization and expose
+    # the snapshot id/revision/freshness to a dashboard-only viewer.
+    with pytest.raises(
+        EnterpriseDashboardAuthorizationError,
+        match="SOURCE_PROJECT_NOT_AUTHORIZED",
+    ):
+        service.read_portlets(
+            "bob-session",
+            created.dashboard.dashboard_id,
+            filter_overrides=[
+                {"key": "project_id", "operator": "eq", "value": "not-in-snapshot"}
+            ],
+        )
+    assert lifecycle.authorized_project_ids[-1] == ("bob-session", "project-1")
+
+    lifecycle.project_grants.add(("bob-session", "project-1"))
+    filtered = service.read_portlets(
+        "bob-session",
+        created.dashboard.dashboard_id,
+        filter_overrides=[
+            {"key": "project_id", "operator": "eq", "value": "not-in-snapshot"}
+        ],
+    )
+    assert filtered["portlets"][0]["filtered_out"] is True
+    assert filtered["portlets"][0]["data"] is None
+
+
 def test_portlet_read_rejects_cross_tenant_source_snapshot():
     service, _, _, _ = make_service(
         source=FakePortfolioQuery(snapshot(tenant_id="tenant-b"))
@@ -1241,6 +1279,12 @@ ORACLE_HELP_TRACEABILITY_URLS = (
     "https://docs.oracle.com/cd/G48897_01/p6help/en/6036.htm",
     "https://docs.oracle.com/cd/G48897_01/p6help/en/7753.htm",
     "https://docs.oracle.com/cd/G48897_01/p6help/en/7771.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/31954.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/31978.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/31955.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/31964.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/31974.htm",
+    "https://docs.oracle.com/cd/G48897_01/p6help/en/31977.htm",
     "https://docs.oracle.com/cd/G48897_01/p6help/en/44292.htm",
     "https://primavera.oraclecloud.com/help/en/user/100788.htm",
 )
@@ -1251,7 +1295,7 @@ def test_official_oracle_help_sources_have_exact_documentation_traceability():
     document = (
         root / "docs" / "enterprise" / "ENT06_DASHBOARDS_PORTLETS_IMPLEMENTATION_V1.md"
     ).read_text(encoding="utf-8")
-    assert len(ORACLE_HELP_TRACEABILITY_URLS) == 78
+    assert len(ORACLE_HELP_TRACEABILITY_URLS) == 84
     for url in ORACLE_HELP_TRACEABILITY_URLS:
         assert url in document
     for disposition in ("Implemented", "Partial", "Not Applicable", "Deferred"):
