@@ -1312,11 +1312,12 @@ def test_postgres_project_profile_default_switch_deactivation_and_tenant_isolati
         )
         assert not second.active and not second.is_default
         assert profiles.get_default_project_profile(tenant) is None
-        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_DEFAULT_PROJECT_ONLY"):
-            profiles.set_default(
-                tenant_id=tenant, profile_id=global_profile.profile_id, is_default=True,
-                expected_revision=1, actor_user_id=user_id, occurred_at=now,
-            )
+        global_profile = profiles.set_default(
+            tenant_id=tenant, profile_id=global_profile.profile_id, is_default=True,
+            expected_revision=1, actor_user_id=user_id, occurred_at=now,
+        )
+        assert global_profile.is_default
+        assert profiles.get_default_global_profile(tenant).profile_id == global_profile.profile_id
         with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_NOT_FOUND"):
             profiles.get_profile(f"{tenant}-other", first.profile_id)
 
