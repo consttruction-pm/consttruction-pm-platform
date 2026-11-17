@@ -5,7 +5,10 @@ from dataclasses import dataclass
 from typing import Any
 
 from .application.authorization import AuthorizationContext, AuthorizationError
-from .p6_project_security import P6ProjectSecurityProfile, P6_PROJECT_PRIVILEGE_DEFINITIONS
+from .p6_project_security import (
+    P6ProjectSecurityProfile, P6_PROJECT_PRIVILEGE_DEFINITIONS,
+    P6_PROJECT_PRIVILEGE_DEPENDENCIES, P6_PROJECT_PRIVILEGE_REQUIREMENTS,
+)
 from .p6_project_security_repository import (
     P6OBSProjectGrant,
     P6ProjectSecurityPersistenceError,
@@ -45,7 +48,7 @@ def _profile_dto(profile: P6ProjectSecurityProfile) -> dict[str, Any]:
         "built_in": profile.built_in,
         "description": profile.description,
         "privileges": [
-            {"code": code, **labels[code]} for code in profile.privileges
+            {"code": code, **labels[code], "auto_selects": sorted(P6_PROJECT_PRIVILEGE_DEPENDENCIES.get(code, ())), "requires": sorted(P6_PROJECT_PRIVILEGE_REQUIREMENTS.get(code, ()))} for code in profile.privileges
         ],
     }
 
