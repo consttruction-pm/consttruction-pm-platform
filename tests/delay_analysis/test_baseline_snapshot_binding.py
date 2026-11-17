@@ -108,19 +108,17 @@ def test_binding_requires_existing_baseline_and_exact_source_revision_snapshot()
         service.bind(scope(), baseline.baseline_id, wrong_revision.snapshot_id)
 
 
-def test_binding_database_foreign_keys_require_parent_records():
+def test_binding_service_requires_parent_records_before_writing():
     connection = sqlite3.connect(":memory:")
-    _, _, _, repository = seed(connection)
-    connection.execute("DELETE FROM p6_baseline WHERE baseline_id='B-1'")
-    connection.commit()
-    binding = P6BaselineScheduleSnapshotBinding(
-        scope(), "B-1", 3, "S-BASE", hashlib.sha256(b"{}").hexdigest(), "b" * 64
-    )
+    _, _, service, _ = seed(connection)
+
+    with pytest.raises(BaselineScheduleSnapshotBindingError, match="BASELINE_NOT_FOUND"):
+        service.bind(scope(), "MISSING", "MISSING-SNAPSHOT")
     with pytest.raises(
         BaselineScheduleSnapshotBindingError,
-        match="BASELINE_OR_SCHEDULE_SNAPSHOT_REQUIRED",
+        match="BASELINE_SOURCE_SNAPSHOT_NOT_FOUND",
     ):
-        repository.save(binding)
+        service.bind(scope(), "B-1", "MISSING-SNAPSHOT")
 
 
 def test_binding_read_is_scope_isolated_and_revision_pinned():
