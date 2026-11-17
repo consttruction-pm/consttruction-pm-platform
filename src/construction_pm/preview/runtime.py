@@ -2053,20 +2053,24 @@ def open_preview_runtime(
         p6_resource_capacity_read_api=P6ResourceCapacityReadAPI(
             repositories.capacity_service,
             policy,
+            resource_repository=repositories.resources,
         ),
         p6_resource_capacity_write_api=P6ResourceCapacityWriteAPI(
             repositories.capacity_service,
             policy,
             clock=PreviewClock(),
+            resource_repository=repositories.resources,
         ),
         p6_resource_rate_read_api=P6ResourceRateReadAPI(
             repositories.rate_service,
             policy,
+            resource_repository=repositories.resources,
         ),
         p6_resource_rate_write_api=P6ResourceRateWriteAPI(
             repositories.rate_service,
             policy,
             clock=PreviewClock(),
+            resource_repository=repositories.resources,
         ),
         clock=PreviewClock(),
         ai_action_runtime=ai_action_runtime,
