@@ -530,7 +530,7 @@ def test_contract_rejects_unknown_portlet_type_bad_layout_and_unregistered_filte
             context_portfolio_id=None,
         )
     with pytest.raises(EnterpriseDashboardError, match="INVALID_ENTERPRISE_DASHBOARD_FILTER_OPERATOR"):
-        DashboardFilter("project_id", "in", ("project-1",)).validate()
+        DashboardFilter("project_id", "contains", "project-1").validate()
 
 
 def test_multi_value_filters_are_immutable_after_parse():
@@ -1552,7 +1552,7 @@ def test_official_oracle_help_sources_have_exact_documentation_traceability():
     document = (
         root / "docs" / "enterprise" / "ENT06_DASHBOARDS_PORTLETS_IMPLEMENTATION_V1.md"
     ).read_text(encoding="utf-8")
-    assert len(ORACLE_HELP_TRACEABILITY_URLS) == 115
+    assert len(ORACLE_HELP_TRACEABILITY_URLS) == 116
     for url in ORACLE_HELP_TRACEABILITY_URLS:
         assert url in document
     documented_official_urls = {
