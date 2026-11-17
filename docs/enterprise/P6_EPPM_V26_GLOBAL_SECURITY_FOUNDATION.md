@@ -345,3 +345,10 @@ project assignments. For non-Admin users, project-level OBS assignment is
 still the only full project-profile scope represented in the current project
 schema. EPS/WBS-level OBS assignment and their distinct read-only/editable
 boundaries remain open as described above.
+
+
+The project-profile administration API also exposes the complete 57-entry
+privilege catalogue, including V26 auto-select and required-co-grant metadata,
+at `GET /api/admin/p6/project-security-profiles/catalog`. This gives the
+administration client a single authoritative source for the profile editor
+rather than duplicating privilege definitions in the browser.
