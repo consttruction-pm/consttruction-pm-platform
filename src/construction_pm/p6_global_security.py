@@ -166,7 +166,7 @@ class GlobalSecurityProfile:
             raise GlobalSecurityError("DUPLICATE_GLOBAL_SECURITY_PRIVILEGE")
         if set(self.privileges) - P6_GLOBAL_PRIVILEGE_IDS:
             raise GlobalSecurityError("UNKNOWN_GLOBAL_SECURITY_PRIVILEGE")
-        if tuple(self.privileges) != normalize_global_privileges(self.privileges):
+        if set(self.privileges) != set(normalize_global_privileges(self.privileges)):
             raise GlobalSecurityError("GLOBAL_SECURITY_PRIVILEGE_DEPENDENCY_MISSING")
         if self.built_in and self.name not in BUILTIN_GLOBAL_PROFILES:
             raise GlobalSecurityError("UNKNOWN_BUILTIN_GLOBAL_SECURITY_PROFILE")
