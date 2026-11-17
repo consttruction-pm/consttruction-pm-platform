@@ -27,6 +27,7 @@ from .application.authorization import (
     Permission,
 )
 from .backend_p0.models import BackendScope
+from .p6_project_security import require_project_privilege
 from .backend_p0.transactions import TransactionManager
 from .p6_activity_master_api import P6ActivityMasterAPI
 from .relationship_master_repository import RelationshipMasterRepository
@@ -104,6 +105,7 @@ class P6ActivityProgressAPI:
         """Save progress and append the history event in one transaction."""
         _require_scope(activity.scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_activities_except_relationships")
         repository = self._activity_repository()
         if self.transaction_manager is None:
             return self._update_and_record(activity, expected_revision, auth_context, repository)
