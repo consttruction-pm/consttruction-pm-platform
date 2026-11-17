@@ -813,6 +813,17 @@ class P6GlobalSecurityAuthorizationPolicy:
             )
         )
 
+    def is_admin_superuser(self, context: Any) -> bool:
+        try:
+            context.validate()
+            assignment = self._repository.get_user_security(context.tenant_id, context.user_id)
+            if assignment is None:
+                return False
+            profile = self._repository.get_profile(context.tenant_id, assignment.profile_id)
+            return profile is not None and profile.active and global_profile_is_admin_superuser(profile)
+        except (GlobalSecurityError, ValueError, AttributeError, TypeError):
+            return False
+
     def associated_resource_id(self, context: Any) -> str | None:
         """Return the user's tenant-scoped Associated Resource identity, if any."""
         try:
