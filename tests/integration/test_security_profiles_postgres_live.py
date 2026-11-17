@@ -1953,6 +1953,7 @@ def test_global_default_profile_is_assigned_to_existing_and_new_users():
         PostgresProjectRepository(connection).create_for_user(
             tenant, existing_id, project_id, "Global Default Project", obs_id=obs_id
         )
+        assert profiles.get_default_project_profile(tenant).profile_id == "p6-default-project-readonly"
         project_profile = profiles.create_profile(
             tenant_id=tenant, profile_id=f"global-default-project-profile-{suffix}",
             name="Global Default Project Read", scope="project",
@@ -1962,6 +1963,18 @@ def test_global_default_profile_is_assigned_to_existing_and_new_users():
             tenant_id=tenant, profile_id=project_profile.profile_id, user_id=existing_id,
             obs_id=obs_id, actor_user_id=admin_id, occurred_at=now,
         )
+        default_project_assignment = profiles.assign_default_project_profile(
+            tenant_id=tenant, user_id=existing_id, obs_id=obs_id,
+            expected_revision=1, actor_user_id=admin_id, occurred_at=now,
+        )
+        assert default_project_assignment == {
+            "profile_id": "p6-default-project-readonly", "obs_id": obs_id, "revision": 2,
+        }
+        with pytest.raises(SecurityProfileError, match="SECURITY_PROFILE_ASSIGNMENT_REVISION_CONFLICT"):
+            profiles.assign_default_project_profile(
+                tenant_id=tenant, user_id=existing_id, obs_id=obs_id,
+                expected_revision=1, actor_user_id=admin_id, occurred_at=now,
+            )
 
         admin_access = profiles.get_global_user_access(tenant, admin_id)
         assert admin_access["profile_id"] == "p6-admin-superuser"
