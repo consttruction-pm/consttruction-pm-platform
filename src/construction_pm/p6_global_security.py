@@ -988,6 +988,10 @@ class P6GlobalSecurityAuthorizationPolicy:
                 context.tenant_id, context.user_id, context.project_id
             ):
                 return False
+            # V26 project visibility is conferred by the OBS + Project Security
+            # Profile assignment; CUBI project roles are not a second read gate.
+            if getattr(permission, "value", permission) == "project.read":
+                return True
             return bool(self._project_policy.is_allowed(context, permission))
         except (GlobalSecurityError, ValueError, AttributeError):
             return False
