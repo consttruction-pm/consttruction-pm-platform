@@ -117,9 +117,13 @@ def test_capture_requires_help_relevant_settings_and_calendar_provenance():
         calculation_identity=snapshot.calculation_identity,
         created_at=snapshot.created_at,
     )
+    matching_evaluation = SimpleNamespace(**{
+        **evaluation.__dict__,
+        "snapshot_hash": broken_snapshot.snapshot_hash,
+    })
     with pytest.raises(ScheduleRunCaptureError, match="SCHEDULE_SNAPSHOT_MISSING_SCHEDULE_OPTIONS"):
         build_schedule_run_capture(
-            broken_snapshot, context, evaluation,
+            broken_snapshot, context, matching_evaluation,
             captured_at=datetime(2026, 11, 18, tzinfo=timezone.utc),
         )
 
