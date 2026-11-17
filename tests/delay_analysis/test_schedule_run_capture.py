@@ -58,7 +58,7 @@ def make_inputs():
         mode="DATE_BASED",
         date_result=None,
         time_result=None,
-        time_activities={"A-1": object()},
+        time_activities={"A-1": {"start": "2026-11-01", "finish": "2026-12-01"}},
         resource_dependent_placement=None,
         diagnostics=(),
         schedule_check_findings=(),
