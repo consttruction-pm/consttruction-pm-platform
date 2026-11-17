@@ -99,11 +99,7 @@ on:
       - "tests/test_portfolio_control_persistence.py"
       - "tests/integration/test_portfolio_control_persistence_postgres_live.py"
       - "tests/test_enterprise_organization_access.py"
-      - "src/construction_pm/portfolio_control_persistence.py"
-      - "tests/test_portfolio_control_persistence.py"
-      - "tests/integration/test_portfolio_control_persistence_postgres_live.py"
       - "tests/integration/test_enterprise_organization_access_postgres_live.py"
-      - "tests/integration/test_portfolio_control_persistence_postgres_live.py"
 
   pull_request:
     paths:
@@ -191,6 +187,9 @@ on:
       - "tests/test_enterprise_organization_access.py"
       - "tests/integration/test_enterprise_organization_access_postgres_live.py"
 
+      - "src/construction_pm/portfolio_control_persistence.py"
+      - "tests/test_portfolio_control_persistence.py"
+      - "tests/integration/test_portfolio_control_persistence_postgres_live.py"
 jobs:
   postgres:
     runs-on: ubuntu-latest
