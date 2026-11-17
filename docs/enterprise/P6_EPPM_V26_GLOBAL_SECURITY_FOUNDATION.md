@@ -167,3 +167,35 @@ list/search/filter, counts/aggregations, assignment pickers, import/export,
 and mutation. The Associated Resource user mapping and the full Project
 Security Profile privilege-to-route matrix remain separate open work items;
 no parity claim is made for them in this increment.
+
+
+## Resource Access — first live API enforcement slice — 2026-11-17
+
+The persisted global-security policy now exposes `can_access_resource(context,
+resource_id,ancestor_resource_ids)`. It loads the caller's persisted global
+assignment/profile, requires the Resources module for non-Admin-Superusers,
+and delegates the exact none/all/selected + descendant rule to
+`user_can_access_resource`. Missing assignment/profile, inactive profile,
+missing Resources module, malformed ancestry, and tenant/user mismatch deny.
+
+`P6ResourceAPI` now consumes that policy at the authoritative resource-master
+boundary. GET detail hides out-of-scope resources as not found; list filters
+out-of-scope rows before serialization; create checks the new resource's
+repository-resolved parent chain; update checks both the existing record and
+its proposed new ancestry so a resource cannot be moved across the caller's
+scope. Ancestry is derived from the same tenant/project/revision-scoped master
+repository, never from client-supplied ancestry.
+
+This closes the master register HTTP route because it delegates to
+`P6ResourceAPI`. It does not yet close every resource-bearing route: assignment,
+capacity, rates, spread, role-resource pickers, exchange/import/export, and
+associated-resource visibility need the same gate. The legacy policy adapter
+path remains compatible for non-P6 preview/test compositions; production must
+supply `P6GlobalSecurityAuthorizationPolicy` to activate persisted V26 checks.
+
+Official HTML Help: [Users Page — Resource Access and Associated Resource](https://docs.oracle.com/cd/G48897_01/p6help/en/6187.htm),
+[Module Access Detail — Resources module](https://docs.oracle.com/cd/G48897_01/p6help/en/6184.htm),
+and [Working with Security Profiles — V26](https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-help/workingwithsecurityprofiles-36451a.html).
+
+Acceptance still requires PostgreSQL integration coverage and browser E2E on
+the exact final SHA. No completion claim is made by this slice.
