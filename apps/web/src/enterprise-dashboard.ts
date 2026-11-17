@@ -193,7 +193,7 @@ const COPY = {
   },
 } as const;
 
-type Copy = typeof COPY.en;
+type Copy = typeof COPY[keyof typeof COPY];
 type MountOptions = {
   locale?: EnterpriseDashboardLocale;
   onDrillThrough?: (reference: EnterprisePortletRead["drill_through_refs"][number]) => void;
@@ -674,5 +674,8 @@ export async function mountEnterpriseDashboard(
   }
 
   await loadCatalog();
-  if (catalog?.displayed_dashboards.length) await openDashboard(catalog.displayed_dashboards[0].dashboard.dashboard_id);
+  const loadedCatalog = catalog;
+  if (loadedCatalog && loadedCatalog.displayed_dashboards.length) {
+    await openDashboard(loadedCatalog.displayed_dashboards[0].dashboard.dashboard_id);
+  }
 }
