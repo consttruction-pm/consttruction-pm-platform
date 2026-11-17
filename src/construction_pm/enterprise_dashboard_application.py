@@ -18,6 +18,8 @@ from .enterprise_dashboard import (
     EnterpriseDashboardNotFound,
     EnterpriseDashboardRevisionConflict,
     PORTLET_REGISTRY,
+    DEFAULT_MAX_DASHBOARD_PORTLETS,
+    MAX_DASHBOARD_PORTLETS,
     visibility_for_shares,
 )
 from .enterprise_dashboard_repository import (
@@ -54,6 +56,7 @@ class EnterpriseDashboardApplicationService:
         portfolio_decision_api: object | None = None,
         clock=None,
         freshness_ttl_seconds: int = 86_400,
+        max_dashboard_portlets: int = DEFAULT_MAX_DASHBOARD_PORTLETS,
     ) -> None:
         self._repository = repository
         self._lifecycle = lifecycle_api
@@ -67,6 +70,13 @@ class EnterpriseDashboardApplicationService:
         ):
             raise ValueError("INVALID_ENTERPRISE_DASHBOARD_FRESHNESS_TTL")
         self._freshness_ttl_seconds = freshness_ttl_seconds
+        if (
+            isinstance(max_dashboard_portlets, bool)
+            or not isinstance(max_dashboard_portlets, int)
+            or not 1 <= max_dashboard_portlets <= MAX_DASHBOARD_PORTLETS
+        ):
+            raise ValueError("INVALID_ENTERPRISE_DASHBOARD_PORTLET_LIMIT")
+        self._max_dashboard_portlets = max_dashboard_portlets
 
     def create_dashboard(
         self,
@@ -1048,12 +1058,13 @@ class EnterpriseDashboardApplicationService:
             session_id, session, tuple(item.project_id for item in snapshot.projects)
         )
 
-    @staticmethod
     def _portlets(
-        value: object, context: str, context_portfolio_id: str | None
+        self, value: object, context: str, context_portfolio_id: str | None
     ) -> tuple[DashboardPortlet, ...]:
         if not isinstance(value, (tuple, list)):
             raise EnterpriseDashboardError("ENTERPRISE_DASHBOARD_PORTLETS_REQUIRED")
+        if len(value) > self._max_dashboard_portlets:
+            raise EnterpriseDashboardError("ENTERPRISE_DASHBOARD_PORTLET_LIMIT_EXCEEDED")
         return tuple(
             DashboardPortlet.from_dict(
                 item, context=context, context_portfolio_id=context_portfolio_id
