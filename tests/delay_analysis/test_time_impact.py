@@ -74,11 +74,15 @@ def test_time_impact_inserts_fragnet_and_reexecutes_shared_scheduler():
             FragnetRelationship("EVT-ACCESS-01-A", "B", RelationshipType.FS),
         ),
     )
+    clock_values = iter((
+        datetime(2026, 10, 1, tzinfo=timezone.utc),
+        datetime(2026, 10, 2, tzinfo=timezone.utc),
+    ))
     executor = TimeImpactAnalysisExecutor(
         snapshot_repository=snapshot_repository,
         run_repository=run_repository,
         snapshot_id_factory=lambda: "IMPACTED-SNAPSHOT",
-        clock=lambda: datetime(2026, 10, 1, tzinfo=timezone.utc),
+        clock=lambda: next(clock_values),
     )
 
     result = executor.execute(source_snapshot, source_context, registry, fragnet)
