@@ -182,6 +182,17 @@ class PostgresEnterpriseDashboardRepository:
         )
         return StoredEnterpriseDashboard(dashboard, dashboard.revision)
 
+    def user_belongs_to_tenant(self, tenant_id: str, user_id: str) -> bool:
+        """Resolve a share target against the canonical identity directory."""
+        self._validate_scope(tenant_id, "share-target-validation")
+        if not isinstance(user_id, str) or not user_id.strip():
+            return False
+        row = self.connection.execute(
+            "SELECT tenant_id,active FROM identity_users WHERE user_id=%s",
+            (user_id,),
+        ).fetchone()
+        return row is not None and str(row[0]) == tenant_id and bool(row[1])
+
     def get(self, tenant_id: str, dashboard_id: str) -> StoredEnterpriseDashboard:
         self._validate_scope(tenant_id, dashboard_id)
         row = self.connection.execute(
