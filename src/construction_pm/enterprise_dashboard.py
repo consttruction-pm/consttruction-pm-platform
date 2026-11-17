@@ -6,6 +6,8 @@ from typing import Mapping
 
 MAX_SAFE_REVISION = 9_007_199_254_740_991
 MAX_DASHBOARD_PORTLETS = 12
+DEFAULT_MAX_ROWS_PER_PORTLET = 100
+MAX_ROWS_PER_PORTLET = 500
 MAX_DASHBOARD_ROWS = 1000
 DEFAULT_DASHBOARD_ROWS = 100
 DASHBOARD_GRID_COLUMNS = 12
@@ -289,6 +291,7 @@ class EnterpriseDashboard:
     created_at: datetime
     updated_at: datetime | None = None
     restrict_filter_override: bool = False
+    max_rows_per_portlet: int = DEFAULT_MAX_ROWS_PER_PORTLET
     max_portlet_rows: int = DEFAULT_DASHBOARD_ROWS
 
     def validate(self) -> None:
@@ -315,6 +318,12 @@ class EnterpriseDashboard:
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_VISIBILITY")
         if not isinstance(self.restrict_filter_override, bool):
             raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_FILTER_OVERRIDE_POLICY")
+        if (
+            isinstance(self.max_rows_per_portlet, bool)
+            or not isinstance(self.max_rows_per_portlet, int)
+            or not 1 <= self.max_rows_per_portlet <= MAX_ROWS_PER_PORTLET
+        ):
+            raise EnterpriseDashboardError("INVALID_ENTERPRISE_DASHBOARD_MAX_ROWS_PER_PORTLET")
         if (
             isinstance(self.max_portlet_rows, bool)
             or not isinstance(self.max_portlet_rows, int)
@@ -407,6 +416,7 @@ class EnterpriseDashboard:
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "restrict_filter_override": self.restrict_filter_override,
+            "max_rows_per_portlet": self.max_rows_per_portlet,
             "max_portlet_rows": self.max_portlet_rows,
         }
 
@@ -465,6 +475,7 @@ class EnterpriseDashboard:
             created_at=created_at,
             updated_at=updated_at,
             restrict_filter_override=value["restrict_filter_override"],
+            max_rows_per_portlet=value["max_rows_per_portlet"],
             max_portlet_rows=value["max_portlet_rows"],
         )
         dashboard.validate()
