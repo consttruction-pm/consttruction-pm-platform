@@ -16,6 +16,7 @@ import io
 import json
 import os
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -131,9 +132,7 @@ def runtime() -> ProductionRuntime:
         # tenant-scoped repository used by production; never infer them from
         # CUBI organization roles or project memberships.
         global_security = PostgresP6GlobalSecurityRepository(connection)
-        bootstrap_time = __import__("datetime").datetime.now(
-            __import__("datetime").timezone.utc
-        )
+        bootstrap_time = datetime.now(timezone.utc)
         for tenant in (tenant_a, tenant_b):
             global_security.ensure_builtin_profiles(
                 tenant, provisioned_by="integration-bootstrap",
@@ -165,10 +164,10 @@ def runtime() -> ProductionRuntime:
                 "INSERT INTO p6_user_global_security "
                 "(tenant_id,user_id,profile_id,module_access,resource_access_mode,"
                 "resource_root_ids,revision,updated_by,updated_at) "
-                "VALUES (%s,%s,'integration-project-access','[\\"projects\\"]'::jsonb,"
+                "VALUES (%s,%s,'integration-project-access',%s::jsonb,"
                 "'none','[]'::jsonb,1,'integration-bootstrap',%s) "
                 "ON CONFLICT (tenant_id,user_id) DO NOTHING",
-                (user.tenant_id, user.user_id, bootstrap_time),
+                (user.tenant_id, user.user_id, json.dumps(["projects"]), bootstrap_time),
             )
         connection.commit()
     finally:
