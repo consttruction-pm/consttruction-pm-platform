@@ -660,3 +660,35 @@ class PostgresP6GlobalSecurityRepository:
             "resource_access_mode": value.resource_access_mode,
             "resource_root_ids": list(value.resource_root_ids),
             "revision": value.revision}
+
+
+class P6GlobalSecurityAuthorizationPolicy:
+    """Compose persisted V26 user/global access with the existing project policy.
+
+    Missing or inactive assignments fail closed. Admin Superuser is the only
+    global-profile project-grant bypass. No Global Privileges is denied until
+    the authoritative OBS-to-project assignment resolver is wired; a generic
+    CUBI role is never treated as an OBS assignment.
+    """
+    def __init__(self, repository: P6GlobalSecurityRepository, project_policy: Any) -> None:
+        self._repository = repository
+        self._project_policy = project_policy
+
+    def is_allowed(self, context: Any, permission: Any) -> bool:
+        try:
+            context.validate()
+            assignment = self._repository.get_user_security(context.tenant_id, context.user_id)
+            if assignment is None:
+                return False
+            profile = self._repository.get_profile(context.tenant_id, assignment.profile_id)
+            if profile is None or not profile.active:
+                return False
+            if global_profile_has_project_access_bypass(profile):
+                return True
+            if global_profile_has_global_read_only(profile):
+                return False
+            if "projects" not in assignment.module_access:
+                return False
+            return bool(self._project_policy.is_allowed(context, permission))
+        except (GlobalSecurityError, ValueError, AttributeError):
+            return False
