@@ -787,10 +787,12 @@ class P6GlobalSecurityAuthorizationPolicy:
         project_policy: Any,
         *,
         obs_project_access: Any | None = None,
+        associated_resource_access: Any | None = None,
     ) -> None:
         self._repository = repository
         self._project_policy = project_policy
         self._obs_project_access = obs_project_access
+        self._associated_resource_access = associated_resource_access
 
     def _has_authoritative_obs_project_access(
         self, context: Any, permission: Any
@@ -810,6 +812,46 @@ class P6GlobalSecurityAuthorizationPolicy:
                 permission_code,
             )
         )
+
+    def associated_resource_id(self, context: Any) -> str | None:
+        """Return the user's tenant-scoped Associated Resource identity, if any."""
+        try:
+            context.validate()
+            assignment = self._repository.get_user_security(context.tenant_id, context.user_id)
+            if assignment is None:
+                return None
+            association_lookup = getattr(self._associated_resource_access, "get_for_user", None)
+            if not callable(association_lookup):
+                return None
+            association = association_lookup(context.tenant_id, context.user_id)
+            if association is None:
+                return None
+            return association.resource_id
+        except (GlobalSecurityError, ValueError, AttributeError, TypeError):
+            return None
+
+    def can_use_team_member(self, context: Any) -> bool:
+        try:
+            context.validate()
+            assignment = self._repository.get_user_security(context.tenant_id, context.user_id)
+            if assignment is None or "team_member" not in assignment.module_access:
+                return False
+            return self.associated_resource_id(context) is not None
+        except (GlobalSecurityError, ValueError, AttributeError, TypeError):
+            return False
+
+    def can_edit_personal_resource_calendar(self, context: Any) -> bool:
+        try:
+            context.validate()
+            assignment = self._repository.get_user_security(context.tenant_id, context.user_id)
+            if assignment is None or "resources" not in assignment.module_access:
+                return False
+            return (
+                self.associated_resource_id(context) is not None
+                and self.allows_global_privilege(context, "add_edit_delete_resource_calendars")
+            )
+        except (GlobalSecurityError, ValueError, AttributeError, TypeError):
+            return False
 
     def allows_global_privilege(self, context: Any, privilege_code: str) -> bool:
         """Check a named V26 global privilege without falling back to CUBI roles."""
