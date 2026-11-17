@@ -31,7 +31,7 @@ def setup_repository():
     project_obs = {"project-civil": "OBS-CIVIL", "project-other": "OBS-OTHER"}
     repository = SQLiteP6ProjectSecurityRepository(
         connection, project_obs_lookup=lambda tenant, project: project_obs.get(project),
-        obs_repository=obs,
+        obs_repository=obs, user_exists=lambda tenant, user: tenant == "tenant-a",
     )
     return connection, repository
 
