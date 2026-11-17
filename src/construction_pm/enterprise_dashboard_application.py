@@ -298,9 +298,12 @@ class EnterpriseDashboardApplicationService:
                     session_id, session, str(portfolio_filter.value)
                 )
             if project_filter is not None:
-                self._authorize_source_projects(
-                    session_id, session, (str(project_filter.value),)
+                project_ids = (
+                    tuple(str(item) for item in project_filter.value)
+                    if project_filter.operator == "in"
+                    else (str(project_filter.value),)
                 )
+                self._authorize_source_projects(session_id, session, project_ids)
         self._repository.set_dashboard_filter_override(
             session.tenant_id,
             session.user_id,
