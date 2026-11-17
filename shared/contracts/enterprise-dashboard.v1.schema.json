@@ -1491,7 +1491,7 @@
         },
         "portlets": {
           "type": "array",
-          "minItems": 1,
+          "minItems": 0,
           "maxItems": 12,
           "items": {
             "$ref": "#/$defs/portlet_read_response"
@@ -1562,8 +1562,7 @@
       "additionalProperties": false,
       "required": [
         "dashboard_id",
-        "displayed",
-        "position"
+        "displayed"
       ],
       "properties": {
         "dashboard_id": {
