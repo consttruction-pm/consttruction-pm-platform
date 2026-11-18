@@ -352,7 +352,7 @@ const COPY = {
     eyebrow: "CUBI ENTERPRISE", title: "Dashboards", subtitle: "Portfolio and enterprise views from authorized source records.",
     create: "New dashboard", search: "Search dashboards", displayed: "Displayed", available: "Available",
     open: "Open", hide: "Hide", show: "Show", duplicate: "Duplicate", manage: "Customize", archive: "Archive",
-    refresh: "Refresh", expand: "Expand", collapse: "Collapse", maximize: "Maximize", restore: "Restore",
+    refresh: "Refresh", expand: "Expand", collapse: "Collapse", expandAll: "Expand All", collapseAll: "Collapse All", maximize: "Maximize", restore: "Restore",
     close: "Close", help: "Help", print: "Print", noDashboards: "No dashboards are available.", noPortlets: "This dashboard has no portlets.",
     loading: "Loading source data…", stale: "Source data is stale.", missing: "Source data is unavailable.",
     filtered: "No source rows match the current filters.", denied: "You do not have permission to view this source.",
@@ -374,7 +374,7 @@ const COPY = {
     eyebrow: "کوبی سازمانی", title: "داشبوردها", subtitle: "نماهای سازمانی و سبد پروژه بر پایه داده‌های مجاز و معتبر.",
     create: "داشبورد جدید", search: "جستجوی داشبوردها", displayed: "نمایش‌داده‌شده", available: "در دسترس",
     open: "باز کردن", hide: "مخفی‌کردن", show: "نمایش", duplicate: "تکثیر", manage: "سفارشی‌سازی", archive: "بایگانی",
-    refresh: "تازه‌سازی", expand: "بازکردن", collapse: "بستن", maximize: "بزرگ‌نمایی", restore: "بازگردانی",
+    refresh: "تازه‌سازی", expand: "بازکردن", collapse: "بستن", expandAll: "بازکردن همه", collapseAll: "بستن همه", maximize: "بزرگ‌نمایی", restore: "بازگردانی",
     close: "بستن", help: "راهنما", print: "چاپ", noDashboards: "داشبوردی در دسترس نیست.", noPortlets: "این داشبورد پورلت ندارد.",
     loading: "دریافت داده منبع…", stale: "داده منبع قدیمی است.", missing: "داده منبع در دسترس نیست.",
     filtered: "رکوردی با فیلترهای فعلی مطابقت ندارد.", denied: "مجوز مشاهده این منبع را ندارید.",
@@ -696,6 +696,8 @@ export async function mountEnterpriseDashboard(
     titleRow.append(node("h2", "", activeDefinition.title));
     titleRow.append(button(t.manage, () => openManageDialog(), "ced-button primary"));
     titleRow.append(button(t.duplicate, async () => { await client.duplicateDashboard(activeDefinition!.dashboard_id); await loadCatalog(); }));
+    titleRow.append(button(t.expandAll, () => setAllPortletsExpanded(true)));
+    titleRow.append(button(t.collapseAll, () => setAllPortletsExpanded(false)));
     content.append(titleRow);
     const filterRow = node("div", "ced-toolbar ced-section");
     const filtersForSummary = activeFilterOverrides === null ? activeRead.filters : activeFilterOverrides;
@@ -728,6 +730,17 @@ export async function mountEnterpriseDashboard(
     }
     for (const read of activeRead.portlets) content.append(renderPortlet(read));
   }
+  function setAllPortletsExpanded(expanded: boolean): void {
+    for (const card of Array.from(content.querySelectorAll<HTMLElement>(".ced-portlet"))) {
+      const body = card.querySelector<HTMLElement>(".ced-portlet-body");
+      const control = card.querySelector<HTMLButtonElement>("[data-portlet-expand-control]");
+      if (!body || !control) continue;
+      body.hidden = !expanded;
+      control.textContent = expanded ? t.collapse : t.expand;
+      control.setAttribute("aria-expanded", String(expanded));
+    }
+  }
+
   function openFilterDialog(): void {
     if (!activeDefinition || activeDefinition.restrict_filter_override) return;
     let draft = (activeFilterOverrides ?? activeRead?.filters ?? activeDefinition.filters).map((item) => ({
@@ -916,7 +929,6 @@ export async function mountEnterpriseDashboard(
     const label = read.hide_title ? portletLabel(read.type_id) : (read.title || portletLabel(read.type_id));
     const headingNode = node("strong", "", label);
     const controls = node("div", "ced-toolbar");
-    let expanded = true;
     let maximized = false;
     const body = node("div", "ced-portlet-body");
     const renderBody = (): void => {
@@ -935,10 +947,12 @@ export async function mountEnterpriseDashboard(
       else body.append(node("p", "ced-warning", t.unsupported));
     };
     const collapse = button(t.collapse, () => {
-      expanded = !expanded;
-      body.hidden = !expanded;
-      collapse.textContent = expanded ? t.collapse : t.expand;
+      body.hidden = !body.hidden;
+      collapse.textContent = body.hidden ? t.expand : t.collapse;
+      collapse.setAttribute("aria-expanded", String(!body.hidden));
     });
+    collapse.dataset.portletExpandControl = "true";
+    collapse.setAttribute("aria-expanded", "true");
     const maximize = button(t.maximize, () => {
       maximized = !maximized;
       card.classList.toggle("ced-maximized", maximized);
