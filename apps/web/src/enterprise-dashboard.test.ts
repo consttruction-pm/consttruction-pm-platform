@@ -4,6 +4,7 @@ import {
   displaySummaryMetric,
   dashboardDisplayMoveTarget,
   dashboardShareAccountOptions,
+  ENTERPRISE_DASHBOARD_PORTLET_CATALOG,
   authorizedDashboardFilterOptions,
   dashboardFilterDefinition,
   ENTERPRISE_DASHBOARD_FILTER_CATALOG,
@@ -100,6 +101,24 @@ test("displayed dashboard move targets use the rendered sorted order at first, m
   assert.equal(dashboardDisplayMoveTarget(items, "last", "up"), 1);
   assert.equal(dashboardDisplayMoveTarget(items, "last", "down"), null);
   assert.equal(dashboardDisplayMoveTarget(items, "missing", "up"), null);
+});
+
+test("V26 portlet inventory is visible while unsupported source families remain disabled", () => {
+  const enabled = ENTERPRISE_DASHBOARD_PORTLET_CATALOG.filter((item) => item.enabled);
+  const disabled = ENTERPRISE_DASHBOARD_PORTLET_CATALOG.filter((item) => !item.enabled);
+  assert.deepEqual(enabled.map((item) => item.type_id), [
+    "portfolio-control-snapshot.v1",
+    "portfolio-decision.v1",
+  ]);
+  assert.deepEqual(disabled.map((item) => item.type_id), [
+    "p6.communication-center", "p6.my-activities", "p6.my-issues", "p6.my-projects",
+    "p6.my-calendar", "p6.my-risks", "p6.portfolio-view", "p6.earned-value-performance",
+    "p6.schedule-performance", "p6.index-performance", "p6.project-statistics",
+    "p6.project-health", "p6.project-notebooks", "p6.project-gantt",
+    "p6.open-resource-requests", "p6.document-review",
+  ]);
+  assert.ok(disabled.every((item) => item.help_url?.startsWith("https://docs.oracle.com/cd/G48897_01/p6help/en/")));
+  assert.ok(disabled.every((item) => Boolean(item.unavailable_reason)));
 });
 
 test("only the two registered source-backed portlet types are selectable", () => {
