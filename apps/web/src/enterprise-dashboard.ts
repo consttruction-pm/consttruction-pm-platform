@@ -283,7 +283,7 @@ const COPY = {
     included: "Included", onHold: "On hold", excluded: "Excluded", noData: "No source data was returned.",
     archiveConfirm: "Archive this dashboard?", createName: "Enter a dashboard name.", createMode: "Start from", blankDashboard: "Blank dashboard", copyExisting: "Copy existing dashboard", defaultTemplate: "Default Dashboard template", defaultTemplateUnavailable: "The Default Dashboard template is not configured in this release.", sourceDashboard: "Source dashboard", createAction: "Create dashboard",
     projectFilter: "Filter by", applyFilter: "Apply filters", resetFilter: "Reset filters", filterDialog: "Filter by", addFilter: "Add condition", field: "Field", operator: "Operator", value: "Value", removeFilter: "Remove", noFilters: "No filter conditions.", filterValueHint: "Separate multiple values with commas.", filterScopeConflict: "Choose either a portfolio or project filter, not both.", saveMyFilter: "Save as my filter", resetMyFilter: "Reset to dashboard default", filterPortfolio: "Portfolio", filterProject: "Project", filterProjectStatus: "Project status", filterMembership: "Portfolio membership", filterDecisionStatus: "Decision status", filterGeneratedAfter: "Generated after", filterGeneratedBefore: "Generated before", filterIncludeStale: "Include stale data", opEq: "Equals", opIn: "Is one of", opGte: "On or after", opLte: "On or before", statusIncluded: "Included", statusOnHold: "On hold", statusExcluded: "Excluded", decisionProposed: "Proposed", decisionUnderReview: "Under review", decisionApproved: "Approved", decisionRejected: "Rejected", decisionImplemented: "Implemented", decisionClosed: "Closed", decisionCancelled: "Cancelled",
-    moveUp: "Move up", moveDown: "Move down", moveLeft: "Move left", moveRight: "Move right", moveDashboardUp: "Move dashboard tab up", moveDashboardDown: "Move dashboard tab down", filterLocked: "The dashboard owner has restricted filter overrides.", defaultFilter: "Dashboard default filter", useCurrentAsDefault: "Use current selection as dashboard default", clearDefaultFilter: "Clear dashboard default filter", accessUserId: "User ID", accessAddUser: "Add user", accessAddRole: "Add role", accessRole: "Enterprise role", accessUsers: "Shared users", accessRoles: "Shared roles", accessGlobal: "Share with all Enterprise users", accessRevokeGlobal: "Revoke all-user access", accessDirectoryPending: "User directory search is not connected yet. Enter an account ID; the server verifies that it is active and belongs to this tenant.", accessNoUsers: "No individual users are shared.", accessNoRoles: "No roles are shared.", accessSaveError: "The access change could not be saved.", roleAdmin: "Enterprise administrator", roleUser: "Enterprise user", roleViewer: "Enterprise viewer",
+    moveUp: "Move up", moveDown: "Move down", moveLeft: "Move left", moveRight: "Move right", moveDashboardUp: "Move dashboard tab up", moveDashboardDown: "Move dashboard tab down", filterLocked: "The dashboard owner has restricted filter overrides.", defaultFilter: "Dashboard default filter", useCurrentAsDefault: "Use current selection as dashboard default", clearDefaultFilter: "Clear dashboard default filter", accessUserId: "User ID", accessAddUser: "Add user", accessSearchUsers: "Search user accounts", accessSelectUser: "Select an account", accessDirectoryUnavailable: "Account search is unavailable for this session; use the tenant-validated user ID field.", accessAddRole: "Add role", accessRole: "Enterprise role", accessUsers: "Shared users", accessRoles: "Shared roles", accessGlobal: "Share with all Enterprise users", accessRevokeGlobal: "Revoke all-user access", accessDirectoryPending: "User directory search is not connected yet. Enter an account ID; the server verifies that it is active and belongs to this tenant.", accessNoUsers: "No individual users are shared.", accessNoRoles: "No roles are shared.", accessSaveError: "The access change could not be saved.", roleAdmin: "Enterprise administrator", roleUser: "Enterprise user", roleViewer: "Enterprise viewer",
   },
   fa: {
     eyebrow: "کوبی سازمانی", title: "داشبوردها", subtitle: "نماهای سازمانی و سبد پروژه بر پایه داده‌های مجاز و معتبر.",
@@ -305,7 +305,7 @@ const COPY = {
     included: "داخل سبد", onHold: "متوقف", excluded: "خارج از سبد", noData: "داده‌ای از منبع دریافت نشد.",
     archiveConfirm: "این داشبورد بایگانی شود؟", createName: "نام داشبورد را وارد کنید.", createMode: "ایجاد بر پایه", blankDashboard: "داشبورد خالی", copyExisting: "تکثیر داشبورد موجود", defaultTemplate: "الگوی داشبورد پیش‌فرض", defaultTemplateUnavailable: "الگوی داشبورد پیش‌فرض در این نسخه پیکربندی نشده است.", sourceDashboard: "داشبورد مبنا", createAction: "ایجاد داشبورد",
     projectFilter: "فیلتر بر اساس", applyFilter: "اعمال فیلترها", resetFilter: "پاک‌کردن فیلترها", filterDialog: "فیلتر بر اساس", addFilter: "افزودن شرط", field: "فیلد", operator: "عملگر", value: "مقدار", removeFilter: "حذف", noFilters: "شرط فیلتری وجود ندارد.", filterValueHint: "برای چند مقدار از ویرگول استفاده کنید.", filterScopeConflict: "فیلتر سبد پروژه و فیلتر پروژه را هم‌زمان انتخاب نکنید.", saveMyFilter: "ذخیره به‌عنوان فیلتر من", resetMyFilter: "بازنشانی به فیلتر پیش‌فرض داشبورد", filterPortfolio: "سبد پروژه", filterProject: "پروژه", filterProjectStatus: "وضعیت پروژه", filterMembership: "عضویت در سبد", filterDecisionStatus: "وضعیت تصمیم", filterGeneratedAfter: "ایجادشده پس از", filterGeneratedBefore: "ایجادشده پیش از", filterIncludeStale: "شامل داده قدیمی", opEq: "برابر با", opIn: "یکی از", opGte: "در یا پس از", opLte: "در یا پیش از", statusIncluded: "داخل سبد", statusOnHold: "متوقف", statusExcluded: "خارج از سبد", decisionProposed: "پیشنهادشده", decisionUnderReview: "در دست بررسی", decisionApproved: "تأییدشده", decisionRejected: "ردشده", decisionImplemented: "اجراشده", decisionClosed: "بسته", decisionCancelled: "لغوشده",
-    moveUp: "انتقال به بالا", moveDown: "انتقال به پایین", moveLeft: "انتقال به چپ", moveRight: "انتقال به راست", moveDashboardUp: "انتقال تب داشبورد به بالا", moveDashboardDown: "انتقال تب داشبورد به پایین", filterLocked: "مالک داشبورد تغییر فیلتر را محدود کرده است.", defaultFilter: "فیلتر پیش‌فرض داشبورد", useCurrentAsDefault: "استفاده از انتخاب فعلی به‌عنوان فیلتر پیش‌فرض", clearDefaultFilter: "پاک‌کردن فیلتر پیش‌فرض داشبورد", accessUserId: "شناسه کاربر", accessAddUser: "افزودن کاربر", accessAddRole: "افزودن نقش", accessRole: "نقش سازمانی", accessUsers: "کاربران دارای اشتراک", accessRoles: "نقش‌های دارای اشتراک", accessGlobal: "اشتراک با همه کاربران سازمان", accessRevokeGlobal: "لغو دسترسی همگانی", accessDirectoryPending: "جستجوی فهرست کاربران هنوز متصل نشده است. شناسه حساب را وارد کنید؛ سرور فعال‌بودن حساب و عضویت آن در همین سازمان را بررسی می‌کند.", accessNoUsers: "اشتراک کاربری جداگانه‌ای وجود ندارد.", accessNoRoles: "اشتراک نقشی وجود ندارد.", accessSaveError: "ذخیره تغییر دسترسی انجام نشد.", roleAdmin: "مدیر سازمانی", roleUser: "کاربر سازمانی", roleViewer: "بیننده سازمانی",
+    moveUp: "انتقال به بالا", moveDown: "انتقال به پایین", moveLeft: "انتقال به چپ", moveRight: "انتقال به راست", moveDashboardUp: "انتقال تب داشبورد به بالا", moveDashboardDown: "انتقال تب داشبورد به پایین", filterLocked: "مالک داشبورد تغییر فیلتر را محدود کرده است.", defaultFilter: "فیلتر پیش‌فرض داشبورد", useCurrentAsDefault: "استفاده از انتخاب فعلی به‌عنوان فیلتر پیش‌فرض", clearDefaultFilter: "پاک‌کردن فیلتر پیش‌فرض داشبورد", accessUserId: "شناسه کاربر", accessAddUser: "افزودن کاربر", accessSearchUsers: "جستجوی حساب‌های کاربری", accessSelectUser: "انتخاب حساب", accessDirectoryUnavailable: "جستجوی حساب برای این نشست در دسترس نیست؛ از شناسه کاربری با اعتبارسنجی سازمان استفاده کنید.", accessAddRole: "افزودن نقش", accessRole: "نقش سازمانی", accessUsers: "کاربران دارای اشتراک", accessRoles: "نقش‌های دارای اشتراک", accessGlobal: "اشتراک با همه کاربران سازمان", accessRevokeGlobal: "لغو دسترسی همگانی", accessDirectoryPending: "جستجوی فهرست کاربران هنوز متصل نشده است. شناسه حساب را وارد کنید؛ سرور فعال‌بودن حساب و عضویت آن در همین سازمان را بررسی می‌کند.", accessNoUsers: "اشتراک کاربری جداگانه‌ای وجود ندارد.", accessNoRoles: "اشتراک نقشی وجود ندارد.", accessSaveError: "ذخیره تغییر دسترسی انجام نشد.", roleAdmin: "مدیر سازمانی", roleUser: "کاربر سازمانی", roleViewer: "بیننده سازمانی",
   },
 } as const;
 
@@ -1135,14 +1135,49 @@ export async function mountEnterpriseDashboard(
         }));
         users.append(row);
       }
+      const userSearch = input("dashboard-share-search", "");
+      userSearch.type = "search";
+      const userSelect = node("select", "ced-select");
+      const placeholder = node("option", "", t.accessSelectUser);
+      placeholder.value = "";
+      userSelect.append(placeholder);
+      let accessAccounts: Array<{ user_id: string; email: string; display_name: string; active: boolean }> = [];
+      function renderAccountOptions(): void {
+        const selected = userSelect.value;
+        userSelect.replaceChildren();
+        const empty = node("option", "", t.accessSelectUser);
+        empty.value = "";
+        userSelect.append(empty);
+        const query = userSearch.value.trim().toLocaleLowerCase();
+        for (const account of accessAccounts.filter((item) => item.active).filter((item) =>
+          !query || `${item.display_name} ${item.email} ${item.user_id}`.toLocaleLowerCase().includes(query))) {
+          if (definition.shared_user_ids.includes(account.user_id)) continue;
+          const option = node("option", "", `${account.display_name} · ${account.email}`);
+          option.value = account.user_id;
+          option.selected = account.user_id === selected;
+          userSelect.append(option);
+        }
+      }
+      userSearch.addEventListener("input", renderAccountOptions);
+      const addSelectedUser = button(t.accessAddUser, async () => {
+        await changeShare("user", userSelect.value, true);
+      });
+      addSelectedUser.disabled = definition.visibility === "global";
       const userInput = input("dashboard-share-user", "");
       userInput.autocomplete = "off";
-      const addUser = button(t.accessAddUser, async () => {
+      const addById = button(t.accessAddUser, async () => {
         await changeShare("user", userInput.value.trim(), true);
       });
-      addUser.disabled = definition.visibility === "global";
-      users.append(field(t.accessUserId, userInput), addUser);
+      addById.disabled = definition.visibility === "global";
+      users.append(field(t.accessSearchUsers, userSearch), field(t.accessSelectUser, userSelect), addSelectedUser);
+      users.append(field(t.accessUserId, userInput), addById);
       users.append(node("p", "ced-muted", t.accessDirectoryPending));
+      void client.listUsers().then((result) => {
+        accessAccounts = result.users.filter((item) => item.active === true);
+        renderAccountOptions();
+      }).catch(() => {
+        users.append(node("p", "ced-muted", t.accessDirectoryUnavailable));
+      });
       panel.append(users);
 
       const roles = node("section", "ced-section");
