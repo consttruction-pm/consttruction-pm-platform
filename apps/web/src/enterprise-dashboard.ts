@@ -930,6 +930,7 @@ export async function mountEnterpriseDashboard(
       window.addEventListener("afterprint", cleanup, { once: true });
       window.print();
     });
+    const close = button(t.close, () => card.remove());
     controls.append(collapse, maximize, refresh, help, print, close);
     head.append(headingNode, controls);
     card.append(head, body);
