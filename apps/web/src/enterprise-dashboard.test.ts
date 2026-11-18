@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   displaySummaryMetric,
   dashboardDisplayMoveTarget,
+  dashboardShareAccountOptions,
   authorizedDashboardFilterOptions,
   dashboardFilterDefinition,
   ENTERPRISE_DASHBOARD_FILTER_CATALOG,
@@ -73,6 +74,18 @@ test("dashboard catalog order is deterministic by order, title and id", () => {
   assert.deepEqual(ordered.map((item) => item.dashboard.dashboard_id), ["a", "b", "z"]);
 });
 
+
+test("dashboard share account search is active-only and excludes already shared users", () => {
+  const accounts = [
+    { user_id: "u-1", display_name: "Alice Smith", email: "alice@example.test", active: true },
+    { user_id: "u-2", display_name: "Bob Jones", email: "bob@example.test", active: true },
+    { user_id: "u-3", display_name: "Alice Disabled", email: "disabled@example.test", active: false },
+  ];
+  assert.deepEqual(dashboardShareAccountOptions(accounts, " ALICE ", ["u-1"]), []);
+  assert.deepEqual(dashboardShareAccountOptions(accounts, "bob@example", []), [accounts[1]]);
+  assert.deepEqual(dashboardShareAccountOptions(accounts, "u-3", []), []);
+  assert.deepEqual(dashboardShareAccountOptions(accounts, "", ["u-1"]), [accounts[1]]);
+});
 
 test("displayed dashboard move targets use the rendered sorted order at first, middle and last positions", () => {
   const items = [
