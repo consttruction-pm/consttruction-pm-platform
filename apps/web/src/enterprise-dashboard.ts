@@ -779,7 +779,11 @@ export async function mountEnterpriseDashboard(
       let value: unknown;
       if (definition.value_kind === "boolean") value = (control as HTMLSelectElement).value === "true";
       else if (definition.value_kind === "enum" && operatorSelect.value === "in") value = Array.from((control as HTMLSelectElement).selectedOptions).map((option) => option.value);
-      else if (definition.value_kind === "text_list" && operatorSelect.value === "in") value = (control as HTMLInputElement).value.split(",").map((item) => item.trim()).filter(Boolean);
+      else if (definition.value_kind === "text_list" && operatorSelect.value === "in") {
+        value = control instanceof HTMLSelectElement && control.multiple
+          ? Array.from(control.selectedOptions).map((option) => option.value)
+          : (control as HTMLInputElement).value.split(",").map((item) => item.trim()).filter(Boolean);
+      }
       else if (definition.value_kind === "datetime") {
         const raw = (control as HTMLInputElement).value;
         value = raw ? new Date(raw).toISOString() : "";
