@@ -752,7 +752,7 @@ export async function mountEnterpriseDashboard(
           inputControl.type = "text";
           inputControl.placeholder = t.filterValueHint;
           control = inputControl;
-          valueHost.append(node("small", "ced-muted", t.accessDirectoryUnavailable));
+          valueHost.append(node("small", "ced-muted", t.filterValueHint));
         }
       } else {
         const inputControl = node("input", "ced-input");
