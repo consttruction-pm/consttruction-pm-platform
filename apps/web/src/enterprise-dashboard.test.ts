@@ -177,7 +177,16 @@ test("dashboard layout drag-and-drop swaps two-dimensional positions only when t
   const moved = moveDashboardPortletToPosition(items, 0, 1);
   assert.deepEqual(moved.map((item) => [item.layout.x, item.layout.y]), [[6, 0], [0, 0], [0, 4]]);
   assert.equal(validateDashboardLayout(moved), true);
-  const unchanged = moveDashboardPortletToPosition(items, 0, 2);
-  assert.deepEqual(unchanged.map((item) => [item.layout.x, item.layout.y]), [[0, 0], [6, 0], [0, 4]]);
+  // Dropping the top-left portlet onto the bottom-left portlet is a valid
+  // two-dimensional position exchange; array order and instance identity stay stable.
+  const movedDown = moveDashboardPortletToPosition(items, 0, 2);
+  assert.deepEqual(movedDown.map((item) => [item.layout.x, item.layout.y]), [[0, 4], [6, 0], [0, 0]]);
+  assert.deepEqual(movedDown.map((item) => item.instance_id), ["left-top", "right-top", "left-bottom"]);
+  assert.equal(validateDashboardLayout(movedDown), true);
+
+  // A Wide portlet cannot be exchanged into the right column; reject the whole drop.
+  const incompatible = [portlet("wide-left", 0, 0, 12), portlet("narrow-right", 6, 4, 6)];
+  const rejected = moveDashboardPortletToPosition(incompatible, 0, 1);
+  assert.deepEqual(rejected.map((item) => item.layout), incompatible.map((item) => item.layout));
   assert.deepEqual(moveDashboardPortletToPosition(items, -1, 1).map((item) => item.layout), items.map((item) => item.layout));
 });
