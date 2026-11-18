@@ -1208,6 +1208,45 @@ def test_portlet_read_rejects_cross_tenant_source_snapshot():
         service.read_portlets("alice-session", created.dashboard.dashboard_id)
 
 
+def test_project_filter_options_include_full_authorized_snapshot_beyond_portlet_row_limit():
+    source = replace(
+        snapshot(),
+        projects=tuple(
+            PortfolioProjectControlInput(
+                f"project-{index}", index, "included", "active"
+            )
+            for index in range(1, 4)
+        ),
+    )
+    service, _, lifecycle, _ = make_service(source=FakePortfolioQuery(source))
+    lifecycle.project_grants.update({
+        ("alice-session", "project-2"),
+        ("alice-session", "project-3"),
+    })
+    created = service.create_dashboard(
+        "alice-session",
+        create_payload(max_rows_per_portlet=1, filters=[]),
+        idempotency_key="dashboard-complete-project-filter-options",
+    )
+    portlet = service.read_portlets(
+        "alice-session", created.dashboard.dashboard_id
+    )["portlets"][0]
+    assert [row["project_id"] for row in portlet["data"]["projects"]] == ["project-1"]
+    assert portlet["filter_options"] == {
+        "portfolio_id": [{"value": "portfolio-1", "label": "portfolio-1"}],
+        "project_id": [
+            {"value": "project-1", "label": "project-1"},
+            {"value": "project-2", "label": "project-2"},
+            {"value": "project-3", "label": "project-3"},
+        ],
+    }
+    assert set(lifecycle.authorized_project_ids) == {
+        ("alice-session", "project-1"),
+        ("alice-session", "project-2"),
+        ("alice-session", "project-3"),
+    }
+
+
 def test_p6_max_rows_limits_displayed_snapshot_rows_without_changing_source_summary():
     source = replace(
         snapshot(),
