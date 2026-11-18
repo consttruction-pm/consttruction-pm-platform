@@ -1,0 +1,1081 @@
+{
+  "contract": "cubi-workspace-visual-acceptance-v26.v1",
+  "baseUrl": "http://127.0.0.1:4193",
+  "gitHead": "65414e4acb57c6360002b25e8513943dfe334df2",
+  "testedCodeSha": "65414e4acb57c6360002b25e8513943dfe334df2",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-18T08:31:57.642Z",
+  "cells": [
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "locale": "en",
+      "initial": {
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "lang": "en",
+        "dir": "ltr",
+        "activeMenu": "schedule",
+        "documentScrollWidth": 1280,
+        "bodyScrollWidth": 1280,
+        "toolbar": {
+          "rect": {
+            "left": 0,
+            "top": 47,
+            "right": 1280,
+            "bottom": 73,
+            "width": 1280,
+            "height": 26
+          },
+          "scrollWidth": 1553,
+          "clientWidth": 1247,
+          "overflowControlVisible": true
+        },
+        "gridActionStrips": [
+          {
+            "rect": {
+              "left": 465,
+              "top": 173.4,
+              "right": 638,
+              "bottom": 195.4,
+              "width": 173,
+              "height": 22
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          }
+        ],
+        "details": {
+          "left": 48,
+          "top": 523,
+          "right": 1240,
+          "bottom": 679,
+          "width": 1192,
+          "height": 156
+        },
+        "detailsVisible": true,
+        "rows": {
+          "table": 14,
+          "gantt": 14
+        },
+        "bands": 7,
+        "ganttGroups": 7,
+        "rowHeightMismatch": 0,
+        "firstRowOffset": {
+          "table": 46,
+          "gantt": 46
+        },
+        "labels": 21,
+        "clippedLabels": [],
+        "unresolvedEdgeLabels": [],
+        "nonWorking": {
+          "total": 11,
+          "weekend": 10,
+          "holiday": 1,
+          "outside": 0,
+          "holidayDates": [
+            "2026-10-28"
+          ]
+        },
+        "bars": 24
+      },
+      "dialog": {
+        "left": 210,
+        "top": 115.015625,
+        "right": 1070,
+        "bottom": 604.984375,
+        "width": 860,
+        "height": 489.96875,
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        }
+      },
+      "afterResize": {
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "lang": "en",
+        "dir": "ltr",
+        "activeMenu": "schedule",
+        "documentScrollWidth": 1280,
+        "bodyScrollWidth": 1280,
+        "toolbar": {
+          "rect": {
+            "left": 0,
+            "top": 47,
+            "right": 1280,
+            "bottom": 73,
+            "width": 1280,
+            "height": 26
+          },
+          "scrollWidth": 1553,
+          "clientWidth": 1247,
+          "overflowControlVisible": true
+        },
+        "gridActionStrips": [
+          {
+            "rect": {
+              "left": 465,
+              "top": 154.4,
+              "right": 638,
+              "bottom": 176.4,
+              "width": 173,
+              "height": 22
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          }
+        ],
+        "details": {
+          "left": 48,
+          "top": 477,
+          "right": 1240,
+          "bottom": 660,
+          "width": 1192,
+          "height": 183
+        },
+        "detailsVisible": true,
+        "rows": {
+          "table": 14,
+          "gantt": 14
+        },
+        "bands": 7,
+        "ganttGroups": 7,
+        "rowHeightMismatch": 0,
+        "firstRowOffset": {
+          "table": 46,
+          "gantt": 46
+        },
+        "labels": 21,
+        "clippedLabels": [],
+        "unresolvedEdgeLabels": [],
+        "nonWorking": {
+          "total": 11,
+          "weekend": 10,
+          "holiday": 1,
+          "outside": 0,
+          "holidayDates": [
+            "2026-10-28"
+          ]
+        },
+        "bars": 24
+      }
+    },
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "locale": "fa",
+      "initial": {
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "lang": "fa",
+        "dir": "rtl",
+        "activeMenu": "schedule",
+        "documentScrollWidth": 1280,
+        "bodyScrollWidth": 1280,
+        "toolbar": {
+          "rect": {
+            "left": 0,
+            "top": 47,
+            "right": 1280,
+            "bottom": 73,
+            "width": 1280,
+            "height": 26
+          },
+          "scrollWidth": 1545,
+          "clientWidth": 1247,
+          "overflowControlVisible": true
+        },
+        "gridActionStrips": [
+          {
+            "rect": {
+              "left": 642,
+              "top": 154.4,
+              "right": 815,
+              "bottom": 176.4,
+              "width": 173,
+              "height": 22
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          }
+        ],
+        "details": {
+          "left": 40,
+          "top": 477,
+          "right": 1232,
+          "bottom": 660,
+          "width": 1192,
+          "height": 183
+        },
+        "detailsVisible": true,
+        "rows": {
+          "table": 14,
+          "gantt": 14
+        },
+        "bands": 7,
+        "ganttGroups": 7,
+        "rowHeightMismatch": 0,
+        "firstRowOffset": {
+          "table": 46,
+          "gantt": 46
+        },
+        "labels": 21,
+        "clippedLabels": [],
+        "unresolvedEdgeLabels": [],
+        "nonWorking": {
+          "total": 11,
+          "weekend": 10,
+          "holiday": 1,
+          "outside": 0,
+          "holidayDates": [
+            "2026-10-28"
+          ]
+        },
+        "bars": 24
+      },
+      "dialog": {
+        "left": 210,
+        "top": 115.015625,
+        "right": 1070,
+        "bottom": 604.984375,
+        "width": 860,
+        "height": 489.96875,
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        }
+      },
+      "afterResize": {
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "lang": "fa",
+        "dir": "rtl",
+        "activeMenu": "schedule",
+        "documentScrollWidth": 1280,
+        "bodyScrollWidth": 1280,
+        "toolbar": {
+          "rect": {
+            "left": 0,
+            "top": 47,
+            "right": 1280,
+            "bottom": 73,
+            "width": 1280,
+            "height": 26
+          },
+          "scrollWidth": 1545,
+          "clientWidth": 1247,
+          "overflowControlVisible": true
+        },
+        "gridActionStrips": [
+          {
+            "rect": {
+              "left": 642,
+              "top": 154.4,
+              "right": 815,
+              "bottom": 176.4,
+              "width": 173,
+              "height": 22
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          }
+        ],
+        "details": {
+          "left": 40,
+          "top": 450,
+          "right": 1232,
+          "bottom": 660,
+          "width": 1192,
+          "height": 210
+        },
+        "detailsVisible": true,
+        "rows": {
+          "table": 14,
+          "gantt": 14
+        },
+        "bands": 7,
+        "ganttGroups": 7,
+        "rowHeightMismatch": 0,
+        "firstRowOffset": {
+          "table": 46,
+          "gantt": 46
+        },
+        "labels": 21,
+        "clippedLabels": [],
+        "unresolvedEdgeLabels": [],
+        "nonWorking": {
+          "total": 11,
+          "weekend": 10,
+          "holiday": 1,
+          "outside": 0,
+          "holidayDates": [
+            "2026-10-28"
+          ]
+        },
+        "bars": 24
+      }
+    },
+    {
+      "viewport": {
+        "width": 1366,
+        "height": 768
+      },
+      "locale": "en",
+      "initial": {
+        "viewport": {
+          "width": 1366,
+          "height": 768
+        },
+        "lang": "en",
+        "dir": "ltr",
+        "activeMenu": "schedule",
+        "documentScrollWidth": 1366,
+        "bodyScrollWidth": 1366,
+        "toolbar": {
+          "rect": {
+            "left": 0,
+            "top": 47,
+            "right": 1366,
+            "bottom": 73,
+            "width": 1366,
+            "height": 26
+          },
+          "scrollWidth": 1553,
+          "clientWidth": 1333,
+          "overflowControlVisible": true
+        },
+        "gridActionStrips": [
+          {
+            "rect": {
+              "left": 508,
+              "top": 173.4,
+              "right": 681,
+              "bottom": 195.4,
+              "width": 173,
+              "height": 22
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          }
+        ],
+        "details": {
+          "left": 48,
+          "top": 486.4,
+          "right": 1326,
+          "bottom": 708,
+          "width": 1278,
+          "height": 221.6
+        },
+        "detailsVisible": true,
+        "rows": {
+          "table": 14,
+          "gantt": 14
+        },
+        "bands": 7,
+        "ganttGroups": 7,
+        "rowHeightMismatch": 0,
+        "firstRowOffset": {
+          "table": 46,
+          "gantt": 46
+        },
+        "labels": 21,
+        "clippedLabels": [],
+        "unresolvedEdgeLabels": [],
+        "nonWorking": {
+          "total": 11,
+          "weekend": 10,
+          "holiday": 1,
+          "outside": 0,
+          "holidayDates": [
+            "2026-10-28"
+          ]
+        },
+        "bars": 24
+      },
+      "dialog": {
+        "left": 253,
+        "top": 139.015625,
+        "right": 1113,
+        "bottom": 628.984375,
+        "width": 860,
+        "height": 489.96875,
+        "viewport": {
+          "width": 1366,
+          "height": 768
+        }
+      },
+      "afterResize": {
+        "viewport": {
+          "width": 1366,
+          "height": 768
+        },
+        "lang": "en",
+        "dir": "ltr",
+        "activeMenu": "schedule",
+        "documentScrollWidth": 1366,
+        "bodyScrollWidth": 1366,
+        "toolbar": {
+          "rect": {
+            "left": 0,
+            "top": 47,
+            "right": 1366,
+            "bottom": 73,
+            "width": 1366,
+            "height": 26
+          },
+          "scrollWidth": 1553,
+          "clientWidth": 1333,
+          "overflowControlVisible": true
+        },
+        "gridActionStrips": [
+          {
+            "rect": {
+              "left": 508,
+              "top": 173.4,
+              "right": 681,
+              "bottom": 195.4,
+              "width": 173,
+              "height": 22
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          }
+        ],
+        "details": {
+          "left": 48,
+          "top": 459.4,
+          "right": 1326,
+          "bottom": 708,
+          "width": 1278,
+          "height": 248.6
+        },
+        "detailsVisible": true,
+        "rows": {
+          "table": 14,
+          "gantt": 14
+        },
+        "bands": 7,
+        "ganttGroups": 7,
+        "rowHeightMismatch": 0,
+        "firstRowOffset": {
+          "table": 46,
+          "gantt": 46
+        },
+        "labels": 21,
+        "clippedLabels": [],
+        "unresolvedEdgeLabels": [],
+        "nonWorking": {
+          "total": 11,
+          "weekend": 10,
+          "holiday": 1,
+          "outside": 0,
+          "holidayDates": [
+            "2026-10-28"
+          ]
+        },
+        "bars": 24
+      },
+      "windowSwitch": {
+        "reports": {
+          "activeMenu": "reports",
+          "heading": "Project Reports",
+          "fits": true
+        },
+        "restored": {
+          "viewport": {
+            "width": 1366,
+            "height": 768
+          },
+          "lang": "en",
+          "dir": "ltr",
+          "activeMenu": "schedule",
+          "documentScrollWidth": 1366,
+          "bodyScrollWidth": 1366,
+          "toolbar": {
+            "rect": {
+              "left": 0,
+              "top": 47,
+              "right": 1366,
+              "bottom": 73,
+              "width": 1366,
+              "height": 26
+            },
+            "scrollWidth": 1553,
+            "clientWidth": 1333,
+            "overflowControlVisible": true
+          },
+          "gridActionStrips": [
+            {
+              "rect": {
+                "left": 508,
+                "top": 173.4,
+                "right": 681,
+                "bottom": 195.4,
+                "width": 173,
+                "height": 22
+              },
+              "insideHead": true,
+              "buttonsOutside": 0
+            }
+          ],
+          "details": {
+            "left": 48,
+            "top": 459.4,
+            "right": 1326,
+            "bottom": 708,
+            "width": 1278,
+            "height": 248.6
+          },
+          "detailsVisible": true,
+          "rows": {
+            "table": 14,
+            "gantt": 14
+          },
+          "bands": 7,
+          "ganttGroups": 7,
+          "rowHeightMismatch": 0,
+          "firstRowOffset": {
+            "table": 46,
+            "gantt": 46
+          },
+          "labels": 21,
+          "clippedLabels": [],
+          "unresolvedEdgeLabels": [],
+          "nonWorking": {
+            "total": 11,
+            "weekend": 10,
+            "holiday": 1,
+            "outside": 0,
+            "holidayDates": [
+              "2026-10-28"
+            ]
+          },
+          "bars": 24
+        }
+      }
+    },
+    {
+      "viewport": {
+        "width": 1366,
+        "height": 768
+      },
+      "locale": "fa",
+      "initial": {
+        "viewport": {
+          "width": 1366,
+          "height": 768
+        },
+        "lang": "fa",
+        "dir": "rtl",
+        "activeMenu": "schedule",
+        "documentScrollWidth": 1366,
+        "bodyScrollWidth": 1366,
+        "toolbar": {
+          "rect": {
+            "left": 0,
+            "top": 47,
+            "right": 1366,
+            "bottom": 73,
+            "width": 1366,
+            "height": 26
+          },
+          "scrollWidth": 1545,
+          "clientWidth": 1333,
+          "overflowControlVisible": true
+        },
+        "gridActionStrips": [
+          {
+            "rect": {
+              "left": 685,
+              "top": 173.4,
+              "right": 858,
+              "bottom": 195.4,
+              "width": 173,
+              "height": 22
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          }
+        ],
+        "details": {
+          "left": 40,
+          "top": 459.4,
+          "right": 1318,
+          "bottom": 708,
+          "width": 1278,
+          "height": 248.6
+        },
+        "detailsVisible": true,
+        "rows": {
+          "table": 14,
+          "gantt": 14
+        },
+        "bands": 7,
+        "ganttGroups": 7,
+        "rowHeightMismatch": 0,
+        "firstRowOffset": {
+          "table": 46,
+          "gantt": 46
+        },
+        "labels": 21,
+        "clippedLabels": [],
+        "unresolvedEdgeLabels": [],
+        "nonWorking": {
+          "total": 11,
+          "weekend": 10,
+          "holiday": 1,
+          "outside": 0,
+          "holidayDates": [
+            "2026-10-28"
+          ]
+        },
+        "bars": 24
+      },
+      "dialog": {
+        "left": 253,
+        "top": 139.015625,
+        "right": 1113,
+        "bottom": 628.984375,
+        "width": 860,
+        "height": 489.96875,
+        "viewport": {
+          "width": 1366,
+          "height": 768
+        }
+      },
+      "afterResize": {
+        "viewport": {
+          "width": 1366,
+          "height": 768
+        },
+        "lang": "fa",
+        "dir": "rtl",
+        "activeMenu": "schedule",
+        "documentScrollWidth": 1366,
+        "bodyScrollWidth": 1366,
+        "toolbar": {
+          "rect": {
+            "left": 0,
+            "top": 47,
+            "right": 1366,
+            "bottom": 73,
+            "width": 1366,
+            "height": 26
+          },
+          "scrollWidth": 1545,
+          "clientWidth": 1333,
+          "overflowControlVisible": true
+        },
+        "gridActionStrips": [
+          {
+            "rect": {
+              "left": 685,
+              "top": 173.4,
+              "right": 858,
+              "bottom": 195.4,
+              "width": 173,
+              "height": 22
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          }
+        ],
+        "details": {
+          "left": 40,
+          "top": 432.3,
+          "right": 1318,
+          "bottom": 708,
+          "width": 1278,
+          "height": 275.7
+        },
+        "detailsVisible": true,
+        "rows": {
+          "table": 14,
+          "gantt": 14
+        },
+        "bands": 7,
+        "ganttGroups": 7,
+        "rowHeightMismatch": 0,
+        "firstRowOffset": {
+          "table": 46,
+          "gantt": 46
+        },
+        "labels": 21,
+        "clippedLabels": [],
+        "unresolvedEdgeLabels": [],
+        "nonWorking": {
+          "total": 11,
+          "weekend": 10,
+          "holiday": 1,
+          "outside": 0,
+          "holidayDates": [
+            "2026-10-28"
+          ]
+        },
+        "bars": 24
+      }
+    },
+    {
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "locale": "en",
+      "initial": {
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "lang": "en",
+        "dir": "ltr",
+        "activeMenu": "schedule",
+        "documentScrollWidth": 1920,
+        "bodyScrollWidth": 1920,
+        "toolbar": {
+          "rect": {
+            "left": 0,
+            "top": 47,
+            "right": 1920,
+            "bottom": 73,
+            "width": 1920,
+            "height": 26
+          },
+          "scrollWidth": 1887,
+          "clientWidth": 1887,
+          "overflowControlVisible": true
+        },
+        "gridActionStrips": [
+          {
+            "rect": {
+              "left": 785,
+              "top": 173.4,
+              "right": 958,
+              "bottom": 195.4,
+              "width": 173,
+              "height": 22
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          }
+        ],
+        "details": {
+          "left": 48,
+          "top": 589.9,
+          "right": 1880,
+          "bottom": 1020,
+          "width": 1832,
+          "height": 430.1
+        },
+        "detailsVisible": true,
+        "rows": {
+          "table": 14,
+          "gantt": 14
+        },
+        "bands": 7,
+        "ganttGroups": 7,
+        "rowHeightMismatch": 0,
+        "firstRowOffset": {
+          "table": 46,
+          "gantt": 46
+        },
+        "labels": 21,
+        "clippedLabels": [],
+        "unresolvedEdgeLabels": [],
+        "nonWorking": {
+          "total": 11,
+          "weekend": 10,
+          "holiday": 1,
+          "outside": 0,
+          "holidayDates": [
+            "2026-10-28"
+          ]
+        },
+        "bars": 24
+      },
+      "dialog": {
+        "left": 530,
+        "top": 295.015625,
+        "right": 1390,
+        "bottom": 784.984375,
+        "width": 860,
+        "height": 489.96875,
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        }
+      },
+      "afterResize": {
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "lang": "en",
+        "dir": "ltr",
+        "activeMenu": "schedule",
+        "documentScrollWidth": 1920,
+        "bodyScrollWidth": 1920,
+        "toolbar": {
+          "rect": {
+            "left": 0,
+            "top": 47,
+            "right": 1920,
+            "bottom": 73,
+            "width": 1920,
+            "height": 26
+          },
+          "scrollWidth": 1887,
+          "clientWidth": 1887,
+          "overflowControlVisible": true
+        },
+        "gridActionStrips": [
+          {
+            "rect": {
+              "left": 785,
+              "top": 173.4,
+              "right": 958,
+              "bottom": 195.4,
+              "width": 173,
+              "height": 22
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          }
+        ],
+        "details": {
+          "left": 48,
+          "top": 562.8,
+          "right": 1880,
+          "bottom": 1020,
+          "width": 1832,
+          "height": 457.2
+        },
+        "detailsVisible": true,
+        "rows": {
+          "table": 14,
+          "gantt": 14
+        },
+        "bands": 7,
+        "ganttGroups": 7,
+        "rowHeightMismatch": 0,
+        "firstRowOffset": {
+          "table": 46,
+          "gantt": 46
+        },
+        "labels": 21,
+        "clippedLabels": [],
+        "unresolvedEdgeLabels": [],
+        "nonWorking": {
+          "total": 11,
+          "weekend": 10,
+          "holiday": 1,
+          "outside": 0,
+          "holidayDates": [
+            "2026-10-28"
+          ]
+        },
+        "bars": 24
+      }
+    },
+    {
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "locale": "fa",
+      "initial": {
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "lang": "fa",
+        "dir": "rtl",
+        "activeMenu": "schedule",
+        "documentScrollWidth": 1920,
+        "bodyScrollWidth": 1920,
+        "toolbar": {
+          "rect": {
+            "left": 0,
+            "top": 47,
+            "right": 1920,
+            "bottom": 73,
+            "width": 1920,
+            "height": 26
+          },
+          "scrollWidth": 1887,
+          "clientWidth": 1887,
+          "overflowControlVisible": true
+        },
+        "gridActionStrips": [
+          {
+            "rect": {
+              "left": 962,
+              "top": 173.4,
+              "right": 1135,
+              "bottom": 195.4,
+              "width": 173,
+              "height": 22
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          }
+        ],
+        "details": {
+          "left": 40,
+          "top": 562.8,
+          "right": 1872,
+          "bottom": 1020,
+          "width": 1832,
+          "height": 457.2
+        },
+        "detailsVisible": true,
+        "rows": {
+          "table": 14,
+          "gantt": 14
+        },
+        "bands": 7,
+        "ganttGroups": 7,
+        "rowHeightMismatch": 0,
+        "firstRowOffset": {
+          "table": 46,
+          "gantt": 46
+        },
+        "labels": 21,
+        "clippedLabels": [],
+        "unresolvedEdgeLabels": [],
+        "nonWorking": {
+          "total": 11,
+          "weekend": 10,
+          "holiday": 1,
+          "outside": 0,
+          "holidayDates": [
+            "2026-10-28"
+          ]
+        },
+        "bars": 24
+      },
+      "dialog": {
+        "left": 530,
+        "top": 295.015625,
+        "right": 1390,
+        "bottom": 784.984375,
+        "width": 860,
+        "height": 489.96875,
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        }
+      },
+      "afterResize": {
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "lang": "fa",
+        "dir": "rtl",
+        "activeMenu": "schedule",
+        "documentScrollWidth": 1920,
+        "bodyScrollWidth": 1920,
+        "toolbar": {
+          "rect": {
+            "left": 0,
+            "top": 47,
+            "right": 1920,
+            "bottom": 73,
+            "width": 1920,
+            "height": 26
+          },
+          "scrollWidth": 1887,
+          "clientWidth": 1887,
+          "overflowControlVisible": true
+        },
+        "gridActionStrips": [
+          {
+            "rect": {
+              "left": 962,
+              "top": 173.4,
+              "right": 1135,
+              "bottom": 195.4,
+              "width": 173,
+              "height": 22
+            },
+            "insideHead": true,
+            "buttonsOutside": 0
+          }
+        ],
+        "details": {
+          "left": 40,
+          "top": 535.8,
+          "right": 1872,
+          "bottom": 1020,
+          "width": 1832,
+          "height": 484.2
+        },
+        "detailsVisible": true,
+        "rows": {
+          "table": 14,
+          "gantt": 14
+        },
+        "bands": 7,
+        "ganttGroups": 7,
+        "rowHeightMismatch": 0,
+        "firstRowOffset": {
+          "table": 46,
+          "gantt": 46
+        },
+        "labels": 21,
+        "clippedLabels": [],
+        "unresolvedEdgeLabels": [],
+        "nonWorking": {
+          "total": 11,
+          "weekend": 10,
+          "holiday": 1,
+          "outside": 0,
+          "holidayDates": [
+            "2026-10-28"
+          ]
+        },
+        "bars": 24
+      }
+    }
+  ],
+  "screenshots": [
+    "activities-1280x720-en.png",
+    "columns-dialog-1280x720-en.png",
+    "details-resized-1280x720-en.png",
+    "activities-1280x720-fa.png",
+    "columns-dialog-1280x720-fa.png",
+    "details-resized-1280x720-fa.png",
+    "activities-1366x768-en.png",
+    "columns-dialog-1366x768-en.png",
+    "details-resized-1366x768-en.png",
+    "window-switch-reports-1366x768-en.png",
+    "window-switch-back-1366x768-en.png",
+    "activities-1366x768-fa.png",
+    "columns-dialog-1366x768-fa.png",
+    "details-resized-1366x768-fa.png",
+    "activities-1920x1080-en.png",
+    "columns-dialog-1920x1080-en.png",
+    "details-resized-1920x1080-en.png",
+    "activities-1920x1080-fa.png",
+    "columns-dialog-1920x1080-fa.png",
+    "details-resized-1920x1080-fa.png",
+    "final-state-1280x720-en.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-18T08:32:34.248Z"
+}

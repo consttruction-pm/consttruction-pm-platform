@@ -20,7 +20,9 @@ import { Page, launchChrome, waitForHttp, artifactsDir, gitHead } from "./previe
 
 const baseUrl = process.env.CUBI_PREVIEW_URL || "http://127.0.0.1:4174";
 const outDir = join(artifactsDir, "layout-trace-v26");
-const evidenceDir = join(artifactsDir, "..", "..", "..", "..", "docs", "workspace", "evidence", "layout-trace-v26-2026-11-10");
+const traceDate = process.env.CUBI_EVIDENCE_DATE || "2026-11-10";
+const evidenceDir = process.env.CUBI_LAYOUT_TRACE_EVIDENCE_DIR
+  || join(artifactsDir, "..", "..", "..", "..", "docs", "workspace", "evidence", `layout-trace-v26-${traceDate}`);
 mkdirSync(outDir, { recursive: true });
 mkdirSync(evidenceDir, { recursive: true });
 
