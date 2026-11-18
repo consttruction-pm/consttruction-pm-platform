@@ -1,10 +1,10 @@
 {
   "contract": "cubi-toolbars-v26.v1",
-  "baseUrl": "http://127.0.0.1:4193",
-  "gitHead": "f96478fedc0c507147719dde2647ca14c19aa0eb",
-  "testedCodeSha": "f96478fedc0c507147719dde2647ca14c19aa0eb",
+  "baseUrl": "http://127.0.0.1:4195",
+  "gitHead": "f349d474cbfc46b3fa113388b393d0e752b67510",
+  "testedCodeSha": "f349d474cbfc46b3fa113388b393d0e752b67510",
   "evidenceCommitSha": null,
-  "capturedAt": "2026-11-18T07:18:13.362Z",
+  "capturedAt": "2026-11-18T13:07:45.488Z",
   "cells": [
     {
       "locale": "en",
@@ -356,9 +356,9 @@
             "left": 0,
             "top": 139,
             "right": 48,
-            "bottom": 679,
+            "bottom": 660,
             "width": 48,
-            "height": 540
+            "height": 521
           },
           "buttons": [
             {
@@ -1166,9 +1166,9 @@
             "left": 1240,
             "top": 139,
             "right": 1280,
-            "bottom": 679,
+            "bottom": 660,
             "width": 40,
-            "height": 540
+            "height": 521
           },
           "buttons": [
             {
@@ -2981,7 +2981,7 @@
         "layout": {
           "trigger": true,
           "name": "Classic Schedule Layout",
-          "scope": "Project layout · r1"
+          "scope": "Project layout · r3"
         }
       },
       "screenshot": "toolbars-v26/activities-1280x720-en.png"
@@ -5961,7 +5961,7 @@
         "layout": {
           "trigger": true,
           "name": "Classic Schedule Layout",
-          "scope": "Project layout · r1"
+          "scope": "Project layout · r3"
         }
       },
       "screenshot": "toolbars-v26/activities-1366x768-en.png"
@@ -8941,7 +8941,7 @@
         "layout": {
           "trigger": true,
           "name": "Classic Schedule Layout",
-          "scope": "Project layout · r1"
+          "scope": "Project layout · r3"
         }
       },
       "screenshot": "toolbars-v26/activities-1920x1080-en.png"
@@ -9296,9 +9296,9 @@
             "left": 1232,
             "top": 139,
             "right": 1280,
-            "bottom": 679,
+            "bottom": 660,
             "width": 48,
-            "height": 540
+            "height": 521
           },
           "buttons": [
             {
@@ -10106,9 +10106,9 @@
             "left": 0,
             "top": 139,
             "right": 40,
-            "bottom": 679,
+            "bottom": 660,
             "width": 40,
-            "height": 540
+            "height": 521
           },
           "buttons": [
             {
@@ -11921,7 +11921,7 @@
         "layout": {
           "trigger": true,
           "name": "Classic Schedule Layout",
-          "scope": "چیدمان پروژه · r1"
+          "scope": "چیدمان پروژه · r3"
         }
       },
       "screenshot": "toolbars-v26/activities-1280x720-fa.png"
@@ -14901,7 +14901,7 @@
         "layout": {
           "trigger": true,
           "name": "Classic Schedule Layout",
-          "scope": "چیدمان پروژه · r1"
+          "scope": "چیدمان پروژه · r3"
         }
       },
       "screenshot": "toolbars-v26/activities-1366x768-fa.png"
@@ -17881,7 +17881,7 @@
         "layout": {
           "trigger": true,
           "name": "Classic Schedule Layout",
-          "scope": "چیدمان پروژه · r1"
+          "scope": "چیدمان پروژه · r3"
         }
       },
       "screenshot": "toolbars-v26/activities-1920x1080-fa.png"

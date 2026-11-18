@@ -1,0 +1,89 @@
+{
+  "contract": "cubi-activity-percent-complete-v27.v1",
+  "url": "http://127.0.0.1:4197",
+  "testedCodeSha": "b71cd61f46ebe358d1b15eee21068977b03493cf",
+  "capturedAt": "2026-11-18T13:16:20.764Z",
+  "fieldId": "activity.percent_complete_type",
+  "screenshots": [
+    "percent-complete-column-en-1366.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "registry": {
+    "displayName": "Percent Complete Type",
+    "dataType": "enum",
+    "subjectArea": "Activity"
+  },
+  "before": {
+    "headers": [
+      "Activity ID",
+      "Activity Name",
+      "Original Duration",
+      "Remaining Duration",
+      "Schedule % Complete",
+      "Start",
+      "Finish",
+      "Total Float",
+      "Predecessors",
+      ""
+    ],
+    "index": -1,
+    "cell": null,
+    "rows": 14
+  },
+  "shown": {
+    "headers": [
+      "Activity ID",
+      "Activity Name",
+      "Original Duration",
+      "Remaining Duration",
+      "Schedule % Complete",
+      "Start",
+      "Finish",
+      "Total Float",
+      "Percent Complete Type",
+      "Predecessors",
+      ""
+    ],
+    "index": 8,
+    "cell": "DURATION",
+    "rows": 14
+  },
+  "reloaded": {
+    "headers": [
+      "Activity ID",
+      "Activity Name",
+      "Original Duration",
+      "Remaining Duration",
+      "Schedule % Complete",
+      "Start",
+      "Finish",
+      "Total Float",
+      "Percent Complete Type",
+      "Predecessors",
+      ""
+    ],
+    "index": 8,
+    "cell": "DURATION",
+    "rows": 14
+  },
+  "restored": {
+    "headers": [
+      "Activity ID",
+      "Activity Name",
+      "Original Duration",
+      "Remaining Duration",
+      "Schedule % Complete",
+      "Start",
+      "Finish",
+      "Total Float",
+      "Predecessors",
+      ""
+    ],
+    "index": -1,
+    "cell": null,
+    "rows": 14
+  },
+  "finishedAt": "2026-11-18T13:16:33.281Z"
+}

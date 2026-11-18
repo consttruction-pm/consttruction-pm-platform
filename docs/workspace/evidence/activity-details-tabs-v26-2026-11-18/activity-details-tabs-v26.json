@@ -1,9 +1,9 @@
 {
   "contract": "cubi-activity-details-tabs-v26.v1",
-  "url": "http://127.0.0.1:4193",
-  "testedCodeSha": "f96478fedc0c507147719dde2647ca14c19aa0eb",
-  "gitHead": "f96478fedc0c507147719dde2647ca14c19aa0eb",
-  "capturedAt": "2026-11-18T06:38:41.017Z",
+  "url": "http://127.0.0.1:4194",
+  "testedCodeSha": "f349d474cbfc46b3fa113388b393d0e752b67510",
+  "gitHead": "f349d474cbfc46b3fa113388b393d0e752b67510",
+  "capturedAt": "2026-11-18T12:59:22.270Z",
   "tabs": [
     "general",
     "status",
@@ -203,5 +203,5 @@
     "focusTabIndex": "0",
     "visiblePanel": "status"
   },
-  "finishedAt": "2026-11-18T06:39:13.851Z"
+  "finishedAt": "2026-11-18T12:59:54.261Z"
 }

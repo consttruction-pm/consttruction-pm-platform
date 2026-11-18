@@ -1,8 +1,8 @@
 {
   "contract": "cubi-activity-general-edit-v26.v1",
-  "url": "http://127.0.0.1:4193",
-  "testedCodeSha": "f96478fedc0c507147719dde2647ca14c19aa0eb",
-  "capturedAt": "2026-11-18T06:39:24.537Z",
+  "url": "http://127.0.0.1:4197",
+  "testedCodeSha": "b71cd61f46ebe358d1b15eee21068977b03493cf",
+  "capturedAt": "2026-11-18T13:15:24.229Z",
   "activityId": "A100",
   "options": {
     "activityTypes": [
@@ -39,7 +39,7 @@
   "save": {
     "probeName": "Project kickoff [V26 general edit probe]",
     "probePriority": "High",
-    "message": "Saved to the project service at revision r2. The Activity Grid shows the new values after its next project read."
+    "message": "Saved to the project service at revision r2. The Activity Grid and Gantt are re-read from the service."
   },
   "persistence": {
     "persisted": true
@@ -47,7 +47,7 @@
   "restore": {
     "name": "Project kickoff",
     "levelingPriority": "Normal",
-    "message": "Saved to the project service at revision r3. The Activity Grid shows the new values after its next project read."
+    "message": "Saved to the project service at revision r3. The Activity Grid and Gantt are re-read from the service."
   },
   "screenshots": [
     "general-tab-before-edit-en-1366.png",
@@ -60,135 +60,148 @@
   "network": [
     {
       "method": "GET",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/steps",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A100/steps",
       "postData": null
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/progress-history",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A100/progress-history",
       "postData": null
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/steps",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A100/steps",
       "postData": null
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/progress-history",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A100/progress-history",
       "postData": null
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/steps",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A100/steps",
       "postData": null
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/progress-history",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A100/progress-history",
       "postData": null
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/steps",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A100/steps",
       "postData": null
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/progress-history",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A100/progress-history",
       "postData": null
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/steps",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A100/steps",
       "postData": null
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/progress-history",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A100/progress-history",
       "postData": null
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A100",
       "postData": null
     },
     {
       "method": "PATCH",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A100",
       "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"expected_revision\":1,\"name\":\"Project kickoff [V26 general edit probe]\",\"leveling_priority\":\"High\"}"
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/steps",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A100/steps",
       "postData": null
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/progress-history",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A100/progress-history",
       "postData": null
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/steps",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A100/steps",
       "postData": null
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/progress-history",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A100/progress-history",
       "postData": null
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A100",
       "postData": null
     },
     {
       "method": "PATCH",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A100",
       "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"expected_revision\":2,\"name\":\"Project kickoff\",\"leveling_priority\":\"Normal\"}"
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/steps",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A100/steps",
       "postData": null
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/progress-history",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A100/progress-history",
       "postData": null
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A100/steps",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A100/progress-history",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A100",
       "postData": null
     }
   ],
   "activityResponses": [
     {
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A100",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A100",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A100",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A100",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A100",
       "status": 200
     }
   ],
   "exceptions": [],
   "consoleErrors": [],
   "apiFailures": [],
+  "gridRefresh": {
+    "refreshed": true
+  },
   "rtl": {
     "dir": "rtl",
     "lang": "fa",

@@ -1,10 +1,10 @@
 {
   "contract": "cubi-window-tabs-v26.v1",
-  "baseUrl": "http://127.0.0.1:50558",
+  "baseUrl": "http://127.0.0.1:62822",
   "project": "preview-rps-01",
-  "gitHead": "65414e4acb57c6360002b25e8513943dfe334df2",
-  "testedCodeSha": "65414e4acb57c6360002b25e8513943dfe334df2",
-  "capturedAt": "2026-11-18T08:26:41.077Z",
+  "gitHead": "f349d474cbfc46b3fa113388b393d0e752b67510",
+  "testedCodeSha": "f349d474cbfc46b3fa113388b393d0e752b67510",
+  "capturedAt": "2026-11-18T13:05:54.751Z",
   "scenarios": [
     {
       "order": [
@@ -15,7 +15,7 @@
       "id": "01",
       "name": "the default tab set has one active tab and no duplicates",
       "status": "pass",
-      "at": "2026-11-18T08:26:45.012Z"
+      "at": "2026-11-18T13:05:58.645Z"
     },
     {
       "order": [
@@ -25,7 +25,7 @@
       "id": "02",
       "name": "re-opening the active window does not duplicate its tab",
       "status": "pass",
-      "at": "2026-11-18T08:26:46.943Z"
+      "at": "2026-11-18T13:06:00.625Z"
     },
     {
       "activeMenu": "project",
@@ -36,7 +36,7 @@
       "id": "03",
       "name": "clicking a tab switches the active window without reordering",
       "status": "pass",
-      "at": "2026-11-18T08:26:47.702Z"
+      "at": "2026-11-18T13:06:01.354Z"
     },
     {
       "opened": [
@@ -51,7 +51,7 @@
       "id": "04",
       "name": "opening a third window appends a tab and closing a non-active tab keeps the active one",
       "status": "pass",
-      "at": "2026-11-18T08:26:49.917Z"
+      "at": "2026-11-18T13:06:03.652Z"
     },
     {
       "before": [
@@ -69,7 +69,7 @@
       "id": "05",
       "name": "keyboard reorder moves a tab and survives a full reload",
       "status": "pass",
-      "at": "2026-11-18T08:26:53.067Z"
+      "at": "2026-11-18T13:06:06.922Z"
     },
     {
       "before": [
@@ -83,7 +83,7 @@
       "id": "06",
       "name": "pointer drag reorder moves the first tab onto the second",
       "status": "pass",
-      "at": "2026-11-18T08:26:53.982Z"
+      "at": "2026-11-18T13:06:07.854Z"
     },
     {
       "active": "reports",
@@ -97,7 +97,7 @@
       "id": "07",
       "name": "unsaved edits mark only the active tab and closing it asks before discarding",
       "status": "pass",
-      "at": "2026-11-18T08:26:55.744Z"
+      "at": "2026-11-18T13:06:09.816Z"
     },
     {
       "order": [
@@ -106,7 +106,7 @@
       "id": "08",
       "name": "the last open window has no close control",
       "status": "pass",
-      "at": "2026-11-18T08:26:55.934Z"
+      "at": "2026-11-18T13:06:09.999Z"
     },
     {
       "before": [
@@ -123,7 +123,7 @@
       "id": "09",
       "name": "tab set, order and active window are restored after a full reload",
       "status": "pass",
-      "at": "2026-11-18T08:27:01.993Z"
+      "at": "2026-11-18T13:06:15.938Z"
     },
     {
       "order": [
@@ -139,7 +139,7 @@
       "id": "10",
       "name": "Persian right-to-left tabs fit 1280x720 without overflow",
       "status": "pass",
-      "at": "2026-11-18T08:27:04.073Z"
+      "at": "2026-11-18T13:06:18.098Z"
     },
     {
       "writes": 3,
@@ -147,7 +147,7 @@
       "id": "11",
       "name": "no schedule write is issued while tabs are managed",
       "status": "pass",
-      "at": "2026-11-18T08:27:04.074Z"
+      "at": "2026-11-18T13:06:18.099Z"
     }
   ],
   "screenshots": [
@@ -166,20 +166,20 @@
   "exceptions": [],
   "consoleErrors": [],
   "apiFailures": [],
-  "finishedAt": "2026-11-18T08:27:04.074Z",
+  "finishedAt": "2026-11-18T13:06:18.099Z",
   "status": "passed",
   "writes": [
     {
       "method": "POST",
-      "url": "http://127.0.0.1:50558/api/projects/preview-rps-01/open"
+      "url": "http://127.0.0.1:62822/api/projects/preview-rps-01/open"
     },
     {
       "method": "POST",
-      "url": "http://127.0.0.1:50558/api/projects/preview-rps-01/open"
+      "url": "http://127.0.0.1:62822/api/projects/preview-rps-01/open"
     },
     {
       "method": "POST",
-      "url": "http://127.0.0.1:50558/api/projects/preview-rps-01/open"
+      "url": "http://127.0.0.1:62822/api/projects/preview-rps-01/open"
     }
   ]
 }

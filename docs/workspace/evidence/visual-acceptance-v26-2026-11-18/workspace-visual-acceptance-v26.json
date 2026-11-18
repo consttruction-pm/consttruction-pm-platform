@@ -1,10 +1,10 @@
 {
   "contract": "cubi-workspace-visual-acceptance-v26.v1",
-  "baseUrl": "http://127.0.0.1:4193",
-  "gitHead": "65414e4acb57c6360002b25e8513943dfe334df2",
-  "testedCodeSha": "65414e4acb57c6360002b25e8513943dfe334df2",
+  "baseUrl": "http://127.0.0.1:4196",
+  "gitHead": "f349d474cbfc46b3fa113388b393d0e752b67510",
+  "testedCodeSha": "f349d474cbfc46b3fa113388b393d0e752b67510",
   "evidenceCommitSha": null,
-  "capturedAt": "2026-11-18T08:31:57.642Z",
+  "capturedAt": "2026-11-18T13:11:31.036Z",
   "cells": [
     {
       "viewport": {
@@ -51,11 +51,11 @@
         ],
         "details": {
           "left": 48,
-          "top": 523,
+          "top": 509.7,
           "right": 1240,
-          "bottom": 679,
+          "bottom": 660,
           "width": 1192,
-          "height": 156
+          "height": 150.3
         },
         "detailsVisible": true,
         "rows": {
@@ -122,9 +122,9 @@
           {
             "rect": {
               "left": 465,
-              "top": 154.4,
+              "top": 173.4,
               "right": 638,
-              "bottom": 176.4,
+              "bottom": 195.4,
               "width": 173,
               "height": 22
             },
@@ -134,11 +134,11 @@
         ],
         "details": {
           "left": 48,
-          "top": 477,
+          "top": 482.7,
           "right": 1240,
           "bottom": 660,
           "width": 1192,
-          "height": 183
+          "height": 177.3
         },
         "detailsVisible": true,
         "rows": {
@@ -200,9 +200,9 @@
           {
             "rect": {
               "left": 642,
-              "top": 154.4,
+              "top": 173.4,
               "right": 815,
-              "bottom": 176.4,
+              "bottom": 195.4,
               "width": 173,
               "height": 22
             },
@@ -212,11 +212,11 @@
         ],
         "details": {
           "left": 40,
-          "top": 477,
+          "top": 482.7,
           "right": 1232,
           "bottom": 660,
           "width": 1192,
-          "height": 183
+          "height": 177.3
         },
         "detailsVisible": true,
         "rows": {
@@ -283,9 +283,9 @@
           {
             "rect": {
               "left": 642,
-              "top": 154.4,
+              "top": 173.4,
               "right": 815,
-              "bottom": 176.4,
+              "bottom": 195.4,
               "width": 173,
               "height": 22
             },
@@ -295,11 +295,11 @@
         ],
         "details": {
           "left": 40,
-          "top": 450,
+          "top": 455.7,
           "right": 1232,
           "bottom": 660,
           "width": 1192,
-          "height": 210
+          "height": 204.3
         },
         "detailsVisible": true,
         "rows": {
@@ -373,11 +373,11 @@
         ],
         "details": {
           "left": 48,
-          "top": 486.4,
+          "top": 484.3,
           "right": 1326,
           "bottom": 708,
           "width": 1278,
-          "height": 221.6
+          "height": 223.7
         },
         "detailsVisible": true,
         "rows": {
@@ -456,11 +456,11 @@
         ],
         "details": {
           "left": 48,
-          "top": 459.4,
+          "top": 457.3,
           "right": 1326,
           "bottom": 708,
           "width": 1278,
-          "height": 248.6
+          "height": 250.7
         },
         "detailsVisible": true,
         "rows": {
@@ -533,11 +533,11 @@
           ],
           "details": {
             "left": 48,
-            "top": 459.4,
+            "top": 457.3,
             "right": 1326,
             "bottom": 708,
             "width": 1278,
-            "height": 248.6
+            "height": 250.7
           },
           "detailsVisible": true,
           "rows": {
@@ -612,11 +612,11 @@
         ],
         "details": {
           "left": 40,
-          "top": 459.4,
+          "top": 457.3,
           "right": 1318,
           "bottom": 708,
           "width": 1278,
-          "height": 248.6
+          "height": 250.7
         },
         "detailsVisible": true,
         "rows": {
@@ -695,11 +695,11 @@
         ],
         "details": {
           "left": 40,
-          "top": 432.3,
+          "top": 430.3,
           "right": 1318,
           "bottom": 708,
           "width": 1278,
-          "height": 275.7
+          "height": 277.7
         },
         "detailsVisible": true,
         "rows": {
@@ -773,11 +773,11 @@
         ],
         "details": {
           "left": 48,
-          "top": 589.9,
+          "top": 586.7,
           "right": 1880,
           "bottom": 1020,
           "width": 1832,
-          "height": 430.1
+          "height": 433.3
         },
         "detailsVisible": true,
         "rows": {
@@ -856,11 +856,11 @@
         ],
         "details": {
           "left": 48,
-          "top": 562.8,
+          "top": 559.7,
           "right": 1880,
           "bottom": 1020,
           "width": 1832,
-          "height": 457.2
+          "height": 460.3
         },
         "detailsVisible": true,
         "rows": {
@@ -934,11 +934,11 @@
         ],
         "details": {
           "left": 40,
-          "top": 562.8,
+          "top": 559.7,
           "right": 1872,
           "bottom": 1020,
           "width": 1832,
-          "height": 457.2
+          "height": 460.3
         },
         "detailsVisible": true,
         "rows": {
@@ -1017,11 +1017,11 @@
         ],
         "details": {
           "left": 40,
-          "top": 535.8,
+          "top": 532.6,
           "right": 1872,
           "bottom": 1020,
           "width": 1832,
-          "height": 484.2
+          "height": 487.4
         },
         "detailsVisible": true,
         "rows": {
@@ -1077,5 +1077,5 @@
   "exceptions": [],
   "consoleErrors": [],
   "apiFailures": [],
-  "finishedAt": "2026-11-18T08:32:34.248Z"
+  "finishedAt": "2026-11-18T13:12:08.279Z"
 }

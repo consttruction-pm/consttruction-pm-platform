@@ -1,16 +1,16 @@
 {
   "contract": "cubi-activity-columns-v26.v1",
-  "baseUrl": "http://127.0.0.1:4193",
-  "gitHead": "f96478fedc0c507147719dde2647ca14c19aa0eb",
-  "testedCodeSha": "f96478fedc0c507147719dde2647ca14c19aa0eb",
+  "baseUrl": "http://127.0.0.1:4194",
+  "gitHead": "f349d474cbfc46b3fa113388b393d0e752b67510",
+  "testedCodeSha": "f349d474cbfc46b3fa113388b393d0e752b67510",
   "evidenceCommitSha": null,
-  "capturedAt": "2026-11-18T06:39:47.843Z",
+  "capturedAt": "2026-11-18T12:57:46.480Z",
   "scenarios": [
     {
-      "registryFields": 20,
-      "layoutColumns": 20,
+      "registryFields": 21,
+      "layoutColumns": 21,
       "available": 0,
-      "selected": 20,
+      "selected": 21,
       "revealed": [
         "activity.id",
         "activity.name"
@@ -27,16 +27,16 @@
       "id": "01",
       "name": "The Columns dialog lists the registry and the saved layout, and filters the available pane",
       "status": "pass",
-      "at": "2026-11-18T06:39:55.711Z"
+      "at": "2026-11-18T12:57:54.385Z"
     },
     {
       "removedAndAdded": "activity.id",
       "filteredCount": 1,
-      "reopened": 20,
+      "reopened": 21,
       "id": "02",
       "name": "Add, Add all, Remove, Remove all and Move edit only the draft; Cancel writes nothing",
       "status": "pass",
-      "at": "2026-11-18T06:40:03.632Z"
+      "at": "2026-11-18T12:58:02.149Z"
     },
     {
       "target": "activity.name",
@@ -45,47 +45,47 @@
       "id": "03",
       "name": "Edit Column and visibility persist through OK and a full reload",
       "status": "pass",
-      "at": "2026-11-18T06:40:09.395Z"
+      "at": "2026-11-18T12:58:08.112Z"
     },
     {
-      "revision": 2,
+      "revision": 4,
       "id": "04",
       "name": "Cancel discards later edits even after a persisted change",
       "status": "pass",
-      "at": "2026-11-18T06:40:12.109Z"
+      "at": "2026-11-18T12:58:10.754Z"
     },
     {
-      "revision": 3,
+      "revision": 5,
       "first": "activity.name",
       "id": "05",
       "name": "Apply persists the order without closing the dialog",
       "status": "pass",
-      "at": "2026-11-18T06:40:15.886Z"
+      "at": "2026-11-18T12:58:14.696Z"
     },
     {
       "columns": 8,
-      "revision": 4,
+      "revision": 6,
       "id": "06",
       "name": "Default stages the server default columns; only OK persists them",
       "status": "pass",
-      "at": "2026-11-18T06:40:21.953Z"
+      "at": "2026-11-18T12:58:20.874Z"
     },
     {
       "sourceColumns": 4,
-      "revision": 5,
+      "revision": 7,
       "scope": "project",
       "id": "07",
       "name": "Copy From copies the other saved layout's columns into the draft",
       "status": "pass",
-      "at": "2026-11-18T06:40:24.702Z"
+      "at": "2026-11-18T12:58:23.683Z"
     },
     {
-      "other": 20,
+      "other": 21,
       "back": 4,
       "id": "08",
       "name": "A layout change in one project never reaches another project",
       "status": "pass",
-      "at": "2026-11-18T06:40:28.922Z"
+      "at": "2026-11-18T12:58:28.442Z"
     },
     {
       "readonly": "Your role can inspect columns but cannot save an activity layout.",
@@ -93,7 +93,7 @@
       "id": "09",
       "name": "A Viewer can inspect columns but cannot save, and issues no write",
       "status": "pass",
-      "at": "2026-11-18T06:40:33.486Z"
+      "at": "2026-11-18T12:58:33.002Z"
     },
     {
       "rtl": "ستون‌ها",
@@ -105,60 +105,60 @@
       "id": "10",
       "name": "The dialog fits fa/RTL 1280×720 and en/LTR 1920×1080",
       "status": "pass",
-      "at": "2026-11-18T06:40:42.839Z"
+      "at": "2026-11-18T12:58:42.956Z"
     },
     {
       "writes": [
         {
           "method": "POST",
-          "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/open"
+          "url": "http://127.0.0.1:4194/api/projects/preview-rps-01/open"
         },
         {
           "method": "POST",
-          "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/layouts/project/activity"
+          "url": "http://127.0.0.1:4194/api/projects/preview-rps-01/p6/layouts/project/activity"
         },
         {
           "method": "POST",
-          "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/open"
+          "url": "http://127.0.0.1:4194/api/projects/preview-rps-01/open"
         },
         {
           "method": "POST",
-          "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/layouts/project/activity"
+          "url": "http://127.0.0.1:4194/api/projects/preview-rps-01/p6/layouts/project/activity"
         },
         {
           "method": "POST",
-          "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/layouts/project/activity"
+          "url": "http://127.0.0.1:4194/api/projects/preview-rps-01/p6/layouts/project/activity"
         },
         {
           "method": "POST",
-          "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/layouts/user/activity"
+          "url": "http://127.0.0.1:4194/api/projects/preview-rps-01/p6/layouts/user/activity"
         },
         {
           "method": "POST",
-          "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/layouts/project/activity"
+          "url": "http://127.0.0.1:4194/api/projects/preview-rps-01/p6/layouts/project/activity"
         },
         {
           "method": "POST",
-          "url": "http://127.0.0.1:4193/api/projects/preview-nse-02/open"
+          "url": "http://127.0.0.1:4194/api/projects/preview-nse-02/open"
         },
         {
           "method": "POST",
-          "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/open"
+          "url": "http://127.0.0.1:4194/api/projects/preview-rps-01/open"
         },
         {
           "method": "POST",
-          "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/open"
+          "url": "http://127.0.0.1:4194/api/projects/preview-rps-01/open"
         },
         {
           "method": "POST",
-          "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/open"
+          "url": "http://127.0.0.1:4194/api/projects/preview-rps-01/open"
         }
       ],
       "consoleErrors": [],
       "id": "11",
       "name": "The whole run issued no exception, console error or 5xx",
       "status": "pass",
-      "at": "2026-11-18T06:40:42.840Z"
+      "at": "2026-11-18T12:58:42.956Z"
     }
   ],
   "screenshots": [
@@ -181,47 +181,47 @@
   "interactionWrites": [
     {
       "method": "POST",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/open"
+      "url": "http://127.0.0.1:4194/api/projects/preview-rps-01/open"
     },
     {
       "method": "POST",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/layouts/project/activity"
+      "url": "http://127.0.0.1:4194/api/projects/preview-rps-01/p6/layouts/project/activity"
     },
     {
       "method": "POST",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/open"
+      "url": "http://127.0.0.1:4194/api/projects/preview-rps-01/open"
     },
     {
       "method": "POST",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/layouts/project/activity"
+      "url": "http://127.0.0.1:4194/api/projects/preview-rps-01/p6/layouts/project/activity"
     },
     {
       "method": "POST",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/layouts/project/activity"
+      "url": "http://127.0.0.1:4194/api/projects/preview-rps-01/p6/layouts/project/activity"
     },
     {
       "method": "POST",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/layouts/user/activity"
+      "url": "http://127.0.0.1:4194/api/projects/preview-rps-01/p6/layouts/user/activity"
     },
     {
       "method": "POST",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/layouts/project/activity"
+      "url": "http://127.0.0.1:4194/api/projects/preview-rps-01/p6/layouts/project/activity"
     },
     {
       "method": "POST",
-      "url": "http://127.0.0.1:4193/api/projects/preview-nse-02/open"
+      "url": "http://127.0.0.1:4194/api/projects/preview-nse-02/open"
     },
     {
       "method": "POST",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/open"
+      "url": "http://127.0.0.1:4194/api/projects/preview-rps-01/open"
     },
     {
       "method": "POST",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/open"
+      "url": "http://127.0.0.1:4194/api/projects/preview-rps-01/open"
     },
     {
       "method": "POST",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/open"
+      "url": "http://127.0.0.1:4194/api/projects/preview-rps-01/open"
     }
   ]
 }

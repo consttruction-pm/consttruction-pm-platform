@@ -1,14 +1,14 @@
 {
   "contract": "cubi-activities-v26-scenarios.v1",
-  "baseUrl": "http://127.0.0.1:4193",
-  "gitHead": "65414e4acb57c6360002b25e8513943dfe334df2",
-  "capturedAt": "2026-11-18T08:27:30.214Z",
+  "baseUrl": "http://127.0.0.1:4195",
+  "gitHead": "f349d474cbfc46b3fa113388b393d0e752b67510",
+  "capturedAt": "2026-11-18T13:09:06.230Z",
   "scenarios": [
     {
       "id": "01",
       "name": "بازکردن پنجره Activities",
       "status": "pass",
-      "at": "2026-11-18T08:27:36.092Z",
+      "at": "2026-11-18T13:09:12.173Z",
       "rowIds": [
         "A100",
         "A110",
@@ -51,7 +51,7 @@
       "id": "02",
       "name": "انتخاب فعالیت و بررسی هماهنگی جدول، Gantt و Details",
       "status": "pass",
-      "at": "2026-11-18T08:27:37.242Z",
+      "at": "2026-11-18T13:09:13.330Z",
       "selectedRow": "A130",
       "selectedGantt": "A130",
       "detailsText": "A130"
@@ -60,7 +60,7 @@
       "id": "03",
       "name": "باز و بسته کردن Activity Details",
       "status": "pass",
-      "at": "2026-11-18T08:27:40.358Z",
+      "at": "2026-11-18T13:09:16.607Z",
       "before": true,
       "closed": false,
       "reopened": true
@@ -69,23 +69,23 @@
       "id": "04",
       "name": "تغییر ارتفاع و عرض نواحی",
       "status": "pass",
-      "at": "2026-11-18T08:27:41.981Z",
+      "at": "2026-11-18T13:09:18.213Z",
       "before": {
         "table": "50.00%",
         "details": "70.00%"
       },
       "after": {
         "table": "60.23%",
-        "details": "75.37%"
+        "details": "75.56%"
       },
       "drag": {
         "table": {
           "x": 766,
-          "y": 344.46875
+          "y": 337.8125
         },
         "details": {
           "x": 644,
-          "y": 527
+          "y": 532.6875
         }
       }
     },
@@ -93,45 +93,45 @@
       "id": "05",
       "name": "Refresh و بررسی پایداری Layout",
       "status": "pass",
-      "at": "2026-11-18T08:27:44.327Z",
+      "at": "2026-11-18T13:09:20.931Z",
       "table": "60.23%",
-      "details": "75.37%",
+      "details": "75.56%",
       "selected": null
     },
     {
       "id": "06",
       "name": "تغییر عرض ستون‌ها و جابه‌جایی ستون‌ها",
       "status": "pass",
-      "at": "2026-11-18T08:27:50.326Z",
+      "at": "2026-11-18T13:09:27.566Z",
       "moved": {
-        "id": "activity.name",
-        "title": "Activity Name (Name)\n      Activity\n      ◌"
+        "id": "activity.planned_duration",
+        "title": "Original Duration (Planned Duration)\n      Activity\n      ◌"
       },
       "before": [
-        "Activity ID",
         "Activity Name",
         "Original Duration",
-        "Remaining Duration"
+        "Remaining Duration",
+        "Schedule % Complete"
       ],
       "after": [
-        "Activity Name",
-        "Activity ID",
         "Original Duration",
-        "Remaining Duration"
+        "Activity Name",
+        "Remaining Duration",
+        "Schedule % Complete"
       ],
-      "width": 241,
+      "width": 210,
       "persisted": [
-        "Activity Name",
-        "Activity ID",
         "Original Duration",
-        "Remaining Duration"
+        "Activity Name",
+        "Remaining Duration",
+        "Schedule % Complete"
       ]
     },
     {
       "id": "07",
       "name": "اعمال فیلتر و ترکیب چند فیلتر",
       "status": "pass",
-      "at": "2026-11-18T08:27:55.794Z",
+      "at": "2026-11-18T13:09:33.192Z",
       "inProgress": [
         "A130"
       ],
@@ -160,7 +160,7 @@
       "id": "08",
       "name": "ایجاد و ویرایش فیلتر",
       "status": "pass",
-      "at": "2026-11-18T08:28:00.738Z",
+      "at": "2026-11-18T13:09:38.782Z",
       "created": [
         "A130",
         "A140",
@@ -178,7 +178,7 @@
       "id": "09",
       "name": "Group و Sort",
       "status": "pass",
-      "at": "2026-11-18T08:28:05.148Z",
+      "at": "2026-11-18T13:09:43.179Z",
       "group": "wbs",
       "statusField": "activity.name",
       "bands": 2,
@@ -188,7 +188,7 @@
       "id": "10",
       "name": "بازکردن تمام ۱۶ تب Activity Details",
       "status": "pass",
-      "at": "2026-11-18T08:28:12.478Z",
+      "at": "2026-11-18T13:09:50.553Z",
       "tabs": [
         "general",
         "status",
@@ -212,7 +212,7 @@
       "rendered": [
         {
           "id": "general",
-          "text": "Activity IDA100 Activity TypeTask Dependent Duration TypeFixed Duration & Units Cost AccountNot available % Complete TypeNot available Leveling PriorityNormal Activity CalendarNot "
+          "text": "Activity IDA100 Activity TypeTask Dependent Duration TypeFixed Duration & Units Cost AccountNot available % Complete TypeDuration Leveling PriorityNormal Activity CalendarNot avail"
         },
         {
           "id": "status",
@@ -228,7 +228,7 @@
         },
         {
           "id": "successors",
-          "text": "Project ID WBS Activity ID Activity Name Relationship Type Lag Activity Status Primary Resource Action preview-rps-01 1 A110 Mobilization FS 0 d Completed — Go To AssignRemove"
+          "text": "Project ID WBS Activity ID Activity Name Relationship Type Lag Activity Status Primary Resource Action No relationships are loaded for this activity. AssignRemove"
         },
         {
           "id": "relationships",
@@ -284,7 +284,7 @@
       "id": "11",
       "name": "راست‌کلیک در تمام نواحی",
       "status": "pass",
-      "at": "2026-11-18T08:28:20.074Z",
+      "at": "2026-11-18T13:09:58.033Z",
       "areas": [
         {
           "label": "activity row",
@@ -410,7 +410,7 @@
       "id": "12",
       "name": "آزمون میانبرهای تأییدشده",
       "status": "pass",
-      "at": "2026-11-18T08:28:24.591Z",
+      "at": "2026-11-18T13:10:02.565Z",
       "focusInside": true,
       "shortcutsOpen": true,
       "shortcutRows": [
@@ -451,7 +451,7 @@
       "id": "13",
       "name": "نمایش و مخفی‌سازی Data Date Line و Progress Line",
       "status": "pass",
-      "at": "2026-11-18T08:28:28.160Z",
+      "at": "2026-11-18T13:10:06.205Z",
       "dataDate": {
         "disabled": false,
         "note": "The line marks the project Data Date (2026-10-12) on the chart. A thickness above 1 is painted as a solid line; dashed and dotted lines stay 1 pixel wide.",
@@ -472,19 +472,19 @@
       "id": "14",
       "name": "بررسی هر چهار نوع رابطه FS/SS/FF/SF",
       "status": "pass",
-      "at": "2026-11-18T08:28:33.283Z",
+      "at": "2026-11-18T13:10:11.121Z",
       "before": {
-        "FS": 14,
+        "FS": 13,
         "SS": 1
       },
       "after": {
         "FF": 1,
         "SF": 1,
-        "FS": 14,
+        "FS": 13,
         "SS": 1
       },
       "restored": {
-        "FS": 14,
+        "FS": 13,
         "SS": 1
       },
       "created": [
@@ -516,7 +516,7 @@
       "id": "15",
       "name": "Zoom و Scroll در Gantt",
       "status": "pass",
-      "at": "2026-11-18T08:28:42.221Z",
+      "at": "2026-11-18T13:10:14.650Z",
       "before": "month",
       "zoomedIn": "week",
       "zoomedOut": "month",
@@ -536,18 +536,18 @@
       "id": "16",
       "name": "تغییر اندازه Splitterها در چند اندازه صفحه",
       "status": "pass",
-      "at": "2026-11-18T08:28:50.773Z",
+      "at": "2026-11-18T13:10:21.528Z",
       "results": [
         {
           "width": 1024,
           "height": 768,
           "before": {
             "table": "60.23%",
-            "details": "75.37%"
+            "details": "75.56%"
           },
           "after": {
             "table": "52.96%",
-            "details": "72.73%"
+            "details": "72.92%"
           },
           "overflow": {
             "tableRight": 544,
@@ -561,11 +561,11 @@
           "height": 720,
           "before": {
             "table": "52.96%",
-            "details": "72.73%"
+            "details": "72.92%"
           },
           "after": {
             "table": "47.26%",
-            "details": "69.95%"
+            "details": "70.04%"
           },
           "overflow": {
             "tableRight": 611,
@@ -579,11 +579,11 @@
           "height": 900,
           "before": {
             "table": "47.26%",
-            "details": "69.95%"
+            "details": "70.04%"
           },
           "after": {
             "table": "42.23%",
-            "details": "67.81%"
+            "details": "67.90%"
           },
           "overflow": {
             "tableRight": 619,
@@ -597,11 +597,11 @@
           "height": 1080,
           "before": {
             "table": "42.23%",
-            "details": "67.81%"
+            "details": "67.90%"
           },
           "after": {
             "table": "38.52%",
-            "details": "66.11%"
+            "details": "66.20%"
           },
           "overflow": {
             "tableRight": 754,
@@ -616,7 +616,7 @@
       "id": "17",
       "name": "بررسی حالت RTL و LTR",
       "status": "pass",
-      "at": "2026-11-18T08:28:53.653Z",
+      "at": "2026-11-18T13:10:24.129Z",
       "rtl": {
         "dir": "rtl",
         "lang": "fa",
@@ -631,7 +631,7 @@
       "id": "18",
       "name": "بررسی عدم وجود خطای Console و Runtime",
       "status": "pass",
-      "at": "2026-11-18T08:28:56.506Z",
+      "at": "2026-11-18T13:10:26.853Z",
       "exceptions": 0,
       "consoleErrors": 0,
       "apiFailures": 0,
@@ -675,5 +675,5 @@
   "exceptions": [],
   "consoleErrors": [],
   "apiFailures": [],
-  "finishedAt": "2026-11-18T08:28:56.507Z"
+  "finishedAt": "2026-11-18T13:10:26.853Z"
 }
