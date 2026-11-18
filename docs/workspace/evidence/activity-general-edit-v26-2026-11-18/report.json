@@ -1,0 +1,143 @@
+{
+  "contract": "cubi-activity-general-edit-v26.v1",
+  "url": "http://127.0.0.1:4193",
+  "testedCodeSha": "554b0c7417101a6a290e3c1a7c0cbb24038c584f",
+  "capturedAt": "2026-11-18T02:11:51.411Z",
+  "activityId": "A100",
+  "options": {
+    "activityTypes": [
+      "Task Dependent",
+      "Resource Dependent",
+      "Level of Effort",
+      "Start Milestone",
+      "Finish Milestone",
+      "WBS Summary"
+    ],
+    "durationTypes": [
+      "Fixed Units/Time",
+      "Fixed Duration & Units/Time",
+      "Fixed Units",
+      "Fixed Duration & Units"
+    ],
+    "percentCompleteTypes": [
+      "DURATION",
+      "UNITS",
+      "PHYSICAL",
+      "SCOPE"
+    ],
+    "revisionHint": "Editing the stored record at revision r5. Only changed fields are sent, and the service rejects a stale revision instead of overwriting another edit.",
+    "nameValue": "Project kickoff"
+  },
+  "save": {
+    "probeName": "Project kickoff [V26 general edit probe]",
+    "message": "Saved to the project service at revision r6. The Activity Grid shows the new values after its next project read."
+  },
+  "persistence": {
+    "persisted": true
+  },
+  "restore": {
+    "name": "Project kickoff",
+    "message": "Saved to the project service at revision r7. The Activity Grid shows the new values after its next project read."
+  },
+  "screenshots": [
+    "general-tab-before-edit-en-1366.png",
+    "general-editor-open-en-1366.png",
+    "general-saved-en-1366.png",
+    "general-persisted-after-reload-en-1366.png"
+  ],
+  "network": [
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/steps",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/progress-history",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/steps",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/progress-history",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/steps",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/progress-history",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/steps",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/progress-history",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/steps",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/progress-history",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100",
+      "postData": null
+    },
+    {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100",
+      "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"expected_revision\":5,\"name\":\"Project kickoff [V26 general edit probe]\"}"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/steps",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/progress-history",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/steps",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/progress-history",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100",
+      "postData": null
+    },
+    {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100",
+      "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"expected_revision\":6,\"name\":\"Project kickoff\"}"
+    }
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": []
+}

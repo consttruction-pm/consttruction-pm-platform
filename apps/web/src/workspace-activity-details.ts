@@ -43,6 +43,15 @@ import type {
 } from "./workspace-model.js";
 import { translateWorkspaceUiText } from "./workspace-localization.js";
 import { anchorPoint, openContextMenu } from "./workspace-context-menu.js";
+import {
+  ACTIVITY_TYPE_OPTIONS,
+  DURATION_TYPE_OPTIONS,
+  PERCENT_COMPLETE_TYPE_OPTIONS,
+  applyActivityGeneralToCells,
+  loadActivityGeneral,
+  saveActivityGeneral,
+  type ActivityGeneralRecord,
+} from "./workspace-activity-general.js";
 
 export const ACTIVITY_DETAILS_STORAGE_KEY = "cubi:activity-details-tab";
 
@@ -637,6 +646,92 @@ function storedConstraintsMarkup(
     </form>`;
 }
 
+const ACTIVITY_TYPE_LABELS: Readonly<Record<string, readonly [string, string]>> = {
+  "Task Dependent": ["Task Dependent", "وابسته به فعالیت"],
+  "Resource Dependent": ["Resource Dependent", "وابسته به منبع"],
+  "Level of Effort": ["Level of Effort", "سطح تلاش"],
+  "Start Milestone": ["Start Milestone", "نقطه عطف شروع"],
+  "Finish Milestone": ["Finish Milestone", "نقطه عطف پایان"],
+  "WBS Summary": ["WBS Summary", "خلاصهٔ WBS"],
+};
+
+const DURATION_TYPE_LABELS: Readonly<Record<string, readonly [string, string]>> = {
+  "Fixed Units/Time": ["Fixed Units/Time", "واحد/زمان ثابت"],
+  "Fixed Duration & Units/Time": ["Fixed Duration & Units/Time", "مدت و واحد/زمان ثابت"],
+  "Fixed Units": ["Fixed Units", "واحد ثابت"],
+  "Fixed Duration & Units": ["Fixed Duration & Units", "مدت و واحد ثابت"],
+};
+
+const PERCENT_COMPLETE_TYPE_LABELS: Readonly<Record<string, readonly [string, string]>> = {
+  DURATION: ["Duration", "مدت"],
+  UNITS: ["Units", "واحدها"],
+  PHYSICAL: ["Physical", "فیزیکی"],
+  SCOPE: ["Scope", "دامنه"],
+};
+
+function labelFor(locale: string, label: readonly [string, string] | undefined, value: string): string {
+  return label ? t(locale, label[0], label[1]) : value;
+}
+
+function activityTypeLabel(locale: string, value: string): string {
+  return labelFor(locale, ACTIVITY_TYPE_LABELS[value], value);
+}
+
+function durationTypeLabel(locale: string, value: string): string {
+  return labelFor(locale, DURATION_TYPE_LABELS[value], value);
+}
+
+function percentCompleteTypeLabel(locale: string, value: string): string {
+  return labelFor(locale, PERCENT_COMPLETE_TYPE_LABELS[value], value);
+}
+
+/**
+ * The Version 26 General tab is the activity's edit surface. CUBI loads the
+ * authoritative Activity Master record before opening the editor so the write
+ * can carry the stored revision; nothing is inferred from the grid row.
+ */
+function generalEditorSection(locale: string, activity: WorkspaceActivityRow, writable: boolean): string {
+  const hint = t(
+    locale,
+    "The editor reads the authoritative Activity Master record first, so the write carries the stored revision. Changing the activity type or duration type is a scheduling input; dates and float are recalculated only by the shared schedule run.",
+    "ویرایشگر ابتدا رکورد مرجع Activity Master را می‌خواند تا نوشتن با نسخهٔ ذخیره‌شده انجام شود. تغییر نوع فعالیت یا نوع مدت، ورودی زمان‌بندی است؛ تاریخ‌ها و شناوری فقط با اجرای زمان‌بندی مشترک دوباره محاسبه می‌شوند.",
+  );
+  return `<section class="cp-detail-section" data-general-editor>
+      <h3>${esc(t(locale, "Edit activity fields", "ویرایش فیلدهای فعالیت"))}</h3>
+      <div class="cp-detail-actions">
+        ${writable
+          ? `<button type="button" class="cp-detail-action" data-general-edit-load="${esc(activity.id)}">${esc(t(locale, "Load editable fields", "بارگذاری فیلدهای قابل ویرایش"))}</button>`
+          : disabledControl(locale, t(locale, "Load editable fields", "بارگذاری فیلدهای قابل ویرایش"), t(locale, "This details pane is read-only; the write service is not connected.", "این پنل فقط‌خواندنی است؛ سرویس نوشتن متصل نیست."))}
+      </div>
+      <div data-general-edit-slot><p class="cp-detail-hint">${esc(hint)}</p></div>
+    </section>`;
+}
+
+function generalEditorForm(locale: string, record: ActivityGeneralRecord): string {
+  const selectOptions = (
+    entries: readonly string[],
+    selected: string,
+    label: (value: string) => string,
+  ): string => entries
+    .map((value) => `<option value="${esc(value)}"${value === selected ? " selected" : ""}>${esc(label(value))}</option>`)
+    .join("");
+  return `<form class="cp-detail-form" data-details-form="general" novalidate>
+      <div class="cp-detail-form-grid">
+        <label class="cp-detail-form-field is-wide" for="detail-form-general-name"><span>${esc(t(locale, "Activity Name", "نام فعالیت"))}</span><input id="detail-form-general-name" name="name" type="text" autocomplete="off" maxlength="180" required value="${esc(record.name)}"></label>
+        <label class="cp-detail-form-field" for="detail-form-general-activity-type"><span>${esc(t(locale, "Activity Type", "نوع فعالیت"))}</span><select id="detail-form-general-activity-type" name="activityType" required>${selectOptions(ACTIVITY_TYPE_OPTIONS, record.activityType, (value) => activityTypeLabel(locale, value))}</select></label>
+        <label class="cp-detail-form-field" for="detail-form-general-duration-type"><span>${esc(t(locale, "Duration Type", "نوع مدت"))}</span><select id="detail-form-general-duration-type" name="durationType" required>${selectOptions(DURATION_TYPE_OPTIONS, record.durationType, (value) => durationTypeLabel(locale, value))}</select></label>
+        <label class="cp-detail-form-field" for="detail-form-general-percent-type"><span>${esc(t(locale, "% Complete Type", "نوع درصد پیشرفت"))}</span><select id="detail-form-general-percent-type" name="percentCompleteType" required>${selectOptions(PERCENT_COMPLETE_TYPE_OPTIONS, record.percentCompleteType, (value) => percentCompleteTypeLabel(locale, value))}</select></label>
+        <label class="cp-detail-form-field" for="detail-form-general-cost-account"><span>${esc(t(locale, "Cost Account", "حساب هزینه"))}</span><input id="detail-form-general-cost-account" name="costAccountId" type="text" autocomplete="off" maxlength="120" value="${esc(record.costAccountId ?? "")}"></label>
+      </div>
+      <div class="cp-detail-form-actions">
+        <button type="submit" class="cp-detail-action">${esc(t(locale, "Save activity fields", "ذخیرهٔ فیلدهای فعالیت"))}</button>
+        <button type="button" class="cp-detail-action" data-general-edit-cancel>${esc(t(locale, "Cancel", "لغو"))}</button>
+        <span class="cp-detail-form-message" data-details-form-message role="status"></span>
+      </div>
+      <p class="cp-detail-hint">${esc(t(locale, `Editing the stored record at revision r${record.recordRevision}. Only changed fields are sent, and the service rejects a stale revision instead of overwriting another edit.`, `در حال ویرایش رکورد ذخیره‌شده با نسخهٔ r${record.recordRevision}. فقط فیلدهای تغییرکرده ارسال می‌شوند و سرویس نسخهٔ قدیمی را به‌جای بازنویسی ویرایش دیگران رد می‌کند.`))}</p>
+    </form>`;
+}
+
 function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput): string {
   const { locale, selectedActivityId, activities, relationships, projectName, dataDate, state } = input;
   const activity = activities.find((row) => row.id === selectedActivityId) ?? null;
@@ -657,10 +752,12 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
   switch (tab) {
     case "general":
       return `<div class="cp-detail-grid">
-        ${field(locale, t(locale, "Activity Type", "نوع فعالیت"), item("activity_type", "type"))}
-        ${field(locale, t(locale, "Duration Type", "نوع مدت"), item("duration_type"))}
-        ${field(locale, t(locale, "Cost Account", "حساب هزینه"), item("cost_account_id"))}
-        ${field(locale, t(locale, "% Complete Type", "نوع درصد پیشرفت"), item("percent_complete_type", "progress_basis"))}
+        ${field(locale, t(locale, "Activity ID", "شناسهٔ فعالیت"), activity?.code ?? "")}
+        ${field(locale, t(locale, "Activity Type", "نوع فعالیت"), activityTypeLabel(locale, item("activity_type", "type")))}
+        ${field(locale, t(locale, "Duration Type", "نوع مدت"), durationTypeLabel(locale, item("duration_type")))}
+        ${field(locale, t(locale, "Cost Account", "حساب هزینه"), item("cost_account", "cost_account_id"))}
+        ${field(locale, t(locale, "% Complete Type", "نوع درصد پیشرفت"), percentCompleteTypeLabel(locale, item("percent_complete_type", "progress_basis")))}
+        ${field(locale, t(locale, "Leveling Priority", "اولویت تسطیح"), item("leveling_priority"))}
         ${field(locale, t(locale, "Activity Calendar", "تقویم فعالیت"), item("calendar_id", "calendar_name", "calendar"))}
         ${field(locale, t(locale, "WBS", "ساختار شکست"), wbsLabel)}
         ${field(locale, t(locale, "Responsible Manager", "مدیر مسئول"), item("responsible_manager"))}
@@ -668,6 +765,7 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
         ${field(locale, t(locale, "Data date", "تاریخ داده"), dataDateValue)}
         ${field(locale, t(locale, "Description", "توضیحات"), item("description"))}
       </div>
+      ${activity && input.transport && state ? generalEditorSection(locale, activity, input.canWrite === true) : ""}
       <p class="cp-detail-hint">${esc(t(locale, "Fields the project read model does not return are marked as not available; they are never filled with estimated values.", "فیلدهایی که مدل خواندن پروژه برنمی‌گرداند «در دسترس نیست» نمایش داده می‌شوند و هرگز با مقدار برآوردی پر نمی‌شوند."))}</p>`;
     case "status": {
       const started = item("started") || (item("actual_start") ? t(locale, "Yes", "بله") : "");
@@ -1557,6 +1655,8 @@ const detailsLoadedKey = new WeakMap<HTMLElement, string>();
 const detailsSelectionKey = new WeakMap<HTMLElement, string | null>();
 const detailsDataCache = new Map<string, ActivityDetailsData>();
 const customizeRuntime = new WeakMap<HTMLElement, CustomizeState>();
+/** Revision-bearing Activity Master record loaded for the General editor. */
+const generalRecordRuntime = new WeakMap<HTMLElement, ActivityGeneralRecord>();
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -1755,6 +1855,7 @@ export function enhanceActivityDetails(
   };
   detailsRuntime.set(host, { input: effective, onSelect: onSelectActivity });
   host.innerHTML = renderActivityDetailsPanel(effective);
+  generalRecordRuntime.delete(host);
   const key = detailsDataKey(effective);
   // A selection change invalidates an in-flight read immediately, including the
   // cached path where no new request starts. Otherwise a late response for the
@@ -1916,6 +2017,42 @@ export function enhanceActivityDetails(
         await finish(failure);
         return;
       }
+      if (kind === "general") {
+        const record = generalRecordRuntime.get(host);
+        if (!record) {
+          if (submit) submit.disabled = false;
+          message(form, t(locale, "Load the authoritative record before saving.", "پیش از ذخیره، رکورد مرجع را بارگذاری کنید."), true);
+          return;
+        }
+        const saved = await saveActivityGeneral(transport, context, record, {
+          name: value("name"),
+          activityType: value("activityType"),
+          durationType: value("durationType"),
+          percentCompleteType: value("percentCompleteType"),
+          costAccountId: value("costAccountId"),
+        });
+        if (!saved.ok) {
+          if (submit) submit.disabled = false;
+          message(form, `${t(locale, "The project service rejected the change: ", "سرویس پروژه تغییر را نپذیرفت: ")}${saved.error.code}`, true);
+          return;
+        }
+        if (!saved.data.changed) {
+          if (submit) submit.disabled = false;
+          message(form, t(locale, "No field changed, so nothing was written.", "هیچ فیلدی تغییر نکرد؛ چیزی نوشته نشد."), false);
+          return;
+        }
+        const updated = saved.data.record;
+        const nextActivities = input.activities.map((row) => row.id === updated.activityId
+          ? { ...row, name: updated.name, cells: applyActivityGeneralToCells(row.cells, updated) }
+          : row);
+        const nextInput: ActivityDetailsInput = { ...input, activities: nextActivities };
+        detailsRuntime.set(host, { input: nextInput, onSelect: onSelectActivity });
+        generalRecordRuntime.delete(host);
+        host.innerHTML = renderActivityDetailsPanel(nextInput);
+        const panel = host.querySelector<HTMLElement>('[data-detail-panel="general"]');
+        panel?.insertAdjacentHTML("afterbegin", `<p class="cp-detail-hint" data-general-saved role="status">${esc(t(locale, `Saved to the project service at revision r${updated.recordRevision}. The Activity Grid shows the new values after its next project read.`, `در سرویس پروژه با نسخهٔ r${updated.recordRevision} ذخیره شد. شبکهٔ فعالیت‌ها مقادیر تازه را پس از خواندن بعدی پروژه نشان می‌دهد.`))}</p>`);
+        return;
+      }
       if (kind === "constraints") {
         const saved = await saveConstraint(transport, context, {
           constraintId: crypto.randomUUID(),
@@ -2000,6 +2137,41 @@ export function enhanceActivityDetails(
         detailsDataCache.delete(key);
         detailsLoadedKey.set(host, key);
         void loadDetailsInto(host, key, activityId, true);
+      }
+      return;
+    }
+
+    const generalLoad = target.closest<HTMLButtonElement>("[data-general-edit-load]");
+    if (generalLoad) {
+      const transport = input.transport;
+      const context = input.state?.context;
+      const activityId = generalLoad.dataset.generalEditLoad || input.selectedActivityId;
+      const slot = generalLoad.closest<HTMLElement>("[data-general-editor]")?.querySelector<HTMLElement>("[data-general-edit-slot]");
+      if (!transport || !context || !activityId || !slot) return;
+      generalLoad.disabled = true;
+      void (async () => {
+        const result = await loadActivityGeneral(transport, context, activityId);
+        if (!result.ok) {
+          generalLoad.disabled = false;
+          slot.innerHTML = `<p class="cp-detail-error" role="alert">${esc(`${t(input.locale, "The Activity Master record could not be read: ", "رکورد Activity Master خوانده نشد: ")}${result.error.code}`)}</p>`;
+          return;
+        }
+        generalRecordRuntime.set(host, result.data);
+        slot.innerHTML = generalEditorForm(input.locale, result.data);
+        slot.querySelector<HTMLInputElement>('input[name="name"]')?.focus();
+      })();
+      return;
+    }
+
+    const generalCancel = target.closest<HTMLButtonElement>("[data-general-edit-cancel]");
+    if (generalCancel) {
+      const editor = generalCancel.closest<HTMLElement>("[data-general-editor]");
+      const slot = editor?.querySelector<HTMLElement>("[data-general-edit-slot]");
+      const loadButton = editor?.querySelector<HTMLButtonElement>("[data-general-edit-load]");
+      generalRecordRuntime.delete(host);
+      if (loadButton) loadButton.disabled = false;
+      if (slot) {
+        slot.innerHTML = `<p class="cp-detail-hint">${esc(t(input.locale, "The editor is closed; no change was sent.", "ویرایشگر بسته شد؛ هیچ تغییری ارسال نشد."))}</p>`;
       }
       return;
     }

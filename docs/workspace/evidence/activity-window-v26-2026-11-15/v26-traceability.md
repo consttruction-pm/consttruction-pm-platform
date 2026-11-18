@@ -30,7 +30,7 @@ lists its tabs; `Customize Activity Details` is the documented add/remove/reorde
 
 | # | CUBI tab | Version 26 Help topic (title — URL) | Guide page | CUBI surface |
 | --- | --- | --- | --- | --- |
-| 1 | General | General tab - Activity Details — `general_tab_-_activity_details.htm` | 111, 114 | read; editable general fields submit through the activity master |
+| 1 | General | General tab - Activity Details — `general_tab_-_activity_details.htm` | 111, 114 | read; revision-guarded edit of name, activity type, duration type, percent-complete type and cost account through the activity master (`workspace-activity-general.ts`, evidence `docs/workspace/evidence/activity-general-edit-v26-2026-11-18/`) |
 | 2 | Status | Status tab - Activity Details — `status_tab_-_activity_details.htm` | 115, 116 | read; dates/percent complete through the activity master |
 | 3 | Resources | Resources tab - Activity Details — `resources_tab_-_activity_details.htm` | 117 | read + write (`/p6/resource-assignments`) |
 | 4 | Predecessors | Predecessors tab - Activity Details — `predecessors_tab_-_activity_details.htm` | 123 | read; edits through the relationship routes |
@@ -146,10 +146,18 @@ the scrollable viewport, not exposing a product defect.
 6. **Notebook** defers to the browser-local comments rail; it does not write P6 notebook
    topics.
 7. **Risks** is a project register read surface; there is no per-activity risk foreign key.
-8. **Toolbars.** Tooltips are native `title` attributes rather than the Version 26 hint
+8. **General tab edit scope.** The editor writes name, activity type, duration type,
+   percent-complete type and cost account. Calendar, responsible manager, primary
+   resource and description are displayed read-only because the Activity Master
+   update contract does not accept them; they stay **VERIFY / blocked on contract**.
+   The saved record repaints the details pane immediately, while the Activity Grid
+   shows the new values only after its next project read (there is no grid-refresh
+   callback in the current shell). Changing activity or duration type is not followed
+   by an automatic schedule run; dates and float change only when the schedule is run.
+9. **Toolbars.** Tooltips are native `title` attributes rather than the Version 26 hint
    window; toolbar visibility persists per user in localStorage rather than inside a saved
    layout. Both are recorded in the WS-003 matrix row.
-9. **Activity delete/cut/copy/paste/fill-down/renumber/dissolve** remain disabled with a
+10. **Activity delete/cut/copy/paste/fill-down/renumber/dissolve** remain disabled with a
    localized reason in the runtime that does not expose those routes; the menus show the
    V26 commands but do not invent effects.
 

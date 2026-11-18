@@ -129,6 +129,10 @@ async function main() {
 
   await page.initialize();
   await page.navigate(`${baseUrl}/preview/login?next=%2Fapp%3Fview%3Dlive`, "form", "login");
+  // Pin the workspace locale: the acceptance copy and the evidence filenames
+  // are English, so the run must not inherit a non-English host locale.
+  await page.evaluate(`(() => { localStorage.setItem("cubi:workspace-locale", "en"); return true; })()`);
+  await page.navigate(`${baseUrl}/preview/login?next=%2Fapp%3Fview%3Dlive`, "form", "login");
   await page.click('button[name="role"][value="admin"]');
   await page.waitForSelector('[data-project-id="preview-rps-01"]', "project selection");
   await page.click('[data-project-id="preview-rps-01"]');
