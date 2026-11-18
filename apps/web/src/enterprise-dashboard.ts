@@ -955,8 +955,9 @@ export async function mountEnterpriseDashboard(
       panel.replaceChildren();
       sections[index][1]();
     }
-    function renderGeneral(): void {
-      panel.replaceChildren();
+    function renderGeneral(target: HTMLElement): void {
+      target.replaceChildren();
+      target.append(node("h3", "", t.general));
       const form = node("div", "ced-form-grid");
       form.append(field(t.name, input("dashboard-title", draftTitle)));
       const description = node("textarea", "ced-input");
@@ -984,7 +985,7 @@ export async function mountEnterpriseDashboard(
         draftDashboardFilters = (activeFilterOverrides ?? activeDefinition!.filters).map((item) => ({
           ...item, value: Array.isArray(item.value) ? [...item.value] : item.value,
         }));
-        renderGeneral();
+        renderContent();
       }));
       filterSection.append(button(t.clearDefaultFilter, () => {
         draftDashboardFilters = [];
@@ -993,6 +994,12 @@ export async function mountEnterpriseDashboard(
       target.append(form, filterSection);
     }
     function renderContent(): void {
+      panel.replaceChildren();
+      const generalSection = node("section", "ced-section");
+      renderGeneral(generalSection);
+      panel.append(generalSection);
+      const portletSection = node("section", "ced-section");
+      portletSection.append(node("h3", "", t.content));
       const list = node("div", "ced-section");
       draftPortlets.forEach((portlet, index) => {
         const row = node("div", "ced-panel ced-section ced-editor-portlet");
@@ -1040,7 +1047,7 @@ export async function mountEnterpriseDashboard(
         row.append(button(t.remove, () => row.remove()));
         list.append(row);
       });
-      panel.append(
+      portletSection.append(
         list,
         node("p", "ced-muted", t.unsupported),
         addType,
@@ -1048,6 +1055,7 @@ export async function mountEnterpriseDashboard(
         field(t.decisionId, decision),
         add,
       );
+      panel.append(portletSection);
     }
     function renderLayout(): void {
       panel.replaceChildren();
