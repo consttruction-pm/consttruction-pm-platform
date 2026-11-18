@@ -134,6 +134,20 @@ def oracle_duration(resolver: WorkingTimeResolver, start: date, finish: date) ->
     return total
 
 
+def oracle_between(resolver: WorkingTimeResolver, start: date, finish: date) -> int:
+    start = resolver.calendar.to_gregorian(start)
+    finish = resolver.calendar.to_gregorian(finish)
+    if finish < start:
+        raise ValueError("finish must not precede start")
+    total = 0
+    cursor = start + timedelta(days=1)
+    while cursor <= finish:
+        if oracle_is_working(resolver, cursor):
+            total += 1
+        cursor += timedelta(days=1)
+    return total
+
+
 def _outcome(call):
     try:
         return ("value", call())
@@ -191,6 +205,9 @@ def test_durations_match_the_loop_oracle(name: str) -> None:
         finish = date.fromordinal(base + rng.randrange(0, 365 * 6))
         assert _outcome(lambda: resolver.calculate_duration(start, finish)) == _outcome(
             lambda: oracle_duration(resolver, start, finish)
+        )
+        assert _outcome(lambda: resolver.working_days_between(start, finish)) == _outcome(
+            lambda: oracle_between(resolver, start, finish)
         )
 
 

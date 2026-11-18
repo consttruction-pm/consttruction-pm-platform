@@ -143,6 +143,8 @@ class WorkingCalendar:
         )
 
     def to_gregorian(self, value: CalendarInputDate) -> date:
+        if type(value) is date:
+            return value
         if isinstance(value, JalaliDate):
             if self.system is not CalendarSystem.JALALI:
                 raise ValueError("Jalali input requires a Jalali calendar")
@@ -187,20 +189,25 @@ class _WorkingDayIndex:
     * ``rank`` counts working days in ``[1, ordinal]`` as
       ``weekday_count - holiday_count`` where only holidays that fall on a
       working weekday are counted (a holiday on a weekend removes nothing);
-    * ``ordinal_of_rank`` inverts ``rank`` by binary search, so cumulative
-      quantities replace day-by-day stepping.
+    * ``add``/``subtract`` invert ``rank`` with a bracket derived from the day
+      arithmetic and a few bisection steps, so cumulative quantities replace
+      day-by-day stepping.
 
     ``next``/``previous``/``normalize`` need at most a few steps and use the
     direct predicate instead, which is cheaper than a rank inversion.
     """
 
-    __slots__ = ("_mask", "_holidays", "_holiday_count", "_per_week")
+    __slots__ = ("_mask", "_holidays", "_holiday_count", "_per_week", "_prefix")
 
     def __init__(self, weekdays: FrozenSet[int], holiday_ordinals: tuple[int, ...]) -> None:
         self._mask = tuple(index in weekdays for index in range(7))
         self._holidays = frozenset(holiday_ordinals)
         self._holiday_count = holiday_ordinals
         self._per_week = len(weekdays)
+        prefix = [0]
+        for flag in self._mask:
+            prefix.append(prefix[-1] + (1 if flag else 0))
+        self._prefix = tuple(prefix)
 
     @classmethod
     def build(cls, weekdays: FrozenSet[int], holidays: FrozenSet[date]) -> "_WorkingDayIndex":
@@ -218,36 +225,24 @@ class _WorkingDayIndex:
 
     # -- cumulative counts ------------------------------------------------
 
-    def _weekday_count_upto(self, ordinal: int) -> int:
-        """Working weekdays in ``[1, ordinal]`` regardless of holidays."""
-        if ordinal <= 0:
-            return 0
-        full, remainder = divmod(ordinal, 7)
-        count = full * self._per_week
-        base = full * 7
-        for step in range(1, remainder + 1):
-            if self._mask[(base + step - 1) % 7]:
-                count += 1
-        return count
-
     def rank(self, ordinal: int) -> int:
         """Working days in ``[1, ordinal]``."""
         if ordinal <= 0:
             return 0
         if ordinal > _MAX_ORDINAL:
             ordinal = _MAX_ORDINAL
-        return self._weekday_count_upto(ordinal) - bisect_right(self._holiday_count, ordinal)
+        full, remainder = divmod(ordinal, 7)
+        weekdays = full * self._per_week + self._prefix[remainder]
+        return weekdays - bisect_right(self._holiday_count, ordinal)
 
-    def ordinal_of_rank(self, target: int) -> int:
-        """The working day whose inclusive rank equals ``target``."""
-        if target < 1:
-            raise OverflowError("date value out of range")
-        high = min(_MAX_ORDINAL, 2 * target + 14)
-        while self.rank(high) < target:
-            if high >= _MAX_ORDINAL:
-                raise OverflowError("date value out of range")
-            high = min(_MAX_ORDINAL, 2 * high)
-        low = 0
+    def _search_rank(self, target: int, low: int, high: int) -> int:
+        """Smallest ordinal in ``(low, high]`` whose rank is ``target``.
+
+        The caller derives ``low`` and ``high`` from day arithmetic, so the
+        bracket already lies next to the answer and the search visits only the
+        few ordinals between the earliest and latest possible results.
+        ``rank(low) < target <= rank(high)`` is guaranteed by the caller.
+        """
         while low + 1 < high:
             middle = (low + high) // 2
             if self.rank(middle) >= target:
@@ -294,13 +289,63 @@ class _WorkingDayIndex:
         first = self.normalize_start_ordinal(start_ordinal)
         if days == 0:
             return first
-        return self.ordinal_of_rank(self.rank(first) + days - 1)
+        target = self.rank(first) + days - 1
+        span = days - 1
+        # ``first + span`` is the earliest possible answer; weekend density and
+        # holidays can only push it later, which gives a tight upper bracket.
+        low = first + span - 1
+        high = first + span
+        if self._per_week < 7:
+            high += -(-span * (7 - self._per_week) // self._per_week)
+        previous = first
+        while True:
+            skipped = bisect_right(self._holiday_count, high) - bisect_right(
+                self._holiday_count, previous
+            )
+            if not skipped:
+                break
+            previous = high
+            high += skipped
+        if high > _MAX_ORDINAL:
+            high = _MAX_ORDINAL
+        while self.rank(high) < target:
+            if high >= _MAX_ORDINAL:
+                raise OverflowError("date value out of range")
+            low = high
+            high = min(_MAX_ORDINAL, first + 2 * (high - first) + 7)
+        return self._search_rank(target, low, high)
 
     def subtract_working_ordinal(self, finish_ordinal: int, days: int) -> int:
         last = self.normalize_finish_ordinal(finish_ordinal)
         if days == 0:
             return last
-        return self.ordinal_of_rank(self.rank(last) - days + 1)
+        target = self.rank(last) - days + 1
+        if target < 1:
+            raise OverflowError("date value out of range")
+        span = days - 1
+        # Mirror of ``add``: ``last - span`` is the latest possible answer.
+        high = last - span
+        low = high - 1
+        if self._per_week < 7:
+            low -= -(-span * (7 - self._per_week) // self._per_week)
+        previous = last
+        while True:
+            skipped = bisect_right(self._holiday_count, previous) - bisect_right(
+                self._holiday_count, low
+            )
+            if not skipped:
+                break
+            previous = low
+            low -= skipped
+            if low <= 0:
+                low = 0
+                break
+        while self.rank(low) >= target:
+            if low <= 0:
+                raise OverflowError("date value out of range")
+            high = low
+            low = max(0, 2 * low - last - 7)
+        return self._search_rank(target, low, high)
 
     def duration_ordinal(self, start_ordinal: int, finish_ordinal: int) -> int:
         start = self.normalize_start_ordinal(start_ordinal)
@@ -378,10 +423,15 @@ class WorkingTimeResolver:
 
     def add_working_duration(self, start: CalendarInputDate, duration: Decimal | int | float) -> date:
         """Return the finish date for a working-day duration."""
-        units = Decimal(str(duration))
-        if not units.is_finite() or units < 0 or units != units.to_integral_value():
-            raise ValueError("duration must be a non-negative finite whole working day")
-        remaining = int(units)
+        if type(duration) is int:
+            if duration < 0:
+                raise ValueError("duration must be a non-negative finite whole working day")
+            remaining = duration
+        else:
+            units = Decimal(str(duration))
+            if not units.is_finite() or units < 0 or units != units.to_integral_value():
+                raise ValueError("duration must be a non-negative finite whole working day")
+            remaining = int(units)
         if self._day_index is not None:
             return date.fromordinal(
                 self._day_index.add_working_ordinal(
@@ -397,10 +447,15 @@ class WorkingTimeResolver:
 
     def subtract_working_duration(self, finish: CalendarInputDate, duration: Decimal | int | float) -> date:
         """Return the start date corresponding to a working-day duration."""
-        units = Decimal(str(duration))
-        if not units.is_finite() or units < 0 or units != units.to_integral_value():
-            raise ValueError("duration must be a non-negative finite whole working day")
-        remaining = int(units)
+        if type(duration) is int:
+            if duration < 0:
+                raise ValueError("duration must be a non-negative finite whole working day")
+            remaining = duration
+        else:
+            units = Decimal(str(duration))
+            if not units.is_finite() or units < 0 or units != units.to_integral_value():
+                raise ValueError("duration must be a non-negative finite whole working day")
+            remaining = int(units)
         if self._day_index is not None:
             return date.fromordinal(
                 self._day_index.subtract_working_ordinal(
@@ -439,6 +494,10 @@ class WorkingTimeResolver:
         finish = self.calendar.to_gregorian(finish)
         if finish < start:
             raise ValueError("finish must not precede start")
+        if self._day_index is not None:
+            return self._day_index.rank(finish.toordinal()) - self._day_index.rank(
+                start.toordinal()
+            )
         total = 0
         cursor = start + timedelta(days=1)
         while cursor <= finish:
