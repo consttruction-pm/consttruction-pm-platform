@@ -1,0 +1,47 @@
+{
+  "environment": {
+    "cpu_affinity_count": 4,
+    "cpu_count": 4,
+    "git_sha": "2c194851",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "memory_total_kb": 8131540,
+    "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+    "python": "3.12.13"
+  },
+  "mode": "date",
+  "records": [
+    {
+      "counts": {
+        "activities": 5000,
+        "relationships": 0
+      },
+      "cpu": {
+        "count": 3,
+        "max_ms": 100.383,
+        "median_ms": 89.182,
+        "min_ms": 88.965,
+        "p95_ms": 100.383
+      },
+      "fixture_build_ms": 19.965,
+      "mode": "date",
+      "output_sha256": "fcbd298780843a3d80130311fb3d4fc6c31c7a8b50d9a1397220e7865d65fb49",
+      "peak_rss_kb": 58628,
+      "seed": 20261116,
+      "shape": "wide",
+      "size": 5000,
+      "status": "ok",
+      "wall": {
+        "count": 3,
+        "max_ms": 100.398,
+        "median_ms": 89.186,
+        "min_ms": 88.976,
+        "p95_ms": 100.398
+      }
+    }
+  ],
+  "repeat": 3,
+  "seed": 20261116,
+  "shape": "wide",
+  "warmup": 1
+}

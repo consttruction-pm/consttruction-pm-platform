@@ -1,0 +1,106 @@
+{
+  "environment": {
+    "cpu_affinity_count": 4,
+    "cpu_count": 4,
+    "git_sha": "20778a03",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "memory_total_kb": 8131540,
+    "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+    "python": "3.12.13"
+  },
+  "mode": "leveling",
+  "records": [
+    {
+      "counts": {
+        "activities": 100,
+        "capacities": 86,
+        "resources": 2
+      },
+      "cpu": {
+        "count": 5,
+        "max_ms": 14.229,
+        "median_ms": 14.209,
+        "min_ms": 14.155,
+        "p95_ms": 14.229
+      },
+      "fixture_build_ms": 1.49,
+      "mode": "leveling",
+      "output_sha256": "ef51580f8fc28cf6bba71a7c3473d9b7941418eb56665e24d918624c397afed8",
+      "peak_rss_kb": 50220,
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 100,
+      "status": "ok",
+      "wall": {
+        "count": 5,
+        "max_ms": 14.263,
+        "median_ms": 14.209,
+        "min_ms": 14.155,
+        "p95_ms": 14.263
+      }
+    },
+    {
+      "counts": {
+        "activities": 500,
+        "capacities": 286,
+        "resources": 2
+      },
+      "cpu": {
+        "count": 5,
+        "max_ms": 91.571,
+        "median_ms": 82.383,
+        "min_ms": 82.077,
+        "p95_ms": 91.571
+      },
+      "fixture_build_ms": 6.105,
+      "mode": "leveling",
+      "output_sha256": "23b7318418d94a5aff43e7d3fa27f671235fc7c3d2d33313960d32fd7575ff12",
+      "peak_rss_kb": 54440,
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 500,
+      "status": "ok",
+      "wall": {
+        "count": 5,
+        "max_ms": 91.571,
+        "median_ms": 82.384,
+        "min_ms": 82.079,
+        "p95_ms": 91.571
+      }
+    },
+    {
+      "counts": {
+        "activities": 5000,
+        "capacities": 2538,
+        "resources": 2
+      },
+      "cpu": {
+        "count": 5,
+        "max_ms": 1004.503,
+        "median_ms": 992.015,
+        "min_ms": 981.155,
+        "p95_ms": 1004.503
+      },
+      "fixture_build_ms": 60.797,
+      "mode": "leveling",
+      "output_sha256": "4f34b042dd57e539bc6c1f528044e7e25b2be13cc3e9a20ea7f4720581241f59",
+      "peak_rss_kb": 98836,
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 5000,
+      "status": "ok",
+      "wall": {
+        "count": 5,
+        "max_ms": 1004.554,
+        "median_ms": 992.06,
+        "min_ms": 981.228,
+        "p95_ms": 1004.554
+      }
+    }
+  ],
+  "repeat": 5,
+  "seed": 20261116,
+  "shape": "dag",
+  "warmup": 2
+}
