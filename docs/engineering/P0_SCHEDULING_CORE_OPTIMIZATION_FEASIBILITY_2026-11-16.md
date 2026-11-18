@@ -1145,4 +1145,6 @@ only where it evaluates activity dates.
 * Numbers come from one 4-CPU host with the exact fixtures recorded in the
   evidence directory.
 
+Merged as `57291794` (PR #2050, issue #2049). Post-merge suite on main: 5,008 passed, 132 skipped; the merged calendar code and differential test are byte-identical to the tested `2c194851`.
+
 Evidence: `docs/workspace/evidence/p0k-working-day-index-2026-11-18/`.
