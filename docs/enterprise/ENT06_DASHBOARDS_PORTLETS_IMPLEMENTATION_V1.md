@@ -579,3 +579,16 @@ ENT-06 is **not declared fully V26-parity complete** until all of the following 
 5. Each additional V26 portlet family is either delivered against an authoritative source contract or explicitly excluded with an approved CUBI product decision. No KPI, schedule, cost, EVM, resource, risk or portfolio fact is fabricated to imitate an Oracle portlet.
 
 The implementation intentionally preserves the source boundary: dashboards display authorized source facts; they do not become a second project/portfolio calculation engine. V26 Help parity is evaluated behavior by behavior, not by matching labels alone.
+
+
+## ENT-06B portlet titlebar behavior increment (2026-11-18)
+
+The portlet titlebar Help and Print actions were previously superficial: Help used a browser alert with only two strings, and Print invoked the browser-wide print command. They now follow the V26 titlebar intent more closely:
+
+- Help opens an in-product, keyboard-modal details panel showing the portlet title, source owner, source revision, required read permission, source data mode, freshness state and source generation time when available. Values are inserted as text, not HTML; no source data or permission is inferred by the client.
+- Print scopes the browser print stylesheet to the selected portlet card, temporarily hiding the surrounding dashboard and restoring the normal view after the browser's `afterprint` event. It does not send data to an external service or change dashboard configuration.
+- Expand/collapse, refresh, maximize/restore and close controls remain in the titlebar. The close action remains a view-only removal of that rendered card; it does not mutate the shared dashboard definition.
+
+Normative reference: [Working with Portlets — P6 EPPM V26 HTML Help](https://docs.oracle.com/cd/G48897_01/p6help/en/47039.htm), linked from the official [V26 Help table of contents](https://docs.oracle.com/cd/G48897_01/p6help/en/toc.htm). The Help describes the portlet titlebar controls and notes that Print is available only on some portlets. CUBI exposes Print on its two currently enabled read-only portlet types; this behavior requires exact-head browser verification, including print-preview scope and restoration after cancelling/finishing print.
+
+This increment does not close the Default Dashboard template, full portlet catalogue, source picker tree, authenticated shell integration or production browser acceptance gaps.
