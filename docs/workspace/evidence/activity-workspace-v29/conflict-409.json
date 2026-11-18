@@ -1,0 +1,152 @@
+{
+  "contract": "cubi-activity-conflict-v29.v1",
+  "url": "http://127.0.0.1:4197",
+  "testedCodeSha": "4779f7b4e559244cc5c31d129ddcb1406b8d7123",
+  "capturedAt": "2026-11-18T21:59:57.361Z",
+  "responses": [
+    {
+      "session": "A",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A130/steps",
+      "status": 200
+    },
+    {
+      "session": "A",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A130/codes",
+      "status": 200
+    },
+    {
+      "session": "A",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A130/notebook",
+      "status": 200
+    },
+    {
+      "session": "A",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A130/progress-history",
+      "status": 200
+    },
+    {
+      "session": "B",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A130/steps",
+      "status": 200
+    },
+    {
+      "session": "B",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A130/codes",
+      "status": 200
+    },
+    {
+      "session": "B",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A130/notebook",
+      "status": 200
+    },
+    {
+      "session": "B",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A130/progress-history",
+      "status": 200
+    },
+    {
+      "session": "A",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A130",
+      "status": 200
+    },
+    {
+      "session": "B",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A130",
+      "status": 200
+    },
+    {
+      "session": "A",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A130",
+      "status": 200
+    },
+    {
+      "session": "B",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A130",
+      "status": 409
+    },
+    {
+      "session": "B",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A130/steps",
+      "status": 200
+    },
+    {
+      "session": "B",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A130/codes",
+      "status": 200
+    },
+    {
+      "session": "B",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A130/notebook",
+      "status": 200
+    },
+    {
+      "session": "B",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A130/progress-history",
+      "status": 200
+    },
+    {
+      "session": "B",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A130",
+      "status": 200
+    },
+    {
+      "session": "A",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A130/steps",
+      "status": 200
+    },
+    {
+      "session": "A",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A130/codes",
+      "status": 200
+    },
+    {
+      "session": "A",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A130/notebook",
+      "status": 200
+    },
+    {
+      "session": "A",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A130/progress-history",
+      "status": 200
+    },
+    {
+      "session": "A",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A130",
+      "status": 200
+    },
+    {
+      "session": "A",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A130",
+      "status": 200
+    }
+  ],
+  "steps": [
+    {
+      "session": "A",
+      "action": "save",
+      "name": "V29 winner 1795039210220",
+      "message": "",
+      "status": "pass"
+    },
+    {
+      "session": "B",
+      "action": "stale-save",
+      "name": "V29 stale 1795039211948",
+      "message": "The project service rejected the change: REVISION_CONFLICT",
+      "status": "pass"
+    },
+    {
+      "session": "B",
+      "action": "read-after-conflict",
+      "name": "V29 winner 1795039210220",
+      "status": "pass"
+    }
+  ],
+  "screenshots": [
+    "01-winner-saved-en-1366.png",
+    "02-conflict-rejected-en-1366.png"
+  ],
+  "originalName": "Earthworks",
+  "restoredName": "Earthworks",
+  "finishedAt": "2026-11-18T22:00:22.860Z"
+}

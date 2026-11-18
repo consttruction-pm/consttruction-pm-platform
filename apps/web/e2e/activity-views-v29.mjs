@@ -64,7 +64,7 @@ async function main() {
   // A130 through the existing resource services (no fabricated values).
   const resourceSetup = await page.evaluate(`(async () => {
     const headers = { 'content-type': 'application/json' };
-    const assignmentId = 'ASSIGN-V29-USAGE';
+    const assignmentId = 'ASSIGN-V29-USAGE-' + Date.now();
     const created = await fetch('/api/projects/preview-rps-01/p6/resource-assignments', {
       method: 'POST', headers,
       body: JSON.stringify({ contract_version: 'p6-resource-write-api.v1', assignment_id: assignmentId,

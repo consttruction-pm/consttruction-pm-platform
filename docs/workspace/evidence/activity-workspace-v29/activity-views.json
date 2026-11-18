@@ -1,0 +1,74 @@
+{
+  "contract": "cubi-activity-views-v29.v1",
+  "url": "http://127.0.0.1:4197",
+  "testedCodeSha": "4779f7b4e559244cc5c31d129ddcb1406b8d7123",
+  "capturedAt": "2026-11-18T22:00:23.832Z",
+  "steps": [
+    {
+      "feature": "activity-network",
+      "action": "open/select/zoom",
+      "status": "pass"
+    },
+    {
+      "feature": "activity-network",
+      "action": "zoom-persistence",
+      "status": "pass",
+      "zoom": 1.1
+    },
+    {
+      "feature": "trace-logic",
+      "action": "open",
+      "status": "pass"
+    },
+    {
+      "feature": "usage-profile",
+      "action": "profile",
+      "status": "pass",
+      "statusDetail": "ready"
+    },
+    {
+      "feature": "usage-spreadsheet",
+      "action": "spreadsheet",
+      "status": "pass",
+      "statusDetail": "ready"
+    }
+  ],
+  "screenshots": [
+    "01-network-en-1366.png",
+    "02-trace-logic-en-1366.png",
+    "03-usage-spreadsheet-en-1366.png"
+  ],
+  "exceptions": [],
+  "apiFailures": [],
+  "resourceSetup": {
+    "assignment": 200,
+    "period": 200
+  },
+  "network": {
+    "nodes": 14,
+    "edges": 15,
+    "levels": 10,
+    "zoom": 1,
+    "empty": false
+  },
+  "networkZoom": {
+    "before": 1,
+    "after": 1.1
+  },
+  "trace": "\n    \n      Trace Logic\n        A130 — Earthworks\n      Predecessors\n      12345\n    \n    Successors\n      12345\n    \n    \n    \n    \n      \n    Predecessors 2\n    \n    1\n    \n      A120 — Site survey and geotechnical investigation\n    \n    FS\n    100%\n  \n    2\n    \n      A110 — Mobilization\n    \n    FS\n    100%\n  \n  \n      \n    Successors 6\n    \n    1\n    \n      A140 — Piling and foundations\n    \n    FS\n    0%\n  \n    1\n    \n      A150 — Structural steel procurement\n    \n    FS\n    0%\n  \n    1\n    \n      A145 — Site utilities diversion\n    \n    FS\n    0%\n  \n    2\n    \n      A155 — Envelope mock-up approval\n    \n    FS\n    0%\n  \n    2\n    \n      A160 — Steel erection\n    \n    FS\n    0%\n  \n    2\n    \n      A170 — MEP first fix\n    \n    SS+5d\n    0%\n  \n  \n    \n    Chains are read from the persisted plan logic. Dates are not recalculated in this view.\n  ",
+  "usageProfile": {
+    "view": "profile",
+    "metric": "units",
+    "scope": "all",
+    "status": "ready",
+    "count": "3 stored period(s)"
+  },
+  "usageSpreadsheet": {
+    "rows": 1,
+    "periods": [
+      "2026-10-01"
+    ],
+    "status": "ready"
+  },
+  "finishedAt": "2026-11-18T22:00:41.331Z"
+}
