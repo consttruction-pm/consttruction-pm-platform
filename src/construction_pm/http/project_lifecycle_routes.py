@@ -128,6 +128,8 @@ from ..p6_financial_period_api import P6FinancialPeriodAPI, P6_FINANCIAL_PERIOD_
 from ..p6_expense_api import P6ExpenseAPI, P6_EXPENSE_API_VERSION
 from ..p6_issue_api import P6IssueAPI, P6_ISSUE_API_VERSION
 from ..p6_activity_step_api import P6ActivityStepReadAPI
+from ..p6_activity_step_repository import P6ActivityStepPersistenceError
+from ..p6_activity_children import ActivityChildPersistenceError
 from ..document_api import DocumentAPI
 from ..document_storage import content_disposition
 from ..tracking_read_model import (
@@ -338,6 +340,8 @@ class ProjectLifecycleHttpRoutes:
         p6_obs_node_api: P6OBSNodeAPI | None = None,
         p6_issue_api: P6IssueAPI | None = None,
         p6_activity_step_api: P6ActivityStepReadAPI | None = None,
+        p6_activity_step_write_api: object | None = None,
+        p6_activity_children_api: object | None = None,
         document_api: DocumentAPI | None = None,
         tracking_read_api: TrackingReadAPI | None = None,
         budget_api: BudgetAPI | None = None,
@@ -401,6 +405,8 @@ class ProjectLifecycleHttpRoutes:
         self._p6_obs_node_api = p6_obs_node_api
         self._p6_issue_api = p6_issue_api
         self._p6_activity_step_api = p6_activity_step_api
+        self._p6_activity_step_write_api = p6_activity_step_write_api
+        self._p6_activity_children_api = p6_activity_children_api
         self._document_api = document_api
         self._tracking_read_api = tracking_read_api
         self._budget_api = budget_api
@@ -2104,6 +2110,131 @@ class ProjectLifecycleHttpRoutes:
                                 scope, parts[0], auth_context=auth
                             ),
                         )
+                    if (
+                        method == "POST"
+                        and len(parts) == 2
+                        and parts[0]
+                        and parts[1] == "steps"
+                        and self._p6_activity_step_write_api is not None
+                    ):
+                        return self._json(
+                            201,
+                            self._p6_activity_step_write_api.create(
+                                scope,
+                                parts[0],
+                                description=str(payload.get("description") or ""),
+                                weight=payload.get("weight"),
+                                percent_complete=payload.get("percent_complete"),
+                                sequence=payload.get("sequence"),
+                                auth_context=auth,
+                            ),
+                        )
+                    if (
+                        method == "PATCH"
+                        and len(parts) == 3
+                        and parts[0]
+                        and parts[1] == "steps"
+                        and self._p6_activity_step_write_api is not None
+                    ):
+                        return self._json(
+                            200,
+                            self._p6_activity_step_write_api.update(
+                                scope,
+                                parts[0],
+                                parts[2],
+                                description=None if payload.get("description") is None else str(payload.get("description")),
+                                weight=payload.get("weight"),
+                                percent_complete=payload.get("percent_complete"),
+                                sequence=payload.get("sequence"),
+                                auth_context=auth,
+                            ),
+                        )
+                    if (
+                        method == "DELETE"
+                        and len(parts) == 3
+                        and parts[0]
+                        and parts[1] == "steps"
+                        and self._p6_activity_step_write_api is not None
+                    ):
+                        return self._json(
+                            200,
+                            self._p6_activity_step_write_api.delete(
+                                scope, parts[0], parts[2], auth_context=auth
+                            ),
+                        )
+                    if (
+                        len(parts) == 2
+                        and parts[0]
+                        and parts[1] in {"codes", "notebook"}
+                        and self._p6_activity_children_api is not None
+                    ):
+                        children = self._p6_activity_children_api
+                        if method == "GET" and parts[1] == "codes":
+                            return self._json(200, children.list_codes(scope, parts[0], auth_context=auth))
+                        if method == "GET" and parts[1] == "notebook":
+                            return self._json(200, children.list_notebook(scope, parts[0], auth_context=auth))
+                        if method == "POST" and parts[1] == "codes":
+                            return self._json(
+                                201,
+                                children.assign_code(
+                                    scope,
+                                    parts[0],
+                                    code_type=str(payload.get("code_type") or ""),
+                                    code_value=str(payload.get("code_value") or ""),
+                                    description=None if payload.get("description") is None else str(payload.get("description")),
+                                    auth_context=auth,
+                                ),
+                            )
+                        if method == "POST" and parts[1] == "notebook":
+                            return self._json(
+                                201,
+                                children.add_topic(
+                                    scope,
+                                    parts[0],
+                                    topic_name=str(payload.get("topic_name") or ""),
+                                    description=str(payload.get("description") or ""),
+                                    auth_context=auth,
+                                ),
+                            )
+                    if (
+                        len(parts) == 3
+                        and parts[0]
+                        and parts[1] in {"codes", "notebook"}
+                        and self._p6_activity_children_api is not None
+                    ):
+                        children = self._p6_activity_children_api
+                        if method == "DELETE" and parts[1] == "codes":
+                            return self._json(200, children.remove_code(scope, parts[0], parts[2], auth_context=auth))
+                        if method == "PATCH" and parts[1] == "notebook":
+                            expected = payload.get("expected_record_revision")
+                            if isinstance(expected, bool) or not isinstance(expected, int) or expected < 1:
+                                raise ValueError("EXPECTED_RECORD_REVISION_REQUIRED")
+                            return self._json(
+                                200,
+                                children.update_topic(
+                                    scope,
+                                    parts[0],
+                                    parts[2],
+                                    topic_name=str(payload.get("topic_name") or ""),
+                                    description=str(payload.get("description") or ""),
+                                    expected_record_revision=expected,
+                                    auth_context=auth,
+                                ),
+                            )
+                        if method == "DELETE" and parts[1] == "notebook":
+                            expected = payload.get("expected_record_revision")
+                            if isinstance(expected, bool) or not isinstance(expected, int) or expected < 1:
+                                raise ValueError("EXPECTED_RECORD_REVISION_REQUIRED")
+                            return self._json(
+                                200,
+                                children.delete_topic(
+                                    scope,
+                                    parts[0],
+                                    parts[2],
+                                    expected_record_revision=expected,
+                                    auth_context=auth,
+                                ),
+                            )
                     if method == "GET" and len(parts) == 1 and parts[0]:
                         result = self._p6_activity_master_api.get(
                             scope, parts[0], auth_context=auth
@@ -2144,6 +2275,13 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(
                         409, exc.code, "error.project.checkout_conflict"
                     )
+                except (ActivityChildPersistenceError, P6ActivityStepPersistenceError) as exc:
+                    code = str(exc)
+                    if code == "REVISION_CONFLICT":
+                        return self._error(409, _stable_error_code(exc, "REVISION_CONFLICT"), "error.revision.conflict")
+                    if code.endswith("_NOT_FOUND"):
+                        return self._error(404, _stable_error_code(exc, "RESOURCE_NOT_FOUND"), "error.resource.not_found")
+                    return self._error(400, _stable_error_code(exc, "REQUEST_INVALID"), "error.request.invalid")
                 except (ValueError, ArithmeticError) as exc:
                     return self._error(
                         400,

@@ -910,15 +910,17 @@ const DESKTOP_SHORTCUTS: readonly DesktopShortcut[] = [
   { id: "shortcut.find", label: { en: "Find activities", fa: "یافتن فعالیت‌ها" }, keys: "Ctrl+F", chord: { key: "f", ctrlOrMeta: true }, command: "edit.find" },
   { id: "shortcut.select-all", label: { en: "Select all visible activities", fa: "انتخاب همهٔ فعالیت‌های نمایان" }, keys: "Ctrl+A", chord: { key: "a", ctrlOrMeta: true }, command: "edit.select-all", requires: { test: (caps) => caps.hasActivities, reason: REASONS.noActivities } },
   { id: "shortcut.find-next", label: { en: "Find next", fa: "یافتن مورد بعدی" }, keys: "F3", chord: { key: "F3" }, unavailable: REASONS.findNext },
+  { id: "shortcut.replace", label: { en: "Replace", fa: "جایگزینی" }, keys: "Ctrl+R", chord: { key: "r", ctrlOrMeta: true }, unavailable: REASONS.clipboard },
+  { id: "shortcut.spell-check", label: { en: "Spell check", fa: "غلط‌یابی املایی" }, keys: "F7", chord: { key: "F7" }, unavailable: { en: "Spell checking is not implemented in this workspace.", fa: "غلط‌یابی املایی در این محیط کار پیاده‌سازی نشده است." } },
+  { id: "shortcut.hint-help", label: { en: "Hint help", fa: "راهنمای اشاره‌ای" }, keys: "Alt+F1", chord: { key: "F1", alt: true }, unavailable: { en: "Context hint help is not implemented; use Help > Keyboard shortcuts.", fa: "راهنمای اشاره‌ای زمینه‌ای پیاده‌سازی نشده است؛ از راهنما > کلیدهای میانبر استفاده کنید." } },
   { id: "shortcut.refresh", label: { en: "Refresh project data", fa: "به‌روزرسانی داده‌های پروژه" }, keys: "F5", chord: { key: "F5" }, command: "workspace.refresh" },
   { id: "shortcut.schedule", label: { en: "Schedule activities", fa: "زمان‌بندی فعالیت‌ها" }, keys: "F9", chord: { key: "F9" }, command: "tools.run-schedule" },
-  { id: "shortcut.schedule-options", label: { en: "Schedule options", fa: "تنظیمات زمان‌بندی" }, keys: "Shift+F9", chord: { key: "F9", shift: true }, command: "project.schedule-options" },
-  { id: "shortcut.leveling", label: { en: "Level resources", fa: "تسطیح منابع" }, keys: "F7", chord: { key: "F7" }, unavailable: REASONS.leveling },
+  { id: "shortcut.leveling", label: { en: "Level resources", fa: "تسطیح منابع" }, keys: "Shift+F9", chord: { key: "F9", shift: true }, unavailable: REASONS.leveling },
   { id: "shortcut.commit", label: { en: "Commit changes", fa: "ثبت تغییرات" }, keys: "F10", chord: { key: "F10" }, unavailable: REASONS.commit },
+  { id: "shortcut.disable-auto-reorg", label: { en: "Disable auto-reorganization", fa: "غیرفعال‌کردن بازآرایی خودکار" }, keys: "Shift+F12", chord: { key: "F12", shift: true }, unavailable: { en: "Automatic layout reorganisation is not a CUBI feature.", fa: "بازآرایی خودکار چیدمان در CUBI وجود ندارد." } },
   { id: "shortcut.expand-all", label: { en: "Expand all WBS bands", fa: "بازکردن همهٔ باندهای WBS" }, keys: "Ctrl+Num +", chord: { code: "NumpadAdd", ctrlOrMeta: true }, command: "view.expand-all", requires: { test: (caps) => caps.hasWbs && caps.groupByWbs, reason: REASONS.noWbsGroup } },
   { id: "shortcut.collapse-all", label: { en: "Collapse all WBS bands", fa: "بستن همهٔ باندهای WBS" }, keys: "Ctrl+Num -", chord: { code: "NumpadSubtract", ctrlOrMeta: true }, command: "view.collapse-all", requires: { test: (caps) => caps.hasWbs && caps.groupByWbs, reason: REASONS.noWbsGroup } },
   { id: "shortcut.help", label: { en: "Keyboard shortcuts", fa: "کلیدهای میانبر" }, keys: "F1", chord: { key: "F1" }, command: "help.shortcuts" },
-  { id: "shortcut.about", label: { en: "About CUBI Workspace", fa: "دربارهٔ محیط کار CUBI" }, keys: "Shift+F12", chord: { key: "F12", shift: true }, command: "help.about" },
 ];
 
 /** Catalog plus the live Alt+1…9 window bindings for the open tabs. */
@@ -932,6 +934,82 @@ export function getDesktopShortcuts(openWindows: readonly WorkspaceMenuKey[] = [
   }));
   return [...DESKTOP_SHORTCUTS, ...windowShortcuts];
 }
+
+/**
+ * Two-step menu accelerators, as recorded in the Version 26 Help
+ * ("Using Shortcut Keys", PDF pp. 16-17): the first chord opens the menu
+ * (Alt+F, Alt+E, …) and the second letter runs one of its commands.
+ *
+ * Only commands that exist in this workspace are executable. A documented
+ * command with no implementation is listed with an explicit reason so the
+ * dispatcher can report it instead of guessing a different action.
+ */
+export type AltSequenceBinding = {
+  id: string;
+  first: string;
+  second: string;
+  keys: string;
+  label: LocalizedLabel;
+  command?: DesktopCommand;
+  window?: WorkspaceMenuKey;
+  unavailable?: LocalizedLabel;
+};
+
+export const ALT_SEQUENCE_TIMEOUT_MS = 2000;
+
+export const ALT_SEQUENCES: readonly AltSequenceBinding[] = [
+  { id: "alt.file.new", first: "f", second: "n", keys: "Alt+F, N", label: { en: "File > New", fa: "پرونده > جدید" }, window: "project" },
+  { id: "alt.file.open", first: "f", second: "o", keys: "Alt+F, O", label: { en: "File > Open", fa: "پرونده > بازکردن" }, window: "project" },
+  { id: "alt.edit.undo", first: "e", second: "z", keys: "Alt+E, Z", label: { en: "Edit > Undo", fa: "ویرایش > بازگردانی" }, command: "edit.undo" },
+  { id: "alt.edit.cut", first: "e", second: "t", keys: "Alt+E, T", label: { en: "Edit > Cut", fa: "ویرایش > برش" }, unavailable: REASONS.clipboard },
+  { id: "alt.edit.copy", first: "e", second: "c", keys: "Alt+E, C", label: { en: "Edit > Copy", fa: "ویرایش > کپی" }, unavailable: REASONS.clipboard },
+  { id: "alt.edit.paste", first: "e", second: "p", keys: "Alt+E, P", label: { en: "Edit > Paste", fa: "ویرایش > چسباندن" }, unavailable: REASONS.clipboard },
+  { id: "alt.edit.add", first: "e", second: "a", keys: "Alt+E, A", label: { en: "Edit > Add", fa: "ویرایش > افزودن" }, command: "project.add-activity" },
+  { id: "alt.edit.delete", first: "e", second: "d", keys: "Alt+E, D", label: { en: "Edit > Delete", fa: "ویرایش > حذف" }, unavailable: REASONS.deleteActivity },
+  { id: "alt.edit.find", first: "e", second: "f", keys: "Alt+E, F", label: { en: "Edit > Find", fa: "ویرایش > یافتن" }, command: "edit.find" },
+  { id: "alt.edit.replace", first: "e", second: "r", keys: "Alt+E, R", label: { en: "Edit > Replace", fa: "ویرایش > جایگزینی" }, unavailable: { en: "Replace is not implemented in the activity grid.", fa: "جایگزینی در جدول فعالیت پیاده‌سازی نشده است." } },
+  { id: "alt.view.options", first: "v", second: "o", keys: "Alt+V, O", label: { en: "View > Options", fa: "نما > تنظیمات" }, unavailable: { en: "The Version 26 View menu has no Options command in this workspace; no binding is invented.", fa: "منوی نما در نسخهٔ ۲۶ در این محیط فرمان تنظیمات ندارد؛ هیچ پیوندی از خود ساخته نمی‌شود." } },
+  { id: "alt.project.activities", first: "p", second: "a", keys: "Alt+P, A", label: { en: "Project > Activities", fa: "پروژه > فعالیت‌ها" }, window: "schedule" },
+  { id: "alt.help.local", first: "h", second: "l", keys: "Alt+H, L", label: { en: "Help > Local Help", fa: "راهنما > راهنمای محلی" }, command: "help.shortcuts" },
+  { id: "alt.help.about", first: "h", second: "a", keys: "Alt+H, A", label: { en: "Help > About", fa: "راهنما > درباره" }, command: "help.about" },
+  { id: "alt.help.online", first: "h", second: "o", keys: "Alt+H, O", label: { en: "Help > Online Help", fa: "راهنما > راهنمای برخط" }, unavailable: { en: "Online help needs network access and is not opened from the local preview.", fa: "راهنمای برخط به شبکه نیاز دارد و از پیش‌نمایش محلی باز نمی‌شود." } },
+];
+
+/** The binding for a documented two-step chord, or null when none is recorded. */
+export function matchAltSequence(first: string, second: string): AltSequenceBinding | null {
+  const a = first.toLowerCase();
+  const b = second.toLowerCase();
+  return ALT_SEQUENCES.find((item) => item.first === a && item.second === b) ?? null;
+}
+
+/** Pending state machine for the two-step accelerator. Pure and testable. */
+export type AltSequenceStep =
+  | { status: "none" }
+  | { status: "pending"; first: string }
+  | { status: "matched"; binding: AltSequenceBinding }
+  | { status: "expired" };
+
+export function advanceAltSequence(
+  pending: { first: string; at: number } | null,
+  event: DesktopKeyEvent,
+  now: number,
+): AltSequenceStep {
+  if (pending && now - pending.at > ALT_SEQUENCE_TIMEOUT_MS) {
+    pending = null;
+    return { status: "expired" };
+  }
+  if (pending) {
+    if (event.key === "Escape") return { status: "none" };
+    if (event.ctrlKey || event.metaKey) return { status: "none" };
+    const binding = matchAltSequence(pending.first, event.key);
+    return binding ? { status: "matched", binding } : { status: "none" };
+  }
+  if (event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey && /^[a-z]$/i.test(event.key)) {
+    return { status: "pending", first: event.key.toLowerCase() };
+  }
+  return { status: "none" };
+}
+
 
 /** Null when the shortcut is executable in this state, otherwise the reason. */
 export function shortcutUnavailableReason(
@@ -1729,9 +1807,46 @@ function bindHost(host: HTMLElement): void {
     }
   });
 
+  const runtime = runtimeByHost.get(host);
+  if (!runtime) return;
+  let altPending: { first: string; at: number } | null = null;
+  let altTimer: ReturnType<typeof setTimeout> | null = null;
+  const altHint = (): HTMLElement => {
+    let element = host.querySelector<HTMLElement>("[data-alt-sequence]");
+    if (!element) {
+      element = document.createElement("div");
+      element.className = "cp-alt-sequence";
+      element.dataset.altSequence = "";
+      element.setAttribute("role", "status");
+      host.appendChild(element);
+    }
+    return element;
+  };
+  const clearAltPending = (): void => {
+    altPending = null;
+    if (altTimer) clearTimeout(altTimer);
+    altTimer = null;
+    const element = host.querySelector<HTMLElement>("[data-alt-sequence]");
+    if (element) {
+      element.hidden = true;
+      element.textContent = "";
+    }
+  };
+  const runAltBinding = (binding: AltSequenceBinding): void => {
+    if (binding.unavailable) return;
+    if (binding.window) {
+      runtime.handlers.onWindowOpen(binding.window);
+      return;
+    }
+    if (!binding.command) return;
+    if (binding.command === "help.shortcuts") { openDialog(host, "shortcuts"); return; }
+    if (binding.command === "help.about") { openDialog(host, "about"); return; }
+    const dialogName = dialogNameForCommand(binding.command);
+    if (dialogName) { openDialog(host, dialogName); return; }
+    runtime.handlers.onCommand(binding.command);
+  };
+
   bindShellKeydown(host, (event) => {
-    const runtime = runtimeByHost.get(host);
-    if (!runtime) return;
     // A control that already consumed the chord (grid navigation, splitter,
     // context menu) keeps precedence over the shell binding.
     if (event.defaultPrevented) return;
@@ -1755,11 +1870,28 @@ function bindHost(host: HTMLElement): void {
       return;
     }
 
-    if (event.key === "Escape") return;
     if (typing) return;
     // A modal dialog owns the keyboard while it is open; application commands
     // must not fire behind it.
     if (host.querySelector("dialog[open]")) return;
+
+    // Two-step menu accelerators (Alt+F then N). The first chord also opens
+    // the menu, so both the menu bar and the recorded chord stay usable.
+    if (altPending) {
+      const step = advanceAltSequence(altPending, event, Date.now());
+      if (step.status === "matched") {
+        event.preventDefault();
+        event.stopImmediatePropagation?.();
+        clearAltPending();
+        runAltBinding(step.binding);
+        return;
+      }
+      const escape = event.key === "Escape";
+      clearAltPending();
+      if (escape) return;
+      // Any other second key falls through to the ordinary handlers, which
+      // either match a single chord or leave the key to the page.
+    }
 
     // Alt+mnemonic opens a top-level menu. The access key lives on the menu
     // model, so the bar and this handler cannot drift apart.
@@ -1770,6 +1902,12 @@ function bindHost(host: HTMLElement): void {
       if (menu) {
         event.preventDefault();
         openMenu(host, menu.id, true);
+        altPending = { first: event.key.toLowerCase(), at: Date.now() };
+        const hint = altHint();
+        hint.hidden = false;
+        hint.textContent = `${event.key.toUpperCase()} — ${translateWorkspaceUiText(runtime.state.locale, "press the second key (Esc cancels)", "کلید دوم را بزنید (Esc لغو می‌کند)")}`;
+        if (altTimer) clearTimeout(altTimer);
+        altTimer = setTimeout(clearAltPending, ALT_SEQUENCE_TIMEOUT_MS);
         return;
       }
     }

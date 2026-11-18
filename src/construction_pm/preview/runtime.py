@@ -182,7 +182,11 @@ from construction_pm.activity_progress_history import (
     SQLiteActivityProgressHistoryRepository,
 )
 from construction_pm.p6_activity_progress_api import P6ActivityProgressAPI
-from construction_pm.p6_activity_step_api import P6ActivityStepReadAPI
+from construction_pm.p6_activity_step_api import P6ActivityStepReadAPI, P6ActivityStepWriteAPI
+from construction_pm.p6_activity_children import (
+    P6ActivityChildrenAPI,
+    SQLiteActivityChildrenRepository,
+)
 from construction_pm.p6_activity_step_repository import (
     P6ActivityStep,
     P6ActivityStepApplicationService,
@@ -453,6 +457,7 @@ class PreviewRepositories:
     issues: SQLiteP6IssueRepository
     activity_steps: SQLiteP6ActivityStepRepository
     activity_step_service: P6ActivityStepApplicationService
+    activity_children: SQLiteActivityChildrenRepository
     documents: SQLiteDocumentStore
     document_content: SQLiteDocumentContentRepository
     document_ocr: SQLiteDocumentOcrRepository
@@ -548,6 +553,7 @@ class PreviewRepositories:
         activity_step_service = P6ActivityStepApplicationService(
             activity_steps, transaction_manager
         )
+        activity_children = SQLiteActivityChildrenRepository(connection)
         documents = SQLiteDocumentStore(connection)
         documents.initialize()
         document_content = SQLiteDocumentContentRepository(connection)
@@ -627,6 +633,7 @@ class PreviewRepositories:
             issues=issues,
             activity_steps=activity_steps,
             activity_step_service=activity_step_service,
+            activity_children=activity_children,
             documents=documents,
             document_content=document_content,
             document_ocr=document_ocr,
@@ -1982,6 +1989,14 @@ def open_preview_runtime(
         p6_issue_api=issue_api,
         p6_activity_step_api=P6ActivityStepReadAPI(
             repositories.activity_step_service,
+            policy,
+        ),
+        p6_activity_step_write_api=P6ActivityStepWriteAPI(
+            repositories.activity_step_service,
+            policy,
+        ),
+        p6_activity_children_api=P6ActivityChildrenAPI(
+            repositories.activity_children,
             policy,
         ),
         document_api=DocumentAPI(

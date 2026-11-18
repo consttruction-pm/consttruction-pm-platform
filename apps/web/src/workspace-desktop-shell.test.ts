@@ -1,11 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  ALT_SEQUENCE_TIMEOUT_MS,
+  ALT_SEQUENCES,
   WINDOW_TITLES,
+  advanceAltSequence,
   getDesktopMenus,
   getDesktopShortcuts,
   getDesktopToolbar,
   getDesktopToolbarGroups,
+  matchAltSequence,
   matchDesktopShortcut,
   renderDesktopShell,
   shortcutUnavailableReason,
@@ -531,7 +535,7 @@ test("the shortcut matcher honours every modifier and the availability gate", ()
   assert.equal(match({ key: "n", ctrlKey: true }), "shortcut.new");
   assert.equal(match({ key: "n" }), undefined, "an unmodified letter is typing, not a command");
   assert.equal(match({ key: "n", ctrlKey: true, shiftKey: true }), undefined);
-  assert.equal(match({ key: "F9", shiftKey: true }), "shortcut.schedule-options");
+  assert.equal(match({ key: "F9", shiftKey: true }), "shortcut.leveling");
   assert.equal(match({ key: "1", altKey: true }), "shortcut.window.schedule");
   assert.equal(match({ key: "NumpadAdd", code: "NumpadAdd", ctrlKey: true }), "shortcut.expand-all");
 
@@ -798,4 +802,35 @@ test("Ctrl+A selects all visible activities through the shortcut catalogue", () 
     /Load activities/i,
   );
   assert.equal(shortcutUnavailableReason(shortcut, shellState().capabilities), null);
+});
+
+test("the recorded two-step Alt sequences are unique and either run or explain themselves", () => {
+  assert.equal(new Set(ALT_SEQUENCES.map((item) => `${item.first}${item.second}`)).size, ALT_SEQUENCES.length);
+  for (const binding of ALT_SEQUENCES) {
+    assert.match(binding.keys, /^Alt\+[A-Z], [A-Z]$/);
+    assert.ok(binding.label.en && binding.label.fa);
+    assert.ok(binding.command || binding.window || binding.unavailable, `${binding.id} must act or state why not`);
+  }
+  assert.equal(matchAltSequence("f", "n")?.window, "project");
+  assert.equal(matchAltSequence("p", "a")?.window, "schedule");
+  assert.equal(matchAltSequence("e", "t")?.unavailable?.en.length !== 0, true);
+  assert.equal(matchAltSequence("v", "o")?.unavailable?.en.length !== 0, true);
+  assert.equal(matchAltSequence("x", "q"), null);
+});
+
+test("the Alt dispatcher waits, times out, cancels on Escape and ignores typing", () => {
+  assert.deepEqual(advanceAltSequence(null, { key: "f", altKey: true }, 1000), { status: "pending", first: "f" });
+  assert.equal(advanceAltSequence(null, { key: "f" }, 1000).status, "none", "unmodified letters are typing");
+  assert.deepEqual(
+    advanceAltSequence({ first: "f", at: 1000 }, { key: "n" }, 1500),
+    { status: "matched", binding: matchAltSequence("f", "n") },
+  );
+  assert.deepEqual(advanceAltSequence({ first: "f", at: 1000 }, { key: "n" }, 1000 + ALT_SEQUENCE_TIMEOUT_MS + 1), { status: "expired" });
+  assert.deepEqual(advanceAltSequence({ first: "h", at: 1000 }, { key: "Escape" }, 1100), { status: "none" });
+});
+
+test("Alt+H then L opens shortcuts; Alt+H then O reports unavailable online help", () => {
+  assert.equal(matchAltSequence("h", "l")?.command, "help.shortcuts");
+  assert.equal(matchAltSequence("h", "a")?.command, "help.about");
+  assert.ok(matchAltSequence("h", "o")?.unavailable?.en);
 });

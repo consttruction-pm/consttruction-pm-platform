@@ -18,6 +18,20 @@ import { EXPENSE_CATEGORIES, loadExpenses, saveExpense, type ExpenseRecord } fro
 import { ISSUE_PRIORITIES, ISSUE_STATUSES, ISSUE_TYPES, loadIssues, saveIssue, type IssueRecord } from "./workspace-issues.js";
 import { loadActivitySteps, type ActivityStepRecord } from "./workspace-activity-steps.js";
 import {
+  addNotebookTopic,
+  assignActivityCode,
+  createActivityStep,
+  deleteActivityStep,
+  deleteNotebookTopic,
+  loadActivityCodes,
+  loadNotebookTopics,
+  removeActivityCode,
+  updateActivityStep,
+  updateNotebookTopic,
+  type ActivityCodeRecord,
+  type NotebookTopicRecord,
+} from "./workspace-activity-children.js";
+import {
   CONSTRAINT_TYPES,
   CONSTRAINT_TYPE_LABELS,
   deleteConstraint,
@@ -27,13 +41,12 @@ import {
   type ConstraintTypeValue,
 } from "./workspace-constraints.js";
 import { loadRisks, type RiskRecord } from "./workspace-risks.js";
-import { loadDocuments, type DocumentRecord } from "./workspace-documents.js";
+import { loadDocuments, updateDocument, type DocumentRecord } from "./workspace-documents.js";
 import type { WorkspaceDocument } from "./workspace-document.js";
 import { fetchP6ActivityUdfs, fetchP6ActivityUdfValues, saveP6ActivityUdfValue } from "./p6-udf-http.js";
 import type { P6ActivityUdfValue } from "./p6-udf-http.js";
 import type { P6UdfEditorMetadata } from "./p6-field-editor.js";
 import { P6_FIELD_REGISTRY_VERSION } from "./p6-field-layout-foundation.js";
-import { listWorkspaceEntityComments } from "./workspace-comments.js";
 import type {
   WorkspaceActivityRow,
   WorkspaceMenuKey,
@@ -217,6 +230,8 @@ export type ActivityDetailsData = {
   issues?: ActivityDetailsLoadState<IssueRecord>;
   risks?: ActivityDetailsLoadState<RiskRecord>;
   steps?: ActivityDetailsLoadState<ActivityStepRecord>;
+  codes?: ActivityDetailsLoadState<ActivityCodeRecord>;
+  notebook?: ActivityDetailsLoadState<NotebookTopicRecord>;
   udfs?: ActivityDetailsLoadState<P6UdfEditorMetadata>;
   udfValues?: ActivityDetailsLoadState<P6ActivityUdfValue>;
   history?: ActivityDetailsLoadState<ActivityProgressHistoryEvent>;
@@ -342,6 +357,7 @@ type DetailFormField = {
   value?: string;
   options?: readonly string[];
   wide?: boolean;
+  multiline?: boolean;
 };
 
 /**
@@ -356,7 +372,9 @@ function detailForm(locale: string, kind: string, submitLabel: string, fields: r
     const label = `<span>${esc(field.label)}</span>`;
     const control = field.options
       ? `<select id="${id}" name="${esc(field.name)}"${field.required ? " required" : ""}>${field.required ? "" : `<option value="">${esc(t(locale, "None", "هیچ"))}</option>`}${field.options.map((option) => `<option value="${esc(option)}"${option === field.value ? " selected" : ""}>${esc(option)}</option>`).join("")}</select>`
-      : `<input id="${id}" name="${esc(field.name)}" type="text" autocomplete="off"${field.required ? " required" : ""}${field.placeholder ? ` placeholder="${esc(field.placeholder)}"` : ""}${field.value !== undefined ? ` value="${esc(field.value)}"` : ""}>`;
+      : field.multiline
+        ? `<textarea id="${id}" name="${esc(field.name)}" rows="4"${field.required ? " required" : ""}${field.placeholder ? ` placeholder="${esc(field.placeholder)}"` : ""}>${esc(field.value ?? "")}</textarea>`
+        : `<input id="${id}" name="${esc(field.name)}" type="text" autocomplete="off"${field.required ? " required" : ""}${field.placeholder ? ` placeholder="${esc(field.placeholder)}"` : ""}${field.value !== undefined ? ` value="${esc(field.value)}"` : ""}>`;
     return `<label class="cp-detail-form-field${field.wide ? " is-wide" : ""}" for="${id}">${label}${control}</label>`;
   }).join("");
   return `<form class="cp-detail-form" data-details-form="${kind}" novalidate>
@@ -866,75 +884,126 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
       return relationshipRows(input, predecessors);
     case "successors":
       return relationshipRows(input, successors);
-    case "codes":
+    case "codes": {
+      const data = loadStateOf(input.data?.codes);
+      const canWrite = Boolean(input.canWrite && activity);
+      const rows = data.records.map((item) => `<tr data-code-row="${esc(item.assignmentId)}">
+          <td>${esc(item.codeType)}</td>
+          <td>${esc(item.codeValue)}</td>
+          <td>${esc(item.description ?? "")}</td>
+          <td>${canWrite
+            ? `<button type="button" class="cp-detail-action" data-code-delete="${esc(item.assignmentId)}">${esc(t(locale, "Remove", "حذف"))}</button>`
+            : ""}</td>
+        </tr>`).join("");
+      const table = data.status === "loaded"
+        ? `<div class="cp-detail-table-wrap"><table class="cp-detail-table"><thead><tr>
+            <th>${esc(t(locale, "Activity Code", "کد فعالیت"))}</th>
+            <th>${esc(t(locale, "Code Value", "مقدار کد"))}</th>
+            <th>${esc(t(locale, "Description", "توضیحات"))}</th>
+            <th>${esc(t(locale, "Actions", "کنش‌ها"))}</th>
+          </tr></thead><tbody>${rows || `<tr><td colspan="4" class="cp-detail-none">${esc(t(locale, "No activity codes are assigned to this activity.", "هیچ کد فعالیتی به این فعالیت تخصیص نیافته است."))}</td></tr>`}</tbody></table></div>`
+        : loadNotice(locale, data, t(locale, "Activity codes have not been read yet.", "کدهای فعالیت هنوز خوانده نشده‌اند."));
       return `<div class="cp-detail-grid">
         ${field(locale, t(locale, "Activity ID", "شناسهٔ فعالیت"), activity?.code ?? activity?.id ?? "")}
         ${field(locale, t(locale, "WBS code", "کد WBS"), wbsLabel)}
         ${field(locale, t(locale, "Project code", "کد پروژه"), projectId)}
       </div>
-      ${gridTable(locale,
-        [t(locale, "Activity Code", "کد فعالیت"), t(locale, "Code Value", "مقدار کد"), t(locale, "Description", "توضیحات")],
-        [],
-        t(locale, "No activity code assignments are returned by the project read model.", "هیچ تخصیص کد فعالیتی توسط مدل خواندن پروژه برگردانده نشده است."))}
-      ${controlBar(locale, [
-        disabledControl(locale, t(locale, "Assign", "تخصیص"), notWritable),
-        disabledControl(locale, t(locale, "Remove", "حذف"), notWritable),
-      ].join(""))}`;
+      ${table}
+      ${canWrite
+        ? detailForm(locale, "codes", t(locale, "Assign code", "تخصیص کد"), [
+          { name: "codeType", label: t(locale, "Activity Code", "کد فعالیت"), required: true },
+          { name: "codeValue", label: t(locale, "Code Value", "مقدار کد"), required: true },
+          { name: "description", label: t(locale, "Description", "توضیحات"), wide: true },
+        ])
+        : controlBar(locale, disabledControl(locale, t(locale, "Assign", "تخصیص"), notWritable))}
+      ${controlBar(locale, reloadControl(locale, "codes"))}
+      <p class="cp-detail-hint">${esc(t(locale, "Assigning the same activity code type again replaces its value and increments the record revision. Codes are project records; they are not used by the scheduling engine.", "تخصیص دوبارهٔ همان نوع کد، مقدار آن را جایگزین و نسخهٔ رکورد را افزایش می‌دهد. کدها رکورد پروژه‌اند و موتور زمان‌بندی از آن‌ها استفاده نمی‌کند."))}</p>`;
+    }
     case "notebook": {
-      const notes = activity && state
-        ? listWorkspaceEntityComments({
-          projectId: state.context.project_id,
-          entityKind: "activity",
-          entityId: activity.id,
-        })
-        : [];
-      const cards = notes.map((note) => `<article class="cp-detail-note" data-detail-note="${esc(note.id)}">
-          <header><strong>${esc(note.author)}</strong><time datetime="${esc(note.createdAt)}">${esc(note.createdAt)}</time></header>
-          <p>${esc(note.body)}</p>
-          ${note.parentId ? `<small>${esc(t(locale, "Reply", "پاسخ"))}</small>` : ""}
+      const data = loadStateOf(input.data?.notebook);
+      const canWrite = Boolean(input.canWrite && activity);
+      // The server sanitises notebook HTML to a small formatting allow-list
+      // before storing and returning it, so the sanitised value is rendered.
+      const cards = data.records.map((topic) => `<article class="cp-detail-note" data-notebook-topic="${esc(topic.topicId)}">
+          <header><strong>${esc(topic.topicName)}</strong><time datetime="${esc(topic.updatedAt)}">${esc(topic.updatedAt)}</time></header>
+          <div class="cp-detail-notebook-body">${topic.description}</div>
+          <footer>
+            <details class="cp-detail-note-edit"><summary>${esc(t(locale, "Edit", "ویرایش"))}</summary>
+              <form data-details-form="notebook-edit" class="cp-detail-form" novalidate>
+                <input type="hidden" name="topicId" value="${esc(topic.topicId)}">
+                <input type="hidden" name="expectedRevision" value="${String(topic.recordRevision)}">
+                <div class="cp-detail-form-grid">
+                  <label class="cp-detail-form-field"><span>${esc(t(locale, "Topic", "موضوع"))}</span><input name="topicName" type="text" required value="${esc(topic.topicName)}"></label>
+                  <label class="cp-detail-form-field is-wide"><span>${esc(t(locale, "Description (HTML)", "توضیحات (HTML)"))}</span><textarea name="description" rows="4">${esc(topic.description)}</textarea></label>
+                </div>
+                <div class="cp-detail-form-actions"><button type="submit" class="cp-detail-action">${esc(t(locale, "Save topic", "ذخیرهٔ موضوع"))}</button><span class="cp-detail-form-message" data-details-form-message role="status"></span></div>
+              </form>
+            </details>
+            ${canWrite ? `<button type="button" class="cp-detail-action" data-notebook-delete="${esc(topic.topicId)}" data-notebook-revision="${String(topic.recordRevision)}">${esc(t(locale, "Delete", "حذف"))}</button>` : ""}
+          </footer>
         </article>`).join("");
-      return `${notes.length
-        ? `<div class="cp-detail-notes">${cards}</div>`
-        : gridTable(locale,
+      return `${data.status === "loaded"
+        ? (cards ? `<div class="cp-detail-notes">${cards}</div>` : gridTable(locale,
           [t(locale, "Notebook Topic", "موضوع دفترچه"), t(locale, "Description", "توضیحات")],
           [],
-          t(locale, "No browser-local notes have been recorded for this activity.", "هیچ یادداشت محلی برای این فعالیت ثبت نشده است."))}
-        ${controlBar(locale, [
-          disabledControl(locale, t(locale, "Modify", "ویرایش"), t(locale, "Browser-local notes are edited from the Comments rail.", "یادداشت‌های محلی از نوار یادداشت‌ها ویرایش می‌شوند.")),
-          disabledControl(locale, t(locale, "Copy", "کپی"), t(locale, "No notebook topic is selected.", "هیچ موضوع دفترچه‌ای انتخاب نشده است.")),
-          disabledControl(locale, t(locale, "Print", "چاپ"), t(locale, "No notebook topic is selected.", "هیچ موضوع دفترچه‌ای انتخاب نشده است.")),
-          disabledControl(locale, t(locale, "Add", "افزودن"), t(locale, "Add notes from the Comments rail so they are stored with the same browser-local contract.", "یادداشت‌ها را از نوار یادداشت‌ها اضافه کنید تا با همان قرارداد محلی مرورگر ذخیره شوند.")),
-          disabledControl(locale, t(locale, "Delete", "حذف"), t(locale, "No notebook topic is selected.", "هیچ موضوع دفترچه‌ای انتخاب نشده است.")),
-        ].join(""))}
-        <p class="cp-detail-hint">${esc(t(locale, "These notes are stored in this browser only. They are not project database records and are not presented as formal audit history.", "این یادداشت‌ها فقط در همین مرورگر ذخیره می‌شوند. آن‌ها رکورد پایگاه دادهٔ پروژه نیستند و به‌عنوان تاریخچه رسمی ممیزی ارائه نمی‌شوند."))}</p>`;
+          t(locale, "No notebook topics are stored for this activity.", "هیچ موضوع دفترچه‌ای برای این فعالیت ذخیره نشده است.")))
+        : loadNotice(locale, data, t(locale, "Notebook topics have not been read yet.", "موضوعات دفترچه هنوز خوانده نشده‌اند."))}
+        ${canWrite
+          ? detailForm(locale, "notebook", t(locale, "Add topic", "افزودن موضوع"), [
+            { name: "topicName", label: t(locale, "Topic", "موضوع"), required: true },
+            { name: "description", label: t(locale, "Description (HTML)", "توضیحات (HTML)"), wide: true, multiline: true },
+          ])
+          : controlBar(locale, disabledControl(locale, t(locale, "Add", "افزودن"), notWritable))}
+        ${controlBar(locale, reloadControl(locale, "notebook"))}
+        <p class="cp-detail-hint">${esc(t(locale, "Notebook topics are project records stored per activity with their own record revision. The body accepts a small formatting allow-list; scripts and attributes are removed by the server. Comments in the rail remain a separate conversation surface.", "موضوعات دفترچه رکوردهای پروژه‌اند که برای هر فعالیت با نسخهٔ رکورد مستقل ذخیره می‌شوند. متن، فهرست محدودی از قالب‌بندی را می‌پذیرد؛ اسکریپت‌ها و ویژگی‌ها توسط سرویس حذف می‌شوند. یادداشت‌های نوار، سطح گفت‌وگوی جداگانه‌ای باقی می‌مانند."))}</p>`;
     }
     case "steps": {
       const data = loadStateOf(input.data?.steps);
-      const rows = data.records
-        .filter((step) => step.activityId === activity?.id)
-        .map((step) => [
-          String(step.sequence),
-          step.description,
-          step.weight ?? "—",
-          step.startDate ?? "—",
-          step.finishDate ?? "—",
-          Object.entries(step.udfValues).map(([key, value]) => `${key}=${value}`).join(", ") || "—",
-        ]);
+      const canWrite = Boolean(input.canWrite && activity);
+      const activitySteps = data.records.filter((step) => step.activityId === activity?.id);
+      const rows = activitySteps
+        .map((step, index) => `<tr data-step-row="${esc(step.stepId)}">
+          <td>${String(step.sequence)}</td>
+          <td>${esc(step.description)}</td>
+          <td>${esc(step.weight ?? "—")}</td>
+          <td>${esc(step.percentComplete ?? "—")}</td>
+          <td>${esc(step.startDate ?? "—")}</td>
+          <td>${esc(step.finishDate ?? "—")}</td>
+          <td>${esc(Object.entries(step.udfValues).map(([key, value]) => `${key}=${value}`).join(", ") || "—")}</td>
+          <td>
+            ${canWrite ? `<button type="button" class="cp-detail-action" data-step-move="up" data-step-id="${esc(step.stepId)}" ${index === 0 ? "disabled" : ""} title="${esc(t(locale, "Move step up", "انتقال گام به بالا"))}">↑</button>
+            <button type="button" class="cp-detail-action" data-step-move="down" data-step-id="${esc(step.stepId)}" ${index === activitySteps.length - 1 ? "disabled" : ""} title="${esc(t(locale, "Move step down", "انتقال گام به پایین"))}">↓</button>
+            <button type="button" class="cp-detail-action" data-step-delete="${esc(step.stepId)}">${esc(t(locale, "Delete", "حذف"))}</button>` : ""}
+          </td>
+        </tr>
+        <tr class="cp-detail-step-editor"><td colspan="8">
+          <details class="cp-detail-note-edit"><summary>${esc(t(locale, "Edit step", "ویرایش گام"))}</summary>
+            <form data-details-form="step-edit" class="cp-detail-form" novalidate>
+              <input type="hidden" name="stepId" value="${esc(step.stepId)}">
+              <input type="hidden" name="sequence" value="${String(step.sequence)}">
+              <div class="cp-detail-form-grid">
+                <label class="cp-detail-form-field is-wide"><span>${esc(t(locale, "Step Name", "نام گام"))}</span><input name="description" type="text" required value="${esc(step.description)}"></label>
+                <label class="cp-detail-form-field"><span>${esc(t(locale, "Step Weight", "وزن گام"))}</span><input name="weight" type="text" inputmode="decimal" value="${esc(step.weight ?? "")}"></label>
+                <label class="cp-detail-form-field"><span>${esc(t(locale, "Step % Complete", "درصد تکمیل گام"))}</span><input name="percentComplete" type="text" inputmode="decimal" value="${esc(step.percentComplete ?? "")}"></label>
+              </div>
+              <div class="cp-detail-form-actions"><button type="submit" class="cp-detail-action" ${canWrite ? "" : "disabled"}>${esc(t(locale, "Save step", "ذخیرهٔ گام"))}</button><span class="cp-detail-form-message" data-details-form-message role="status"></span></div>
+            </form>
+          </details>
+        </td></tr>`).join("");
+      const headers = [t(locale, "Sequence", "ترتیب"), t(locale, "Step Name", "نام گام"), t(locale, "Step Weight", "وزن گام"), t(locale, "Step % Complete", "درصد تکمیل گام"), t(locale, "Start", "شروع"), t(locale, "Finish", "پایان"), t(locale, "Step UDFs", "فیلدهای سفارشی گام"), t(locale, "Actions", "کنش‌ها")];
       const table = data.status === "loaded"
-        ? gridTable(locale,
-          [t(locale, "Sequence", "ترتیب"), t(locale, "Step Name", "نام گام"), t(locale, "Step Weight", "وزن گام"), t(locale, "Start", "شروع"), t(locale, "Finish", "پایان"), t(locale, "Step UDFs", "فیلدهای سفارشی گام")],
-          rows,
-          t(locale, "No steps are stored for this activity.", "هیچ گامی برای این فعالیت ذخیره نشده است."))
+        ? `<div class="cp-detail-table-wrap"><table class="cp-detail-table"><thead><tr>${headers.map((header) => `<th>${esc(header)}</th>`).join("")}</tr></thead><tbody>${rows || `<tr><td colspan="8" class="cp-detail-none">${esc(t(locale, "No steps are stored for this activity.", "هیچ گامی برای این فعالیت ذخیره نشده است."))}</td></tr>`}</tbody></table></div>`
         : loadNotice(locale, data, t(locale, "Activity steps have not been read yet.", "گام‌های فعالیت هنوز خوانده نشده‌اند."));
       return `${table}
-        ${controlBar(locale, [
-          disabledControl(locale, t(locale, "Add", "افزودن"), notWritable),
-          disabledControl(locale, t(locale, "Add from template", "افزودن از قالب"), notWritable),
-          disabledControl(locale, t(locale, "Delete", "حذف"), t(locale, "No step is selected.", "هیچ گامی انتخاب نشده است.")),
-          disabledControl(locale, t(locale, "Modify", "ویرایش"), t(locale, "No step is selected.", "هیچ گامی انتخاب نشده است.")),
-          reloadControl(locale, "steps"),
-        ].join(""))}
-        <p class="cp-detail-hint">${esc(t(locale, "Steps are read from the project service in stored sequence order. The step record does not store completion percentage, so that column is not shown rather than invented.", "گام‌ها به ترتیب ذخیره‌شده از سرویس پروژه خوانده می‌شوند. رکورد گام درصد تکمیل را ذخیره نمی‌کند؛ بنابراین آن ستون نمایش داده نمی‌شود و از خود ساخته نمی‌شود."))}</p>`;
+        ${canWrite
+          ? detailForm(locale, "steps", t(locale, "Add step", "افزودن گام"), [
+            { name: "description", label: t(locale, "Step Name", "نام گام"), required: true, wide: true },
+            { name: "weight", label: t(locale, "Step Weight", "وزن گام"), placeholder: "0" },
+            { name: "percentComplete", label: t(locale, "Step % Complete", "درصد تکمیل گام"), placeholder: "0" },
+          ])
+          : controlBar(locale, disabledControl(locale, t(locale, "Add", "افزودن"), notWritable))}
+        ${controlBar(locale, reloadControl(locale, "steps"))}
+        <p class="cp-detail-hint">${esc(t(locale, "Steps are project records stored in sequence order. Moving, re-weighting or completing a step never changes the activity dates, float or critical path; the activity percent complete remains the scheduling core's value.", "گام‌ها رکوردهای پروژه‌اند و به ترتیب ذخیره می‌شوند. جابه‌جایی، تغییر وزن یا تکمیل گام هرگز تاریخ‌های فعالیت، شناوری یا مسیر بحرانی را تغییر نمی‌دهد؛ درصد تکمیل فعالیت همان مقدار هستهٔ زمان‌بندی است."))}</p>`;
     }
     case "wps-docs": {
       const links = new Set([activity?.id, activity?.code].filter((value): value is string => Boolean(value)));
@@ -945,18 +1014,23 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
       const source: readonly (DocumentRecord | WorkspaceDocument)[] =
         live?.status === "loaded" ? live.records : (state?.documents ?? []);
       const docs = source.filter((document) => document.linkedEntityRefs.some((ref) => links.has(ref)));
+      const canWrite = Boolean(input.canWrite && activity);
       const rows = docs.map((document) => [
         document.title,
         document.status,
         document.resourceType,
         `R${document.revision}`,
       ]);
+      const linkable = live?.status === "loaded"
+        ? live.records.filter((document) => !document.linkedEntityRefs.some((ref) => links.has(ref)))
+        : [];
       const details = docs.map((document) => `<details class="cp-detail-document"><summary>${esc(document.title)}</summary><div class="cp-detail-grid">
           ${field(locale, t(locale, "Document ID", "شناسهٔ سند"), document.documentId)}
           ${field(locale, t(locale, "Type", "نوع"), document.resourceType)}
           ${field(locale, t(locale, "Status", "وضعیت"), document.status)}
           ${field(locale, t(locale, "Revision", "ویرایش"), `R${document.revision}`)}
           ${field(locale, t(locale, "Content hash", "هش محتوا"), document.contentHash)}
+          ${canWrite && live?.status === "loaded" ? `<button type="button" class="cp-detail-action" data-document-unlink="${esc(document.documentId)}" data-document-revision="${String(document.revision)}">${esc(t(locale, "Unlink from activity", "قطع پیوند از فعالیت"))}</button>` : ""}
         </div></details>`).join("");
       return `${liveNotice ?? ""}
         ${gridTable(locale,
@@ -964,11 +1038,18 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
         rows,
         t(locale, "No project document is linked to this activity. Project documents are managed on the Documents page.", "هیچ سند پروژه‌ای به این فعالیت پیوند ندارد. اسناد پروژه در صفحهٔ اسناد مدیریت می‌شوند."))}
         ${details}
-        <p class="cp-detail-hint">${esc(t(locale, "Uploading, downloading and verifying file bytes happen on the Documents page; this tab shows the same authoritative linked records.", "بارگذاری، دانلود و تأیید بایت‌های فایل در صفحهٔ اسناد انجام می‌شود؛ این زبانه همان رکوردهای پیوندشدهٔ مرجع را نشان می‌دهد."))}</p>
-        ${controlBar(locale, [
-          disabledControl(locale, t(locale, "Assign", "تخصیص"), notWritable),
-          disabledControl(locale, t(locale, "Remove", "حذف"), notWritable),
-        ].join(""))}`;
+        ${canWrite
+          ? `<form class="cp-detail-form" data-details-form="documents-link" novalidate>
+            <div class="cp-detail-form-grid">
+              <label class="cp-detail-form-field is-wide"><span>${esc(t(locale, "Link a project document", "پیوند یک سند پروژه"))}</span>
+                <select name="documentId" required>${linkable.map((document) => `<option value="${esc(document.documentId)}">${esc(document.title)} (R${document.revision})</option>`).join("")}</select>
+              </label>
+            </div>
+            <div class="cp-detail-form-actions"><button type="submit" class="cp-detail-action" ${linkable.length ? "" : "disabled"}>${esc(t(locale, "Link to activity", "پیوند به فعالیت"))}</button><span class="cp-detail-form-message" data-details-form-message role="status"></span></div>
+          </form>`
+          : controlBar(locale, disabledControl(locale, t(locale, "Assign", "تخصیص"), notWritable))}
+        ${controlBar(locale, reloadControl(locale, "wps-docs"))}
+        <p class="cp-detail-hint">${esc(t(locale, "Linking writes the activity ID into the document's linked-record list through the existing document service, with its revision guard. Uploading, downloading and verifying file bytes stay on the Documents page.", "پیوند، شناسهٔ فعالیت را با همان سرویس موجود اسناد و نگهبان نسخه در فهرست رکوردهای پیوندی سند می‌نویسد. بارگذاری، دانلود و تأیید بایت‌های فایل در صفحهٔ اسناد باقی می‌ماند."))}</p>`;
     }
     case "expenses": {
       const data = loadStateOf(input.data?.expenses);
@@ -1811,12 +1892,14 @@ async function readDetailsData(input: ActivityDetailsInput, activityId: string):
   const context = input.state?.context;
   if (!transport || !context) return {};
   const registry = input.registryVersion ?? P6_FIELD_REGISTRY_VERSION;
-  const [assignments, expenses, issues, risks, steps, udfs, udfValues, history, documents, constraints] = await Promise.all([
+  const [assignments, expenses, issues, risks, steps, codes, notebook, udfs, udfValues, history, documents, constraints] = await Promise.all([
     loadAssignments(transport, context).then(resultState),
     loadExpenses(transport, context, { activityId }).then(resultState),
     loadIssues(transport, context).then(resultState),
     loadRisks(transport, context).then(resultState),
     loadActivitySteps(transport, context, activityId).then(resultState),
+    loadActivityCodes(transport, context, activityId).then(resultState),
+    loadNotebookTopics(transport, context, activityId).then(resultState),
     fetchP6ActivityUdfs(context.project_id, registry)
       .then((response): ActivityDetailsLoadState<P6UdfEditorMetadata> => ({ status: "loaded", records: response.udfs, errorCode: null }))
       .catch((error: unknown): ActivityDetailsLoadState<P6UdfEditorMetadata> =>
@@ -1829,7 +1912,7 @@ async function readDetailsData(input: ActivityDetailsInput, activityId: string):
     loadDocuments(transport, context).then(resultState),
     loadConstraints(transport, context).then(resultState),
   ]);
-  return { assignments, expenses, issues, risks, steps, udfs, udfValues, history, documents, constraints };
+  return { assignments, expenses, issues, risks, steps, codes, notebook, udfs, udfValues, history, documents, constraints };
 }
 
 function detailsDataKey(input: ActivityDetailsInput): string | null {
@@ -1871,6 +1954,8 @@ async function loadDetailsInto(host: HTMLElement, key: string, activityId: strin
         expenses: loadingDetailsState(),
         issues: loadingDetailsState(),
         risks: loadingDetailsState(),
+        codes: loadingDetailsState(),
+        notebook: loadingDetailsState(),
         udfs: loadingDetailsState(),
         udfValues: loadingDetailsState(),
         history: loadingDetailsState(),
@@ -2168,6 +2253,83 @@ export function enhanceActivityDetails(
           resolutionNote: null,
         });
         await finish(saved.ok ? null : saved.error.code);
+        return;
+      }
+      if (kind === "codes") {
+        const saved = await assignActivityCode(transport, context, activityId, {
+          codeType: value("codeType"),
+          codeValue: value("codeValue"),
+          description: optional("description"),
+        });
+        await finish(saved.ok ? null : saved.error.code);
+        return;
+      }
+      if (kind === "notebook") {
+        const saved = await addNotebookTopic(transport, context, activityId, {
+          topicName: value("topicName"),
+          description: value("description"),
+        });
+        await finish(saved.ok ? null : saved.error.code);
+        return;
+      }
+      if (kind === "notebook-edit") {
+        const expected = Number(value("expectedRevision"));
+        if (!Number.isSafeInteger(expected) || expected < 1) {
+          if (submit) submit.disabled = false;
+          message(form, t(locale, "The stored topic revision is invalid; reload the tab.", "نسخهٔ ذخیره‌شدهٔ موضوع معتبر نیست؛ زبانه را دوباره بارگذاری کنید."), true);
+          return;
+        }
+        const saved = await updateNotebookTopic(transport, context, activityId, {
+          topicId: value("topicId"),
+          topicName: value("topicName"),
+          description: value("description"),
+          expectedRevision: expected,
+        });
+        await finish(saved.ok ? null : saved.error.code);
+        return;
+      }
+      if (kind === "steps") {
+        const saved = await createActivityStep(transport, context, activityId, {
+          description: value("description"),
+          weight: optional("weight"),
+          percentComplete: optional("percentComplete"),
+          sequence: null,
+        });
+        await finish(saved.ok ? null : saved.error.code);
+        return;
+      }
+      if (kind === "step-edit") {
+        const sequence = Number(value("sequence"));
+        const saved = await updateActivityStep(transport, context, activityId, value("stepId"), {
+          description: value("description"),
+          weight: optional("weight"),
+          percentComplete: optional("percentComplete"),
+          sequence: Number.isSafeInteger(sequence) ? sequence : null,
+        });
+        await finish(saved.ok ? null : saved.error.code);
+        return;
+      }
+      if (kind === "documents-link") {
+        const documentId = value("documentId");
+        const live = input.data?.documents;
+        const source = live?.status === "loaded" ? live.records : [];
+        const document = source.find((item) => item.documentId === documentId);
+        if (!document) {
+          if (submit) submit.disabled = false;
+          message(form, t(locale, "The selected document is no longer available; reload the tab.", "سند انتخاب‌شده دیگر در دسترس نیست؛ زبانه را دوباره بارگذاری کنید."), true);
+          return;
+        }
+        const reference = activityId;
+        const saved = await updateDocument(transport, context, {
+          documentId: document.documentId,
+          resourceType: document.resourceType,
+          title: document.title,
+          storageRef: document.storageRef,
+          contentHash: document.contentHash,
+          linkedEntityRefs: [...document.linkedEntityRefs, reference],
+        }, document.status, document.revision);
+        await finish(saved.ok ? null : saved.error.code);
+        return;
       }
     })();
   });
@@ -2251,6 +2413,151 @@ export function enhanceActivityDetails(
         }
         detailsDataCache.delete(key);
         await loadDetailsInto(host, key, activityId, true);
+      })();
+      return;
+    }
+
+    const reloadAfterChildWrite = async (): Promise<void> => {
+      const context = input.state?.context;
+      const transport = input.transport;
+      const activityId = input.selectedActivityId;
+      const key = detailsDataKey(input);
+      if (!context || !transport || !activityId || !key) return;
+      detailsDataCache.delete(key);
+      await loadDetailsInto(host, key, activityId, true);
+    };
+
+    const codeDelete = target.closest<HTMLButtonElement>("[data-code-delete]");
+    if (codeDelete?.dataset.codeDelete) {
+      const transport = input.transport;
+      const context = input.state?.context;
+      const activityId = input.selectedActivityId;
+      if (!transport || !context || !activityId) return;
+      codeDelete.disabled = true;
+      void (async () => {
+        const result = await removeActivityCode(transport, context, activityId, codeDelete.dataset.codeDelete ?? "");
+        if (!result.ok) {
+          codeDelete.disabled = false;
+          codeDelete.textContent = result.error.code;
+          return;
+        }
+        await reloadAfterChildWrite();
+      })();
+      return;
+    }
+
+    const notebookDelete = target.closest<HTMLButtonElement>("[data-notebook-delete]");
+    if (notebookDelete?.dataset.notebookDelete) {
+      const transport = input.transport;
+      const context = input.state?.context;
+      const activityId = input.selectedActivityId;
+      const expected = Number(notebookDelete.dataset.notebookRevision);
+      if (!transport || !context || !activityId || !Number.isSafeInteger(expected) || expected < 1) return;
+      notebookDelete.disabled = true;
+      void (async () => {
+        const result = await deleteNotebookTopic(transport, context, activityId, {
+          topicId: notebookDelete.dataset.notebookDelete ?? "",
+          expectedRevision: expected,
+        });
+        if (!result.ok) {
+          notebookDelete.disabled = false;
+          notebookDelete.textContent = result.error.code;
+          return;
+        }
+        await reloadAfterChildWrite();
+      })();
+      return;
+    }
+
+    const stepDelete = target.closest<HTMLButtonElement>("[data-step-delete]");
+    if (stepDelete?.dataset.stepDelete) {
+      const transport = input.transport;
+      const context = input.state?.context;
+      const activityId = input.selectedActivityId;
+      if (!transport || !context || !activityId) return;
+      stepDelete.disabled = true;
+      void (async () => {
+        const result = await deleteActivityStep(transport, context, activityId, stepDelete.dataset.stepDelete ?? "");
+        if (!result.ok) {
+          stepDelete.disabled = false;
+          stepDelete.textContent = result.error.code;
+          return;
+        }
+        await reloadAfterChildWrite();
+      })();
+      return;
+    }
+
+    const stepMove = target.closest<HTMLButtonElement>("[data-step-move]");
+    if (stepMove?.dataset.stepMove && stepMove.dataset.stepId) {
+      const transport = input.transport;
+      const context = input.state?.context;
+      const activityId = input.selectedActivityId;
+      const stepsState = input.data?.steps;
+      if (!transport || !context || !activityId || stepsState?.status !== "loaded") return;
+      const ordered = stepsState.records.filter((step) => step.activityId === activityId);
+      const index = ordered.findIndex((step) => step.stepId === stepMove.dataset.stepId);
+      const neighbourIndex = stepMove.dataset.stepMove === "up" ? index - 1 : index + 1;
+      if (index < 0 || neighbourIndex < 0 || neighbourIndex >= ordered.length) return;
+      const current = ordered[index];
+      const neighbour = ordered[neighbourIndex];
+      stepMove.disabled = true;
+      void (async () => {
+        const first = await updateActivityStep(transport, context, activityId, current.stepId, {
+          description: null,
+          weight: null,
+          percentComplete: null,
+          sequence: neighbour.sequence,
+        });
+        if (!first.ok) {
+          stepMove.disabled = false;
+          stepMove.title = first.error.code;
+          return;
+        }
+        const second = await updateActivityStep(transport, context, activityId, neighbour.stepId, {
+          description: null,
+          weight: null,
+          percentComplete: null,
+          sequence: current.sequence,
+        });
+        if (!second.ok) {
+          stepMove.disabled = false;
+          stepMove.title = second.error.code;
+          return;
+        }
+        await reloadAfterChildWrite();
+      })();
+      return;
+    }
+
+    const documentUnlink = target.closest<HTMLButtonElement>("[data-document-unlink]");
+    if (documentUnlink?.dataset.documentUnlink) {
+      const transport = input.transport;
+      const context = input.state?.context;
+      const activityId = input.selectedActivityId;
+      const live = input.data?.documents;
+      const source = live?.status === "loaded" ? live.records : [];
+      const document = source.find((item) => item.documentId === documentUnlink.dataset.documentUnlink);
+      const expected = Number(documentUnlink.dataset.documentRevision);
+      if (!transport || !context || !activityId || !document || !Number.isSafeInteger(expected)) return;
+      const activity = input.activities.find((row) => row.id === activityId);
+      const refs = new Set([activityId, activity?.code].filter((value): value is string => Boolean(value)));
+      documentUnlink.disabled = true;
+      void (async () => {
+        const result = await updateDocument(transport, context, {
+          documentId: document.documentId,
+          resourceType: document.resourceType,
+          title: document.title,
+          storageRef: document.storageRef,
+          contentHash: document.contentHash,
+          linkedEntityRefs: document.linkedEntityRefs.filter((ref) => !refs.has(ref)),
+        }, document.status, document.revision);
+        if (!result.ok) {
+          documentUnlink.disabled = false;
+          documentUnlink.textContent = result.error.code;
+          return;
+        }
+        await reloadAfterChildWrite();
       })();
       return;
     }

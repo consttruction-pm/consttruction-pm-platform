@@ -28,17 +28,21 @@ function step(overrides: Record<string, unknown> = {}): Record<string, unknown> 
   };
 }
 
-test("activity step parsing keeps stored fields and never invents completion", () => {
+test("activity step parsing keeps stored fields and the stored completion", () => {
   const parsed = parseActivityStepList({
     contract_version: ACTIVITY_STEP_READ_API_VERSION,
     kind: "p6_activity_step_list",
-    steps: [step(), step({ step_id: "STEP-A130-02", sequence: 2, weight: null, udf_values: { crew: "civil" } })],
+    steps: [
+      step(),
+      step({ step_id: "STEP-A130-02", sequence: 2, weight: null, percent_complete: "60", udf_values: { crew: "civil" } }),
+    ],
   });
   assert.equal(parsed.length, 2);
   assert.equal(parsed[0]?.weight, "25");
+  assert.equal(parsed[0]?.percentComplete, null);
   assert.equal(parsed[1]?.weight, null);
+  assert.equal(parsed[1]?.percentComplete, "60");
   assert.deepEqual(parsed[1]?.udfValues, { crew: "civil" });
-  assert.equal("percentComplete" in (parsed[0] ?? {}), false);
 });
 
 test("activity step parsing rejects malformed payloads instead of inventing steps", () => {

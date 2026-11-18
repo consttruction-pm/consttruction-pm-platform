@@ -10382,3 +10382,21 @@ html[data-cubi-theme="midnight"] .cp-p6 #cp-activity-grid tbody tr.is-filter-mat
   background: var(--skin-filter-match);
   color: var(--skin-text);
 }
+
+/* Two-step Alt accelerator: a small, theme-neutral transcript hint. */
+.cp-alt-sequence {
+  position: fixed;
+  inset-inline-start: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 60;
+  padding: 6px 14px;
+  border-radius: 6px;
+  background: var(--skin-surface, #ffffff);
+  color: var(--skin-text, #1f2933);
+  border: 1px solid var(--skin-border, #c7ccd1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+.cp-alt-sequence[hidden] { display: none; }

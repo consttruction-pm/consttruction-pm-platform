@@ -32,7 +32,7 @@ export const TOOLBAR_FAMILIES: readonly ToolbarFamilyDefinition[] = [
   { id: "administration", rail: "left", label: { en: "CUBI Administration", fa: "مدیریت CUBI" }, description: { en: "Forms, preferences and administration", fa: "فرم‌ها، ترجیحات و مدیریت" } },
 
   // Right rail: the Version 26 toolbar families.
-  { id: "project-tools", rail: "right", label: { en: "Project Tools", fa: "ابزارهای پروژه" }, description: { en: "Interchange and project tooling", fa: "تبادل داده و ابزارهای پروژه" } },
+  { id: "project-tools", rail: "right", label: { en: "Project", fa: "پروژه" }, description: { en: "Project windows and interchange", fa: "پنجره‌های پروژه و تبادل داده" } },
   { id: "assign", rail: "right", label: { en: "Assign", fa: "تخصیص" }, description: { en: "Assign resources and roles", fa: "تخصیص منابع و نقش‌ها" } },
   { id: "edit", rail: "right", label: { en: "Edit", fa: "ویرایش" }, description: { en: "Selection, linking and layout history", fa: "انتخاب، پیوند و تاریخچهٔ چیدمان" } },
   { id: "layout", rail: "right", label: { en: "Layout", fa: "چیدمان" }, description: { en: "Layout, columns, bars and preferences", fa: "چیدمان، ستون‌ها، میله‌ها و ترجیحات" } },
@@ -45,11 +45,17 @@ export const TOOLBAR_FAMILIES: readonly ToolbarFamilyDefinition[] = [
   { id: "find", rail: "right", label: { en: "Find", fa: "یافتن" }, description: { en: "Find and select activities", fa: "یافتن و انتخاب فعالیت‌ها" } },
   { id: "dictionaries", rail: "right", label: { en: "Dictionaries", fa: "واژه‌نامه‌ها" }, description: { en: "Codes and user-defined fields", fa: "کدها و فیلدهای سفارشی" } },
   { id: "publish", rail: "right", label: { en: "Publish", fa: "انتشار" }, description: { en: "Publish the project view", fa: "انتشار نمای پروژه" } },
-  { id: "standard-reports", rail: "right", label: { en: "Standard Reports", fa: "گزارش‌های استاندارد" }, description: { en: "Reports and tracking", fa: "گزارش‌ها و رهگیری" } },
+  { id: "standard-reports", rail: "right", label: { en: "Reports", fa: "گزارش‌ها" }, description: { en: "Reports and tracking", fa: "گزارش‌ها و رهگیری" } },
   { id: "tools", rail: "right", label: { en: "Tools", fa: "ابزارها" }, description: { en: "Schedule, formula and data tools", fa: "زمان‌بندی، فرمول و ابزارهای داده" } },
   { id: "activity", rail: "right", label: { en: "Activity", fa: "فعالیت" }, description: { en: "Edit the selected activity", fa: "ویرایش فعالیت انتخاب‌شده" } },
   { id: "critical-check", rail: "right", label: { en: "Critical Check", fa: "بررسی بحرانی" }, description: { en: "Critical path hierarchy and scheduling", fa: "سلسله‌مراتب مسیر بحرانی و زمان‌بندی" } },
   { id: "schedule", rail: "right", label: { en: "Schedule", fa: "زمان‌بندی" }, description: { en: "Run and inspect the schedule", fa: "اجرا و بررسی زمان‌بندی" } },
+  // Families recorded in the Version 26 reference toolbar list that have no
+  // earlier CUBI equivalent. Each button names the command it runs or states
+  // why it is honestly disabled.
+  { id: "move", rail: "right", label: { en: "Move", fa: "انتقال" }, description: { en: "Move the selected data", fa: "انتقال دادهٔ انتخاب‌شده" } },
+  { id: "standard", rail: "right", label: { en: "Standard", fa: "استاندارد" }, description: { en: "New, open, save, print and edit", fa: "جدید، بازکردن، ذخیره، چاپ و ویرایش" } },
+  { id: "top-layout", rail: "right", label: { en: "Top Layout", fa: "چیدمان بالا" }, description: { en: "Choose the top pane", fa: "انتخاب پنل بالا" } },
 ];
 
 export const TOOLBAR_FAMILY_IDS: readonly string[] = TOOLBAR_FAMILIES.map((family) => family.id);
@@ -336,6 +342,31 @@ export const TOOLBAR_COMMANDS: readonly ToolbarCommandDefinition[] = [
   // Right rail — Critical Check.
   cmd("critical.expand-all", { en: "Expand All", fa: "بازکردن همه" }, "expand", ["critical-check"], run("view.expand-all"), { windows: chartWindows, disabledReason: whenWindow(chartWindows, (context) => (context.capabilities.hasWbs && context.capabilities.groupByWbs ? null : R.wbsGroup)) }),
   cmd("critical.collapse-all", { en: "Collapse All", fa: "بستن همه" }, "collapse", ["critical-check"], run("view.collapse-all"), { windows: chartWindows, disabledReason: whenWindow(chartWindows, (context) => (context.capabilities.hasWbs && context.capabilities.groupByWbs ? null : R.wbsGroup)) }),
+
+  // Right rail — Move (Version 26 family; row reordering has no contract yet).
+  cmd("move.up", { en: "Move Up", fa: "انتقال به بالا" }, "move", ["move"], run("edit.group-wbs"), { windows: scheduleOnly, disabledReason: always(reason("Reordering activity rows is not stored by the project service; edit the WBS assignment instead", "جابه‌جایی ردیف فعالیت در سرویس پروژه ذخیره نمی‌شود؛ به‌جای آن تخصیص WBS را ویرایش کنید")) }),
+  cmd("move.down", { en: "Move Down", fa: "انتقال به پایین" }, "move", ["move"], run("edit.group-wbs"), { windows: scheduleOnly, disabledReason: always(reason("Reordering activity rows is not stored by the project service; edit the WBS assignment instead", "جابه‌جایی ردیف فعالیت در سرویس پروژه ذخیره نمی‌شود؛ به‌جای آن تخصیص WBS را ویرایش کنید")) }),
+  cmd("move.left", { en: "Outdent", fa: "کاهش تورفتگی" }, "left", ["move"], run("edit.group-wbs"), { windows: chartWindows, disabledReason: always(reason("Outdenting a WBS band is not exposed by the project service", "کاهش تورفتگی باند WBS توسط سرویس پروژه ارائه نشده است")) }),
+  cmd("move.right", { en: "Indent", fa: "افزایش تورفتگی" }, "right", ["move"], run("edit.group-wbs"), { windows: chartWindows, disabledReason: always(reason("Indenting a WBS band is not exposed by the project service", "افزایش تورفتگی باند WBS توسط سرویس پروژه ارائه نشده است")) }),
+
+  // Right rail — Standard (the Version 26 standard toolbar).
+  cmd("standard.new", { en: "New", fa: "جدید" }, "plus", ["standard"], win("project")),
+  cmd("standard.open", { en: "Open", fa: "بازکردن" }, "open", ["standard"], win("project")),
+  cmd("standard.save", { en: "Save Layout", fa: "ذخیرهٔ چیدمان" }, "save", ["standard"], run("layout.save"), { windows: scheduleOnly, disabledReason: whenWindow(scheduleOnly, (context) => (context.capabilities.hasLayout ? null : R.layout)) }),
+  cmd("standard.print", { en: "Print", fa: "چاپ" }, "print", ["standard"], run("file.print")),
+  cmd("standard.undo", { en: "Undo", fa: "بازگردانی" }, "undo", ["standard"], run("edit.undo"), { disabledReason: (context) => (context.capabilities.canUndoLayout ? null : R.undo) }),
+  cmd("standard.redo", { en: "Redo", fa: "تکرار" }, "redo", ["standard"], run("edit.redo"), { disabledReason: (context) => (context.capabilities.canRedoLayout ? null : R.redo) }),
+  cmd("standard.cut", { en: "Cut", fa: "برش" }, "cut", ["standard"], run("edit.select-all"), { disabledReason: always(R.clipboard) }),
+  cmd("standard.copy", { en: "Copy", fa: "کپی" }, "copy", ["standard"], run("edit.select-all"), { disabledReason: always(R.clipboard) }),
+  cmd("standard.paste", { en: "Paste", fa: "چسباندن" }, "paste", ["standard"], run("edit.select-all"), { disabledReason: always(R.clipboard) }),
+  cmd("standard.delete", { en: "Delete Activity", fa: "حذف فعالیت" }, "delete", ["standard"], run("edit.select-all"), { disabledReason: always(R.deleteActivity) }),
+  cmd("standard.find", { en: "Find", fa: "یافتن" }, "find", ["standard"], run("edit.find"), { windows: scheduleOnly }),
+  cmd("standard.help", { en: "Help", fa: "راهنما" }, "help", ["standard"], run("help.shortcuts")),
+
+  // Right rail — Top Layout (Version 26 family: choose the top pane).
+  cmd("top.table", { en: "Table", fa: "جدول" }, "table", ["top-layout"], run("view.top-table"), { windows: scheduleOnly }),
+  cmd("top.table-gantt", { en: "Table and Gantt", fa: "جدول و گانت" }, "gantt", ["top-layout"], run("view.top-table-gantt"), { windows: scheduleOnly }),
+  cmd("top.network", { en: "Activity Network", fa: "شبکهٔ فعالیت" }, "network", ["top-layout"], run("view.top-network"), { windows: scheduleOnly }),
 ];
 
 export const TOOLBAR_COMMAND_IDS: readonly string[] = TOOLBAR_COMMANDS.map((command) => command.id);

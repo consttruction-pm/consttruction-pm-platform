@@ -15,6 +15,7 @@ export type ActivityStepRecord = {
   sequence: number;
   description: string;
   weight: string | null;
+  percentComplete: string | null;
   startDate: string | null;
   finishDate: string | null;
   udfValues: Readonly<Record<string, string>>;
@@ -62,12 +63,17 @@ export function parseActivityStep(value: unknown): ActivityStepRecord {
   if (weight !== null && weight !== undefined && (typeof weight !== "string" || !/^\d+(\.\d+)?$/.test(weight))) {
     throw new Error("INVALID_ACTIVITY_STEP");
   }
+  const percent = value.percent_complete;
+  if (percent !== null && percent !== undefined && (typeof percent !== "string" || !/^\d+(\.\d+)?$/.test(percent))) {
+    throw new Error("INVALID_ACTIVITY_STEP");
+  }
   return {
     stepId: step_id,
     activityId: activity_id,
     sequence,
     description,
     weight: optionalString(weight),
+    percentComplete: optionalString(percent),
     startDate: optionalString(value.start_date),
     finishDate: optionalString(value.finish_date),
     udfValues: udf,
