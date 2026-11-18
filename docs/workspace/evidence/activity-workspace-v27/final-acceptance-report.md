@@ -57,7 +57,8 @@ composition.
 | General edit path | **مطابق و تأییدشده** | general-edit at `b71cd61f4` |
 | Codes / Notebook / Steps / Document links | **ناقص** — contract gaps | R4–R7 |
 | Risks write | **ناقص** | read surface only |
-| Resources/Expenses/Issues/UDF/Calendar writes | **پیاده‌سازی‌شده ولی آزمون‌نشده** in V27 | prior suites; not re-exercised end to end |
+| Resources/Expenses/Issues writes | **مطابق و تأییدشده** | `activity-details-v26` write paths |
+| UDF / Calendar assignment writes | **پیاده‌سازی‌شده ولی آزمون‌نشده** in V27 | not re-exercised end to end |
 | Reports/Admin depth | **ناقص** (outside Activity scope) | entry points exist |
 | Help-sourced option text/defaults | **VERIFY / BLOCKED** | 403 + missing PDF |
 | Pixel-level vendor visual identity | **محدودیت مستند و مشخص** | no lawful screenshot set; not claimed |
