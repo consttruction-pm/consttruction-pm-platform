@@ -176,6 +176,19 @@ export function orderDashboardCatalog(items: readonly EnterpriseDashboardCatalog
   );
 }
 
+/** Resolve a tab move against the exact ordered collection rendered in the Displayed section. */
+export function dashboardDisplayMoveTarget(
+  displayedItems: readonly EnterpriseDashboardCatalogItem[],
+  dashboardId: string,
+  direction: "up" | "down",
+): number | null {
+  const ordered = orderDashboardCatalog(displayedItems);
+  const index = ordered.findIndex((item) => item.dashboard.dashboard_id === dashboardId);
+  if (index < 0) return null;
+  const target = index + (direction === "up" ? -1 : 1);
+  return target < 0 || target >= ordered.length ? null : target;
+}
+
 export function moveDashboardPortletHorizontally(
   portlets: readonly EnterpriseDashboardPortlet[],
   index: number,
@@ -521,17 +534,19 @@ export async function mountEnterpriseDashboard(
         }));
         if (displayed) {
           const moveUp = button(t.moveDashboardUp, async () => {
-            if (itemIndex === 0) return;
-            await client.setDisplayPreference(dashboard.dashboard_id, true, itemIndex - 1);
+            const target = dashboardDisplayMoveTarget(items, dashboard.dashboard_id, "up");
+            if (target === null) return;
+            await client.setDisplayPreference(dashboard.dashboard_id, true, target);
             await loadCatalog();
           });
           const moveDown = button(t.moveDashboardDown, async () => {
-            if (itemIndex >= items.length - 1) return;
-            await client.setDisplayPreference(dashboard.dashboard_id, true, itemIndex + 1);
+            const target = dashboardDisplayMoveTarget(items, dashboard.dashboard_id, "down");
+            if (target === null) return;
+            await client.setDisplayPreference(dashboard.dashboard_id, true, target);
             await loadCatalog();
           });
-          moveUp.disabled = itemIndex === 0;
-          moveDown.disabled = itemIndex === items.length - 1;
+          moveUp.disabled = dashboardDisplayMoveTarget(items, dashboard.dashboard_id, "up") === null;
+          moveDown.disabled = dashboardDisplayMoveTarget(items, dashboard.dashboard_id, "down") === null;
           actions.append(moveUp, moveDown);
         }
         actions.append(button(t.duplicate, async () => { await client.duplicateDashboard(dashboard.dashboard_id); await loadCatalog(); }));
