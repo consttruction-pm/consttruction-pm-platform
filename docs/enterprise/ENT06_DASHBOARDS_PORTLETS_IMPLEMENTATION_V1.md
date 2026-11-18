@@ -592,3 +592,17 @@ The portlet titlebar Help and Print actions were previously superficial: Help us
 Normative reference: [Working with Portlets — P6 EPPM V26 HTML Help](https://docs.oracle.com/cd/G48897_01/p6help/en/47039.htm), linked from the official [V26 Help table of contents](https://docs.oracle.com/cd/G48897_01/p6help/en/toc.htm). The Help describes the portlet titlebar controls and notes that Print is available only on some portlets. CUBI exposes Print on its two currently enabled read-only portlet types; this behavior requires exact-head browser verification, including print-preview scope and restoration after cancelling/finishing print.
 
 This increment does not close the Default Dashboard template, full portlet catalogue, source picker tree, authenticated shell integration or production browser acceptance gaps.
+
+
+## ENT-06B complete V26 portlet inventory surfaced in the editor — 2026-11-18
+
+The Content editor now exposes the complete P6 EPPM V26 **List of Portlets** as a reference inventory, grouped by the Help categories. This is deliberately distinct from the enabled CUBI registry:
+
+- Enabled, governed CUBI sources: Portfolio Control Snapshot and Portfolio Decision.
+- Visible but disabled until their own canonical read contract, current-actor authorization, freshness/revision semantics and drill-through are implemented: Communication Center, My Activities, My Issues, My Projects, My Calendar, My Risks, Portfolio View, Earned Value Performance, Schedule Performance, Index Performance, Project Statistics, Project Health, Project Notebooks, Project Gantt Chart, Open Requests for Resources and Document Review.
+- Each deferred item includes its official V26 Help URL and a concrete source/authorization dependency in the disabled option's explanatory title. Disabled reference entries are not valid dashboard contract types and cannot be added to a saved dashboard.
+- P6 Custom Portlets remain intentionally excluded: arbitrary URL/credential substitution and executable custom content are prohibited by the ENT-06 security boundary.
+
+The implementation is pinned by a regression test that asserts the exact 16 deferred reference entries, the two enabled governed types, official Oracle V26 URL shape and a non-empty unavailability reason for every deferred item. The runtime supported-portlet filter continues to admit only entries with `enabled: true`.
+
+Normative source: [P6 EPPM V26 List of Portlets](https://docs.oracle.com/cd/G48897_01/p6help/en/6667.htm), which explicitly says the available configuration can vary; [P6 EPPM V26 Content Tab](https://docs.oracle.com/cd/G48897_01/p6help/en/8107.htm), which describes selecting registered portlets and adding portfolio/custom portlets. This closes the **inventory visibility** gap only. It does not claim that the deferred P6 portlet behaviors, data sources, editing workflows or charts have been implemented.
