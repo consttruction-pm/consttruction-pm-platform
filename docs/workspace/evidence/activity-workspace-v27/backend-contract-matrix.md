@@ -51,7 +51,7 @@ and read through the real repository. No browser-side default is applied.
 | Aspect | Implementation | Verification |
 |---|---|---|
 | Trigger | `onActivitySaved` callback from the General editor after a successful PATCH | `activity-general-edit-v26` |
-| Action | Re-read the project through `WorkspaceReadClient` + `loadP6Presentation` | Network shows the post-save read |
+| Action | Re-read the project through `WorkspaceReadClient` + `loadP6Presentation` | Grid row shows the saved name after the save (`gridRefresh.refreshed = true`); code path reviewed |
 | Context preservation | Active window, locale and selected activity retained; confirmation re-applied | Details pane shows the new name; suite's `gridRefresh.refreshed = true` |
 | Failure path | Sets `data-activity-refresh-error` on the status bar instead of silently leaving stale data | Code review; no forced failure test |
 | Duplicate engine | None; dates and float remain from the server read model | `activities-v26-scenarios` integrity checks |
