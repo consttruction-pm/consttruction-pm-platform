@@ -148,7 +148,7 @@ export function authorizedDashboardFilterOptions(
       const id = typeof record.project_id === "string" ? record.project_id.trim() : "";
       if (!id) continue;
       const name = [record.project_name, record.name].find((value) => typeof value === "string" && value.trim());
-      projects.set(id, typeof name === "string" ? name.trim() : id);
+      if (!projects.has(id)) projects.set(id, typeof name === "string" ? name.trim() : id);
     }
   }
   return [...projects.entries()]
