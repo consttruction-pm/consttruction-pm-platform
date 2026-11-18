@@ -177,7 +177,7 @@ test("Filter By pickers expose only portfolio and project identifiers already pr
   ]);
   assert.deepEqual(authorizedDashboardFilterOptions("project_id", dashboard, read), [
     { value: "p-1", label: "Road" },
-    { value: "p-2", label: "Bridge duplicate" },
+    { value: "p-2", label: "Bridge" },
     { value: "p-3", label: "p-3" },
   ]);
   assert.deepEqual(authorizedDashboardFilterOptions("project_id", dashboard, null), []);
