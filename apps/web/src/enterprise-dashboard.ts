@@ -272,7 +272,7 @@ const COPY = {
     loading: "Loading source data…", stale: "Source data is stale.", missing: "Source data is unavailable.",
     filtered: "No source rows match the current filters.", denied: "You do not have permission to view this source.",
     error: "The source could not be loaded.", empty: "No project records in this snapshot.", truncated: "Rows limited for display.",
-    general: "General", content: "Content", layout: "Layout", access: "Access", save: "Save changes", cancel: "Cancel",
+    general: "General", content: "Content", layout: "Layout", access: "Access", save: "Save and Close", cancel: "Cancel",
     name: "Dashboard name", description: "Description", maxRows: "Maximum rows per portlet", filterLock: "Restrict viewer filter overrides",
     addPortlet: "Add portlet", portfolioId: "Portfolio ID", decisionId: "Decision ID", portletTitle: "Portlet title",
     width: "Width", narrow: "Narrow", wide: "Wide", remove: "Remove", visibility: "Visibility",
@@ -294,7 +294,7 @@ const COPY = {
     loading: "دریافت داده منبع…", stale: "داده منبع قدیمی است.", missing: "داده منبع در دسترس نیست.",
     filtered: "رکوردی با فیلترهای فعلی مطابقت ندارد.", denied: "مجوز مشاهده این منبع را ندارید.",
     error: "دریافت منبع انجام نشد.", empty: "رکورد پروژه‌ای در این تصویر وجود ندارد.", truncated: "تعداد ردیف‌ها برای نمایش محدود شده است.",
-    general: "عمومی", content: "محتوا", layout: "چیدمان", access: "دسترسی", save: "ذخیره تغییرات", cancel: "انصراف",
+    general: "عمومی", content: "محتوا", layout: "چیدمان", access: "دسترسی", save: "ذخیره و بستن", cancel: "انصراف",
     name: "نام داشبورد", description: "شرح", maxRows: "حداکثر ردیف هر پورلت", filterLock: "محدودکردن تغییر فیلتر توسط بیننده",
     addPortlet: "افزودن پورلت", portfolioId: "شناسه سبد", decisionId: "شناسه تصمیم", portletTitle: "عنوان پورلت",
     width: "عرض", narrow: "باریک", wide: "عریض", remove: "حذف", visibility: "سطح دسترسی",
@@ -930,7 +930,6 @@ export async function mountEnterpriseDashboard(
     const cancel = button(t.cancel, () => { dialog.close(); dialog.remove(); });
     footer.append(save, cancel);
     const sections: Array<[string, () => void]> = [
-      [t.general, () => renderGeneral()],
       [t.content, () => renderContent()],
       [t.layout, () => renderLayout()],
       [t.access, () => renderAccess()],
@@ -941,10 +940,9 @@ export async function mountEnterpriseDashboard(
         draftDescription = dialog.querySelector<HTMLTextAreaElement>("[name=dashboard-description]")?.value ?? draftDescription;
         draftMaxRows = Number(dialog.querySelector<HTMLInputElement>("[name=max-rows]")?.value ?? draftMaxRows);
         draftFilterLock = dialog.querySelector<HTMLInputElement>("[name=filter-lock]")?.checked ?? draftFilterLock;
-      } else if (currentSection === 1) {
         draftPortlets = readEditorPortlets(dialog, draftPortlets, layoutOrder);
         layoutOrder = draftPortlets.map((_, index) => index);
-      } else if (currentSection === 2) {
+      } else if (currentSection === 1) {
         // Layout coordinates are authoritative. Switching tabs must never flatten the 2-D grid.
         layoutOrder = draftPortlets.map((_, index) => index);
       }
@@ -978,7 +976,7 @@ export async function mountEnterpriseDashboard(
         row.append(node("span", "", `${filterLabel(item.key)} · ${operatorLabel(item.operator)} · ${value}`));
         row.append(button(t.removeFilter, () => {
           draftDashboardFilters = draftDashboardFilters.filter((_, itemIndex) => itemIndex !== index);
-          renderGeneral();
+          renderContent();
         }));
         filterSection.append(row);
       }
@@ -992,7 +990,7 @@ export async function mountEnterpriseDashboard(
         draftDashboardFilters = [];
         renderGeneral();
       }));
-      panel.append(form, filterSection);
+      target.append(form, filterSection);
     }
     function renderContent(): void {
       const list = node("div", "ced-section");
