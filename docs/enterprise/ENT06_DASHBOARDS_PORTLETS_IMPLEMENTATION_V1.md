@@ -555,15 +555,13 @@ This acceptance matrix is based on the official **P6 EPPM Version 26 HTML Help**
 
 ### Authorized Filter by picker increment — 2026-11-18
 
-The Filter by dialog now renders searchable Select controls for Portfolio and Project when those values are already present in the current dashboard's authorized source context:
+The initial selector increment used configured portfolio IDs and project rows in the authorized display response. That implementation was superseded by the stricter server-issued `filter_options` contract documented below: the browser no longer derives selector values from dashboard configuration or row-limited display data. The backend is the only authority for option membership and labels.
 
-- Portfolio options are derived only from portfolio IDs on the dashboard's configured, registered portlets.
-- Project options are derived only from project rows in the already-authorized Portfolio Control Snapshot response. Duplicate project IDs are collapsed deterministically; missing IDs are ignored; labels use the source project name when present and otherwise the project ID.
-- Multi-select Project (`in`) serializes the selected option IDs as a bounded list; single-select (`eq`) serializes one ID. The backend remains authoritative for validation and re-authorization.
-- If the current source read does not expose options, the UI retains the explicit identifier fallback and does not query an unapproved directory or synthesize a project list.
-- Project-code and the full hierarchical Portfolio/Project tree remain partial until the canonical source contract and authorized directory selector are handed off. No unauthorized directory endpoint or duplicate portfolio authority was introduced.
+- Multi-select Project (`in`) serializes selected option IDs as a bounded list; single-select (`eq`) serializes one ID. The backend remains authoritative for validation and re-authorization.
+- When the backend does not return authorized options, the UI retains the explicit identifier fallback and does not query an unapproved directory or synthesize a project list.
+- Project-code and the full hierarchical Portfolio/Project tree remain partial until the canonical source contract and authorized directory selector are handed off.
 
-Regression tests cover deduplication, stable labels, missing identifiers, unavailable source data and unsupported project-code fields. This is a meaningful selector improvement, not a claim that the complete V26 Filter by tree has been reproduced.
+The earlier UI-only fixture was updated to exercise the server-issued contract, including ignoring stale/untrusted display rows and duplicate option IDs. This selector improvement does not claim that the complete V26 Filter by tree has been reproduced.
 ### Corrected drag/drop regression interpretation
 
 The failing exact-head test at 7d932205558c07eab070e4e2131d2f79e5e6c9f8 incorrectly expected a valid exchange between two Narrow portlets in the same column to be rejected. Exchanging the top-left and bottom-left positions preserves the valid non-overlapping two-column layout, so the expected result is a swap, not an unchanged layout. The test now asserts the resulting X/Y coordinates by stable array/instance identity and separately verifies that exchanging a Wide portlet into the right column is rejected. This is a test expectation correction; no production calculation or authorization behavior is changed.
