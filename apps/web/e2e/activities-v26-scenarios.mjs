@@ -19,8 +19,10 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { Page, launchChrome, waitForHttp, artifactsDir, gitHead } from "./preview-e2e.mjs";
 
 const baseUrl = process.env.CUBI_PREVIEW_URL || "http://127.0.0.1:4174";
+const evidenceDate = process.env.CUBI_EVIDENCE_DATE || "2026-11-08";
 const outDir = join(artifactsDir, "activities-v26");
-const visualDir = join(artifactsDir, "..", "..", "..", "..", "docs", "workspace", "screenshots", "visual");
+const visualDir = process.env.CUBI_SCENARIOS_VISUAL_DIR
+  || join(artifactsDir, "..", "..", "..", "..", "docs", "workspace", "screenshots", "visual");
 const evidenceDir = join(artifactsDir, "..", "..", "..", "..", "docs", "workspace", "evidence");
 mkdirSync(outDir, { recursive: true });
 mkdirSync(visualDir, { recursive: true });
@@ -497,9 +499,19 @@ async function main() {
       await setSelect(page, '[data-desktop-dialog="filters"] select[name="filter.field.0"]', "wbs");
       await setSelect(page, '[data-desktop-dialog="filters"] select[name="filter.operator.0"]', "contains");
       await setInput(page, '[data-desktop-dialog="filters"] input[name="filter.value.0"]', "Civil");
+      // Version 26 New starts with one criterion; Add appends the second row
+      // (the older suite assumed two starter rows).
+      await page.evaluate(`(() => {
+        const button = document.querySelector('[data-desktop-dialog="filters"] [data-filter-row-add]');
+        if (!button) return false;
+        button.click();
+        return true;
+      })()`);
+      await sleep(200);
       await setSelect(page, '[data-desktop-dialog="filters"] select[name="filter.field.1"]', "activity_status");
       await setSelect(page, '[data-desktop-dialog="filters"] select[name="filter.operator.1"]', "not-equals");
-      await setInput(page, '[data-desktop-dialog="filters"] input[name="filter.value.1"]', "Completed");
+      // A choice field renders a select, not a free-text input.
+      await setSelect(page, '[data-desktop-dialog="filters"] select[name="filter.value.1"]', "Completed");
       report.screenshots.push(await capture(page, "10-filter-editor-en-1280", 83));
       await submitDialog(page, "filters");
       const first = await page.evaluate(tableIds);
@@ -524,7 +536,7 @@ async function main() {
       const loadedName = await page.evaluate(`document.querySelector('[data-desktop-dialog="filters"] input[name="filterName"]')?.value ?? null`);
       assert(loadedName === "Civil open", `Modify did not load the filter: ${loadedName}`);
       await setSelect(page, '[data-desktop-dialog="filters"] select[name="filter.operator.1"]', "equals");
-      await setInput(page, '[data-desktop-dialog="filters"] input[name="filter.value.1"]', "Not Started");
+      await setSelect(page, '[data-desktop-dialog="filters"] select[name="filter.value.1"]', "Not Started");
       await submitDialog(page, "filters");
       const second = await page.evaluate(tableIds);
       assert(JSON.stringify(second) !== JSON.stringify(first), `editing did not change the result: ${second}`);
@@ -535,7 +547,7 @@ async function main() {
     await scenario("09", "Group و Sort", async () => {
       await openDialog(page, "dialog.group-sort");
       await sleep(200);
-      await setSelect(page, '[data-desktop-dialog="group-sort"] select[name="groupBy"]', "wbs");
+      await setSelect(page, '[data-desktop-dialog="group-sort"] select[name="group.field.0"]', "wbs");
       const options = await page.evaluate(`(() => {
         const select = document.querySelector('[data-desktop-dialog="group-sort"] select[name="sort.field.0"]');
         return select ? [...select.options].map((option) => ({ value: option.value, label: option.textContent.trim() })) : [];
@@ -772,8 +784,14 @@ async function main() {
         } : null;
       })()`);
       assert(dataDate, "Data Date fieldset missing");
-      assert(dataDate.disabled, "the Data Date fieldset must stay disabled without an authoritative date");
-      assert(/no Data Date/i.test(dataDate.note), `Data Date note is not honest: ${dataDate.note}`);
+      // The preview now publishes an authoritative Data Date, so the command is
+      // enabled and defaults to visible. Keep the no-date branch for projects
+      // that do not expose one.
+      if (dataDate.disabled) {
+        assert(/no Data Date/i.test(dataDate.note), `Data Date note is not honest: ${dataDate.note}`);
+      } else {
+        assert(dataDate.checked, "an authoritative Data Date should default the line on");
+      }
       report.screenshots.push(await capture(page, "20-data-date-disabled-en-1280", 93));
       await setCheckbox(page, '[data-desktop-dialog="bars"] input[name="gantt.progressLine.visible"]', true);
       await setInput(page, '[data-desktop-dialog="bars"] input[name="gantt.progressLine.thickness"]', "3");
@@ -781,7 +799,7 @@ async function main() {
       await submitDialog(page, "bars");
       const shown = await page.evaluate(workspaceState);
       assert(shown.progressLines === 1, `progress line not drawn: ${shown.progressLines}`);
-      assert(shown.dataDateLines === 0, `Data Date line drawn without a date: ${shown.dataDateLines}`);
+      assert(shown.dataDateLines === (dataDate.disabled ? 0 : 1), `Data Date line count ${shown.dataDateLines} does not match availability`);
       const points = await page.evaluate(`(() => {
         const line = document.querySelector("[data-gantt-progress-line]");
         if (!line) return null;
@@ -971,7 +989,7 @@ async function main() {
   } finally {
     report.finishedAt = new Date().toISOString();
     writeFileSync(join(outDir, "activities-v26-scenarios.json"), JSON.stringify(report, null, 2));
-    writeFileSync(join(evidenceDir, "activities-v26-scenarios-2026-11-08.json"), JSON.stringify(report, null, 2));
+    writeFileSync(join(evidenceDir, `activities-v26-scenarios-${evidenceDate}.json`), JSON.stringify(report, null, 2));
     page.cdp.close();
     chrome.cdp.close();
     await chrome.stop();

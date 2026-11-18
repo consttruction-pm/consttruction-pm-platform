@@ -10,6 +10,10 @@ network (`docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm` and the two
 Version 26 product index pages). Topic names below are the ones already carried by
 the acceptance matrix from earlier verified crosswalks; they are not re-fetched in
 this run. The approximately 815-page PDF remains **MISSING / VERIFY**.
+The earlier crosswalk `docs/workspace/architecture/v26-window-traceability-and-acceptance-matrix.md`
+already records **88 distinct official Help topic pages** for the Activity window,
+table, Gantt, layouts, filters, grouping and dialogs; this inventory maps the
+running surfaces to those topics rather than inventing new URLs.
 
 The browser language is pinned to `en-US` in the shared harness so English
 assertions are deterministic on a Persian-locale Windows host. Persian RTL
@@ -25,7 +29,7 @@ scenarios opt in through `cubi:workspace-locale=fa`.
 | Activity Details pane | `workspace-activity-details.ts` | `activity-details-v26`, `activity-general-edit-v26` |
 | Left module rail and right rail | P6-style shell | `toolbar-rails-v26`, `workspace-shell-v26` |
 | Status bar / preview banner | `workspace-desktop-shell.ts`, preview server | `workspace-shell-v26` |
-| Window switching / closing | `workspace-windows.ts`, desktop shell | `workspace-canonical-v26` |
+| Window switching / closing | `workspace-windows.ts`, desktop shell | `workspace-canonical-v26`, `workspace-window-tabs-v26` (reorder + reload persistence) |
 | Pane split and responsive geometry | `styles.css` (shared) | `workspace-responsive-v26` — **1280×720 fails**, see §9 |
 
 ## 2. Main menu bar
@@ -167,9 +171,10 @@ per suite (`--database .preview/e2e-<suite>.sqlite3`).
 |---|---|
 | `npm run typecheck` | 0 errors |
 | `npm run build` | success |
-| `npm test` | 1177 source + 15 preview-server tests passed, 0 failed |
+| `npm test` | 1178 source + 15 preview-server tests passed, 0 failed |
 | `pytest tests/backend_p0/test_workspace_read*.py tests/contracts/test_workspace_control_room_read_contract.py tests/test_preview_runtime.py tests/test_activity_master_repository.py tests/test_activity_validation.py` | 99 passed |
 | Activity V26 browser suites (21 listed in the master order) | All passed |
+| `activities-v26-scenarios`, `wbs-hierarchy`, `wbs-status-milestones`, `wbs-cut-copy-paste`, `layout-trace`, `workspace-window-tabs`, `workspace-visual-acceptance` | All passed |
 | Shell/menu/dialog suites (`toolbars`, `toolbar-rails`, `context-menus`, `register-context-menus`, `workspace-canonical`, `workspace-shell`, `layout-selector`) | All passed |
 | `workspace-responsive-v26` | Failed at scenario 01 (R1); later viewports not reached |
 

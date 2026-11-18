@@ -38,16 +38,25 @@ commit.
    - Gantt suites write dated evidence instead of overwriting the November-12
      directories.
 
-5. **Acceptance and inventory**
+5. **Window tab order survives reload**
+   - Keyboard (Ctrl+Shift+Arrow) and drag reorders wrote the shared order and
+     the window set, but the per-project restore ignored the order, so a reload
+     reverted the tab strip. `readProjectWorkspaceWindows` now applies the saved
+     order; unit test added. Proof: `workspace-window-tabs-v26.mjs`.
+
+6. **Acceptance and inventory**
    - Updated `acceptance-matrix.md` with re-verification at `f96478f` and items
      44–52.
    - New `v26-surface-inventory.md`: menus, toolbars, context menus, dialogs,
      panes, tabs, table, Gantt, keyboard, localization, blockers and handoffs.
+   - Historical `activities-v26-scenarios` now writes a dated evidence file and
+     accepts a separate visual directory instead of overwriting November-08
+     artifacts.
 
 ## Verification (2026-11-18, head `f96478f`)
 
 - `npm run typecheck` — clean.
-- `npm test` — 1177 source tests + 15 preview-server tests, 0 failed.
+- `npm test` — 1178 source tests + 15 preview-server tests, 0 failed.
 - `npm run build` — clean.
 - Python: 99 tests across workspace read/provider, WBS read, read contract,
   preview runtime, activity master and activity validation — 0 failed.
@@ -68,6 +77,10 @@ commit.
   - `toolbars-v26`, `toolbar-rails-v26`, `context-menus-v26`,
     `register-context-menus-v26`, `workspace-canonical-v26`,
     `workspace-shell-v26`, `layout-selector-v26` (15) — passed.
+  - `activities-v26-scenarios` (18/18), `wbs-hierarchy-v26` (19 checks),
+    `wbs-status-milestones-v26` (22), `wbs-cut-copy-paste-v26` (29),
+    `layout-trace-v26` (11), `workspace-window-tabs-v26` and
+    `workspace-visual-acceptance-v26` (6 cells) — passed.
 - Evidence: the sibling `*-v26-2026-11-18` directories.
 
 ## Failing / blocked in this run

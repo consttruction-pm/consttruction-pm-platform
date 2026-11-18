@@ -131,6 +131,7 @@ New evidence-backed items added by this run:
 | 50 | Workspace shell accessibility/status bar | مطابق و تأییدشده | `workspace-shell-v26` |
 | 51 | Activity behavior/control flow (scope) | مطابق و تأییدشده | `activity-scope-v26`, 15 scenarios |
 | 52 | Full surface inventory and handoff | مطابق و تأییدشده | `v26-surface-inventory.md` |
+| 53 | Window tab order survives reload | مطابق و تأییدشده | `workspace-window-tabs-v26` keyboard reorder + reload; per-project restore applies the saved order (`workspace-windows.ts`) |
 
 ## 6. Execution record
 
@@ -138,9 +139,10 @@ New evidence-backed items added by this run:
 |---|---|
 | `npm run typecheck` | 0 errors |
 | `npm run build` | success |
-| `npm test` | 1177 source + 15 preview-server tests, 0 failed |
+| `npm test` | 1178 source + 15 preview-server tests, 0 failed |
 | Python workspace/activity suites | 99 passed |
 | Activity V26 browser suites | all 21 listed suites passed |
+| Additional Activity/WBS suites | `activities-v26-scenarios` 18/18, `wbs-hierarchy` 19 checks, `wbs-status-milestones` 22, `wbs-cut-copy-paste` 29, `layout-trace` 11, `workspace-window-tabs`, `workspace-visual-acceptance` 6 cells — passed |
 | Shell/menu/dialog suites | `toolbars`, `toolbar-rails`, `context-menus`, `register-context-menus`, `workspace-canonical`, `workspace-shell`, `layout-selector` passed |
 | `workspace-responsive-v26` | failed at scenario 01 only (R1 above) |
 
