@@ -42,7 +42,8 @@ test("dashboard HTTP client maps every UI command to the authenticated HTTP cont
   await client.saveFilterOverride("d-1", [{ key: "project_id", operator: "eq", value: "p-1" }]);
   await client.resetFilterOverride("d-1");
   await client.assignShare("d-1", "user", "u-2", 2);
-  await client.revokeShare("d-1", "role", "enterprise_viewer", 3);\n  await client.listUsers();
+  await client.revokeShare("d-1", "role", "enterprise_viewer", 3);
+  await client.listUsers();
   assert.deepEqual(calls.map((call) => [call.init.method ?? "GET", call.url]), [
     ["GET", "/api/enterprise/dashboards/d%201"],
     ["POST", "/api/enterprise/dashboards/d-1/read"],
@@ -54,7 +55,8 @@ test("dashboard HTTP client maps every UI command to the authenticated HTTP cont
     ["POST", "/api/enterprise/dashboards/d-1/filter-override"],
     ["DELETE", "/api/enterprise/dashboards/d-1/filter-override"],
     ["POST", "/api/enterprise/dashboards/d-1/shares"],
-    ["DELETE", "/api/enterprise/dashboards/d-1/shares"],\n    ["GET", "/api/enterprise/users"],
+    ["DELETE", "/api/enterprise/dashboards/d-1/shares"],
+    ["GET", "/api/enterprise/users"],
   ]);
   assert.equal(new Headers(calls[3].init.headers).get("Idempotency-Key")?.length, 36);
   assert.equal(new Headers(calls[4].init.headers).get("Idempotency-Key")?.length, 36);
