@@ -522,3 +522,49 @@ A source review found that the previous editor flattened all portlet Y coordinat
 Regression coverage now includes vertical swaps, top boundary behavior, incompatible-width collision rejection and non-overlap validation. This is still a source-level/unit-test increment: the exact-head browser workflow must verify that the server persists the X/Y grid unchanged after switching tabs, saving, reloading and reopening the dashboard.
 
 Normative reference: [Configuring Dashboard Layout — P6 EPPM V26 HTML Help](https://docs.oracle.com/cd/G48897_01/p6help/en/32008.htm). P6's documented Narrow/Wide sizing, directional arrows and drag/drop layout are treated as two-dimensional placement rather than a one-dimensional display-order list. Full authenticated browser parity remains unverified.
+
+
+## ENT-06B exact V26 Help acceptance review — 2026-11-18
+
+This acceptance matrix is based on the official **P6 EPPM Version 26 HTML Help** topics, not the older PDF or an inferred Cloud interface:
+
+- https://docs.oracle.com/cd/G48897_01/p6help/en/6665.htm — Working with Dashboards
+- https://docs.oracle.com/cd/G48897_01/p6help/en/7826.htm — Creating Dashboards
+- https://docs.oracle.com/cd/G48897_01/p6help/en/7827.htm — Customizing Dashboards
+- https://docs.oracle.com/cd/G48897_01/p6help/en/7831.htm — Configuring Dashboard Content
+- https://docs.oracle.com/cd/G48897_01/p6help/en/32010.htm — Configuring Dashboard Access
+- https://docs.oracle.com/cd/G48897_01/p6help/en/32012.htm — Configuring Dashboard Filters
+- https://docs.oracle.com/cd/G48897_01/p6help/en/32008.htm — Configuring Dashboard Layout
+- https://docs.oracle.com/cd/G48897_01/p6help/en/44266.htm — Showing and Hiding Dashboards
+- https://docs.oracle.com/cd/G48897_01/p6help/en/6667.htm — List of Portlets
+
+### Verified requirements and current disposition
+
+| V26 requirement | CUBI implementation evidence | Acceptance |
+|---|---|---|
+| Global, multi-user and private dashboard categories; dashboard list is additionally constrained by user-interface view and security | Tenant-scoped catalog; private/user/role/global share modes; source authorization remains independent | Partial: canonical User Interface View assignment and production shell integration are not in this isolated PR |
+| Displayed and Available lists; per-user display preference and tab order | Catalog sections, show/hide, actor-scoped display order and Move tab up/down controls | Implemented in source; persistence still needs authenticated browser verification |
+| Create from Default Dashboard or an existing dashboard, then Save and Close | Blank creation and copy from an accessible dashboard via idempotent duplicate route | Partial: Default Dashboard source/template is not configured; copy-from-existing is available |
+| Customize with Content, Layout, Access and Save and Close | Same three top-level tabs; General nested in Content; content/layout draft saved with revision guard | Implemented in source; browser save/reload acceptance pending |
+| Content > General: title, filter, max rows; select registered portlets and configure options | Title, owner filter, max rows, allow-listed registry and supported portlet configuration | Partial: only two governed source-backed portlet types are selectable; missing P6 portlet families are intentionally not represented by fake data |
+| Access: Current User, All Users, List of Users; privilege checks; creator/owner rules | User, role and admin-only all-user assignment/revocation; same-tenant active-user validation by service | Partial: directory picker depends on /api/enterprise/users and PR #1974/privilege; manual tenant-validated ID fallback exists |
+| Filter by opens a selection dialog; owner can lock viewer overrides; dashboard filter can be set in Content > General | Multi-condition allow-listed dialog, request-scoped apply, actor User Filter save/reset, owner lock and General default-filter controls | Partial: canonical V26 portfolio/project/project-code Select/search/tree picker is absent; project-code is not in the registered source contract |
+| Layout supports Narrow/Wide and Up/Down/Left/Right or drag/drop, followed by Save and Close | Two-column grid, directional controls, position exchange and overlap/bounds validation | Implemented in source; exact authenticated save/reopen browser test remains pending |
+| Portlet catalog includes personal data, Portfolio Views, project performance, workflow/document review, resources and collaboration; availability may vary by configuration | Closed registry with Portfolio Control Snapshot and Portfolio Decision only | Deliberately partial: further portlets require approved source contracts, actor permissions, and source-owner handoff |
+| Dashboard drill-through and source data follow current actor's module/project permissions | Read-only source projection, permission-denied state, source refs and independent authorization | Source-level boundary exists; authenticated browser drill-through test remains pending |
+
+### Corrected drag/drop regression interpretation
+
+The failing exact-head test at 7d932205558c07eab070e4e2131d2f79e5e6c9f8 incorrectly expected a valid exchange between two Narrow portlets in the same column to be rejected. Exchanging the top-left and bottom-left positions preserves the valid non-overlapping two-column layout, so the expected result is a swap, not an unchanged layout. The test now asserts the resulting X/Y coordinates by stable array/instance identity and separately verifies that exchanging a Wide portlet into the right column is rejected. This is a test expectation correction; no production calculation or authorization behavior is changed.
+
+### Release gate — not waived
+
+ENT-06 is **not declared fully V26-parity complete** until all of the following evidence exists:
+
+1. Exact-head Web CI, Client Typecheck and Python CI pass (including the unrelated Python 3.13 scheduling test gate when it is in the PR's required matrix).
+2. Authenticated browser acceptance covers create/copy, save/reopen, show/hide/order, share/revoke, owner filter lock, viewer filter apply/save/reset, layout directional movement and drag/drop, portlet refresh/maximize/restore/help/close and source drill-through.
+3. Access picker behavior is verified both with and without the required directory privilege; same-tenant validation and global-admin restriction remain enforced.
+4. Product/route owner explicitly hands off the canonical Enterprise shell and User Interface View integration paths. This PR must not alter protected production composition, identity, authorization, deployment schema or Engineering files without that path-level handoff.
+5. Each additional V26 portlet family is either delivered against an authoritative source contract or explicitly excluded with an approved CUBI product decision. No KPI, schedule, cost, EVM, resource, risk or portfolio fact is fabricated to imitate an Oracle portlet.
+
+The implementation intentionally preserves the source boundary: dashboards display authorized source facts; they do not become a second project/portfolio calculation engine. V26 Help parity is evaluated behavior by behavior, not by matching labels alone.
