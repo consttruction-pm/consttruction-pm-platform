@@ -46,6 +46,7 @@ import { anchorPoint, openContextMenu } from "./workspace-context-menu.js";
 import {
   ACTIVITY_TYPE_OPTIONS,
   DURATION_TYPE_OPTIONS,
+  LEVELING_PRIORITY_OPTIONS,
   PERCENT_COMPLETE_TYPE_OPTIONS,
   applyActivityGeneralToCells,
   loadActivityGeneral,
@@ -669,6 +670,14 @@ const PERCENT_COMPLETE_TYPE_LABELS: Readonly<Record<string, readonly [string, st
   SCOPE: ["Scope", "دامنه"],
 };
 
+const LEVELING_PRIORITY_LABELS: Readonly<Record<string, readonly [string, string]>> = {
+  Top: ["Top", "بالاترین"],
+  High: ["High", "بالا"],
+  Normal: ["Normal", "عادی"],
+  Low: ["Low", "پایین"],
+  Lowest: ["Lowest", "پایین‌ترین"],
+};
+
 function labelFor(locale: string, label: readonly [string, string] | undefined, value: string): string {
   return label ? t(locale, label[0], label[1]) : value;
 }
@@ -683,6 +692,10 @@ function durationTypeLabel(locale: string, value: string): string {
 
 function percentCompleteTypeLabel(locale: string, value: string): string {
   return labelFor(locale, PERCENT_COMPLETE_TYPE_LABELS[value], value);
+}
+
+function levelingPriorityLabel(locale: string, value: string): string {
+  return labelFor(locale, LEVELING_PRIORITY_LABELS[value], value);
 }
 
 /**
@@ -721,6 +734,7 @@ function generalEditorForm(locale: string, record: ActivityGeneralRecord): strin
         <label class="cp-detail-form-field" for="detail-form-general-activity-type"><span>${esc(t(locale, "Activity Type", "نوع فعالیت"))}</span><select id="detail-form-general-activity-type" name="activityType" required>${selectOptions(ACTIVITY_TYPE_OPTIONS, record.activityType, (value) => activityTypeLabel(locale, value))}</select></label>
         <label class="cp-detail-form-field" for="detail-form-general-duration-type"><span>${esc(t(locale, "Duration Type", "نوع مدت"))}</span><select id="detail-form-general-duration-type" name="durationType" required>${selectOptions(DURATION_TYPE_OPTIONS, record.durationType, (value) => durationTypeLabel(locale, value))}</select></label>
         <label class="cp-detail-form-field" for="detail-form-general-percent-type"><span>${esc(t(locale, "% Complete Type", "نوع درصد پیشرفت"))}</span><select id="detail-form-general-percent-type" name="percentCompleteType" required>${selectOptions(PERCENT_COMPLETE_TYPE_OPTIONS, record.percentCompleteType, (value) => percentCompleteTypeLabel(locale, value))}</select></label>
+        <label class="cp-detail-form-field" for="detail-form-general-leveling"><span>${esc(t(locale, "Leveling Priority", "اولویت تسطیح"))}</span><select id="detail-form-general-leveling" name="levelingPriority" required>${selectOptions(LEVELING_PRIORITY_OPTIONS, record.levelingPriority, (value) => levelingPriorityLabel(locale, value))}</select></label>
         <label class="cp-detail-form-field" for="detail-form-general-cost-account"><span>${esc(t(locale, "Cost Account", "حساب هزینه"))}</span><input id="detail-form-general-cost-account" name="costAccountId" type="text" autocomplete="off" maxlength="120" value="${esc(record.costAccountId ?? "")}"></label>
       </div>
       <div class="cp-detail-form-actions">
@@ -2029,6 +2043,7 @@ export function enhanceActivityDetails(
           activityType: value("activityType"),
           durationType: value("durationType"),
           percentCompleteType: value("percentCompleteType"),
+          levelingPriority: value("levelingPriority"),
           costAccountId: value("costAccountId"),
         });
         if (!saved.ok) {

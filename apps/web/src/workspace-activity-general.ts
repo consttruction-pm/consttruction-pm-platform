@@ -37,12 +37,17 @@ export type DurationTypeOption = (typeof DURATION_TYPE_OPTIONS)[number];
 export const PERCENT_COMPLETE_TYPE_OPTIONS = ["DURATION", "UNITS", "PHYSICAL", "SCOPE"] as const;
 export type PercentCompleteTypeOption = (typeof PERCENT_COMPLETE_TYPE_OPTIONS)[number];
 
+/** Version 26 activity resource-leveling priority labels. */
+export const LEVELING_PRIORITY_OPTIONS = ["Top", "High", "Normal", "Low", "Lowest"] as const;
+export type LevelingPriorityOption = (typeof LEVELING_PRIORITY_OPTIONS)[number];
+
 export type ActivityGeneralRecord = {
   activityId: string;
   name: string;
   activityType: string;
   durationType: string;
   percentCompleteType: string;
+  levelingPriority: string;
   costAccountId: string | null;
   durationValue: string;
   durationUnit: string;
@@ -55,12 +60,14 @@ export type ActivityGeneralInput = {
   activityType: string;
   durationType: string;
   percentCompleteType: string;
+  levelingPriority: string;
   costAccountId: string;
 };
 
 const ACTIVITY_TYPES = new Set<string>(ACTIVITY_TYPE_OPTIONS);
 const DURATION_TYPES = new Set<string>(DURATION_TYPE_OPTIONS);
 const PERCENT_COMPLETE_TYPES = new Set<string>(PERCENT_COMPLETE_TYPE_OPTIONS);
+const LEVELING_PRIORITIES = new Set<string>(LEVELING_PRIORITY_OPTIONS);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -102,7 +109,13 @@ export function parseActivityGeneral(value: unknown): ActivityGeneralRecord {
   const activityType = requireString(activity.activity_type, "INVALID_ACTIVITY_MASTER_RESPONSE");
   const durationType = requireString(activity.duration_type, "INVALID_ACTIVITY_MASTER_RESPONSE");
   const percentCompleteType = requireString(activity.percent_complete_type, "INVALID_ACTIVITY_MASTER_RESPONSE");
-  if (!ACTIVITY_TYPES.has(activityType) || !DURATION_TYPES.has(durationType) || !PERCENT_COMPLETE_TYPES.has(percentCompleteType)) {
+  const levelingPriority = requireString(activity.leveling_priority, "INVALID_ACTIVITY_MASTER_RESPONSE");
+  if (
+    !ACTIVITY_TYPES.has(activityType) ||
+    !DURATION_TYPES.has(durationType) ||
+    !PERCENT_COMPLETE_TYPES.has(percentCompleteType) ||
+    !LEVELING_PRIORITIES.has(levelingPriority)
+  ) {
     throw new Error("INVALID_ACTIVITY_MASTER_RESPONSE");
   }
   return {
@@ -111,6 +124,7 @@ export function parseActivityGeneral(value: unknown): ActivityGeneralRecord {
     activityType,
     durationType,
     percentCompleteType,
+    levelingPriority,
     costAccountId: optionalString(activity.cost_account_id, "INVALID_ACTIVITY_MASTER_RESPONSE"),
     durationValue: String(activity.duration_value ?? ""),
     durationUnit: String(activity.duration_unit ?? ""),
@@ -149,6 +163,7 @@ export function buildActivityGeneralPatch(
   if (!ACTIVITY_TYPES.has(input.activityType)) return "INVALID_ACTIVITY_TYPE";
   if (!DURATION_TYPES.has(input.durationType)) return "INVALID_DURATION_TYPE";
   if (!PERCENT_COMPLETE_TYPES.has(input.percentCompleteType)) return "INVALID_PERCENT_COMPLETE_TYPE";
+  if (!LEVELING_PRIORITIES.has(input.levelingPriority)) return "INVALID_LEVELING_PRIORITY";
   const costAccountId = input.costAccountId.trim() || null;
   if (costAccountId !== null && costAccountId.length > 120) return "INVALID_COST_ACCOUNT_ID";
 
@@ -157,6 +172,7 @@ export function buildActivityGeneralPatch(
   if (input.activityType !== record.activityType) patch.activity_type = input.activityType;
   if (input.durationType !== record.durationType) patch.duration_type = input.durationType;
   if (input.percentCompleteType !== record.percentCompleteType) patch.percent_complete_type = input.percentCompleteType;
+  if (input.levelingPriority !== record.levelingPriority) patch.leveling_priority = input.levelingPriority;
   if (costAccountId !== record.costAccountId) patch.cost_account_id = costAccountId;
   return patch;
 }
@@ -209,6 +225,7 @@ export function applyActivityGeneralToCells(
     "activity.activity_type": record.activityType,
     "activity.duration_type": record.durationType,
     "activity.percent_complete_type": record.percentCompleteType,
+    "activity.leveling_priority": record.levelingPriority,
     "activity.cost_account": record.costAccountId ?? "",
   };
 }

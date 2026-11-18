@@ -107,14 +107,16 @@ async function openEditor(page) {
   }
 }
 
-async function submitGeneralName(page, name) {
+async function submitGeneral(page, values) {
   await page.evaluate(`(() => {
     const form = document.querySelector('#cp-details [data-details-form="general"]');
-    const input = form?.querySelector('input[name="name"]');
-    if (!input) return false;
-    input.value = ${JSON.stringify(name)};
-    const submit = form.querySelector('button[type="submit"]');
-    submit?.click();
+    if (!form) return false;
+    const values = ${JSON.stringify(values)};
+    for (const [name, value] of Object.entries(values)) {
+      const control = form.querySelector('[name="' + name + '"]');
+      if (control) control.value = value;
+    }
+    form.querySelector('button[type="submit"]')?.click();
     return true;
   })()`);
   const saved = await poll(page, `Boolean(document.querySelector('#cp-details [data-general-saved]'))`, 15000);
@@ -182,6 +184,8 @@ async function main() {
       activityTypes: values("activityType"),
       durationTypes: values("durationType"),
       percentCompleteTypes: values("percentCompleteType"),
+      levelingPriorities: values("levelingPriority"),
+      levelingValue: form?.querySelector('select[name="levelingPriority"]')?.value ?? "",
       revisionHint: form?.querySelector(".cp-detail-hint")?.textContent ?? "",
       nameValue: form?.querySelector('input[name="name"]')?.value ?? "",
     };
@@ -189,20 +193,27 @@ async function main() {
   assert(report.options.activityTypes.length === 6, `expected six activity types, got ${report.options.activityTypes.length}`);
   assert(report.options.durationTypes.length === 4, `expected four duration types, got ${report.options.durationTypes.length}`);
   assert(report.options.percentCompleteTypes.length === 4, `expected four percent-complete types, got ${report.options.percentCompleteTypes.length}`);
+  assert(report.options.levelingPriorities.length === 5, `expected five leveling priorities, got ${report.options.levelingPriorities.length}`);
   assert(/revision r\d+/.test(report.options.revisionHint), "the editor does not state the loaded revision");
   assert(report.options.nameValue.trim().length > 0, "the editor did not prefill the stored activity name");
+  assert(report.options.levelingValue.length > 0, "the editor did not prefill the stored leveling priority");
   const originalEditorName = report.options.nameValue;
+  const originalLevelingPriority = report.options.levelingValue;
   await capture(page, "general-editor-open-en-1366");
 
   const probeName = `${originalEditorName}${probeSuffix}`;
-  const savedText = await submitGeneralName(page, probeName);
-  report.save = { probeName, message: savedText };
+  // Flip the stored priority so the write provably carries the changed field.
+  const probePriority = originalLevelingPriority === "High" ? "Low" : "High";
+  const savedText = await submitGeneral(page, { name: probeName, levelingPriority: probePriority });
+  report.save = { probeName, probePriority, message: savedText };
   assert(savedText, "saving the General fields did not produce a confirmation");
   assert(/revision r\d+/.test(savedText), `the save confirmation does not report the new revision: ${savedText}`);
   const wrote = report.network.some((entry) => entry.method === "PATCH" && entry.url.includes(`/p6/activities/${activityId}`));
   assert(wrote, "no revision-guarded PATCH was sent to the activity endpoint");
   const patched = report.network.find((entry) => entry.method === "PATCH" && entry.url.includes(`/p6/activities/${activityId}`));
   assert(patched && patched.postData && patched.postData.includes("expected_revision"), "the PATCH did not carry expected_revision");
+  assert(patched.postData.includes("leveling_priority"), "the PATCH did not carry the changed leveling priority");
+  assert(patched.postData.includes(probePriority), "the PATCH did not send the selected leveling priority");
   await capture(page, "general-saved-en-1366");
 
   const showedProbe = await poll(page, `(document.querySelector('#cp-details')?.innerText ?? "").includes(${JSON.stringify(probeSuffix)})`, 8000);
@@ -216,11 +227,18 @@ async function main() {
   await capture(page, "general-persisted-after-reload-en-1366");
 
   await openEditor(page);
-  const restored = await submitGeneralName(page, originalEditorName);
-  report.restore = { name: originalEditorName, message: restored };
+  const restored = await submitGeneral(page, { name: originalEditorName, levelingPriority: originalLevelingPriority });
+  report.restore = { name: originalEditorName, levelingPriority: originalLevelingPriority, message: restored };
   assert(restored, "restoring the original activity name did not confirm");
   const restorePersisted = await poll(page, `(document.querySelector('#cp-details')?.innerText ?? "").includes(${JSON.stringify(probeSuffix)}) === false`, 8000);
   assert(restorePersisted, "the original name was not restored in the details pane");
+  const restoredPriority = await page.evaluate(`(() => {
+    const panel = document.querySelector('#cp-details [data-detail-panel="general"]');
+    return [...(panel?.querySelectorAll(".cp-detail-field") ?? [])]
+      .find((field) => (field.querySelector(".cp-detail-label")?.textContent ?? "").toLowerCase().includes("leveling"))
+      ?.querySelector(".cp-detail-value")?.textContent ?? "";
+  })()`);
+  assert(restoredPriority.includes(originalLevelingPriority), `the leveling priority was not restored: ${restoredPriority}`);
 
   // Responsive and RTL evidence for the same editor, with no further writes.
   await page.evaluate(`(() => { localStorage.setItem("cubi:workspace-locale", "fa"); return true; })()`);
@@ -261,6 +279,7 @@ async function main() {
     `- Activity Type exposes the six Version 26 values: ${report.options.activityTypes.join(", ")}.`,
     `- Duration Type exposes the four Version 26 values: ${report.options.durationTypes.join(", ")}.`,
     `- Percent Complete Type exposes: ${report.options.percentCompleteTypes.join(", ")}.`,
+    `- Leveling Priority exposes: ${report.options.levelingPriorities.join(", ")}; the PATCH carries the changed priority.`,
     `- Saving sends a PATCH that carries \`expected_revision\` and only the changed field.`,
     `- The saved name repaints in the details pane and survives a full page reload.`,
     `- The original name was restored at the end of the run so the shared preview database is unchanged.`,

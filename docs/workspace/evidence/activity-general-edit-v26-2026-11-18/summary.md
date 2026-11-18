@@ -1,7 +1,7 @@
 # Activity Details General tab - Version 26 edit path
 
-- Tested code: `20319cfa4ee8e465dd58ba048ef3489ae92d395d`
-- Captured: 2026-11-18T02:29:44.769Z
+- Tested code: `6e6f66ff2eb73adfacb9ff5fed1e74dbc82805a1`
+- Captured: 2026-11-18T03:26:57.215Z
 - Environment: managed Python preview runtime, SQLite demo project, headless Chrome, English 1366x768
 - Activity: A100
 
@@ -11,6 +11,7 @@
 - Activity Type exposes the six Version 26 values: Task Dependent, Resource Dependent, Level of Effort, Start Milestone, Finish Milestone, WBS Summary.
 - Duration Type exposes the four Version 26 values: Fixed Units/Time, Fixed Duration & Units/Time, Fixed Units, Fixed Duration & Units.
 - Percent Complete Type exposes: DURATION, UNITS, PHYSICAL, SCOPE.
+- Leveling Priority exposes: Top, High, Normal, Low, Lowest; the PATCH carries the changed priority.
 - Saving sends a PATCH that carries `expected_revision` and only the changed field.
 - The saved name repaints in the details pane and survives a full page reload.
 - The original name was restored at the end of the run so the shared preview database is unchanged.

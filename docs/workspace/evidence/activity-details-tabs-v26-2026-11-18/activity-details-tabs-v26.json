@@ -1,9 +1,9 @@
 {
   "contract": "cubi-activity-details-tabs-v26.v1",
   "url": "http://127.0.0.1:4193",
-  "testedCodeSha": "a2b558bf0da3d17a8e6b3db9a09ac0fc622ab8dd",
-  "gitHead": "a2b558bf0da3d17a8e6b3db9a09ac0fc622ab8dd",
-  "capturedAt": "2026-11-18T03:10:29.108Z",
+  "testedCodeSha": "6e6f66ff2eb73adfacb9ff5fed1e74dbc82805a1",
+  "gitHead": "6e6f66ff2eb73adfacb9ff5fed1e74dbc82805a1",
+  "capturedAt": "2026-11-18T03:27:58.999Z",
   "tabs": [
     "general",
     "status",
@@ -77,17 +77,17 @@
   "writes": {
     "resources": {
       "message": "Saved. The list was reloaded from the project service.",
-      "rows": 2,
+      "rows": 3,
       "stored": true
     },
     "expenses": {
       "message": "Saved. The list was reloaded from the project service.",
-      "rows": 2,
+      "rows": 3,
       "stored": true
     },
     "issues": {
       "message": "Saved. The list was reloaded from the project service.",
-      "rows": 2,
+      "rows": 3,
       "stored": true
     }
   },
@@ -198,5 +198,5 @@
     "focusTabIndex": "0",
     "visiblePanel": "status"
   },
-  "finishedAt": "2026-11-18T03:10:56.493Z"
+  "finishedAt": "2026-11-18T03:28:31.373Z"
 }

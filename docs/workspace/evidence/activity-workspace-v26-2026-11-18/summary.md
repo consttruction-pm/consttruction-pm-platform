@@ -8,8 +8,10 @@ Issue #2047, PR #2048, branch `feat/2047-activity-workspace-v26`.
    - `apps/web/src/workspace-activity-general.ts` and its 9 unit tests.
    - Loads the Activity Master record, writes only changed fields with `expected_revision`,
      surfaces `REVISION_CONFLICT`, and never derives schedule facts in the browser.
+   - Editable fields: name, activity type, duration type, percent-complete type, leveling
+     priority (Top/High/Normal/Low/Lowest) and cost account.
    - Browser proof: `activity-general-edit-v26.mjs` — EN 1366x768, FA RTL 1280x720 and
-     1920x1080, reload persistence and restore.
+     1920x1080, reload persistence and restore of both the name and the leveling priority.
 
 2. **Activity Details tab keyboard model** (increment 2)
    - ArrowLeft/ArrowRight, Home and End move focus, `aria-selected` and the visible panel

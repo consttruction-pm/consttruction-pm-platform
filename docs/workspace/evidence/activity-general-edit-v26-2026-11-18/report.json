@@ -1,8 +1,8 @@
 {
   "contract": "cubi-activity-general-edit-v26.v1",
   "url": "http://127.0.0.1:4193",
-  "testedCodeSha": "20319cfa4ee8e465dd58ba048ef3489ae92d395d",
-  "capturedAt": "2026-11-18T02:29:44.769Z",
+  "testedCodeSha": "6e6f66ff2eb73adfacb9ff5fed1e74dbc82805a1",
+  "capturedAt": "2026-11-18T03:26:57.215Z",
   "activityId": "A100",
   "options": {
     "activityTypes": [
@@ -25,19 +25,29 @@
       "PHYSICAL",
       "SCOPE"
     ],
-    "revisionHint": "Editing the stored record at revision r9. Only changed fields are sent, and the service rejects a stale revision instead of overwriting another edit.",
+    "levelingPriorities": [
+      "Top",
+      "High",
+      "Normal",
+      "Low",
+      "Lowest"
+    ],
+    "levelingValue": "Normal",
+    "revisionHint": "Editing the stored record at revision r1. Only changed fields are sent, and the service rejects a stale revision instead of overwriting another edit.",
     "nameValue": "Project kickoff"
   },
   "save": {
     "probeName": "Project kickoff [V26 general edit probe]",
-    "message": "Saved to the project service at revision r10. The Activity Grid shows the new values after its next project read."
+    "probePriority": "High",
+    "message": "Saved to the project service at revision r2. The Activity Grid shows the new values after its next project read."
   },
   "persistence": {
     "persisted": true
   },
   "restore": {
     "name": "Project kickoff",
-    "message": "Saved to the project service at revision r11. The Activity Grid shows the new values after its next project read."
+    "levelingPriority": "Normal",
+    "message": "Saved to the project service at revision r3. The Activity Grid shows the new values after its next project read."
   },
   "screenshots": [
     "general-tab-before-edit-en-1366.png",
@@ -106,7 +116,7 @@
     {
       "method": "PATCH",
       "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100",
-      "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"expected_revision\":9,\"name\":\"Project kickoff [V26 general edit probe]\"}"
+      "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"expected_revision\":1,\"name\":\"Project kickoff [V26 general edit probe]\",\"leveling_priority\":\"High\"}"
     },
     {
       "method": "GET",
@@ -136,7 +146,27 @@
     {
       "method": "PATCH",
       "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100",
-      "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"expected_revision\":10,\"name\":\"Project kickoff\"}"
+      "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"expected_revision\":2,\"name\":\"Project kickoff\",\"leveling_priority\":\"Normal\"}"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/steps",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/progress-history",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/steps",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/progress-history",
+      "postData": null
     },
     {
       "method": "GET",
