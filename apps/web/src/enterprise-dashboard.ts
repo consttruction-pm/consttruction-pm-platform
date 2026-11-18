@@ -1153,7 +1153,7 @@ export async function mountEnterpriseDashboard(
         for (const account of accessAccounts.filter((item) => item.active).filter((item) =>
           !query || `${item.display_name} ${item.email} ${item.user_id}`.toLocaleLowerCase().includes(query))) {
           if (definition.shared_user_ids.includes(account.user_id)) continue;
-          const option = node("option", "", `${account.display_name} · ${account.email}`);
+          const option = node("option", "", `${account.display_name || account.user_id} · ${account.email}`);
           option.value = account.user_id;
           option.selected = account.user_id === selected;
           userSelect.append(option);
