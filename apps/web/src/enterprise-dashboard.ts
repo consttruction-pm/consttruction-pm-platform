@@ -177,6 +177,19 @@ export function orderDashboardCatalog(items: readonly EnterpriseDashboardCatalog
 }
 
 /** Resolve a tab move against the exact ordered collection rendered in the Displayed section. */
+export type EnterpriseDashboardShareAccount = { user_id: string; email: string; display_name: string; active: boolean };
+
+export function dashboardShareAccountOptions(
+  accounts: readonly EnterpriseDashboardShareAccount[],
+  query: string,
+  sharedUserIds: readonly string[],
+): EnterpriseDashboardShareAccount[] {
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const shared = new Set(sharedUserIds);
+  return accounts.filter((account) => account.active && !shared.has(account.user_id)).filter((account) =>
+    !normalizedQuery || `${account.display_name} ${account.email} ${account.user_id}`.toLocaleLowerCase().includes(normalizedQuery));
+}
+
 export function dashboardDisplayMoveTarget(
   displayedItems: readonly EnterpriseDashboardCatalogItem[],
   dashboardId: string,
@@ -1259,17 +1272,14 @@ export async function mountEnterpriseDashboard(
       const placeholder = node("option", "", t.accessSelectUser);
       placeholder.value = "";
       userSelect.append(placeholder);
-      let accessAccounts: Array<{ user_id: string; email: string; display_name: string; active: boolean }> = [];
+      let accessAccounts: EnterpriseDashboardShareAccount[] = [];
       function renderAccountOptions(): void {
         const selected = userSelect.value;
         userSelect.replaceChildren();
         const empty = node("option", "", t.accessSelectUser);
         empty.value = "";
         userSelect.append(empty);
-        const query = userSearch.value.trim().toLocaleLowerCase();
-        for (const account of accessAccounts.filter((item) => item.active).filter((item) =>
-          !query || `${item.display_name} ${item.email} ${item.user_id}`.toLocaleLowerCase().includes(query))) {
-          if (definition.shared_user_ids.includes(account.user_id)) continue;
+        for (const account of dashboardShareAccountOptions(accessAccounts, userSearch.value, definition.shared_user_ids)) {
           const option = node("option", "", `${account.display_name || account.user_id} · ${account.email}`);
           option.value = account.user_id;
           option.selected = account.user_id === selected;
