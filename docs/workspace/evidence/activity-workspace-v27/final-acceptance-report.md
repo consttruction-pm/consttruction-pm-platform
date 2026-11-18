@@ -92,9 +92,18 @@ directories. No test result is copied from an earlier commit without disclosure.
 
 ## 5. CI and delivery
 
-- CI at `b71cd61f4`: not yet executed at the time this report was authored
-  (push pending). Exact-head CI result will be recorded in the PR after the push.
-- No merge, no deployment, no production change, no Vercel work.
+Exact-head CI on `6926d6a4e` (code + evidence) — **all 10 checks pass**:
+
+| Check | Result |
+|---|---|
+| `test (3.11)`, `test (3.12)`, `test (3.13)` | pass |
+| `typecheck (apps/web)`, `(apps/client-sync)`, `(apps/desktop)`, `(apps/mobile)` | pass |
+| `web` | pass |
+| Vercel Preview Comments / `cubi-web-preview` | pass (repository automation; no Vercel work in this PR) |
+
+Any later commit in this PR is documentation-only and re-runs the same checks.
+
+- No merge, no deployment, no production change, no Vercel configuration work.
 - The PR remains reviewable; approval to merge is the owner's decision.
 
 ## 6. Conclusion
