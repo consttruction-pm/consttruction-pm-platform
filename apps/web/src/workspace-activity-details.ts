@@ -2353,9 +2353,33 @@ export function enhanceActivityDetails(
   });
 
   host.addEventListener("keydown", (event) => {
-    if (event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10")) return;
     const target = event.target as HTMLElement | null;
     if (!target || typeof target.closest !== "function") return;
+
+    // ARIA tablist keyboard model: only the active tab is in the tab order, so
+    // the arrow, Home and End keys must move both focus and selection. The
+    // horizontal direction follows the rendered text direction so Persian RTL
+    // does not reverse the user's expectation.
+    const tab = target.closest<HTMLElement>("[data-detail-tab]");
+    if (tab && ["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
+      const tabs = [...host.querySelectorAll<HTMLElement>("[data-detail-tab]")];
+      const current = tabs.indexOf(tab);
+      if (current < 0 || tabs.length === 0) return;
+      event.preventDefault();
+      const rtl = getComputedStyle(tab).direction === "rtl" || document.documentElement.dir === "rtl";
+      let next = current;
+      if (event.key === "Home") next = 0;
+      else if (event.key === "End") next = tabs.length - 1;
+      else if (event.key === "ArrowRight") next = rtl ? current - 1 : current + 1;
+      else next = rtl ? current + 1 : current - 1;
+      next = ((next % tabs.length) + tabs.length) % tabs.length;
+      const nextTab = tabs[next];
+      nextTab.focus();
+      nextTab.click();
+      return;
+    }
+
+    if (event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10")) return;
     if (target.closest("[data-details-customize-dialog]")) return;
     event.preventDefault();
     const anchor = target.closest<HTMLElement>("[data-detail-tab], .cp-details-head") ?? host;

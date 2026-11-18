@@ -65,6 +65,10 @@ Parity statement, stated precisely:
 Browser proof: `activity-details-v26.mjs` renders all seventeen tabs in contract order with
 Calendar last, every data tab settles into idle/loading/loaded/empty/error/unauthorized
 states, three write paths round-trip, and removing a tab in Customize survives a reload.
+The same suite now proves the ARIA tablist keyboard model — ArrowLeft/ArrowRight, Home and
+End move focus, `aria-selected` and the visible panel together, wrapping at both ends, and
+follow the rendered text direction in Persian RTL
+(`docs/workspace/evidence/activity-details-tabs-v26-2026-11-18/`).
 `context-menus-v26.mjs` opens the same Customize dialog from the details context menu and
 checks the full V26 control set (Available/Display columns, add, add-all, remove,
 remove-all, up, down, default, apply, cancel) in English and Persian RTL.
@@ -178,3 +182,24 @@ node e2e/activity-details-v26.mjs
 
 Each suite writes its own bundle under `docs/workspace/evidence/<suite>-2026-11-15/`; the
 run summary and counts are recorded in `summary.md` and `evidence.json` in this directory.
+
+## 10. 2026-11-18 increments (PR #2048)
+
+- **General tab edit path.** `workspace-activity-general.ts` loads the Activity Master
+  record, PATCHes only changed fields with `expected_revision`, and surfaces
+  `REVISION_CONFLICT`. Browser proof (EN 1366, FA RTL 1280/1920, reload persistence,
+  restore): `docs/workspace/evidence/activity-general-edit-v26-2026-11-18/`.
+- **Activity Details keyboard model.** ArrowLeft/ArrowRight, Home and End move focus,
+  `aria-selected` and the visible panel together, wrap at both ends and follow RTL.
+  Regenerated proof: `docs/workspace/evidence/activity-details-tabs-v26-2026-11-18/`.
+- **Acceptance matrix.** The 18-column matrix with per-item status, classification,
+  owner and blocker is `docs/workspace/evidence/activity-workspace-v26-2026-11-18/acceptance-matrix.md`.
+- **Not re-run on this head.** The remaining November-15 suites (`activity-columns`,
+  `activity-filters`, `activity-group-sort`, `gantt-*`, `context-menus`,
+  `activity-grid-keyboard`, `activity-wbs-*`, `activity-relationships`, `activity-udp-values`
+  and the other Activity suites) have not been executed against this branch. Their items
+  stay `پیاده‌سازی‌شده ولی آزمون‌نشده` in the matrix and must not be read as accepted.
+- **Open blockers.** Grid repaint after a Details edit (owned shell files), the
+  `activity.percent_complete_type` cell (owned read provider) and activity-code assignment
+  (no HTTP route) are recorded as `BLOCKED` with owners in the matrix.
+
