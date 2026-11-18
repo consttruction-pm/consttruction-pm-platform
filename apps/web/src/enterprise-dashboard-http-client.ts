@@ -104,7 +104,7 @@ export class FetchEnterpriseDashboardClient implements EnterpriseDashboardClient
   }
 
   listUsers(): Promise<{ users: Array<{ user_id: string; email: string; display_name: string; active: boolean }> }> {
-    return this.request("/../users");
+    return this.request("/api/enterprise/users", {}, "");
   }
 
   saveFilterOverride(dashboardId: string, filters: EnterpriseDashboardFilter[]): Promise<unknown> {
@@ -151,11 +151,11 @@ export class FetchEnterpriseDashboardClient implements EnterpriseDashboardClient
     });
   }
 
-  private async request<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
+  private async request<T = unknown>(path: string, init: RequestInit = {}, base = this.root): Promise<T> {
     const headers = new Headers(init.headers);
     headers.set("Accept", "application/json");
     if (init.body !== undefined) headers.set("Content-Type", "application/json");
-    const response = await this.fetcher(`${this.root}${path}`, {
+    const response = await this.fetcher(`${base}${path}`, {
       ...init,
       headers,
       credentials: "same-origin",
