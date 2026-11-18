@@ -65,6 +65,11 @@ export type EnterprisePortletRead = {
   generated_at: string | null;
   freshness_state: "fresh" | "stale" | "missing" | "unknown";
   data: unknown;
+  /** Complete options from the authorized source snapshot, independent of row limits. */
+  filter_options?: {
+    portfolio_id?: Array<{ value: string; label: string }>;
+    project_id?: Array<{ value: string; label: string }>;
+  };
   drill_through_refs: Array<{ type: string; id: string; source_revision: string | number }>;
   filtered_out: boolean;
   row_limit: number;
@@ -129,29 +134,18 @@ export function authorizedDashboardFilterOptions(
   dashboard: EnterpriseDashboardDefinition,
   read: EnterpriseDashboardRead | null | undefined,
 ): Array<{ value: string; label: string }> {
-  if (key === "portfolio_id") {
-    return [...new Set(dashboard.portlets
-      .map((portlet) => portlet.config.portfolio_id.trim())
-      .filter(Boolean))]
-      .sort((a, b) => a.localeCompare(b))
-      .map((value) => ({ value, label: value }));
-  }
-  if (key !== "project_id" || !read) return [];
-  const projects = new Map<string, string>();
+  if (!read || !["portfolio_id", "project_id"].includes(key)) return [];
+  const options = new Map<string, string>();
   for (const portlet of read.portlets) {
-    if (!portlet.data || typeof portlet.data !== "object") continue;
-    const rows = (portlet.data as { projects?: unknown }).projects;
-    if (!Array.isArray(rows)) continue;
-    for (const row of rows) {
-      if (!row || typeof row !== "object") continue;
-      const record = row as Record<string, unknown>;
-      const id = typeof record.project_id === "string" ? record.project_id.trim() : "";
-      if (!id) continue;
-      const name = [record.project_name, record.name].find((value) => typeof value === "string" && value.trim());
-      if (!projects.has(id)) projects.set(id, typeof name === "string" ? name.trim() : id);
+    const sourceOptions = portlet.filter_options?.[key as "portfolio_id" | "project_id"];
+    if (!Array.isArray(sourceOptions)) continue;
+    for (const item of sourceOptions) {
+      if (!item || typeof item.value !== "string" || !item.value.trim()) continue;
+      const label = typeof item.label === "string" && item.label.trim() ? item.label.trim() : item.value;
+      if (!options.has(item.value)) options.set(item.value, label);
     }
   }
-  return [...projects.entries()]
+  return [...options.entries()]
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([value, label]) => ({ value, label }));
 }
