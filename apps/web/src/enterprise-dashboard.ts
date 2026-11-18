@@ -159,13 +159,39 @@ export function authorizedDashboardFilterOptions(
 export type EnterpriseDashboardLocale = "en" | "fa";
 export type EnterprisePortletState = "ready" | "empty" | "stale" | "missing" | "filtered" | "permission_denied" | "error";
 
-export const ENTERPRISE_DASHBOARD_PORTLET_CATALOG: ReadonlyArray<{
-  type_id: EnterprisePortletType;
+export type EnterpriseDashboardPortletCatalogEntry = {
+  type_id: string;
   label: string;
-  enabled: true;
-}> = Object.freeze([
-  { type_id: "portfolio-control-snapshot.v1", label: "Portfolio Control Snapshot", enabled: true },
-  { type_id: "portfolio-decision.v1", label: "Portfolio Decision", enabled: true },
+  group: "CUBI Portfolio" | "Personal Information" | "Portfolio Views" | "Project Performance" | "Resources" | "Collaboration" | "Document Review";
+  enabled: boolean;
+  help_url?: string;
+  unavailable_reason?: string;
+};
+
+/**
+ * V26 reference inventory plus the governed CUBI registrations.
+ * A P6 entry is not selectable until its authoritative CUBI source contract,
+ * actor authorization and drill-through behavior are implemented and tested.
+ */
+export const ENTERPRISE_DASHBOARD_PORTLET_CATALOG: ReadonlyArray<EnterpriseDashboardPortletCatalogEntry> = Object.freeze([
+  { type_id: "portfolio-control-snapshot.v1", label: "Portfolio Control Snapshot", group: "CUBI Portfolio", enabled: true },
+  { type_id: "portfolio-decision.v1", label: "Portfolio Decision", group: "CUBI Portfolio", enabled: true },
+  { type_id: "p6.communication-center", label: "Communication Center", group: "Personal Information", enabled: false, help_url: "https://docs.oracle.com/cd/G48897_01/p6help/en/5955.htm", unavailable_reason: "Requires the governed notification and collaboration service." },
+  { type_id: "p6.my-activities", label: "My Activities", group: "Personal Information", enabled: false, help_url: "https://docs.oracle.com/cd/G48897_01/p6help/en/5957.htm", unavailable_reason: "Requires assigned-activity reads and activity-level authorization." },
+  { type_id: "p6.my-issues", label: "My Issues", group: "Personal Information", enabled: false, help_url: "https://docs.oracle.com/cd/G48897_01/p6help/en/5956.htm", unavailable_reason: "Requires the canonical project-issue read model and permissions." },
+  { type_id: "p6.my-projects", label: "My Projects", group: "Personal Information", enabled: false, help_url: "https://docs.oracle.com/cd/G48897_01/p6help/en/6034.htm", unavailable_reason: "Requires the canonical actor-authorized project directory." },
+  { type_id: "p6.my-calendar", label: "My Calendar", group: "Personal Information", enabled: false, help_url: "https://docs.oracle.com/cd/G48897_01/p6help/en/5946.htm", unavailable_reason: "Requires the user calendar and assigned activity read contract." },
+  { type_id: "p6.my-risks", label: "My Risks", group: "Personal Information", enabled: false, help_url: "https://docs.oracle.com/cd/G48897_01/p6help/en/5958.htm", unavailable_reason: "Requires the canonical project-risk read model and project authorization." },
+  { type_id: "p6.portfolio-view", label: "Portfolio View", group: "Portfolio Views", enabled: false, help_url: "https://docs.oracle.com/cd/G48897_01/p6help/en/6035.htm", unavailable_reason: "Requires approved scorecard, bubble, pie and histogram view contracts." },
+  { type_id: "p6.earned-value-performance", label: "Earned Value Performance", group: "Project Performance", enabled: false, help_url: "https://docs.oracle.com/cd/G48897_01/p6help/en/6040.htm", unavailable_reason: "Must consume Engineering-owned published EVM facts; no Enterprise recalculation." },
+  { type_id: "p6.schedule-performance", label: "Schedule Performance", group: "Project Performance", enabled: false, help_url: "https://docs.oracle.com/cd/G48897_01/p6help/en/6042.htm", unavailable_reason: "Must consume Engineering-owned published schedule facts." },
+  { type_id: "p6.index-performance", label: "Index Performance", group: "Project Performance", enabled: false, help_url: "https://docs.oracle.com/cd/G48897_01/p6help/en/6043.htm", unavailable_reason: "Must consume Engineering-owned CPI/SPI/TCPI facts." },
+  { type_id: "p6.project-statistics", label: "Project Statistics", group: "Project Performance", enabled: false, help_url: "https://docs.oracle.com/cd/G48897_01/p6help/en/6041.htm", unavailable_reason: "Requires summarized project/WBS fields and freshness metadata." },
+  { type_id: "p6.project-health", label: "Project Health", group: "Project Performance", enabled: false, help_url: "https://docs.oracle.com/cd/G48897_01/p6help/en/6044.htm", unavailable_reason: "Requires the canonical project health and threshold read model." },
+  { type_id: "p6.project-notebooks", label: "Project Notebooks", group: "Project Performance", enabled: false, help_url: "https://docs.oracle.com/cd/G48897_01/p6help/en/6045.htm", unavailable_reason: "Requires authorized project notebook/topic reads." },
+  { type_id: "p6.project-gantt", label: "Project Gantt Chart", group: "Project Performance", enabled: false, help_url: "https://docs.oracle.com/cd/G48897_01/p6help/en/6046.htm", unavailable_reason: "Requires a read-only multi-project Gantt projection over Engineering schedules." },
+  { type_id: "p6.open-resource-requests", label: "Open Requests for Resources", group: "Resources", enabled: false, help_url: "https://docs.oracle.com/cd/G48897_01/p6help/en/6047.htm", unavailable_reason: "Requires resource request read authorization and a separate assignment action boundary." },
+  { type_id: "p6.document-review", label: "Document Review", group: "Document Review", enabled: false, help_url: "https://docs.oracle.com/cd/G48897_01/p6help/en/6050.htm", unavailable_reason: "Requires the governed document repository and review workflow." },
 ]);
 
 export function orderDashboardCatalog(items: readonly EnterpriseDashboardCatalogItem[]): EnterpriseDashboardCatalogItem[] {
@@ -279,7 +305,7 @@ export function reorderDashboardPortlets<T>(items: readonly T[], fromIndex: numb
 }
 
 export function supportedDashboardPortlets(items: readonly EnterpriseDashboardPortlet[]): EnterpriseDashboardPortlet[] {
-  const supported = new Set(ENTERPRISE_DASHBOARD_PORTLET_CATALOG.map((item) => item.type_id));
+  const supported = new Set(ENTERPRISE_DASHBOARD_PORTLET_CATALOG.filter((item) => item.enabled).map((item) => item.type_id));
   return items.filter((item) => supported.has(item.type_id));
 }
 
@@ -1161,8 +1187,10 @@ export async function mountEnterpriseDashboard(
       });
       const addType = node("select", "ced-select");
       for (const item of ENTERPRISE_DASHBOARD_PORTLET_CATALOG) {
-        const option = node("option", "", item.label);
+        const option = node("option", "", item.enabled ? item.label : `${item.label} — not available`);
         option.value = item.type_id;
+        option.disabled = !item.enabled;
+        if (!item.enabled && item.unavailable_reason) option.title = item.unavailable_reason;
         addType.append(option);
       }
       const portfolio = input("new-portfolio-id", "");
