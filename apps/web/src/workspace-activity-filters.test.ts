@@ -390,6 +390,14 @@ test("numeric ranges and not-contains narrow rows, and the preview counts them",
   const preview = previewActivityFilter(rows, numeric);
   assert.deepEqual(preview, { total: 4, matched: 2, valid: true, code: "OK" });
 
+  // The Help lookahead recipe uses "Activity % Complete is not equal to 100".
+  // Not-started activities have no stored percent and must still match.
+  const notComplete: ActivityFilterDefinition = {
+    id: "custom:not-complete", name: "Not complete", match: "all",
+    criteria: [{ fieldId: "progress", operator: "not-equals", value: "100" }],
+  };
+  assert.deepEqual(ids(filterActivitiesByDefinition(rows, notComplete)), ["A130", "A140", "A150"]);
+
   const invalid = previewActivityFilter(rows, {
     id: "custom:bad", name: "Bad", match: "all",
     criteria: [{ fieldId: "start", operator: "within-range", value: "CD" }],

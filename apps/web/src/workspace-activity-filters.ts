@@ -245,7 +245,7 @@ const FIELD_LABELS: Record<ActivityFilterFieldId, { en: string; fa: string }> = 
   activity_type: { en: "Activity Type", fa: "نوع فعالیت" },
   start: { en: "Start", fa: "شروع" },
   finish: { en: "Finish", fa: "پایان" },
-  progress: { en: "Progress %", fa: "درصد پیشرفت" },
+  progress: { en: "Activity % Complete", fa: "درصد تکمیل فعالیت" },
   duration: { en: "Duration", fa: "مدت" },
   total_float: { en: "Total Float", fa: "شناوری کل" },
   is_critical: { en: "Critical", fa: "بحرانی" },
@@ -536,7 +536,12 @@ export function activityMatchesCriterion(
   const empty = isEmptyValue(value);
   if (criterion.operator === "is-empty") return empty;
   if (criterion.operator === "is-not-empty") return !empty;
-  if (empty) return false;
+  // A blank stored value satisfies a negative criterion: the Help lookahead
+  // recipe relies on "Activity % Complete is not equal to 100" including
+  // activities that have not started and therefore have no stored percent.
+  if (empty) {
+    return criterion.operator === "not-equals" || criterion.operator === "not-contains";
+  }
 
   if (criterion.fieldId === "is_critical") {
     const actual = booleanValue(value);

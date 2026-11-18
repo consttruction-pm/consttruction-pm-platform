@@ -10355,3 +10355,30 @@ body.cp-toolbar-dragging .cp-tool-btn { cursor: grabbing; }
  .ce-task-actions button { flex:1; }
  .ce-form-grid { grid-template-columns:1fr; }
 }
+
+/* V28: the layout's persisted table background is a light colour. Dark skins
+   must keep the activity rows on their own surface so the theme's light text
+   stays readable; band and summary rows keep their intentional colours. */
+html[data-cubi-theme="graphite"] .cp-p6 #cp-activity-grid tbody tr:not([data-activity-kind="summary"]):not(.cp-p6-tree-band) td,
+html[data-cubi-theme="midnight"] .cp-p6 #cp-activity-grid tbody tr:not([data-activity-kind="summary"]):not(.cp-p6-tree-band) td {
+  background: var(--skin-surface);
+  color: var(--skin-grid-text);
+}
+html[data-cubi-theme="graphite"] .cp-p6 #cp-activity-grid tbody tr:not([data-activity-kind="summary"]):not(.cp-p6-tree-band):nth-child(even) td,
+html[data-cubi-theme="midnight"] .cp-p6 #cp-activity-grid tbody tr:not([data-activity-kind="summary"]):not(.cp-p6-tree-band):nth-child(even) td {
+  background: color-mix(in srgb, var(--skin-surface) 92%, #ffffff 8%);
+}
+html[data-cubi-theme="graphite"] .cp-p6 #cp-activity-grid tbody tr:not([data-activity-kind="summary"]):not(.cp-p6-tree-band):hover td,
+html[data-cubi-theme="midnight"] .cp-p6 #cp-activity-grid tbody tr:not([data-activity-kind="summary"]):not(.cp-p6-tree-band):hover td {
+  background: color-mix(in srgb, var(--skin-surface) 82%, var(--skin-accent) 18%);
+}
+html[data-cubi-theme="graphite"] .cp-p6 #cp-activity-grid tbody tr.is-selected:not([data-activity-kind="summary"]):not(.cp-p6-tree-band) td,
+html[data-cubi-theme="midnight"] .cp-p6 #cp-activity-grid tbody tr.is-selected:not([data-activity-kind="summary"]):not(.cp-p6-tree-band) td {
+  background: color-mix(in srgb, var(--skin-surface) 70%, var(--skin-accent) 30%);
+  color: var(--skin-selected-text);
+}
+html[data-cubi-theme="graphite"] .cp-p6 #cp-activity-grid tbody tr.is-filter-match:not([data-activity-kind="summary"]):not(.cp-p6-tree-band) td,
+html[data-cubi-theme="midnight"] .cp-p6 #cp-activity-grid tbody tr.is-filter-match:not([data-activity-kind="summary"]):not(.cp-p6-tree-band) td {
+  background: var(--skin-filter-match);
+  color: var(--skin-text);
+}
