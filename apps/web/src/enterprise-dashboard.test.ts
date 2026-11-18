@@ -200,7 +200,7 @@ test("dashboard layout supports bounded left/right movement and preserves valid 
   assert.deepEqual(moveDashboardPortletHorizontally(wide, 0, "right")[0].layout, wide[0].layout);
 });
 
-test("Filter By pickers expose only portfolio and project identifiers already present in authorized dashboard reads", () => {
+test("Filter By pickers use only backend-issued options from fully authorized source snapshots", () => {
   const dashboard = catalogItem("d-1", "Board", 0).dashboard;
   dashboard.portlets = [
     portlet("snapshot-a", 0, 0, 12),
@@ -209,14 +209,23 @@ test("Filter By pickers expose only portfolio and project identifiers already pr
   const read = {
     portlets: [
       {
-        data: { projects: [
-          { project_id: "p-2", project_name: "Bridge" },
-          { project_id: "p-1", name: "Road" },
-          { project_id: "p-2", project_name: "Bridge duplicate" },
-          { name: "Missing identifier" },
-        ] },
+        filter_options: {
+          portfolio_id: [{ value: "portfolio-1", label: "portfolio-1" }],
+          project_id: [
+            { value: "p-2", label: "p-2" },
+            { value: "p-1", label: "p-1" },
+            { value: "p-2", label: "duplicate must not win" },
+          ],
+        },
+        data: { projects: [{ project_id: "not-authoritative", project_name: "must be ignored" }] },
       },
-      { data: { projects: [{ project_id: "p-3" }] } },
+      {
+        filter_options: {
+          portfolio_id: [{ value: "portfolio-2", label: "portfolio-2" }],
+          project_id: [{ value: "p-3", label: "p-3" }],
+        },
+        data: { projects: [{ project_id: "also-not-authoritative" }] },
+      },
     ],
   } as unknown as import("./enterprise-dashboard.js").EnterpriseDashboardRead;
 
@@ -225,8 +234,8 @@ test("Filter By pickers expose only portfolio and project identifiers already pr
     { value: "portfolio-2", label: "portfolio-2" },
   ]);
   assert.deepEqual(authorizedDashboardFilterOptions("project_id", dashboard, read), [
-    { value: "p-1", label: "Road" },
-    { value: "p-2", label: "Bridge" },
+    { value: "p-1", label: "p-1" },
+    { value: "p-2", label: "p-2" },
     { value: "p-3", label: "p-3" },
   ]);
   assert.deepEqual(authorizedDashboardFilterOptions("project_id", dashboard, null), []);
