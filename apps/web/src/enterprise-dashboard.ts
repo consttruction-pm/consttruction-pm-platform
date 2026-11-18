@@ -124,6 +124,38 @@ export function dashboardFilterDefinition(key: string) {
   return ENTERPRISE_DASHBOARD_FILTER_CATALOG.find((item) => item.key === key);
 }
 
+export function authorizedDashboardFilterOptions(
+  key: string,
+  dashboard: EnterpriseDashboardDefinition,
+  read: EnterpriseDashboardRead | null | undefined,
+): Array<{ value: string; label: string }> {
+  if (key === "portfolio_id") {
+    return [...new Set(dashboard.portlets
+      .map((portlet) => portlet.config.portfolio_id.trim())
+      .filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b))
+      .map((value) => ({ value, label: value }));
+  }
+  if (key !== "project_id" || !read) return [];
+  const projects = new Map<string, string>();
+  for (const portlet of read.portlets) {
+    if (!portlet.data || typeof portlet.data !== "object") continue;
+    const rows = (portlet.data as { projects?: unknown }).projects;
+    if (!Array.isArray(rows)) continue;
+    for (const row of rows) {
+      if (!row || typeof row !== "object") continue;
+      const record = row as Record<string, unknown>;
+      const id = typeof record.project_id === "string" ? record.project_id.trim() : "";
+      if (!id) continue;
+      const name = [record.project_name, record.name].find((value) => typeof value === "string" && value.trim());
+      projects.set(id, typeof name === "string" ? name.trim() : id);
+    }
+  }
+  return [...projects.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([value, label]) => ({ value, label }));
+}
+
 export type EnterpriseDashboardLocale = "en" | "fa";
 export type EnterprisePortletState = "ready" | "empty" | "stale" | "missing" | "filtered" | "permission_denied" | "error";
 
@@ -688,6 +720,40 @@ export async function mountEnterpriseDashboard(
           select.append(option);
         }
         control = select;
+      } else if (["portfolio_id", "project_id"].includes(definition.key)) {
+        const options = activeDefinition
+          ? authorizedDashboardFilterOptions(definition.key, activeDefinition, activeRead)
+          : [];
+        if (options.length) {
+          const picker = node("select", "ced-select");
+          picker.multiple = operatorSelect.value === "in";
+          const existing = draft.find((item) => item.key === definition.key)?.value;
+          const selectedValues = new Set((Array.isArray(existing) ? existing : existing === undefined ? [] : [existing]).map(String));
+          for (const item of options) {
+            const option = node("option", "", item.label);
+            option.value = item.value;
+            option.selected = selectedValues.has(item.value);
+            picker.append(option);
+          }
+          const search = node("input", "ced-input");
+          search.type = "search";
+          search.placeholder = t.search;
+          search.addEventListener("input", () => {
+            const query = search.value.trim().toLocaleLowerCase();
+            for (const option of Array.from(picker.options)) {
+              option.hidden = Boolean(query) && !option.textContent?.toLocaleLowerCase().includes(query)
+                && !option.value.toLocaleLowerCase().includes(query);
+            }
+          });
+          valueHost.append(search);
+          control = picker;
+        } else {
+          const inputControl = node("input", "ced-input");
+          inputControl.type = "text";
+          inputControl.placeholder = t.filterValueHint;
+          control = inputControl;
+          valueHost.append(node("small", "ced-muted", t.accessDirectoryUnavailable));
+        }
       } else {
         const inputControl = node("input", "ced-input");
         inputControl.type = definition.value_kind === "datetime" ? "datetime-local" : "text";
@@ -696,7 +762,7 @@ export async function mountEnterpriseDashboard(
       }
       control.dataset.filterValue = "true";
       valueHost.append(control);
-      if (definition.value_kind === "text_list") valueHost.append(node("small", "ced-muted", t.filterValueHint));
+      if (definition.value_kind === "text_list" && !["portfolio_id", "project_id"].includes(definition.key)) valueHost.append(node("small", "ced-muted", t.filterValueHint));
     }
     fieldSelect.addEventListener("change", renderValueControl);
     operatorSelect.addEventListener("change", renderValueControl);
