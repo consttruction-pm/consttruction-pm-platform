@@ -1,0 +1,248 @@
+{
+  "contract": "cubi-theme-acceptance-v28.v1",
+  "url": "http://127.0.0.1:4199",
+  "testedCodeSha": "2b7d035a1fc459ea71f8563bb8e285b218aa957f",
+  "capturedAt": "2026-11-18T18:46:15.079Z",
+  "themes": {
+    "classic": {
+      "theme": "classic",
+      "documentTheme": null,
+      "titlebar": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(17, 17, 17)"
+      },
+      "menubar": {
+        "backgroundColor": "rgb(240, 240, 240)"
+      },
+      "header": {
+        "backgroundColor": "rgb(240, 240, 240)",
+        "color": "rgb(17, 17, 17)"
+      },
+      "row": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "rgb(0, 0, 0)"
+      },
+      "taskBar": {
+        "backgroundColor": "rgb(0, 0, 255)",
+        "borderColor": "rgb(0, 0, 0)"
+      },
+      "criticalBar": {
+        "backgroundColor": "rgb(255, 0, 0)",
+        "borderColor": "rgb(0, 0, 0)"
+      },
+      "details": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "rgb(23, 32, 42)"
+      },
+      "overflow": 0
+    },
+    "modern": {
+      "theme": "modern",
+      "documentTheme": null,
+      "titlebar": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(17, 17, 17)"
+      },
+      "menubar": {
+        "backgroundColor": "rgb(247, 249, 252)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(36, 53, 79)"
+      },
+      "row": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "rgb(23, 32, 51)"
+      },
+      "taskBar": {
+        "backgroundColor": "rgb(0, 0, 255)",
+        "borderColor": "rgb(0, 0, 0)"
+      },
+      "criticalBar": {
+        "backgroundColor": "rgb(255, 0, 0)",
+        "borderColor": "rgb(0, 0, 0)"
+      },
+      "details": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(23, 32, 51)"
+      },
+      "overflow": 0
+    },
+    "graphite": {
+      "theme": "graphite",
+      "documentTheme": null,
+      "titlebar": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(17, 17, 17)"
+      },
+      "menubar": {
+        "backgroundColor": "rgb(32, 47, 64)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(237, 244, 251)"
+      },
+      "row": {
+        "backgroundColor": "rgb(26, 39, 54)",
+        "color": "rgb(237, 244, 251)"
+      },
+      "taskBar": {
+        "backgroundColor": "rgb(0, 0, 255)",
+        "borderColor": "rgb(0, 0, 0)"
+      },
+      "criticalBar": {
+        "backgroundColor": "rgb(255, 0, 0)",
+        "borderColor": "rgb(0, 0, 0)"
+      },
+      "details": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(237, 244, 251)"
+      },
+      "overflow": 0,
+      "contrast": 13.65
+    },
+    "arctic": {
+      "theme": "arctic",
+      "documentTheme": null,
+      "titlebar": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(17, 17, 17)"
+      },
+      "menubar": {
+        "backgroundColor": "rgb(230, 240, 243)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(26, 59, 74)"
+      },
+      "row": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "rgb(23, 52, 67)"
+      },
+      "taskBar": {
+        "backgroundColor": "rgb(0, 0, 255)",
+        "borderColor": "rgb(0, 0, 0)"
+      },
+      "criticalBar": {
+        "backgroundColor": "rgb(255, 0, 0)",
+        "borderColor": "rgb(0, 0, 0)"
+      },
+      "details": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(23, 52, 67)"
+      },
+      "overflow": 0
+    },
+    "copper": {
+      "theme": "copper",
+      "documentTheme": null,
+      "titlebar": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(17, 17, 17)"
+      },
+      "menubar": {
+        "backgroundColor": "rgb(239, 226, 212)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(69, 49, 38)"
+      },
+      "row": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "rgb(57, 42, 32)"
+      },
+      "taskBar": {
+        "backgroundColor": "rgb(0, 0, 255)",
+        "borderColor": "rgb(0, 0, 0)"
+      },
+      "criticalBar": {
+        "backgroundColor": "rgb(255, 0, 0)",
+        "borderColor": "rgb(0, 0, 0)"
+      },
+      "details": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(57, 42, 32)"
+      },
+      "overflow": 0
+    },
+    "midnight": {
+      "theme": "midnight",
+      "documentTheme": null,
+      "titlebar": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(17, 17, 17)"
+      },
+      "menubar": {
+        "backgroundColor": "rgb(20, 45, 71)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(234, 244, 255)"
+      },
+      "row": {
+        "backgroundColor": "rgb(16, 36, 58)",
+        "color": "rgb(234, 244, 255)"
+      },
+      "taskBar": {
+        "backgroundColor": "rgb(0, 0, 255)",
+        "borderColor": "rgb(0, 0, 0)"
+      },
+      "criticalBar": {
+        "backgroundColor": "rgb(255, 0, 0)",
+        "borderColor": "rgb(0, 0, 0)"
+      },
+      "details": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(234, 244, 255)"
+      },
+      "overflow": 0,
+      "contrast": 14.14
+    }
+  },
+  "screenshots": [
+    "theme-classic-en-1366.png",
+    "theme-modern-en-1366.png",
+    "theme-graphite-en-1366.png",
+    "theme-arctic-en-1366.png",
+    "theme-copper-en-1366.png",
+    "theme-midnight-en-1366.png",
+    "theme-midnight-after-reload-en-1366.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "reloaded": {
+    "theme": "midnight",
+    "documentTheme": null,
+    "titlebar": {
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "color": "rgb(17, 17, 17)"
+    },
+    "menubar": {
+      "backgroundColor": "rgb(20, 45, 71)"
+    },
+    "header": {
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "color": "rgb(234, 244, 255)"
+    },
+    "row": {
+      "backgroundColor": "rgb(16, 36, 58)",
+      "color": "rgb(234, 244, 255)"
+    },
+    "taskBar": {
+      "backgroundColor": "rgb(0, 0, 255)",
+      "borderColor": "rgb(0, 0, 0)"
+    },
+    "criticalBar": {
+      "backgroundColor": "rgb(255, 0, 0)",
+      "borderColor": "rgb(0, 0, 0)"
+    },
+    "details": {
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "color": "rgb(234, 244, 255)"
+    },
+    "overflow": 0
+  },
+  "restored": "classic",
+  "finishedAt": "2026-11-18T18:46:26.896Z"
+}

@@ -1,0 +1,96 @@
+{
+  "contract": "cubi-activity-lookahead-v28.v1",
+  "url": "http://127.0.0.1:4198",
+  "testedCodeSha": "2b7d035a1fc459ea71f8563bb8e285b218aa957f",
+  "capturedAt": "2026-11-18T18:46:03.582Z",
+  "reference": {
+    "document": "G57535-02 (October 2026)",
+    "topic": "Create a lookahead filter",
+    "chapter": "9 Filtering",
+    "printedPage": 10
+  },
+  "screenshots": [
+    "01-lookahead-recipe-en-1366.png",
+    "02-lookahead-applied-en-1366.png",
+    "03-lookahead-after-reload-en-1366.png"
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4198/api/projects/preview-rps-01/open",
+      "postData": null
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4198/api/projects/preview-rps-01/p6/layouts/project/activity",
+      "postData": "{\"revision\":2,\"columns\":[{\"field_id\":\"activity.id\",\"visible\":true,\"order\":0,\"label\":\"Activity ID\",\"width\":56,\"alignment\":\"start\",\"pinned\":false,\"frozen\":false},{\"field_id\":\"activity.name\",\"visible\":true,\"order\":1,\"label\":\"Activity Name\",\"width\":172,\"alignment\":\"start\",\"pinned\":false,\"frozen\":false},{\"field_id\":\"activity.planned_duration\",\"visible\":true,\"order\":2,\"label\":\"Original Duration\",\"width\":58,\"alignment\":\"end\",\"pinned\":false,\"frozen\":false},{\"field_id\":\"activity.remaining_duration\",\"visible\":true,\"order\":3,\"label\":\"Remaining Duration\",\"width\":58,\"alignment\":\"end\",\"pinned\":false,\"frozen\":false},{\"field_id\":\"activity.duration_percent_complete\",\"visible\":true,\"order\":4,\"label\":\"Schedule % Complete\",\"width\":58,\"alignment\":\"end\",\"pinned\":false,\"frozen\":false},{\"field_id\":\"activity.early_start\",\"visible\":true,\"order\":5,\"label\":\"Start\",\"width\":64,\"alignment\":\"center\",\"pinned\":false,\"frozen\":false},{\"field_id\":\"activity.early_finish\",\"visible\":true,\"order\":6,\"label\":\"Finish\",\"width\":64,\"alignment\":\"center\",\"pinned\":false,\"frozen\":false},{\"field_id\":\"activity.status\",\"visible\":false,\"order\":7,\"label\":\"Status\",\"width\":70,\"alignment\":\"start\",\"pinned\":false,\"frozen\":false},{\"field_id\":\"activity.wbs\",\"visible\":false,\"order\":8,\"label\":\"WBS\",\"width\":100,\"alignment\":\"start\",\"pinned\":false,\"frozen\":false},{\"field_id\":\"activity.total_float\",\"visible\":true,\"order\":9,\"label\":\"Total Float\",\"width\":56,\"alignment\":\"end\",\"pinned\":false,\"frozen\":false},{\"field_id\":\"activity.is_critical\",\"visible\":false,\"order\":10,\"label\":null,\"width\":55,\"alignment\":\"center\",\"pinned\":false,\"frozen\":false},{\"field_id\":\"activity.percent_complete_type\",\"visible\":false,\"order\":11,\"label\":\"Percent Complete Type\",\"width\":140,\"alignment\":\"start\",\"pinned\":false,\"frozen\":false},{\"field_id\":\"activity.type\",\"visible\":false,\"order\":12,\"label\":null,\"width\":130,\"alignment\":\"start\",\"pinned\":false,\"frozen\":false},{\"field_id\":\"activity.leveling_priority\",\"visible\":false,\"order\":13,\"label\":null,\"width\":120,\"alignment\":\"start\",\"pinned\":false,\"frozen\":false},{\"field_id\":\"activity.status_code\",\"visible\":false,\"order\":14,\"label\":null,\"width\":110,\"alignment\":\"start\",\"pinned\":false,\"frozen\":false},{\"field_id\":\"activity.planned_finish\",\"visible\":false,\"order\":15,\"label\":null,\"width\":115,\"alignment\":\"center\",\"pinned\":false,\"frozen\":false},{\"field_id\":\"activity.actual_start\",\"visible\":false,\"order\":16,\"label\":null,\"width\":115,\"alignment\":\"center\",\"pinned\":false,\"frozen\":false},{\"field_id\":\"activity.actual_finish\",\"visible\":false,\"order\":17,\"label\":null,\"width\":115,\"alignment\":\"center\",\"pinned\":false,\"frozen\":false},{\"field_id\":\"activity.late_start\",\"visible\":false,\"order\":18,\"label\":null,\"width\":115,\"alignment\":\"center\",\"pinned\":false,\"frozen\":false},{\"field_id\":\"activity.late_finish\",\"visible\":false,\"order\":19,\"label\":null,\"width\":115,\"alignment\":\"center\",\"pinned\":false,\"frozen\":false},{\"field_id\":\"activity.free_float\",\"visible\":false,\"order\":20,\"label\":null,\"width\":95,\"alignment\":\"end\",\"pinned\":false,\"frozen\":false}],\"metadata\":{\"layoutName\":\"Classic Schedule Layout\",\"seed_version\":\"cubi-preview-seed.v4\",\"source\":\"cubi-local-preview\",\"presentation\":{\"table\":{\"fontFamily\":\"tahoma\",\"fontSize\":11,\"textColor\":\"#000000\",\"backgroundColor\":\"#ffffff\",\"rowHeight\":18,\"rowHeightMode\":\"fixed\",\"showIcons\":true,\"lineNumbers\":false},\"bars\":{\"task\":{\"visible\":true,\"filter\":\"task\",\"row\":1,\"height\":9,\"startShape\":\"none\",\"bodyShape\":\"bar\",\"finishShape\":\"none\",\"startColor\":\"#0000ff\",\"bodyColor\":\"#0000ff\",\"finishColor\":\"#0000ff\",\"borderColor\":\"#000000\",\"pattern\":\"solid\",\"labelField\":\"finish-id-name\",\"labelPosition\":\"right\",\"necking\":true},\"critical\":{\"visible\":true,\"filter\":\"critical\",\"row\":1,\"height\":9,\"startShape\":\"none\",\"bodyShape\":\"bar\",\"finishShape\":\"none\",\"startColor\":\"#ff0000\",\"bodyColor\":\"#ff0000\",\"finishColor\":\"#ff0000\",\"borderColor\":\"#000000\",\"pattern\":\"solid\",\"labelField\":\"finish-id-name\",\"labelPosition\":\"right\",\"necking\":true},\"summary\":{\"visible\":true,\"filter\":\"summary\",\"row\":1,\"height\":5,\"startShape\":\"triangle-down\",\"bodyShape\":\"bar\",\"finishShape\":\"triangle-down\",\"startColor\":\"#000000\",\"bodyColor\":\"#000000\",\"finishColor\":\"#000000\",\"borderColor\":\"#000000\",\"pattern\":\"solid\",\"labelField\":\"finish-id-name\",\"labelPosition\":\"right\",\"necking\":true},\"milestone\":{\"visible\":true,\"filter\":\"milestone\",\"row\":1,\"height\":9,\"startShape\":\"none\",\"bodyShape\":\"triangle-down\",\"finishShape\":\"none\",\"startColor\":\"#000000\",\"bodyColor\":\"#000000\",\"finishColor\":\"#000000\",\"borderColor\":\"#000000\",\"pattern\":\"solid\",\"labelField\":\"finish-id-name\",\"labelPosition\":\"right\",\"necking\":true},\"progress\":{\"visible\":true,\"filter\":\"all\",\"row\":1,\"height\":4,\"startShape\":\"none\",\"bodyShape\":\"bar\",\"finishShape\":\"none\",\"startColor\":\"#17365d\",\"bodyColor\":\"#17365d\",\"finishColor\":\"#17365d\",\"borderColor\":\"#17365d\",\"pattern\":\"solid\",\"labelField\":\"none\",\"labelPosition\":\"right\",\"necking\":true},\"actual\":{\"visible\":true,\"filter\":\"all\",\"row\":2,\"height\":4,\"startShape\":\"none\",\"bodyShape\":\"bar\",\"finishShape\":\"none\",\"startColor\":\"#008000\",\"bodyColor\":\"#008000\",\"finishColor\":\"#008000\",\"borderColor\":\"#004d00\",\"pattern\":\"solid\",\"labelField\":\"none\",\"labelPosition\":\"right\",\"necking\":true},\"baseline\":{\"visible\":true,\"filter\":\"all\",\"row\":3,\"height\":3,\"startShape\":\"none\",\"bodyShape\":\"line\",\"finishShape\":\"none\",\"startColor\":\"#808080\",\"bodyColor\":\"#808080\",\"finishColor\":\"#808080\",\"borderColor\":\"#808080\",\"pattern\":\"solid\",\"labelField\":\"none\",\"labelPosition\":\"right\",\"necking\":true}},\"timescale\":{\"lines\":2,\"dateFormat\":\"primary\",\"type\":\"calendar\",\"interval\":\"quarter-month\",\"ordinalStart\":null,\"ordinalInterval\":\"week\",\"fontSize\":11,\"textColor\":\"#000000\",\"backgroundColor\":\"#f0f0f0\"},\"wbs\":{\"levelColors\":[\"#0000ff\",\"#80ff80\",\"#ffff00\",\"#ffb3b3\",\"#b3d9ff\",\"#d9b3ff\"],\"fontFamily\":\"tahoma\",\"fontSize\":11,\"inkMode\":\"auto\",\"textColor\":\"#000000\",\"rowHeight\":22,\"labels\":{\"title\":false,\"code\":true,\"name\":true}},\"gantt\":{\"showBarLabels\":true,\"labelFontSize\":10,\"labelColor\":\"#000000\",\"sightLines\":{\"beforeSummaries\":false,\"rowInterval\":0,\"minorVertical\":false},\"legend\":{\"visible\":false,\"position\":\"bottom\"},\"dataDateLine\":{\"visible\":true,\"style\":\"solid\",\"thickness\":1,\"color\":\"#c00000\"},\"progressLine\":{\"visible\":false,\"color\":\"#7030a0\",\"thickness\":1}},\"filters\":{\"saved\":[{\"id\":\"custom:six-week-lookahead\",\"name\":\"Six-Week Lookahead\",\"match\":\"all\",\"criteria\":[{\"fieldId\":\"start\",\"operator\":\"within-range\",\"value\":\"CD\",\"highValue\":\"CF+6w\"},{\"fieldId\":\"progress\",\"operator\":\"not-equals\",\"value\":\"100\"}],\"scope\":\"layout\"}],\"activeId\":\"custom:six-week-lookahead\",\"selectedIds\":[\"custom:six-week-lookahead\"],\"combine\":\"all\",\"allActivities\":false,\"applyMode\":\"replace\"}},\"presentationUpdatedAt\":1795027569465,\"wbsCollapse\":[]}}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4198/api/projects/preview-rps-01/open",
+      "postData": null
+    }
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "recipe": {
+    "text": "10 of 14 activities match.",
+    "valid": "true",
+    "matched": 10,
+    "rows": 3,
+    "fieldLabels": [
+      "Start",
+      "Activity Name",
+      "Activity % Complete"
+    ],
+    "operatorLabels": [
+      "is within range of",
+      "contains",
+      "is not equal to"
+    ],
+    "values": [
+      "CD",
+      "",
+      "100"
+    ],
+    "highs": [
+      "CF+6w",
+      "",
+      ""
+    ]
+  },
+  "preview": {
+    "matched": 10,
+    "total": 14,
+    "text": "10 of 14 activities match."
+  },
+  "applied": {
+    "rows": 10,
+    "saved": [
+      "in progress",
+      "not started",
+      "completed",
+      "critical",
+      "non critical",
+      "negative float",
+      "milestone",
+      "six-week lookahead"
+    ]
+  },
+  "reloaded": {
+    "rows": 10,
+    "saved": [
+      "in progress",
+      "not started",
+      "completed",
+      "critical",
+      "non critical",
+      "negative float",
+      "milestone",
+      "six-week lookahead"
+    ]
+  },
+  "layoutWrites": 1,
+  "finishedAt": "2026-11-18T18:46:14.436Z"
+}
