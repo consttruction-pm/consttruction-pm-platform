@@ -22,10 +22,10 @@ export class EnterpriseDashboardHttpError extends Error {
 }
 
 function idempotencyKey(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
+  if (typeof crypto === "undefined" || typeof crypto.randomUUID !== "function") {
+    throw new Error("SECURE_IDEMPOTENCY_KEY_UNAVAILABLE");
+  }
+  return crypto.randomUUID();
 }
 
 /** Same-origin adapter. Session and tenant identity are supplied only by the server. */
