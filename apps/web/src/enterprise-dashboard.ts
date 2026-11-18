@@ -955,6 +955,11 @@ export async function mountEnterpriseDashboard(
       panel.replaceChildren();
       sections[index][1]();
     }
+    function refreshContent(): void {
+      draftPortlets = readEditorPortlets(dialog, draftPortlets, layoutOrder);
+      layoutOrder = draftPortlets.map((_, index) => index);
+      renderContent();
+    }
     function renderGeneral(target: HTMLElement): void {
       target.replaceChildren();
       target.append(node("h3", "", t.general));
@@ -977,7 +982,7 @@ export async function mountEnterpriseDashboard(
         row.append(node("span", "", `${filterLabel(item.key)} · ${operatorLabel(item.operator)} · ${value}`));
         row.append(button(t.removeFilter, () => {
           draftDashboardFilters = draftDashboardFilters.filter((_, itemIndex) => itemIndex !== index);
-          renderContent();
+          refreshContent();
         }));
         filterSection.append(row);
       }
@@ -985,11 +990,11 @@ export async function mountEnterpriseDashboard(
         draftDashboardFilters = (activeFilterOverrides ?? activeDefinition!.filters).map((item) => ({
           ...item, value: Array.isArray(item.value) ? [...item.value] : item.value,
         }));
-        renderContent();
+        refreshContent();
       }));
       filterSection.append(button(t.clearDefaultFilter, () => {
         draftDashboardFilters = [];
-        renderGeneral();
+        refreshContent();
       }));
       target.append(form, filterSection);
     }
