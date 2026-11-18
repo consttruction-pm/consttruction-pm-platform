@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   displaySummaryMetric,
+  enterprisePortletHeading,
   dashboardDisplayMoveTarget,
   dashboardShareAccountOptions,
   ENTERPRISE_DASHBOARD_PORTLET_CATALOG,
@@ -281,4 +282,23 @@ test("dashboard layout drag-and-drop swaps two-dimensional positions only when t
   const rejected = moveDashboardPortletToPosition(incompatible, 0, 1);
   assert.deepEqual(rejected.map((item) => item.layout), incompatible.map((item) => item.layout));
   assert.deepEqual(moveDashboardPortletToPosition(items, -1, 1).map((item) => item.layout), items.map((item) => item.layout));
+});
+
+
+test("portlet heading respects hide-title while retaining a meaningful fallback", () => {
+  assert.equal(enterprisePortletHeading({
+    type_id: "portfolio-control-snapshot.v1",
+    title: "Executive Snapshot",
+    hide_title: false,
+  }), "Executive Snapshot");
+  assert.equal(enterprisePortletHeading({
+    type_id: "portfolio-control-snapshot.v1",
+    title: "   ",
+    hide_title: false,
+  }), "Portfolio Control Snapshot");
+  assert.equal(enterprisePortletHeading({
+    type_id: "portfolio-control-snapshot.v1",
+    title: "Executive Snapshot",
+    hide_title: true,
+  }), null);
 });
