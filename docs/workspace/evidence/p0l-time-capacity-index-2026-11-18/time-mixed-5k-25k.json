@@ -1,0 +1,83 @@
+{
+  "environment": {
+    "cpu_affinity_count": 4,
+    "cpu_count": 4,
+    "git_sha": null,
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "memory_total_kb": 8131540,
+    "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+    "python": "3.12.13"
+  },
+  "mode": "time",
+  "records": [
+    {
+      "children_peak_rss_kb": 0,
+      "counts": {
+        "activities": 5000,
+        "relationships": 10103
+      },
+      "cpu": {
+        "count": 3,
+        "max_ms": 1300.058,
+        "median_ms": 1284.555,
+        "min_ms": 1282.373,
+        "p95_ms": 1300.058
+      },
+      "fixture_build_ms": 247.806,
+      "float_days": 0,
+      "mode": "time",
+      "output_sha256": "067f05a0be1a27dd182afee0e06f39eaf9b40d64ceee04c5a5486bc639b92358",
+      "peak_rss_kb": 65920,
+      "project_finish": "2051-10-12T08:00:00+00:00",
+      "seed": 20261116,
+      "shape": "mixed",
+      "size": 5000,
+      "status": "ok",
+      "time_float_workers": 1,
+      "wall": {
+        "count": 3,
+        "max_ms": 1300.273,
+        "median_ms": 1284.801,
+        "min_ms": 1282.605,
+        "p95_ms": 1300.273
+      }
+    },
+    {
+      "children_peak_rss_kb": 0,
+      "counts": {
+        "activities": 25000,
+        "relationships": 50671
+      },
+      "cpu": {
+        "count": 3,
+        "max_ms": 6741.026,
+        "median_ms": 6686.132,
+        "min_ms": 6600.128,
+        "p95_ms": 6741.026
+      },
+      "fixture_build_ms": 1313.671,
+      "float_days": 0,
+      "mode": "time",
+      "output_sha256": "7c6aa1b2e001b445cb2d46c4625422a0045ffcf640b9289193e0b7a48e582404",
+      "peak_rss_kb": 132580,
+      "project_finish": "2154-03-04T08:00:00+00:00",
+      "seed": 20261116,
+      "shape": "mixed",
+      "size": 25000,
+      "status": "ok",
+      "time_float_workers": 1,
+      "wall": {
+        "count": 3,
+        "max_ms": 6741.522,
+        "median_ms": 6686.689,
+        "min_ms": 6601.146,
+        "p95_ms": 6741.522
+      }
+    }
+  ],
+  "repeat": 3,
+  "seed": 20261116,
+  "shape": "mixed",
+  "warmup": 0
+}

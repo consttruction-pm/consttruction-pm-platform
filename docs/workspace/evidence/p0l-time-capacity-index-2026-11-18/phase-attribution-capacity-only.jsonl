@@ -1,0 +1,1 @@
+{"size": 25000, "shape": "dag", "forward_ms": 815.7, "backward_ms": 2573.1, "float_ms": 2904.5, "total_ms": 6336.0}

@@ -1,0 +1,109 @@
+{
+  "environment": {
+    "cpu_affinity_count": 4,
+    "cpu_count": 4,
+    "git_sha": "afc8c701",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "memory_total_kb": 8131540,
+    "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+    "python": "3.12.13"
+  },
+  "mode": "backward-leveling",
+  "records": [
+    {
+      "counts": {
+        "activities": 100,
+        "capacities": 84,
+        "demand_periods": 26,
+        "resources": 2
+      },
+      "cpu": {
+        "count": 3,
+        "max_ms": 67.694,
+        "median_ms": 47.148,
+        "min_ms": 15.888,
+        "p95_ms": 67.694
+      },
+      "fixture_build_ms": 1.051,
+      "mode": "backward-leveling",
+      "output_sha256": "53429109d834ffb926a2e338c47b0d3f5fa0d53f6460d37f26e2f212ecc2194e",
+      "peak_rss_kb": 50420,
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 100,
+      "status": "ok",
+      "wall": {
+        "count": 3,
+        "max_ms": 16.708,
+        "median_ms": 15.888,
+        "min_ms": 15.88,
+        "p95_ms": 16.708
+      }
+    },
+    {
+      "counts": {
+        "activities": 1000,
+        "capacities": 532,
+        "demand_periods": 250,
+        "resources": 2
+      },
+      "cpu": {
+        "count": 3,
+        "max_ms": 232.251,
+        "median_ms": 231.872,
+        "min_ms": 224.293,
+        "p95_ms": 232.251
+      },
+      "fixture_build_ms": 8.187,
+      "mode": "backward-leveling",
+      "output_sha256": "20498dac3063a17c760f3fa7b3a5528a2df311af5b0ddb93b9e7b68e6ec40d3d",
+      "peak_rss_kb": 63384,
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 1000,
+      "status": "ok",
+      "wall": {
+        "count": 3,
+        "max_ms": 232.281,
+        "median_ms": 231.902,
+        "min_ms": 224.299,
+        "p95_ms": 232.281
+      }
+    },
+    {
+      "counts": {
+        "activities": 5000,
+        "capacities": 2532,
+        "demand_periods": 1250,
+        "resources": 2
+      },
+      "cpu": {
+        "count": 3,
+        "max_ms": 1359.97,
+        "median_ms": 1336.24,
+        "min_ms": 1304.107,
+        "p95_ms": 1359.97
+      },
+      "fixture_build_ms": 41.625,
+      "mode": "backward-leveling",
+      "output_sha256": "2e0f484453c2eb663922fcc317ad7004ea38f694ff8960615ee0955763c1f6eb",
+      "peak_rss_kb": 120000,
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 5000,
+      "status": "ok",
+      "wall": {
+        "count": 3,
+        "max_ms": 1360.108,
+        "median_ms": 1336.389,
+        "min_ms": 1304.2,
+        "p95_ms": 1360.108
+      }
+    }
+  ],
+  "repeat": 3,
+  "seed": 20261116,
+  "shape": "dag",
+  "warmup": 0
+}

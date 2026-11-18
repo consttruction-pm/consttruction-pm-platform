@@ -1148,3 +1148,122 @@ only where it evaluates activity dates.
 Merged as `57291794` (PR #2050, issue #2049). Post-merge suite on main: 5,008 passed, 132 skipped; the merged calendar code and differential test are byte-identical to the tested `2c194851`.
 
 Evidence: `docs/workspace/evidence/p0k-working-day-index-2026-11-18/`.
+
+## 18. P0-L execution record: time-aware working-day capacity index (2026-11-18)
+
+### 18.1 Reference and requirement mapping
+
+P6 Professional V26 Help defines working time through the calendar's work
+periods and holidays; durations and lags are measured only inside the working
+intervals of working days, with the start/finish semantics and calendar
+exceptions already implemented by `TimeAwareWorkingTimeResolver` and its
+overlay. P0-L changes only *how* that same measurement is accumulated: which
+intervals exist on a date is still decided by the same weekday mask, holiday
+set, daily intervals and exception layers, and every arithmetic decision is
+unchanged.
+
+### 18.2 Bottleneck (measured, not assumed)
+
+Profiling `afc8c701` on a 25,000-activity time-aware DAG (46.8 s instrumented,
+`profile-before-time-dag-25k.txt`) showed `add_working_hours` (893,214 calls,
+7.18 s self) and `subtract_working_hours` (624,572 calls, 3.63 s) walking every
+interval of every date with `datetime.combine` (17.2 M calls total), plus
+`calculate_working_hours` (145,762 calls) repeating the same per-interval loop
+over each date in the span. `CalendarResolverRegistry._registered_resolver`
+and `_resolved_exception_layers` each ran 1,238,984 times (1.35 s / 1.15 s
+self) rebuilding validation and overlay layers for the same immutable
+calendar reference, and `_duration_microseconds` (1,517,786 calls) paid a
+`Decimal(str(...))` round-trip on exact inputs.
+
+### 18.3 The change
+
+* `_DayCapacity` / `_capacity_for`: the exact elapsed microseconds of each
+  effective interval, computed as `_wall_microseconds(start, end)`. This is
+  precisely what the old loop measured with `combine(date, end) -
+  combine(date, start)`; both datetimes share one tzinfo object, so CPython
+  subtracts wall-clock fields and the UTC offset cancels. A DST transition
+  cannot change an intra-date length, so the profile is keyed by the interval
+  tuple alone and needs no date or zone table. Non-positive intervals record 0
+  (the loop guard never consumes them).
+* `add_working_hours` / `subtract_working_hours` walk the first partial day
+  exactly as before, skip whole days by `profile.total`, and rebuild datetimes
+  only on the day containing the answer, which is still walked interval by
+  interval with the original guards.
+* `calculate_working_hours` measures both boundary days exactly, accumulates
+  middle days from `profile.capacities`, and keeps the verbatim day-by-day
+  loop (`_calculate_working_hours_by_day`) when `start.tzinfo is not
+  finish.tzinfo`, because mixed-zone endpoints are compared as instants and can
+  reverse date ordering. The single-date branch is verbatim.
+* `_duration_microseconds` returns the exact integer product for `int` values
+  in `[0, 10**15)` and skips the string round-trip for plain `Decimal`; every
+  other type and every validation/error message is unchanged.
+* `CalendarResolverRegistry.resolve` memoises the validated overlay-built view
+  by `(calendar_id, calendar_version, kind, system)`. The registry copies all
+  inputs in `__init__`, exposes no mutator, and caches successes only, so no
+  validation error can be skipped and no view can go stale within a registry.
+
+The original loops remain in the product as the executable oracle (tests) and
+as the mixed-zone fallback. No second engine, no removal of any validation, and
+no float, leveling or decision-order change was made.
+
+### 18.4 Equality evidence
+
+`tests/scheduling/test_time_capacity_index_equivalence.py` (86 tests) runs a
+verbatim oracle of the previous loops against every new path: 8 calendar
+definitions × 5 zones (naive, UTC, fixed +03:30, New York, London), DST
+transitions and holidays, multi-interval and night calendars, add/subtract/
+normalize/calculate, 123.5/2,000/2,080-hour durations, date-range overflow,
+invalid durations (`-1`, `float("nan")`, `float("inf")`, `True`, `"8"`,
+`None`, sub-microsecond), pickling, exception overlays and inherited layers,
+capacity-profile equality over 400 days, mixed-zone calculation, and a full
+`time_schedule` on an oracle-backed registry (FS/SS/FF/SF, lags 0/±8/16,
+24 activities, 1 vs 2 workers, identical fingerprint). A `+1 µs` mutation of
+`_wall_microseconds` is detected. Full suite at `9909695f`: 5,272 passed,
+1 skipped, 0 failed; baseline `afc8c701`: 5,186 passed, 1 skipped (the
+difference is exactly the new module). One observed job-path failure
+(`test_job_path_runs_the_authoritative_snapshot_engine_end_to_end`) reproduces
+identically on the unmodified baseline (`InterfaceError: bad parameter or
+other API misuse`, `SCHEDULE_INPUT_SNAPSHOT_NOT_FOUND`): a pre-existing SQLite
+shared-connection race in the in-memory job harness, not a P0-L effect.
+
+Every canonical hash is identical to `afc8c701`: time 1k/5k/25k/100k, mixed
+time 5k/25k, date 1k/5k/25k, leveling 100/1k/5k, backward leveling 100/1k/5k.
+
+### 18.5 Measured result (CPU median, same machine, same fixtures)
+
+| Mode | Size | Before | After | Speedup |
+| --- | --- | --- | --- | --- |
+| time | 1,000 | 319.6 ms | 223.9 ms | 1.43× |
+| time | 5,000 | 1,598.7 ms | 1,134.0 ms | 1.41× |
+| time | 25,000 | 8,104.5 ms | 5,792.7 ms | 1.40× |
+| time | 100,000 | 33,361.4 ms | 23,960.1 ms | 1.39× |
+| time mixed | 5,000 | 1,763.4 ms | 1,284.6 ms | 1.37× |
+| time mixed | 25,000 | 9,084.6 ms | 6,686.1 ms | 1.36× |
+| date | 25,000 | 1,351.0 ms | 1,363.9 ms | 0.99× (noise) |
+| leveling | 5,000 | 991.9 ms | 989.8 ms | 1.00× |
+| backward leveling | 5,000 | 1,336.2 ms | 1,334.8 ms | 1.00× |
+
+Phase attribution at 25k: forward 910.8 → 703.9 ms, backward 2,953.8 →
+2,292.1 ms, float 4,152.1 → 2,743.6 ms (1.51×), total 8,044.9 → 5,789.0 ms.
+The capacity index alone yields 6,336.0 ms; the registry memo plus the Decimal
+fast path accounts for a further ≈9 %. Cold 25k `_combine` calls fall 43 %
+(8.31 M → 4.74 M) and `_timedelta_microseconds` 49 % (2.73 M → 1.40 M). Peak
+RSS is unchanged (`100k` 384,984 → 385,112 kB, +0.03 %; `25k` −1.2 %), and the
+capacity table holds one entry per distinct daily shape (bounded at 4,096).
+
+### 18.6 Limits
+
+* Exactness of the wall-clock profile relies on CPython subtracting aware
+  datetimes that share one tzinfo object; DST correctness is proven by
+  differential tests rather than by a per-date table.
+* Mixed-tzinfo `calculate_working_hours` keeps the original loop, so that
+  corner gains nothing.
+* The registry memo is valid only for an immutable registry; a new mapping
+  requires a new registry, as before.
+* Time-aware CPM at 100k remains ~24 s on this 4-CPU host; remaining time is
+  `time_schedule` bookkeeping and the float search, not calendar capacity.
+
+Evidence: `docs/workspace/evidence/p0l-time-capacity-index-2026-11-18/`
+(`comparison.json`, `summary.md`, profiles, phase attribution, call counts,
+full-suite and flake logs, mutation check). Code commit `9909695f` on
+`p0l/time-capacity-index`; merge SHA is recorded after the merge completes.
