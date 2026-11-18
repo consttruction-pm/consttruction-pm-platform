@@ -1,9 +1,8 @@
 # Activity Workspace — Version 26 Acceptance Matrix
 
 Scope: Issue #2047, CUBI Engineering Activities workspace.
-Code under test: branch `feat/2047-activity-workspace-v26`, head `a2b558bf` plus the
-keyboard-navigation increment in this directory's run (final SHA recorded in
-`summary.md` after the push).
+Code under test: branch `feat/2047-activity-workspace-v26`, head `f96478f` plus the
+final evidence run (see §5–§6).
 Reference: Oracle Primavera P6 Professional Version 26 HTML Help
 (`https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm`).
 The approximately 815-page supplied PDF is **MISSING / VERIFY** in this environment.
@@ -84,5 +83,67 @@ re-run on the current head; they are therefore not marked as accepted.
 | PERMISSION RESTRICTED | Read-only users see disabled writers with a reason; server re-authorizes every request. |
 | SERVICE NOT CONNECTED | None known for the verified scope. |
 | PRODUCT LIMITATION | Risks are a project register (#14); Notebook is browser-local (#9). |
-| OWNERSHIP / HANDOFF REQUIRED | Grid refresh (#40), percent-complete-type cell (#41). |
-| EVIDENCE MISSING | All Nov-15 suites not re-run on this head (#22–#34, #36–#38). |
+| OWNERSHIP / HANDOFF REQUIRED | 1280×720 workspace floor (#37/R1), grid refresh (#40), percent-complete-type cell (#41). |
+| EVIDENCE MISSING | Only the supplied PDF (#43) and the re-fetch of Help topic URLs (host 403) remain unavailable. |
+
+## 5. Re-verification 2026-11-18 at head `f96478f`
+
+A fresh local preview database was created per suite. The browser language is
+pinned to `en-US`; RTL scenarios opt in through localStorage. Evidence for every
+row below was produced in this run, not carried over from November 15.
+
+| ID | Item | New status | Test / evidence |
+|---|---|---|---|
+| 21a | No activity selected (activity mode) | مطابق و تأییدشده | `activity-details-v26` `emptyState`; banner `data-details-empty-state`, `details-empty-selection-en-1366.png` |
+| 23 | Columns dialog | مطابق و تأییدشده | `activity-columns-v26`, 11 scenarios; `activity-columns-v26-2026-11-18/` |
+| 24 | Sorting | مطابق و تأییدشده | `activity-group-sort-v26`, 9 scenarios |
+| 25 | Grouping / WBS path | مطابق و تأییدشده | `activity-group-sort-v26`, `activity-wbs-band-v26` |
+| 26 | WBS indentation coherence | مطابق و تأییدشده | `activity-wbs-collapse-v26` |
+| 27 | Filters / advanced criteria | مطابق و تأییدشده | `activity-filters-v26`; `activity-filters-v26-2026-11-18/` |
+| 28 | Gantt bars, milestones, summary, baseline, critical | مطابق و تأییدشده | `gantt-bar-styles-v26`, `activity-gantt-overlays-v26` |
+| 29 | Data date, progress line, overlays | مطابق و تأییدشده | `activity-gantt-overlays-v26` |
+| 30 | Timescale, zoom, best fit | مطابق و تأییدشده | `gantt-options-v26`, `gantt-fit-v26` |
+| 31 | Relationship arrows and drag editing | مطابق و تأییدشده | `activity-relationships-v26` |
+| 32 | Grid ↔ Gantt scroll/selection sync | مطابق و تأییدشده | `gantt-scroll-sync-v26` |
+| 33 | Table / WBS / Gantt / Details context menus | مطابق و تأییدشده | `context-menus-v26`, `register-context-menus-v26` |
+| 34 | Grid keyboard and roving focus | مطابق و تأییدشده | `activity-grid-keyboard-v26` |
+| 35 | Details keyboard tab model | مطابق و تأییدشده | `activity-details-v26` keyboard + keyboardRtl |
+| 37 | Default Activity/Gantt split at 1280×720 | BLOCKED BY OWNERSHIP | `workspace-responsive-v26` 01 fails: `#workspace` 521px vs `.cp-p6-workspace` `min-height: 540px` (`styles.css:5446`); shell owners #1716/#1711/#1983 |
+| 38 | Menu bar, toolbars, layout bar | مطابق و تأییدشده | `toolbars-v26`, `toolbar-rails-v26`, `workspace-canonical-v26`; 118 menu commands, 57 toolbar buttons, every unavailable item carries a reason |
+| 39 | Localization EN + FA RTL | مطابق و تأییدشده | Details/General plus filters, group-sort, scale, WBS, scope, layout selector at 1280/1366/1920 |
+| 22 | Activity Table field inventory | VERIFY (narrowed) | Calendar, codes, UDF and baseline cells re-audited; `activity.percent_complete_type` still absent from the read model (#41) |
+| 36 | Details pane show/hide and layout modes | VERIFY | Shell files owned by #1716/#1711/#1983; menu state covered by `toolbars-v26`, geometry not re-audited |
+| 40 | Grid refresh after a Details edit | BLOCKED BY OWNERSHIP | No refresh callback in owned files; `main.ts` / `workspace-view.ts` handoff to #1716/#1711/#1983 |
+| 41 | Percent-complete type in the table | BLOCKED BY CONTRACT | Read-model cell missing (`workspace_read_provider.py`); owner #1983 |
+| 42 | Activity code assignment | BLOCKED BY CONTRACT | No assignment HTTP route; platform owner |
+| 43 | Supplied 815-page PDF | VERIFY | MISSING in this environment; Help host returns 403 |
+
+New evidence-backed items added by this run:
+
+| ID | Item | Status | Test / evidence |
+|---|---|---|---|
+| 44 | Table font, colours and row height | مطابق و تأییدشده | `activity-table-font-v26` |
+| 45 | Activity scale / full population and RTL overflow | مطابق و تأییدشده | `activity-scale-v26`, 8 scenarios |
+| 46 | Layout selector: rename, export, import, dirty state, viewer read-only | مطابق و تأییدشده | `layout-selector-v26`, 15 scenarios |
+| 47 | Toolbar rails and compact toolbar | مطابق و تأییدشده | `toolbar-rails-v26` |
+| 48 | Project register context menus | مطابق و تأییدشده | `register-context-menus-v26` |
+| 49 | Canonical shell: one tab strip, window switching | مطابق و تأییدشده | `workspace-canonical-v26` |
+| 50 | Workspace shell accessibility/status bar | مطابق و تأییدشده | `workspace-shell-v26` |
+| 51 | Activity behavior/control flow (scope) | مطابق و تأییدشده | `activity-scope-v26`, 15 scenarios |
+| 52 | Full surface inventory and handoff | مطابق و تأییدشده | `v26-surface-inventory.md` |
+
+## 6. Execution record
+
+| Command | Result |
+|---|---|
+| `npm run typecheck` | 0 errors |
+| `npm run build` | success |
+| `npm test` | 1177 source + 15 preview-server tests, 0 failed |
+| Python workspace/activity suites | 99 passed |
+| Activity V26 browser suites | all 21 listed suites passed |
+| Shell/menu/dialog suites | `toolbars`, `toolbar-rails`, `context-menus`, `register-context-menus`, `workspace-canonical`, `workspace-shell`, `layout-selector` passed |
+| `workspace-responsive-v26` | failed at scenario 01 only (R1 above) |
+
+The suites were run against `f96478f`; the evidence files in this directory and
+the sibling `*-2026-11-18` directories are the artifacts of that run.
+

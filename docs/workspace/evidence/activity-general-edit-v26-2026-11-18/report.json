@@ -1,8 +1,8 @@
 {
   "contract": "cubi-activity-general-edit-v26.v1",
   "url": "http://127.0.0.1:4193",
-  "testedCodeSha": "6e6f66ff2eb73adfacb9ff5fed1e74dbc82805a1",
-  "capturedAt": "2026-11-18T03:26:57.215Z",
+  "testedCodeSha": "f96478fedc0c507147719dde2647ca14c19aa0eb",
+  "capturedAt": "2026-11-18T06:39:24.537Z",
   "activityId": "A100",
   "options": {
     "activityTypes": [
@@ -147,36 +147,6 @@
       "method": "PATCH",
       "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100",
       "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"expected_revision\":2,\"name\":\"Project kickoff\",\"leveling_priority\":\"Normal\"}"
-    },
-    {
-      "method": "GET",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/steps",
-      "postData": null
-    },
-    {
-      "method": "GET",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/progress-history",
-      "postData": null
-    },
-    {
-      "method": "GET",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/steps",
-      "postData": null
-    },
-    {
-      "method": "GET",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/progress-history",
-      "postData": null
-    },
-    {
-      "method": "GET",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/steps",
-      "postData": null
-    },
-    {
-      "method": "GET",
-      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/progress-history",
-      "postData": null
     },
     {
       "method": "GET",

@@ -1,0 +1,34 @@
+{
+  "contract": "cubi-workspace-responsive-v26.v1",
+  "baseUrl": "http://127.0.0.1:4193",
+  "gitHead": "f96478fedc0c507147719dde2647ca14c19aa0eb",
+  "testedCodeSha": "f96478fedc0c507147719dde2647ca14c19aa0eb",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-18T07:28:24.026Z",
+  "expected": {
+    "total": 14,
+    "viewports": [
+      "1280x720",
+      "1366x768",
+      "1920x1080",
+      "844x390"
+    ]
+  },
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "1280x720 keeps every pane inside the viewport with no page overflow",
+      "status": "fail",
+      "at": "2026-11-18T07:28:28.322Z",
+      "error": "Error: ASSERTION_FAILED: 1280x720 should not need a workspace scroller\n    at assert (file:///C:/Users/SAAM%20FF/Documents/GitHub/consttruction-pm-platform/apps/web/e2e/workspace-responsive-v26.mjs:70:25)\n    at file:///C:/Users/SAAM%20FF/Documents/GitHub/consttruction-pm-platform/apps/web/e2e/workspace-responsive-v26.mjs:348:7\n    at async scenario (file:///C:/Users/SAAM%20FF/Documents/GitHub/consttruction-pm-platform/apps/web/e2e/workspace-responsive-v26.mjs:81:22)\n    at async main (file:///C:/Users/SAAM%20FF/Documents/GitHub/consttruction-pm-platform/apps/web/e2e/workspace-responsive-v26.mjs:339:5)"
+    }
+  ],
+  "screenshots": [],
+  "scheduleMutations": [],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-18T07:28:28.328Z",
+  "passed": 0,
+  "failed": 1
+}

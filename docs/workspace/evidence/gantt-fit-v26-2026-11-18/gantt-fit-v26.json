@@ -1,0 +1,100 @@
+{
+  "contract": "cubi-gantt-fit-v26.v1",
+  "baseUrl": "http://127.0.0.1:4193",
+  "gitHead": "f96478fedc0c507147719dde2647ca14c19aa0eb",
+  "testedCodeSha": "f96478fedc0c507147719dde2647ca14c19aa0eb",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-18T06:44:54.159Z",
+  "cells": [
+    {
+      "viewport": {
+        "width": 1366,
+        "height": 768
+      },
+      "locale": "en",
+      "before": {
+        "scale": "year",
+        "pane": 635
+      },
+      "fitted": {
+        "pane": {
+          "width": 635,
+          "scrollWidth": 638
+        },
+        "scale": "year",
+        "contentWidth": 520,
+        "fitted": true
+      }
+    },
+    {
+      "viewport": {
+        "width": 1366,
+        "height": 768
+      },
+      "locale": "fa",
+      "before": {
+        "scale": "year",
+        "pane": 635
+      },
+      "fitted": {
+        "pane": {
+          "width": 635,
+          "scrollWidth": 643
+        },
+        "scale": "year",
+        "contentWidth": 520,
+        "fitted": true
+      }
+    },
+    {
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "locale": "en",
+      "before": {
+        "scale": "year",
+        "pane": 912
+      },
+      "fitted": {
+        "pane": {
+          "width": 912,
+          "scrollWidth": 915
+        },
+        "scale": "month",
+        "contentWidth": 800,
+        "fitted": true
+      }
+    },
+    {
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "locale": "fa",
+      "before": {
+        "scale": "year",
+        "pane": 912
+      },
+      "fitted": {
+        "pane": {
+          "width": 912,
+          "scrollWidth": 920
+        },
+        "scale": "month",
+        "contentWidth": 800,
+        "fitted": true
+      }
+    }
+  ],
+  "screenshots": [
+    "gantt-fit-1366x768-en.png",
+    "gantt-fit-1366x768-fa.png",
+    "gantt-fit-1920x1080-en.png",
+    "gantt-fit-1920x1080-fa.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-18T06:45:14.837Z"
+}

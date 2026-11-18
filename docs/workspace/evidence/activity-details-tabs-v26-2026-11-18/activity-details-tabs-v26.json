@@ -1,9 +1,9 @@
 {
   "contract": "cubi-activity-details-tabs-v26.v1",
   "url": "http://127.0.0.1:4193",
-  "testedCodeSha": "6e6f66ff2eb73adfacb9ff5fed1e74dbc82805a1",
-  "gitHead": "6e6f66ff2eb73adfacb9ff5fed1e74dbc82805a1",
-  "capturedAt": "2026-11-18T03:27:58.999Z",
+  "testedCodeSha": "f96478fedc0c507147719dde2647ca14c19aa0eb",
+  "gitHead": "f96478fedc0c507147719dde2647ca14c19aa0eb",
+  "capturedAt": "2026-11-18T06:38:41.017Z",
   "tabs": [
     "general",
     "status",
@@ -25,36 +25,36 @@
   ],
   "data": {
     "resources": {
-      "text": "Resource\tRole\tUnits/Time\tBudgeted Units\tActual Units\tRemaining Units\tCost\nNo resource assignments are stored for this activity.\nResource ID\nRole ID\nBudgeted units\nPlanned cost\nCurrency\nNote\nAdd assignment\nReload\nDrive activity dates by default \nResources can be assigned to the same activity more than once\n\nAssignments are read from the project resource service and filtered by activity ID. The editor records a new assignment for this activity and reloads the authoritative list; it does not edit existing assignments or respect by role here.",
-      "rows": 1,
+      "text": "Resource assignments have not been read for this activity yet.\n\nResource ID\nRole ID\nBudgeted units\nPlanned cost\nCurrency\nNote\nAdd assignment\nReload\nDrive activity dates by default \nResources can be assigned to the same activity more than once\n\nAssignments are read from the project resource service and filtered by activity ID. The editor records a new assignment for this activity and reloads the authoritative list; it does not edit existing assignments or respect by role here.",
+      "rows": 0,
       "loading": false,
       "error": false,
       "refresh": true
     },
     "expenses": {
-      "text": "Expense Item\tCost Account\tExpense Category\tAccrual Type\tBudgeted or Planned Cost\tActual Cost\tRemaining Cost\tAt Completion Cost\tVendor\tAuto Compute Actuals\nNo expense records are stored for this activity.\nExpense item\nCategory\nlabor\nmaterial\nequipment\nsubcontract\noverhead\nother\nCurrency\nPlanned cost\nNote\nAdd expense\nReload\n\nExpenses are read from the cost service with an activity filter. The editor records a new expense tied to this activity and reloads the authoritative list. At-completion and vendor values stay empty because the cost record does not store them.",
-      "rows": 1,
+      "text": "Activity expenses have not been read yet.\n\nExpense item\nCategory\nlabor\nmaterial\nequipment\nsubcontract\noverhead\nother\nCurrency\nPlanned cost\nNote\nAdd expense\nReload\n\nExpenses are read from the cost service with an activity filter. The editor records a new expense tied to this activity and reloads the authoritative list. At-completion and vendor values stay empty because the cost record does not store them.",
+      "rows": 0,
       "loading": false,
       "error": false,
       "refresh": true
     },
     "issues": {
-      "text": "Issue ID\tTitle\tCategory\tSeverity\tStatus\tReported by\tUpdated\nNo issue records are linked to this activity.\nTitle\nDescription\nIssue type\ncost\nschedule\nquality\nsafety\nscope\nresource\nother\nStatus\nopen\nin_progress\nresolved\nclosed\nPriority\nlow\nnormal\nhigh\ncritical\nOwner\nDate identified\nDue date\nAdd issue\nReload\n\nIssues are project records with their own revision. Only issues whose stored activity reference equals this activity are listed. The editor creates an issue already linked to this activity and reloads the authoritative list.",
-      "rows": 1,
+      "text": "Issue records have not been read for this activity yet.\n\nTitle\nDescription\nIssue type\ncost\nschedule\nquality\nsafety\nscope\nresource\nother\nStatus\nopen\nin_progress\nresolved\nclosed\nPriority\nlow\nnormal\nhigh\ncritical\nOwner\nDate identified\nDue date\nAdd issue\nReload\n\nIssues are project records with their own revision. Only issues whose stored activity reference equals this activity are listed. The editor creates an issue already linked to this activity and reloads the authoritative list.",
+      "rows": 0,
       "loading": false,
       "error": false,
       "refresh": true
     },
     "risks": {
-      "text": "Risk records in this workspace do not store an activity reference, so the project risk register is shown without claiming that any risk is linked to this activity.\n\nRisk ID\tRisk Name\tRisk Category\tRisk Status\tExposure\tResponse\tRisk Owner\tIdentified On\nNo project risk records are stored for this project.\nAssign\nRemove\nReload",
-      "rows": 1,
+      "text": "Risk records in this workspace do not store an activity reference, so the project risk register is shown without claiming that any risk is linked to this activity.\n\nRisk records have not been read yet.\n\nAssign\nRemove\nReload",
+      "rows": 0,
       "loading": false,
       "error": false,
       "refresh": true
     },
     "steps": {
-      "text": "Sequence\tStep Name\tStep Weight\tStart\tFinish\tStep UDFs\nNo steps are stored for this activity.\nAdd\nAdd from template\nDelete\nModify\nReload\n\nSteps are read from the project service in stored sequence order. The step record does not store completion percentage, so that column is not shown rather than invented.",
-      "rows": 1,
+      "text": "Activity steps have not been read yet.\n\nAdd\nAdd from template\nDelete\nModify\nReload\n\nSteps are read from the project service in stored sequence order. The step record does not store completion percentage, so that column is not shown rather than invented.",
+      "rows": 0,
       "loading": false,
       "error": false,
       "refresh": true
@@ -67,8 +67,8 @@
       "refresh": true
     },
     "update-history": {
-      "text": "Recorded\tActor\tRecord revision\tChanges\tSequence review\nNo progress update history is stored for this activity.\nReload\n\nHistory events are append-only records written by the authoritative progress service. This pane never synthesises an entry.",
-      "rows": 1,
+      "text": "Progress update history has not been read yet.\n\nReload\n\nHistory events are append-only records written by the authoritative progress service. This pane never synthesises an entry.",
+      "rows": 0,
       "loading": false,
       "error": false,
       "refresh": true
@@ -77,17 +77,17 @@
   "writes": {
     "resources": {
       "message": "Saved. The list was reloaded from the project service.",
-      "rows": 3,
+      "rows": 1,
       "stored": true
     },
     "expenses": {
       "message": "Saved. The list was reloaded from the project service.",
-      "rows": 3,
+      "rows": 1,
       "stored": true
     },
     "issues": {
       "message": "Saved. The list was reloaded from the project service.",
-      "rows": 3,
+      "rows": 1,
       "stored": true
     }
   },
@@ -132,6 +132,7 @@
     "survivedReload": true
   },
   "screenshots": [
+    "details-empty-selection-en-1366.png",
     "details-unauthorized-en-1366.png",
     "details-stale-response-en-1366.png",
     "details-tabs-keyboard-fa-1366.png",
@@ -140,6 +141,10 @@
   "exceptions": [],
   "consoleErrors": [],
   "apiFailures": [],
+  "emptyState": {
+    "present": true,
+    "text": "No activity is selected. Select a row in the Activity Table or Gantt to load its details."
+  },
   "keyboard": {
     "arrowRight": {
       "ok": true,
@@ -198,5 +203,5 @@
     "focusTabIndex": "0",
     "visiblePanel": "status"
   },
-  "finishedAt": "2026-11-18T03:28:31.373Z"
+  "finishedAt": "2026-11-18T06:39:13.851Z"
 }

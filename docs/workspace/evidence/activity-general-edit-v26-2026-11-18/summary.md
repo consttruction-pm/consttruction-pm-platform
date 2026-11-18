@@ -1,7 +1,7 @@
 # Activity Details General tab - Version 26 edit path
 
-- Tested code: `6e6f66ff2eb73adfacb9ff5fed1e74dbc82805a1`
-- Captured: 2026-11-18T03:26:57.215Z
+- Tested code: `f96478fedc0c507147719dde2647ca14c19aa0eb`
+- Captured: 2026-11-18T06:39:24.537Z
 - Environment: managed Python preview runtime, SQLite demo project, headless Chrome, English 1366x768
 - Activity: A100
 
