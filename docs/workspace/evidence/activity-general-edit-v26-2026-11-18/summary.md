@@ -1,7 +1,7 @@
 # Activity Details General tab - Version 26 edit path
 
-- Tested code: `554b0c7417101a6a290e3c1a7c0cbb24038c584f`
-- Captured: 2026-11-18T02:11:51.411Z
+- Tested code: `20319cfa4ee8e465dd58ba048ef3489ae92d395d`
+- Captured: 2026-11-18T02:29:44.769Z
 - Environment: managed Python preview runtime, SQLite demo project, headless Chrome, English 1366x768
 - Activity: A100
 
@@ -14,6 +14,7 @@
 - Saving sends a PATCH that carries `expected_revision` and only the changed field.
 - The saved name repaints in the details pane and survives a full page reload.
 - The original name was restored at the end of the run so the shared preview database is unchanged.
+- The Persian (RTL) workspace opens the same editor; geometry captured at 1280x720 and 1920x1080.
 
 ## Not verified in this run
 

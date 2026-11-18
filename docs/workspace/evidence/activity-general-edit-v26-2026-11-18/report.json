@@ -1,8 +1,8 @@
 {
   "contract": "cubi-activity-general-edit-v26.v1",
   "url": "http://127.0.0.1:4193",
-  "testedCodeSha": "554b0c7417101a6a290e3c1a7c0cbb24038c584f",
-  "capturedAt": "2026-11-18T02:11:51.411Z",
+  "testedCodeSha": "20319cfa4ee8e465dd58ba048ef3489ae92d395d",
+  "capturedAt": "2026-11-18T02:29:44.769Z",
   "activityId": "A100",
   "options": {
     "activityTypes": [
@@ -25,25 +25,27 @@
       "PHYSICAL",
       "SCOPE"
     ],
-    "revisionHint": "Editing the stored record at revision r5. Only changed fields are sent, and the service rejects a stale revision instead of overwriting another edit.",
+    "revisionHint": "Editing the stored record at revision r9. Only changed fields are sent, and the service rejects a stale revision instead of overwriting another edit.",
     "nameValue": "Project kickoff"
   },
   "save": {
     "probeName": "Project kickoff [V26 general edit probe]",
-    "message": "Saved to the project service at revision r6. The Activity Grid shows the new values after its next project read."
+    "message": "Saved to the project service at revision r10. The Activity Grid shows the new values after its next project read."
   },
   "persistence": {
     "persisted": true
   },
   "restore": {
     "name": "Project kickoff",
-    "message": "Saved to the project service at revision r7. The Activity Grid shows the new values after its next project read."
+    "message": "Saved to the project service at revision r11. The Activity Grid shows the new values after its next project read."
   },
   "screenshots": [
     "general-tab-before-edit-en-1366.png",
     "general-editor-open-en-1366.png",
     "general-saved-en-1366.png",
-    "general-persisted-after-reload-en-1366.png"
+    "general-persisted-after-reload-en-1366.png",
+    "general-editor-fa-1280.png",
+    "general-editor-fa-1920.png"
   ],
   "network": [
     {
@@ -104,7 +106,7 @@
     {
       "method": "PATCH",
       "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100",
-      "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"expected_revision\":5,\"name\":\"Project kickoff [V26 general edit probe]\"}"
+      "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"expected_revision\":9,\"name\":\"Project kickoff [V26 general edit probe]\"}"
     },
     {
       "method": "GET",
@@ -134,10 +136,62 @@
     {
       "method": "PATCH",
       "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100",
-      "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"expected_revision\":6,\"name\":\"Project kickoff\"}"
+      "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"expected_revision\":10,\"name\":\"Project kickoff\"}"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/steps",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/progress-history",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/steps",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100/progress-history",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100",
+      "postData": null
+    }
+  ],
+  "activityResponses": [
+    {
+      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4193/api/projects/preview-rps-01/p6/activities/A100",
+      "status": 200
     }
   ],
   "exceptions": [],
   "consoleErrors": [],
-  "apiFailures": []
+  "apiFailures": [],
+  "rtl": {
+    "dir": "rtl",
+    "lang": "fa",
+    "hasEditor": true
+  }
 }

@@ -45,6 +45,7 @@ const report = {
   restore: null,
   screenshots: [],
   network: [],
+  activityResponses: [],
   exceptions: [],
   consoleErrors: [],
   apiFailures: [],
@@ -78,9 +79,32 @@ async function openActivity(page) {
 }
 
 async function openEditor(page) {
+  const ready = await poll(page, `Boolean(document.querySelector('[data-general-edit-load]'))`, 10000);
+  if (!ready) {
+    const state = await page.evaluate(`(() => ({
+      activeTab: document.querySelector('#cp-details [data-detail-tab].is-active')?.dataset.detailTab ?? "",
+      hasEditor: Boolean(document.querySelector('[data-general-editor]')),
+      activity: document.querySelector('#cp-details .cp-detail-selected')?.textContent ?? "",
+    }))()`);
+    throw new Error(`the General editor control did not render: ${JSON.stringify(state)}`);
+  }
   await page.click("[data-general-edit-load]");
-  const opened = await poll(page, `Boolean(document.querySelector('#detail-form-general-name'))`, 15000);
-  assert(opened, "the General editor did not open from the authoritative record");
+  let opened = await poll(page, `Boolean(document.querySelector('#detail-form-general-name'))`, 10000);
+  if (!opened) {
+    // The tab body can be replaced while the click is dispatched; a second
+    // click on the still-enabled control converges instead of racing it.
+    await page.click("[data-general-edit-load]");
+    opened = await poll(page, `Boolean(document.querySelector('#detail-form-general-name'))`, 10000);
+  }
+  if (!opened) {
+    const state = await page.evaluate(`(() => ({
+      activeTab: document.querySelector('#cp-details [data-detail-tab].is-active')?.dataset.detailTab ?? "",
+      button: Boolean(document.querySelector('[data-general-edit-load]')),
+      slot: document.querySelector('[data-general-edit-slot]')?.innerText ?? "",
+      activity: document.querySelector('#cp-details .cp-detail-selected')?.textContent ?? "",
+    }))()`);
+    throw new Error(`the General editor did not open from the authoritative record: ${JSON.stringify(state)}`);
+  }
 }
 
 async function submitGeneralName(page, name) {
@@ -119,6 +143,9 @@ async function main() {
   });
   page.cdp.on("Network.responseReceived", (params) => {
     const url = params.response?.url ?? "";
+    if (url.includes(`/p6/activities/${activityId}`) && !url.includes("/steps") && !url.includes("/progress-history")) {
+      report.activityResponses.push({ url, status: params.response.status });
+    }
     if (url.includes("/api/") && params.response.status >= 500) {
       report.apiFailures.push({ url, status: params.response.status });
     }
@@ -195,6 +222,28 @@ async function main() {
   const restorePersisted = await poll(page, `(document.querySelector('#cp-details')?.innerText ?? "").includes(${JSON.stringify(probeSuffix)}) === false`, 8000);
   assert(restorePersisted, "the original name was not restored in the details pane");
 
+  // Responsive and RTL evidence for the same editor, with no further writes.
+  await page.evaluate(`(() => { localStorage.setItem("cubi:workspace-locale", "fa"); return true; })()`);
+  await page.navigate(`${baseUrl}/app?view=live&project=preview-rps-01`, "#cp-activity-grid tbody tr[data-activity-id]", "workspace rtl reload");
+  await openActivity(page);
+  await openEditor(page);
+  await sleep(400);
+  report.rtl = await page.evaluate(`(() => ({
+    dir: document.documentElement.dir,
+    lang: document.documentElement.lang,
+    hasEditor: Boolean(document.querySelector('#detail-form-general-name')),
+  }))()`);
+  assert(report.rtl.dir === "rtl", `the Persian workspace must render RTL, got ${JSON.stringify(report.rtl)}`);
+  assert(report.rtl.hasEditor, "the General editor did not open in the Persian workspace");
+  await page.cdp.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false });
+  await sleep(500);
+  await capture(page, "general-editor-fa-1280");
+  await page.cdp.send("Emulation.setDeviceMetricsOverride", { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
+  await sleep(500);
+  await capture(page, "general-editor-fa-1920");
+  await page.cdp.send("Emulation.setDeviceMetricsOverride", { width: 1366, height: 768, deviceScaleFactor: 1, mobile: false });
+  await page.evaluate(`(() => { localStorage.setItem("cubi:workspace-locale", "en"); return true; })()`);
+
   assert(report.exceptions.length === 0, `browser exceptions: ${report.exceptions.join("; ")}`);
   assert(report.apiFailures.length === 0, `API failures: ${JSON.stringify(report.apiFailures)}`);
 
@@ -215,6 +264,7 @@ async function main() {
     `- Saving sends a PATCH that carries \`expected_revision\` and only the changed field.`,
     `- The saved name repaints in the details pane and survives a full page reload.`,
     `- The original name was restored at the end of the run so the shared preview database is unchanged.`,
+    `- The Persian (RTL) workspace opens the same editor; geometry captured at 1280x720 and 1920x1080.`,
     "",
     "## Not verified in this run",
     "",
