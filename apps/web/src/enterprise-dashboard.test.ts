@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   displaySummaryMetric,
+  dashboardDisplayMoveTarget,
   authorizedDashboardFilterOptions,
   dashboardFilterDefinition,
   ENTERPRISE_DASHBOARD_FILTER_CATALOG,
@@ -70,6 +71,22 @@ test("dashboard catalog order is deterministic by order, title and id", () => {
     catalogItem("a", "Alpha", 0),
   ]);
   assert.deepEqual(ordered.map((item) => item.dashboard.dashboard_id), ["a", "b", "z"]);
+});
+
+
+test("displayed dashboard move targets use the rendered sorted order at first, middle and last positions", () => {
+  const items = [
+    catalogItem("last", "Last", 2),
+    catalogItem("first", "First", 0),
+    catalogItem("middle", "Middle", 1),
+  ];
+  assert.equal(dashboardDisplayMoveTarget(items, "first", "up"), null);
+  assert.equal(dashboardDisplayMoveTarget(items, "first", "down"), 1);
+  assert.equal(dashboardDisplayMoveTarget(items, "middle", "up"), 0);
+  assert.equal(dashboardDisplayMoveTarget(items, "middle", "down"), 2);
+  assert.equal(dashboardDisplayMoveTarget(items, "last", "up"), 1);
+  assert.equal(dashboardDisplayMoveTarget(items, "last", "down"), null);
+  assert.equal(dashboardDisplayMoveTarget(items, "missing", "up"), null);
 });
 
 test("only the two registered source-backed portlet types are selectable", () => {
