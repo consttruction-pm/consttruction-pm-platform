@@ -606,3 +606,10 @@ The Content editor now exposes the P6 EPPM V26 **List of Portlets** inventory (1
 The implementation is pinned by a regression test that asserts the 15 built-in deferred V26 portlet types plus the separate Document Review workflow reference, the two enabled governed types, official Oracle V26 URL shape and a non-empty unavailability reason for every deferred item. The runtime supported-portlet filter continues to admit only entries with `enabled: true`.
 
 Normative source: [P6 EPPM V26 List of Portlets](https://docs.oracle.com/cd/G48897_01/p6help/en/6667.htm), which explicitly says the available configuration can vary; [P6 EPPM V26 Content Tab](https://docs.oracle.com/cd/G48897_01/p6help/en/8107.htm), which describes selecting registered portlets and adding portfolio/custom portlets. This closes the **inventory visibility** gap only. It does not claim that the deferred P6 portlet behaviors, data sources, editing workflows or charts have been implemented.
+
+
+### ENT-06B dashboard-wide Expand All / Collapse All — 2026-11-18
+
+The dashboard viewer now provides dashboard-level **Expand All** and **Collapse All** commands, in addition to each portlet's individual expand/collapse titlebar control. These commands operate only on the currently rendered portlet bodies; they do not alter the saved dashboard definition, source data, filters, or another user's view. Individual controls remain synchronized after a dashboard-wide action, including their visible label and `aria-expanded` state.
+
+This closes the dashboard-level expand/collapse interaction described by [P6 EPPM V26 Working with Dashboards](https://docs.oracle.com/cd/G48897_01/p6help/en/6665.htm) and the portlet titlebar behavior described by [Working with Portlets](https://docs.oracle.com/cd/G48897_01/p6help/en/47039.htm). It is a client-side view operation; authenticated persistence and browser-level accessibility acceptance remain part of the release gate.
