@@ -202,6 +202,9 @@ class CalendarResolverRegistry:
         self._time = dict(time_resolvers or {})
         self._exception_layers = dict(exception_layers or {})
         self._base_calendar_references = dict(base_calendar_references or {})
+        # Resolved views are cached because every input mapping is copied here
+        # and no mutator exists; the cache therefore cannot go stale.
+        self._resolve_cache: dict[tuple[str, str, str, CalendarSystem], object] = {}
         for key, layers in self._exception_layers.items():
             if not isinstance(key, str) or not key.strip():
                 raise ValueError("exception layer keys must be non-empty strings")
@@ -356,21 +359,37 @@ class CalendarResolverRegistry:
         return tuple(local), inherited
 
     def resolve(self, reference: CalendarReference):
+        # The registry copies every mapping in ``__init__`` and exposes no
+        # mutator, so a resolved view is a pure function of the reference.
+        # Memoising it keeps the validation and overlay construction identical
+        # for the first call and avoids rebuilding them per activity/event.
+        key = (
+            reference.calendar_id,
+            reference.calendar_version,
+            reference.kind,
+            reference.system,
+        )
+        cached = self._resolve_cache.get(key)
+        if cached is not None:
+            return cached
         resolver = self._registered_resolver(reference)
         local, inherited = self._resolved_exception_layers(reference)
         if not local and not inherited:
-            return resolver
-        if reference.kind == "working-day":
-            return overlay_day_resolver(
+            result = resolver
+        elif reference.kind == "working-day":
+            result = overlay_day_resolver(
                 resolver,
                 local_exceptions=local,
                 inherited_exceptions=inherited,
             )
-        return overlay_time_resolver(
-            resolver,
-            local_exceptions=local,
-            inherited_exceptions=inherited,
-        )
+        else:
+            result = overlay_time_resolver(
+                resolver,
+                local_exceptions=local,
+                inherited_exceptions=inherited,
+            )
+        self._resolve_cache[key] = result
+        return result
 
     def resolve_relationship_lag(
         self,
