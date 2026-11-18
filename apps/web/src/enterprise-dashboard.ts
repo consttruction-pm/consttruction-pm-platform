@@ -896,9 +896,40 @@ export async function mountEnterpriseDashboard(
       activeRead = result;
       renderViewer();
     });
-    const help = button(t.help, () => window.alert(`${label}\n${read.source_owner}\n${read.required_read_permission}`));
-    const print = button(t.print, () => window.print());
-    const close = button(t.close, () => card.remove());
+    const help = button(t.help, () => {
+      const helpDialog = node("dialog", "ced-dialog");
+      const helpPanel = node("div", "ced-dialog-inner");
+      helpPanel.append(node("h2", "", label));
+      helpPanel.append(node("p", "ced-muted", `${t.owner}: ${read.source_owner}`));
+      helpPanel.append(node("p", "ced-muted", `${t.revision}: ${read.source_revision ?? "—"}`));
+      helpPanel.append(node("p", "ced-muted", read.required_read_permission));
+      helpPanel.append(node("p", "ced-muted", `${read.source_data_mode} · ${read.freshness_state}`));
+      if (read.generated_at) helpPanel.append(node("p", "ced-muted", new Date(read.generated_at).toLocaleString()));
+      helpPanel.append(button(t.close, () => helpDialog.close(), "ced-button"));
+      helpDialog.append(helpPanel);
+      helpDialog.addEventListener("close", () => helpDialog.remove(), { once: true });
+      container.append(helpDialog);
+      helpDialog.showModal();
+    });
+    const print = button(t.print, () => {
+      const styleId = "ced-portlet-print-style";
+      if (!document.getElementById(styleId)) {
+        const style = document.createElement("style");
+        style.id = styleId;
+        style.textContent = "@media print { body.ced-print-portlet-mode * { visibility: hidden !important; } body.ced-print-portlet-mode .ced-print-target, body.ced-print-portlet-mode .ced-print-target * { visibility: visible !important; } body.ced-print-portlet-mode .ced-print-target { position: absolute !important; inset: 0 auto auto 0 !important; width: 100% !important; max-height: none !important; overflow: visible !important; box-shadow: none !important; } }";
+        document.head.append(style);
+      }
+      const cleanup = (): void => {
+        document.body.classList.remove("ced-print-portlet-mode");
+        card.classList.remove("ced-print-target");
+        window.removeEventListener("afterprint", cleanup);
+      };
+      cleanup();
+      document.body.classList.add("ced-print-portlet-mode");
+      card.classList.add("ced-print-target");
+      window.addEventListener("afterprint", cleanup, { once: true });
+      window.print();
+    });
     controls.append(collapse, maximize, refresh, help, print, close);
     head.append(headingNode, controls);
     card.append(head, body);
