@@ -20,7 +20,7 @@ Status: **100% — implemented; runtime-verified 2026-09-27 through PR #174**
 
 **Priority: P0 — highest CUBI Engineering priority.** Registered under [Issue #1992](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1992). Canonical feasibility record: [P0 Scheduling Core Optimization Feasibility](../engineering/P0_SCHEDULING_CORE_OPTIMIZATION_FEASIBILITY_2026-11-16.md).
 
-Status: **P0-A through P0-I implemented and measured on merged main (`648cef68`); P0-J phases 1–2 merged in `92a62afd` (PR #2021) and phases 3–5 merged in `b6b3cb71` (PR #2022).** This workstream takes precedence over Engineering enhancements that modify, extend or depend on Scheduling, Calendar, CPM, Float, Resource Loading or Resource Leveling. Unrelated work may continue only without changing or destabilizing the shared calculation core.
+Status: **P0-A through P0-I implemented and measured on merged main (`648cef68`); P0-J phases 1–2 merged in `92a62afd` (PR #2021) and phases 3–5 merged in `b6b3cb71` (PR #2022); P0-K merged after P0-J.** This workstream takes precedence over Engineering enhancements that modify, extend or depend on Scheduling, Calendar, CPM, Float, Resource Loading or Resource Leveling. Unrelated work may continue only without changing or destabilizing the shared calculation core.
 
 Phase record (measured evidence under `docs/workspace/evidence/`; all listed phases are merged):
 
@@ -35,6 +35,7 @@ Phase record (measured evidence under `docs/workspace/evidence/`; all listed pha
 | P0-H | Exact parallel per-activity time-aware floats (opt-in) | `p0h-intra-project-floats-2026-11-16/` |
 | P0-I | Self-contained offline bundle, identical canonical output, network guard | `p0i-offline-runtime-2026-11-16/` |
 | P0-J | Leveling rebuild removal, verified closed forms, safe parallel float, real job-path stress | `p0j-scheduling-optimization-2026-11-17/` |
+| P0-K | Exact working-day index for calendar arithmetic (date CPM 1.23–1.28×, cross-shape up to 231×) | `p0k-working-day-index-2026-11-18/` |
 
 Mandatory order:
 1. Establish reproducible large-schedule and concurrency baselines against the current authoritative engine. — done (P0-A).
@@ -46,6 +47,8 @@ Mandatory order:
 **Non-subtractive rule:** No Scheduling/P6 Version 26 capability, option, calculation, validation, calendar behavior, relationship, Float/critical-path behavior, Resource Leveling rule or cost result may be removed, simplified or weakened for performance. P6 Professional Version 26 HTML Help is the normative parity reference. A performance claim requires measured evidence on the exact tested commit; no unmeasured timing or user-capacity estimate is accepted.
 
 **P0-J continuation (registered under Issue #2020, linked to #1992).** Phases 1–2 (measured profiling, incremental leveling ledger, closed-form float limits) merged as `92a62afd`. Phases 3–5 merged as `b6b3cb71` (measured at `87fc5c4a`): safe parallel time-float execution (fork-only, budget-admitted, identical canonical hash; sequential inside the threaded executor because spawn costs 25 µs/activity of context transfer against 169 µs of work), a real PostgreSQL Scheduling Job stress matrix (100/500/1000 virtual users × 1/2/4 workers, 0 errors, 0 pending, identical hashes) and honest oversubscription runs (8/16/32/64 processes on 4 CPUs: 177.4/173.9/144.1/98.4 jobs/s, so no gain past real capacity). No capability, validation, calendar, relationship, float, critical-path or leveling rule was removed.
+
+**P0-K continuation (linked to #1992).** Profiling merged main (`20778a03`) showed the three CPM passes spending their time inside day-by-day working-day loops (`to_gregorian` 2.58 M calls, `is_working_day` 1.39 M calls on a 25k date DAG). `WorkingTimeResolver` now uses an exact index (`rank` = weekly prefix + holiday bisect; add/subtract invert it inside a tight bracket) for calendars with a plain weekday set and canonical holidays, while exception overlays and degenerate calendars keep the original loops, which are also the test oracle. Results: date CPM 1.28×/1.25×/1.25×/1.23× at 1k/5k/25k/100k, chain 1.21×, wide 1.36×, fan 1.26×, mixed 19.3×, slack 231.6×, all canonical hashes identical; time-aware and leveling are unchanged (1.00×/1.01×); peak RSS within ±0.9 %. No calendar rule, working-day definition, duration semantics or error message changed. Evidence: `docs/workspace/evidence/p0k-working-day-index-2026-11-18/`; feasibility record §17.
 
 The remaining P0 gaps are packaging/runtime gates, not engine behavior: no desktop installer supervision test and no portable mobile runtime for the Python engine have been proven. Those require a new, explicitly scoped change.
 

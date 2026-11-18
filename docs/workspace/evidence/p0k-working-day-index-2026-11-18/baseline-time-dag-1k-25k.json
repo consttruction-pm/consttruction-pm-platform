@@ -1,0 +1,115 @@
+{
+  "environment": {
+    "cpu_affinity_count": 4,
+    "cpu_count": 4,
+    "git_sha": "20778a03",
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "memory_total_kb": 8131540,
+    "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+    "python": "3.12.13"
+  },
+  "mode": "time",
+  "records": [
+    {
+      "children_peak_rss_kb": 0,
+      "counts": {
+        "activities": 1000,
+        "relationships": 1923
+      },
+      "cpu": {
+        "count": 3,
+        "max_ms": 322.38,
+        "median_ms": 314.354,
+        "min_ms": 313.803,
+        "p95_ms": 322.38
+      },
+      "fixture_build_ms": 44.826,
+      "float_days": 0,
+      "mode": "time",
+      "output_sha256": "bdb8a04616a6c0011030a076197b789369b35beb15e55500c29bd644287c663c",
+      "peak_rss_kb": 52644,
+      "project_finish": "2037-07-09T08:00:00+00:00",
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 1000,
+      "status": "ok",
+      "time_float_workers": 1,
+      "wall": {
+        "count": 3,
+        "max_ms": 322.401,
+        "median_ms": 314.364,
+        "min_ms": 313.859,
+        "p95_ms": 322.401
+      }
+    },
+    {
+      "children_peak_rss_kb": 0,
+      "counts": {
+        "activities": 5000,
+        "relationships": 9575
+      },
+      "cpu": {
+        "count": 3,
+        "max_ms": 1611.855,
+        "median_ms": 1567.391,
+        "min_ms": 1562.318,
+        "p95_ms": 1611.855
+      },
+      "fixture_build_ms": 220.592,
+      "float_days": 0,
+      "mode": "time",
+      "output_sha256": "3d2f1f8dc31ceb4f1fef6006a5008ef3ca051f0896f78f39f352eda0be606ae9",
+      "peak_rss_kb": 66112,
+      "project_finish": "2083-07-08T08:00:00+00:00",
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 5000,
+      "status": "ok",
+      "time_float_workers": 1,
+      "wall": {
+        "count": 3,
+        "max_ms": 1612.509,
+        "median_ms": 1567.526,
+        "min_ms": 1562.457,
+        "p95_ms": 1612.509
+      }
+    },
+    {
+      "children_peak_rss_kb": 0,
+      "counts": {
+        "activities": 25000,
+        "relationships": 47881
+      },
+      "cpu": {
+        "count": 3,
+        "max_ms": 8150.767,
+        "median_ms": 8076.209,
+        "min_ms": 7971.442,
+        "p95_ms": 8150.767
+      },
+      "fixture_build_ms": 1197.51,
+      "float_days": 0,
+      "mode": "time",
+      "output_sha256": "84864c94f01706c01ac024f6dd99ae6e556d35b0c53eb1239726a61c86e93360",
+      "peak_rss_kb": 133400,
+      "project_finish": "2313-07-03T08:00:00+00:00",
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 25000,
+      "status": "ok",
+      "time_float_workers": 1,
+      "wall": {
+        "count": 3,
+        "max_ms": 8151.462,
+        "median_ms": 8076.926,
+        "min_ms": 7972.111,
+        "p95_ms": 8151.462
+      }
+    }
+  ],
+  "repeat": 3,
+  "seed": 20261116,
+  "shape": "dag",
+  "warmup": 1
+}

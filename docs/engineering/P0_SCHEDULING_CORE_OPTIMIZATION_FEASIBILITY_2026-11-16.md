@@ -1053,3 +1053,96 @@ The scripted cancels are exact (every `cancel_requested` reached terminal `CANCE
 P0-A … P0-J are implemented and measured. No further phase is implied by this record; any follow-up (leveling inputs in the offline bundle, multi-host PostgreSQL, a different worker topology) requires a new, explicitly scoped decision.
 
 Evidence: `docs/workspace/evidence/p0j-scheduling-optimization-2026-11-17/`.
+
+## 17. P0-K execution record: exact working-day index (2026-11-18)
+
+### 17.1 Reference and requirement mapping
+
+P6 Professional V26 Help is the computational reference for this phase. The
+relevant rules are the calendar definition (working days, nonwork days and
+holidays) and activity duration arithmetic in working time: a duration is
+counted on working days only, nonwork days are skipped, and the finish date is
+inclusive of the start day for whole-day durations. Those are the rules the
+engine already implements in `WorkingCalendar` / `WorkingTimeResolver`, and
+they are exactly what P0-K must not change.
+
+P0-K therefore changes only *how* the same predicate is evaluated: which days
+are working is still decided by the same weekday mask and the same canonical
+Gregorian holiday set; only the traversal of days is replaced by cumulative
+counting. No option, constraint, lag type, calendar system, leveling rule or
+dependency ordering is touched, so no option-dependent behaviour can change.
+
+### 17.2 Bottleneck (measured, not assumed)
+
+Profiling merged main `20778a03` on a 25,000-activity date-based DAG showed
+`backward_pass` 722.8 ms (42.5 % of wall), `calculate_floats` 534.6 ms
+(31.4 %) and `forward_pass` 420.2 ms (24.7 %). The top self-time was
+`WorkingCalendar.to_gregorian` (2,582,623 calls, 828.8 ms) and
+`is_working_day` (1,387,312 calls in two frames, 797.7 ms combined), driven by
+`next_working_day` (245,754 calls), `previous_working_day` (241,509),
+`add_working_duration` (195,759), `subtract_working_duration` (168,643) and
+`normalize_start` (293,639). All three CPM passes share the same day-by-day
+calendar loops, and the loops scale with the *length* of a duration/lag, so
+sparse networks pay the most (5,000-activity `slack`: 43.6 s).
+
+### 17.3 The change
+
+For a calendar defined by a plain working-weekday set and canonical holiday
+dates, `WorkingTimeResolver` builds a `_WorkingDayIndex`:
+
+* working days in `[1, ordinal]` (`rank`) are `full weeks × working days per
+  week + a precomputed per-weekday prefix`, minus a `bisect_right` over the
+  holiday ordinals that fall on working weekdays;
+* `add`/`subtract` invert `rank` within a bracket whose width is the weekend
+  and holiday slack of the requested duration, so a call performs zero to a
+  few rank probes rather than one step per day;
+* `calculate_duration` and `working_days_between` are rank differences;
+* `next`/`previous`/`normalize` keep the direct predicate.
+
+Holidays on non-working weekdays are excluded from the index when it is built,
+so they can never be subtracted twice. Exception overlays (`ExceptionAwareWorkingCalendar`)
+and calendars with no working days have no index and keep the original loops
+verbatim. The loops are also the executable oracle of the differential test.
+
+### 17.4 Equality evidence
+
+`tests/scheduling/test_working_day_index_equivalence.py` (32 tests) compares
+the index against the pre-change loops for six calendars (Mon–Fri with and
+without holidays, Mon–Sat, all-days with a 40-day holiday block, sparse weekdays
+and Jalali): predicate over 800 days per calendar, every step operation for
+every day of the window, 1,500 randomized add/subtract cases plus 400
+`calculate_duration`/`working_days_between` cases per calendar, and durations
+of 0/1/5/20/260/1,000/5,000 working days. Error messages, overflow at the date
+range, weekend-holiday handling and Jalali boundary conversion are asserted
+explicitly. Full suite at `2c194851`: 4,921 passed, 131 skipped.
+
+Every benchmark hash is byte-identical to the baseline (`20778a03`) across
+date/time/leveling and across chain/wide/fan/dag/mixed/slack shapes.
+
+### 17.5 Measured result (median, same machine, same flags)
+
+| Mode | Size | Before | After | Speedup |
+| --- | --- | --- | --- | --- |
+| date | 1,000 | 61.8 ms | 48.3 ms | 1.28× |
+| date | 5,000 | 317.6 ms | 253.3 ms | 1.25× |
+| date | 25,000 | 1,665.6 ms | 1,335.1 ms | 1.25× |
+| date | 100,000 | 7,427.2 ms | 6,058.4 ms | 1.23× |
+| time | 25,000 | 8,076.9 ms | 8,058.3 ms | 1.00× |
+| leveling | 5,000 | 992.1 ms | 980.1 ms | 1.01× |
+
+Cross-shape date (5,000): chain 1.21×, wide 1.36×, fan 1.26×, mixed 19.3×,
+slack 231.6×. Peak RSS is unchanged within ±0.9 %. Time-aware mode is
+unchanged because it does not use working-day date arithmetic; leveling gains
+only where it evaluates activity dates.
+
+### 17.6 Limits
+
+* The index covers calendars whose effective holidays are the `holidays`
+  attribute. Overlay calendars intentionally keep the loop path; optimising
+  them would require materialising layer results and is a separate decision.
+* Time-aware CPM remains the largest date-mode cost after this change; its
+  arithmetic is a different path and was not touched.
+* Numbers come from one 4-CPU host with the exact fixtures recorded in the
+  evidence directory.
+
+Evidence: `docs/workspace/evidence/p0k-working-day-index-2026-11-18/`.
