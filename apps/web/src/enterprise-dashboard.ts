@@ -611,7 +611,7 @@ export async function mountEnterpriseDashboard(
     titleRow.append(button(t.duplicate, async () => { await client.duplicateDashboard(activeDefinition!.dashboard_id); await loadCatalog(); }));
     content.append(titleRow);
     const filterRow = node("div", "ced-toolbar ced-section");
-    const filtersForSummary = activeFilterOverrides === null ? activeDefinition.filters : activeFilterOverrides;
+    const filtersForSummary = activeFilterOverrides === null ? activeRead.filters : activeFilterOverrides;
     const filterSummary = filtersForSummary.length
       ? filtersForSummary.map((item) => `${dashboardFilterDefinition(item.key) ? filterLabel(item.key) : item.key} ${operatorLabel(item.operator)} ${Array.isArray(item.value) ? item.value.map((value) => filterValueLabel(String(value))).join(", ") : filterValueLabel(String(item.value))}`).join(" · ")
       : t.noFilters;
@@ -821,7 +821,7 @@ export async function mountEnterpriseDashboard(
     });
     const refresh = button(t.refresh, async () => {
       if (!activeDefinition) return;
-      const result = await client.readPortlets(activeDefinition.dashboard_id);
+      const result = await client.readPortlets(activeDefinition.dashboard_id, activeFilterOverrides ?? undefined);
       activeRead = result;
       renderViewer();
     });
@@ -958,6 +958,7 @@ export async function mountEnterpriseDashboard(
       sections[index][1]();
     }
     function renderGeneral(): void {
+      panel.replaceChildren();
       const form = node("div", "ced-form-grid");
       form.append(field(t.name, input("dashboard-title", draftTitle)));
       const description = node("textarea", "ced-input");
