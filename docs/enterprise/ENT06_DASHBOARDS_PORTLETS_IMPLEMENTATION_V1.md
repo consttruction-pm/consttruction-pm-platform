@@ -635,3 +635,10 @@ A second pass against the official V26 HTML table of contents and the linked scr
 The official V26 TOC navigation path for these items is Dashboards → About Dashboards → Working with Dashboards → Creating/Customizing Dashboards → Content/Access/Filters/Layout/Showing and Hiding; portlet details are under Dashboards → About Portlets → Working with Portlets → List of Portlets. The HTML TOC is https://docs.oracle.com/cd/G48897_01/p6help/en/toc.htm.
 
 **Acceptance disposition after this verification:** source mapping is corrected and more granular; no new runtime capability is claimed. The remaining completion gates are the authenticated browser/security scenarios in parent issue #2032, User Interface View/production route owner handoff, identity-directory dependency #1974, Default Dashboard template/source, and canonical project hierarchy/project-code directory contract. No protected shell, identity, authorization, deployment-schema or Engineering path is changed by this documentation increment.
+
+
+### ENT-06B portlet title visibility correction — 2026-11-18
+
+The Content editor's per-portlet **Hide title** setting now has its literal display effect: the rendered heading is hidden when enabled, rather than silently replacing the custom title with the portlet type label. The card retains an accessible name derived from the registered portlet type, so hiding visual title text does not leave the semantic region unnamed. When title display is enabled, a non-empty custom title is shown; blank titles fall back to the registered catalog label. A focused regression test covers all three cases.
+
+This is a CUBI editor behavior correction. It is not presented as an Oracle V26-specific control unless the corresponding V26 Help topic documents that setting.
