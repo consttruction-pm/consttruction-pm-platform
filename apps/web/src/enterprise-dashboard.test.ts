@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   displaySummaryMetric,
+  authorizedDashboardFilterOptions,
   dashboardFilterDefinition,
   ENTERPRISE_DASHBOARD_FILTER_CATALOG,
   effectiveDashboardPortletLimit,
@@ -148,6 +149,39 @@ test("dashboard layout supports bounded left/right movement and preserves valid 
   assert.deepEqual(moveDashboardPortletHorizontally(items, 9, "right").map((item) => item.layout.x), [0, 6]);
   const wide = [portlet("wide", 0, 0, 12)];
   assert.deepEqual(moveDashboardPortletHorizontally(wide, 0, "right")[0].layout, wide[0].layout);
+});
+
+test("Filter By pickers expose only portfolio and project identifiers already present in authorized dashboard reads", () => {
+  const dashboard = catalogItem("d-1", "Board", 0).dashboard;
+  dashboard.portlets = [
+    portlet("snapshot-a", 0, 0, 12),
+    { ...portlet("snapshot-b", 0, 4, 12), config: { portfolio_id: "portfolio-2" } },
+  ];
+  const read = {
+    portlets: [
+      {
+        data: { projects: [
+          { project_id: "p-2", project_name: "Bridge" },
+          { project_id: "p-1", name: "Road" },
+          { project_id: "p-2", project_name: "Bridge duplicate" },
+          { name: "Missing identifier" },
+        ] },
+      },
+      { data: { projects: [{ project_id: "p-3" }] } },
+    ],
+  } as unknown as import("./enterprise-dashboard.js").EnterpriseDashboardRead;
+
+  assert.deepEqual(authorizedDashboardFilterOptions("portfolio_id", dashboard, read), [
+    { value: "portfolio-1", label: "portfolio-1" },
+    { value: "portfolio-2", label: "portfolio-2" },
+  ]);
+  assert.deepEqual(authorizedDashboardFilterOptions("project_id", dashboard, read), [
+    { value: "p-1", label: "Road" },
+    { value: "p-2", label: "Bridge duplicate" },
+    { value: "p-3", label: "p-3" },
+  ]);
+  assert.deepEqual(authorizedDashboardFilterOptions("project_id", dashboard, null), []);
+  assert.deepEqual(authorizedDashboardFilterOptions("project_code", dashboard, read), []);
 });
 
 test("Filter By catalog mirrors every backend-supported key and operator without inventing fields", () => {
