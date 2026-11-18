@@ -1265,5 +1265,7 @@ capacity table holds one entry per distinct daily shape (bounded at 4,096).
 
 Evidence: `docs/workspace/evidence/p0l-time-capacity-index-2026-11-18/`
 (`comparison.json`, `summary.md`, profiles, phase attribution, call counts,
-full-suite and flake logs, mutation check). Code commit `9909695f` on
-`p0l/time-capacity-index`; merge SHA is recorded after the merge completes.
+full-suite and flake logs, mutation check). Merged as `02704eea` (PR #2053).
+Post-merge suite on main `02704eea`: 5,272 passed, 1 skipped, 0 failed, with
+the post-merge time-1k canonical hash `bdb8a04616a6…` identical to the
+baseline; the merged tree is byte-identical to the tested `84064d52`.
