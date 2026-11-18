@@ -46,4 +46,4 @@ the JSON records `testedCodeSha`, timestamps and every assertion result.
 - The full 4,000+ Python suite was not re-run in this increment; the modules touched by
   this slice plus their neighbours were run as listed above.
 - The 73 `verify` rows in `pdf-topic-disposition.md` are not acceptance evidence.
-- CI for the final SHA is reported in the PR and should be checked on the pushed head.
+- CI at `6a3bb76a4`: all 10 workflows completed successfully (checked with `gh run list` / `gh run watch`).

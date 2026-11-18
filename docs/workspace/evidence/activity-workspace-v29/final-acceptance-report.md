@@ -62,7 +62,7 @@
 | 14 | Real 409 | Yes, two independent sessions |
 | 15 | Persistence of writes | Codes, notebook, steps, document link verified across reload |
 | 16 | Regression | Web 1186 + 15, targeted Python 64 + 117; Shared Core untouched |
-| 17 | CI on last SHA | To be checked on the pushed head; recorded in the PR |
+| 17 | CI on last SHA | **10/10 workflows pass** at `6a3bb76a4` (Web CI, ConstructionPM CI, Client Typecheck, PostgreSQL Integration and the remaining PR checks) |
 | 18 | Docs and PR updated | Evidence set + PR body updated; not merged |
 
 ## Boundaries respected
