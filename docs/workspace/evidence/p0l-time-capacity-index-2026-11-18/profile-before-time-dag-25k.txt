@@ -1,0 +1,30 @@
+Wed Nov 18 06:30:23 2026    /tmp/p0l-prof-before.prof
+
+         134921336 function calls (134913283 primitive calls) in 46.828 seconds
+
+   Ordered by: internal time
+   List reduced from 2504 to 20 due to restriction <20>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+   893214    7.182    0.000   19.334    0.000 /tmp/p0l-baseline/src/construction_pm/scheduling/time_calendar.py:288(add_working_hours)
+ 17198571    4.003    0.000    4.003    0.000 {built-in method combine}
+ 17198571    3.747    0.000    7.750    0.000 /tmp/p0l-baseline/src/construction_pm/scheduling/time_calendar.py:247(_combine)
+   624572    3.632    0.000    9.967    0.000 /tmp/p0l-baseline/src/construction_pm/scheduling/time_calendar.py:311(subtract_working_hours)
+ 21596224    2.474    0.000    2.474    0.000 {method 'date' of 'datetime.datetime' objects}
+  1517786    1.665    0.000    2.100    0.000 /tmp/p0l-baseline/src/construction_pm/scheduling/time_calendar.py:184(_duration_microseconds)
+ 10418928    1.650    0.000    1.650    0.000 {method 'get' of 'dict' objects}
+   968220    1.628    0.000    3.273    0.000 /tmp/p0l-baseline/src/construction_pm/scheduling/time_calendar.py:264(normalize_start)
+   145762    1.599    0.000    3.282    0.000 /tmp/p0l-baseline/src/construction_pm/scheduling/time_calendar.py:334(calculate_working_hours)
+  6694619    1.461    0.000    2.737    0.000 /tmp/p0l-baseline/src/construction_pm/scheduling/time_calendar.py:240(intervals_for)
+  1238984    1.351    0.000    2.215    0.000 /tmp/p0l-baseline/src/construction_pm/scheduling/calendar_context.py:298(_registered_resolver)
+  1238984    1.148    0.000    2.201    0.000 /tmp/p0l-baseline/src/construction_pm/scheduling/calendar_context.py:324(_resolved_exception_layers)
+  5663216    1.081    0.000    1.081    0.000 /tmp/p0l-baseline/src/construction_pm/scheduling/time_calendar.py:216(_timedelta_microseconds)
+   624576    0.848    0.000    1.708    0.000 /tmp/p0l-baseline/src/construction_pm/scheduling/time_calendar.py:276(normalize_finish)
+9781490/9781486    0.730    0.000    0.730    0.000 {built-in method builtins.isinstance}
+        2    0.644    0.322   16.860    8.430 /tmp/p0l-baseline/src/construction_pm/scheduling/time_schedule.py:158(time_backward_pass)
+  3402106    0.592    0.000    0.823    0.000 /tmp/p0l-baseline/src/construction_pm/scheduling/time_calendar.py:251(_require_datetime)
+  1238984    0.587    0.000    5.003    0.000 /tmp/p0l-baseline/src/construction_pm/scheduling/calendar_context.py:358(resolve)
+  1238984    0.574    0.000    0.574    0.000 /tmp/p0l-baseline/src/construction_pm/scheduling/calendar_context.py:276(_merge_inherited_layers)
+  4428396    0.554    0.000    0.554    0.000 {method 'time' of 'datetime.datetime' objects}
+
+

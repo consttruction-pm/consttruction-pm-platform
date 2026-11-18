@@ -1,0 +1,30 @@
+Wed Nov 18 06:30:57 2026    /tmp/p0l-prof-after.prof
+
+         90348960 function calls (90340907 primitive calls) in 32.331 seconds
+
+   Ordered by: internal time
+   List reduced from 2509 to 20 due to restriction <20>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+   893214    4.073    0.000   12.896    0.000 /data/work/repo/src/construction_pm/scheduling/time_calendar.py:381(add_working_hours)
+   624572    2.488    0.000    7.881    0.000 /data/work/repo/src/construction_pm/scheduling/time_calendar.py:429(subtract_working_hours)
+  9879874    2.280    0.000    2.280    0.000 {built-in method combine}
+  9879874    2.168    0.000    4.447    0.000 /data/work/repo/src/construction_pm/scheduling/time_calendar.py:340(_combine)
+   968220    1.654    0.000    3.247    0.000 /data/work/repo/src/construction_pm/scheduling/time_calendar.py:357(normalize_start)
+ 10119821    1.557    0.000    1.557    0.000 {method 'get' of 'dict' objects}
+  1517786    1.464    0.000    1.892    0.000 /data/work/repo/src/construction_pm/scheduling/time_calendar.py:184(_duration_microseconds)
+  6694619    1.401    0.000    2.592    0.000 /data/work/repo/src/construction_pm/scheduling/time_calendar.py:305(intervals_for)
+  3028717    1.007    0.000    2.533    0.000 /data/work/repo/src/construction_pm/scheduling/time_calendar.py:312(_capacity_for)
+   624576    0.909    0.000    1.751    0.000 /data/work/repo/src/construction_pm/scheduling/time_calendar.py:369(normalize_finish)
+   145762    0.889    0.000    1.851    0.000 /data/work/repo/src/construction_pm/scheduling/time_calendar.py:474(calculate_working_hours)
+        2    0.640    0.320   12.039    6.020 /data/work/repo/src/construction_pm/scheduling/time_schedule.py:158(time_backward_pass)
+  2932424    0.588    0.000    0.588    0.000 /data/work/repo/src/construction_pm/scheduling/time_calendar.py:229(_timedelta_microseconds)
+  3402106    0.575    0.000    0.794    0.000 /data/work/repo/src/construction_pm/scheduling/time_calendar.py:344(_require_datetime)
+  4602154    0.575    0.000    0.575    0.000 {method 'date' of 'datetime.datetime' objects}
+        3    0.555    0.185    5.587    1.862 /data/work/repo/src/construction_pm/scheduling/time_forward_pass.py:128(time_forward_pass)
+  4428396    0.523    0.000    0.523    0.000 {method 'time' of 'datetime.datetime' objects}
+   951698    0.500    0.000    1.306    0.000 /data/work/repo/src/construction_pm/scheduling/time_unit_resolver.py:146(resolve_calendar_aware)
+7303524/7303520    0.489    0.000    0.489    0.000 {built-in method builtins.isinstance}
+   558046    0.477    0.000   10.228    0.000 /data/work/repo/src/construction_pm/scheduling/time_unit_resolver.py:54(add_duration)
+
+

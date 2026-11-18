@@ -1,0 +1,51 @@
+{
+  "environment": {
+    "cpu_affinity_count": 4,
+    "cpu_count": 4,
+    "git_sha": null,
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "memory_total_kb": 8131540,
+    "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+    "python": "3.12.13"
+  },
+  "mode": "time",
+  "records": [
+    {
+      "children_peak_rss_kb": 0,
+      "counts": {
+        "activities": 100000,
+        "relationships": 191483
+      },
+      "cpu": {
+        "count": 2,
+        "max_ms": 24093.883,
+        "median_ms": 23960.106,
+        "min_ms": 23826.329,
+        "p95_ms": 24093.883
+      },
+      "fixture_build_ms": 4320.669,
+      "float_days": 0,
+      "mode": "time",
+      "output_sha256": "e1c4396f5c0fa98cc70fcbc4fb3b00920a29e20e0ec6dab8f79e79d8e8f9ecc5",
+      "peak_rss_kb": 385112,
+      "project_finish": "3175-12-11T08:00:00+00:00",
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 100000,
+      "status": "ok",
+      "time_float_workers": 1,
+      "wall": {
+        "count": 2,
+        "max_ms": 24095.537,
+        "median_ms": 23961.728,
+        "min_ms": 23827.92,
+        "p95_ms": 24095.537
+      }
+    }
+  ],
+  "repeat": 2,
+  "seed": 20261116,
+  "shape": "dag",
+  "warmup": 0
+}

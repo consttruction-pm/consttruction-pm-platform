@@ -1,0 +1,103 @@
+{
+  "environment": {
+    "cpu_affinity_count": 4,
+    "cpu_count": 4,
+    "git_sha": null,
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "memory_total_kb": 8131540,
+    "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+    "python": "3.12.13"
+  },
+  "mode": "date",
+  "records": [
+    {
+      "counts": {
+        "activities": 1000,
+        "relationships": 1923
+      },
+      "cpu": {
+        "count": 3,
+        "max_ms": 109.42,
+        "median_ms": 55.971,
+        "min_ms": 48.783,
+        "p95_ms": 109.42
+      },
+      "fixture_build_ms": 8.794,
+      "mode": "date",
+      "output_sha256": "9c6c4a26495a1a12a29bab7e5bcffd00aa0dc0a341732204efedb557be939bae",
+      "peak_rss_kb": 51708,
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 1000,
+      "status": "ok",
+      "wall": {
+        "count": 3,
+        "max_ms": 55.981,
+        "median_ms": 48.863,
+        "min_ms": 48.783,
+        "p95_ms": 55.981
+      }
+    },
+    {
+      "counts": {
+        "activities": 5000,
+        "relationships": 9575
+      },
+      "cpu": {
+        "count": 3,
+        "max_ms": 258.44,
+        "median_ms": 257.47,
+        "min_ms": 245.777,
+        "p95_ms": 258.44
+      },
+      "fixture_build_ms": 41.234,
+      "mode": "date",
+      "output_sha256": "cb7ca54e6369f2a6469735b03ca79f3aa270ba296b71348bbcc72e6cc70c3e7f",
+      "peak_rss_kb": 61588,
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 5000,
+      "status": "ok",
+      "wall": {
+        "count": 3,
+        "max_ms": 258.446,
+        "median_ms": 257.476,
+        "min_ms": 245.784,
+        "p95_ms": 258.446
+      }
+    },
+    {
+      "counts": {
+        "activities": 25000,
+        "relationships": 47881
+      },
+      "cpu": {
+        "count": 3,
+        "max_ms": 1385.34,
+        "median_ms": 1363.926,
+        "min_ms": 1350.553,
+        "p95_ms": 1385.34
+      },
+      "fixture_build_ms": 219.509,
+      "mode": "date",
+      "output_sha256": "cb2e9cd562133a16bb69cd4a887c4b88041648a7364e53ee9a28448ee3b2648b",
+      "peak_rss_kb": 112720,
+      "seed": 20261116,
+      "shape": "dag",
+      "size": 25000,
+      "status": "ok",
+      "wall": {
+        "count": 3,
+        "max_ms": 1385.424,
+        "median_ms": 1364.011,
+        "min_ms": 1350.624,
+        "p95_ms": 1385.424
+      }
+    }
+  ],
+  "repeat": 3,
+  "seed": 20261116,
+  "shape": "dag",
+  "warmup": 0
+}

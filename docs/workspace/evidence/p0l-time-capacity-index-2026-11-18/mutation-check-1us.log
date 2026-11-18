@@ -1,0 +1,42 @@
+F
+=================================== FAILURES ===================================
+________ test_every_operation_matches_the_verbatim_oracle[naive-bridge] ________
+
+calendar_name = 'bridge', zone_name = 'naive'
+
+    @pytest.mark.parametrize("calendar_name", sorted(CALENDARS))
+    @pytest.mark.parametrize("zone_name", ["naive", "new-york", "fixed+0330"])
+    def test_every_operation_matches_the_verbatim_oracle(calendar_name, zone_name):
+        calendar = CALENDARS[calendar_name]
+        optimized, oracle = _resolvers(calendar)
+        probes = _probes(ZONES[zone_name])
+    
+        for probe in probes:
+            _assert_same("normalize_start", optimized, oracle, probe)
+            _assert_same("normalize_finish", optimized, oracle, probe)
+            for hours in DURATIONS:
+>               _assert_same("add_working_hours", optimized, oracle, probe, hours)
+
+tests/scheduling/test_time_capacity_index_equivalence.py:344: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+function_name = 'add_working_hours'
+optimized = <construction_pm.scheduling.time_calendar.TimeAwareWorkingTimeResolver object at 0x7faadc90fbc0>
+oracle = <scheduling.test_time_capacity_index_equivalence.OracleTimeResolver object at 0x7faadc90faa0>
+args = (datetime.datetime(2026, 3, 6, 0, 0), 40)
+
+    def _assert_same(function_name: str, optimized, oracle, *args) -> None:
+        expected = _call(getattr(oracle, function_name), *args)
+        actual = _call(getattr(optimized, function_name), *args)
+>       assert actual == expected, f"{function_name}{args}"
+E       AssertionError: add_working_hours(datetime.datetime(2026, 3, 6, 0, 0), 40)
+E       assert ('ok', dateti..., 59, 999996)) == ('ok', dateti... 3, 12, 9, 0))
+E         
+E         At index 1 diff: datetime.datetime(2026, 3, 12, 8, 59, 59, 999996) != datetime.datetime(2026, 3, 12, 9, 0)
+E         Use -v to get more diff
+
+tests/scheduling/test_time_capacity_index_equivalence.py:325: AssertionError
+=========================== short test summary info ============================
+FAILED tests/scheduling/test_time_capacity_index_equivalence.py::test_every_operation_matches_the_verbatim_oracle[naive-bridge]
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed in 0.08s

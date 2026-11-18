@@ -1,0 +1,2 @@
+{"size": 5000, "shape": "dag", "forward_ms": 170.6, "backward_ms": 576.1, "float_ms": 815.8, "total_ms": 1562.5}
+{"size": 25000, "shape": "dag", "forward_ms": 910.8, "backward_ms": 2953.8, "float_ms": 4152.1, "total_ms": 8044.9}

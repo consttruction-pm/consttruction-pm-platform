@@ -187,7 +187,20 @@ def _duration_microseconds(value: Decimal | int | float, *, unit: str) -> int:
     Scheduling arithmetic must never silently truncate a supplied duration.
     """
 
-    units = Decimal(str(value))
+    if type(value) is int:
+        # Exact integer fast path, bounded well inside the 28-digit Decimal
+        # context so ``Decimal(str(value)) * 3,600,000,000`` cannot round.
+        if 0 <= value < 10**15:
+            return value * 3_600_000_000
+        if value < 0:
+            raise ValueError(f"{unit} must be a finite non-negative value")
+    if type(value) is Decimal:
+        # ``Decimal(str(value))`` round-trips a plain Decimal exactly, so the
+        # validation and conversion below are unchanged without the string
+        # round-trip. Subclasses keep the original path.
+        units = value
+    else:
+        units = Decimal(str(value))
     if not units.is_finite() or units < 0:
         raise ValueError(f"{unit} must be a finite non-negative value")
     microseconds = units * Decimal("3600000000")
@@ -217,6 +230,52 @@ def _timedelta_microseconds(value: timedelta) -> int:
     return value.days * 86_400_000_000 + value.seconds * 1_000_000 + value.microseconds
 
 
+class _DayCapacity:
+    """Exact working capacity of one date's effective interval list.
+
+    ``capacities`` holds the elapsed microseconds of each working interval as
+    the interval loop measures it: ``combine(date, end) - combine(date, start)``.
+    Both datetimes are built with the caller's ``tzinfo`` (or sheared to naive
+    when it is ``None``), so they share one tzinfo object and CPython subtracts
+    them by wall-clock fields, cancelling the UTC offset. A DST transition
+    therefore cannot change an intra-date difference, and the profile is a
+    function of the interval list alone. A non-positive interval is recorded
+    as zero because the loop's ``begin <= cursor < end`` guard never consumes
+    it.
+    """
+
+    __slots__ = ("intervals", "capacities", "total")
+
+    def __init__(
+        self,
+        intervals: tuple[tuple[time, time], ...],
+        capacities: tuple[int, ...],
+    ) -> None:
+        self.intervals = intervals
+        self.capacities = capacities
+        self.total = sum(capacities)
+
+
+_EMPTY_DAY = _DayCapacity((), ())
+
+# The profile depends only on the effective interval list, so at most one entry
+# per distinct weekday/exception shape is expected. The bound only protects
+# against an adversarial calendar with thousands of distinct daily shapes; the
+# table is a pure cache, so clearing it can never change a result and a float
+# search spanning the 9,999-day ceiling cannot grow resident memory.
+_CAPACITY_CACHE_LIMIT = 4096
+
+
+def _wall_microseconds(start: time, end: time) -> int:
+    """Elapsed microseconds between two wall-clock times on one date."""
+    return (
+        (end.hour - start.hour) * 3_600_000_000
+        + (end.minute - start.minute) * 60_000_000
+        + (end.second - start.second) * 1_000_000
+        + (end.microsecond - start.microsecond)
+    )
+
+
 class TimeAwareWorkingTimeResolver:
     """Deterministic datetime arithmetic over a WorkingTimeCalendar."""
 
@@ -228,6 +287,12 @@ class TimeAwareWorkingTimeResolver:
         # function of the date.  Caching it removes most of the repeated work
         # from the day-by-day working-time loops without changing any result.
         self._intervals: dict[date, tuple[tuple[time, time], ...]] = {}
+        # The capacity of a working day is what the day loop measures:
+        # ``combine(date, end) - combine(date, start)`` for each interval. Both
+        # datetimes share one tzinfo object, so the difference is the wall-clock
+        # length whatever the zone, and the profile is keyed by the effective
+        # interval list rather than by date or time zone.
+        self._capacity: dict[tuple[tuple[time, time], ...], _DayCapacity] = {}
 
     def __reduce__(self):
         """Recreate the resolver from its immutable calendar.
@@ -243,6 +308,34 @@ class TimeAwareWorkingTimeResolver:
             cached = self.calendar.intervals_for(value)
             self._intervals[value] = cached
         return cached
+
+    def _capacity_for(self, value: date) -> _DayCapacity:
+        """Return the exact capacity profile of ``value``'s effective intervals.
+
+        ``capacities`` are the elapsed microseconds of each interval, exactly
+        as the interval loop measures them with ``end - cursor``: the two
+        datetimes are built from the same date and the same ``tzinfo`` object,
+        so their difference is the wall-clock difference and the UTC offset
+        cancels. The time zone cannot change the profile, so the memo key is
+        the interval list (already a pure function of the date for this
+        immutable calendar). The memo is a pure cache; clearing it cannot
+        change any result.
+        """
+        intervals = self.intervals_for(value)
+        if not intervals:
+            return _EMPTY_DAY
+        profile = self._capacity.get(intervals)
+        if profile is not None:
+            return profile
+        capacities = []
+        for start, end in intervals:
+            elapsed = _wall_microseconds(start, end)
+            capacities.append(elapsed if elapsed > 0 else 0)
+        profile = _DayCapacity(intervals, tuple(capacities))
+        if len(self._capacity) >= _CAPACITY_CACHE_LIMIT:
+            self._capacity.clear()
+        self._capacity[intervals] = profile
+        return profile
 
     @staticmethod
     def _combine(value_date: date, value_time: time, reference: datetime) -> datetime:
@@ -289,11 +382,37 @@ class TimeAwareWorkingTimeResolver:
         start = self._require_datetime(start, field="start")
         remaining_microseconds = _duration_microseconds(hours, unit="hours")
         cursor = self.normalize_start(start)
+        reference = cursor
+        value_date = cursor.date()
+        # The first day starts inside a working interval, so it is walked
+        # exactly as before; only whole days after it are skipped.
+        for interval_start, interval_end in self.intervals_for(value_date):
+            begin = self._combine(value_date, interval_start, cursor)
+            end = self._combine(value_date, interval_end, cursor)
+            if cursor < begin:
+                cursor = begin
+            if not (begin <= cursor < end):
+                continue
+
+            capacity_microseconds = _timedelta_microseconds(end - cursor)
+            if remaining_microseconds <= capacity_microseconds:
+                return cursor + timedelta(microseconds=remaining_microseconds)
+            remaining_microseconds -= capacity_microseconds
+            cursor = end
+
+        value_date += timedelta(days=1)
         while True:
-            intervals = self.intervals_for(cursor.date())
-            for interval_start, interval_end in intervals:
-                begin = self._combine(cursor.date(), interval_start, cursor)
-                end = self._combine(cursor.date(), interval_end, cursor)
+            profile = self._capacity_for(value_date)
+            if remaining_microseconds > profile.total:
+                remaining_microseconds -= profile.total
+                value_date += timedelta(days=1)
+                continue
+            # The answer lies on this date; build the same datetimes the
+            # day-by-day loop would have built for it.
+            cursor = self._combine(value_date, time.min, reference)
+            for interval_start, interval_end in profile.intervals:
+                begin = self._combine(value_date, interval_start, reference)
+                end = self._combine(value_date, interval_end, reference)
                 if cursor < begin:
                     cursor = begin
                 if not (begin <= cursor < end):
@@ -305,18 +424,40 @@ class TimeAwareWorkingTimeResolver:
                 remaining_microseconds -= capacity_microseconds
                 cursor = end
 
-            cursor = self._combine(cursor.date() + timedelta(days=1), time.min, cursor)
-            continue
+            value_date += timedelta(days=1)
 
     def subtract_working_hours(self, finish: datetime, hours: Decimal | int | float) -> datetime:
         finish = self._require_datetime(finish, field="finish")
         remaining_microseconds = _duration_microseconds(hours, unit="hours")
         cursor = self.normalize_finish(finish)
+        reference = cursor
+        value_date = cursor.date()
+        # Mirror of ``add``: walk the finishing day exactly, skip whole days.
+        for interval_start, interval_end in reversed(self.intervals_for(value_date)):
+            begin = self._combine(value_date, interval_start, cursor)
+            end = self._combine(value_date, interval_end, cursor)
+            if cursor >= end:
+                cursor = end
+            if not (begin < cursor <= end):
+                continue
+
+            capacity_microseconds = _timedelta_microseconds(cursor - begin)
+            if remaining_microseconds <= capacity_microseconds:
+                return cursor - timedelta(microseconds=remaining_microseconds)
+            remaining_microseconds -= capacity_microseconds
+            cursor = begin
+
+        value_date -= timedelta(days=1)
         while True:
-            intervals = self.intervals_for(cursor.date())
-            for interval_start, interval_end in reversed(intervals):
-                begin = self._combine(cursor.date(), interval_start, cursor)
-                end = self._combine(cursor.date(), interval_end, cursor)
+            profile = self._capacity_for(value_date)
+            if remaining_microseconds > profile.total:
+                remaining_microseconds -= profile.total
+                value_date -= timedelta(days=1)
+                continue
+            cursor = self._combine(value_date, time.max, reference)
+            for interval_start, interval_end in reversed(profile.intervals):
+                begin = self._combine(value_date, interval_start, reference)
+                end = self._combine(value_date, interval_end, reference)
                 if cursor >= end:
                     cursor = end
                 if not (begin < cursor <= end):
@@ -328,8 +469,7 @@ class TimeAwareWorkingTimeResolver:
                 remaining_microseconds -= capacity_microseconds
                 cursor = begin
 
-            cursor = self._combine(cursor.date() - timedelta(days=1), time.max, cursor)
-            continue
+            value_date -= timedelta(days=1)
 
     def calculate_working_hours(self, start: datetime, finish: datetime) -> Decimal:
         start = self._require_datetime(start, field="start")
@@ -337,6 +477,52 @@ class TimeAwareWorkingTimeResolver:
         if finish < start:
             raise ValueError("finish must not precede start")
 
+        total = Decimal("0")
+        one_hour = Decimal("3600000000")
+        cursor_date = start.date()
+        last_date = finish.date()
+        if cursor_date == last_date:
+            for interval_start, interval_end in self.intervals_for(cursor_date):
+                begin = self._combine(cursor_date, interval_start, start)
+                end = self._combine(cursor_date, interval_end, start)
+                left = max(start, begin)
+                right = min(finish, end)
+                if right > left:
+                    total += Decimal(_timedelta_microseconds(right - left)) / one_hour
+            return total
+
+        # A multi-day span: the boundary days are partial and are measured
+        # exactly; a whole day inside the span contributes the wall-clock
+        # length of each of its intervals, which is the same integer the loop
+        # would have measured, so the per-interval Decimal sum is unchanged.
+        # The whole-day shortcut assumes every middle-day interval ends before
+        # ``finish``, which holds when both endpoints share one tzinfo object
+        # (the dates already order them by wall clock). Mixed time zones are
+        # compared as instants and can reverse that order, so the verbatim
+        # day-by-day loop is kept for that case.
+        if start.tzinfo is not finish.tzinfo:
+            return self._calculate_working_hours_by_day(start, finish)
+        for interval_start, interval_end in self.intervals_for(cursor_date):
+            begin = self._combine(cursor_date, interval_start, start)
+            end = self._combine(cursor_date, interval_end, start)
+            if end > start:
+                total += Decimal(_timedelta_microseconds(end - max(start, begin))) / one_hour
+
+        middle_date = cursor_date + timedelta(days=1)
+        while middle_date < last_date:
+            for capacity in self._capacity_for(middle_date).capacities:
+                total += Decimal(capacity) / one_hour
+            middle_date += timedelta(days=1)
+
+        for interval_start, interval_end in self.intervals_for(last_date):
+            begin = self._combine(last_date, interval_start, start)
+            end = self._combine(last_date, interval_end, start)
+            if finish > begin:
+                total += Decimal(_timedelta_microseconds(min(finish, end) - begin)) / one_hour
+        return total
+
+    def _calculate_working_hours_by_day(self, start: datetime, finish: datetime) -> Decimal:
+        """Verbatim day-by-day loop, used when the endpoints mix time zones."""
         total = Decimal("0")
         cursor_date = start.date()
         last_date = finish.date()
