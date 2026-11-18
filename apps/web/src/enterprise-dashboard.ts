@@ -410,6 +410,14 @@ function dashboardOf(item: EnterpriseDashboardCatalogItem): EnterpriseDashboardD
 function portletLabel(type: string): string {
   return ENTERPRISE_DASHBOARD_PORTLET_CATALOG.find((item) => item.type_id === type)?.label ?? type;
 }
+
+/** Resolve the visible heading independently from the accessible card name. */
+export function enterprisePortletHeading(
+  portlet: Pick<EnterprisePortletRead, "type_id" | "title" | "hide_title">,
+): string | null {
+  if (portlet.hide_title) return null;
+  return portlet.title?.trim() || portletLabel(portlet.type_id);
+}
 function installDashboardStyles(): void {
   if (document.getElementById("cubi-enterprise-dashboard-styles")) return;
   const style = node("style");
@@ -920,8 +928,11 @@ export async function mountEnterpriseDashboard(
   function renderPortlet(read: EnterprisePortletRead): HTMLElement {
     const card = node("article", "ced-portlet");
     const head = node("header", "ced-portlet-head");
-    const label = read.hide_title ? portletLabel(read.type_id) : (read.title || portletLabel(read.type_id));
-    const headingNode = node("strong", "", label);
+    const label = portletLabel(read.type_id);
+    card.setAttribute("aria-label", label);
+    const headingText = enterprisePortletHeading(read);
+    const headingNode = node("strong", "", headingText ?? "");
+    headingNode.hidden = headingText === null;
     const controls = node("div", "ced-toolbar");
     let maximized = false;
     const body = node("div", "ced-portlet-body");
