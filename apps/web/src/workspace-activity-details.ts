@@ -1540,6 +1540,17 @@ function identityFor(input: ActivityDetailsInput): string {
 function activeBody(tab: string, input: ActivityDetailsInput): string {
   const state = input.state;
   if (state && state.activeMenu !== "schedule") return entityTabBody(tab, input, state);
+  // A cleared selection is not a stored record with blank values. Keep the
+  // tabs visible but replace their fields with one explicit state message,
+  // which also avoids growing the pane beyond the approved split geometry.
+  const selected = input.activities.some((row) => row.id === input.selectedActivityId);
+  if (!selected) {
+    return `<p class="cp-detail-empty cp-details-empty-state" data-details-empty-state role="status">${esc(t(
+      input.locale,
+      "No activity is selected. Select a row in the Activity Table or Gantt to load its details.",
+      "هیچ فعالیتی انتخاب نشده است. برای بارگذاری جزئیات، ردیفی را در جدول فعالیت‌ها یا گانت انتخاب کنید.",
+    ))}</p>`;
+  }
   return isActivityTab(tab) ? activityTabBody(tab, input) : "";
 }
 

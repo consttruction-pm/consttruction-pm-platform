@@ -166,6 +166,30 @@ async function main() {
   assert(JSON.stringify(report.tabs.slice(0, REQUIRED_TABS.length)) === JSON.stringify(REQUIRED_TABS), "required tab order is wrong");
   assert(report.tabs.at(-1) === "calendar", "calendar tab must stay last");
 
+  // A cleared selection is a state of its own: the pane must say no activity
+  // is selected instead of presenting blank fields as stored values.
+  const deselected = await page.evaluate(`(() => {
+    const row = document.querySelector('#cp-activity-grid tbody tr.is-selected[data-activity-id]');
+    if (!row) return false;
+    row.dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
+    return true;
+  })()`);
+  assert(deselected, "no selected activity row was available to clear");
+  await sleep(700);
+  const emptyState = await page.evaluate(`(() => {
+    const banner = document.querySelector('#cp-details [data-details-empty-state]');
+    return { present: Boolean(banner), text: banner?.textContent?.trim() ?? "" };
+  })()`);
+  assert(emptyState.present, "clearing the selection did not render the empty-state banner");
+  assert(/No activity is selected/.test(emptyState.text), `empty-state copy was: ${emptyState.text}`);
+  report.emptyState = emptyState;
+  await captureState(page, "details-empty-selection-en-1366");
+  await page.click("#cp-activity-grid tbody tr[data-activity-id]");
+  await page.waitForSelector('#cp-details [data-detail-tab="general"]', "details tabs after reselect");
+  await sleep(700);
+  const emptyAfterReselect = await page.evaluate(`Boolean(document.querySelector('#cp-details [data-details-empty-state]'))`);
+  assert(!emptyAfterReselect, "the empty-state banner stayed after reselecting an activity");
+
   // Keyboard tab model: only the active tab is in the tab order, so arrow,
   // Home and End must move focus and selection together and show its panel.
   await page.evaluate(`(() => { document.querySelector('#cp-details [data-detail-tab].is-active')?.focus(); return true; })()`);

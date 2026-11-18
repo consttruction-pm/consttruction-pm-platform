@@ -43,6 +43,10 @@ test("activity details renders an explicit placeholder when nothing is selected"
   assert.match(html, /cp-detail-selected">—<\/span>/);
   assert.match(html, /data-details-prev="" disabled/);
   assert.match(html, /data-details-next="" disabled/);
+  assert.match(html, /data-details-empty-state/);
+  assert.match(html, /No activity is selected\. Select a row in the Activity Table or Gantt/);
+  // The banner is a selection state, not a persistent field annotation.
+  assert.doesNotMatch(render("act-2"), /data-details-empty-state/);
 });
 
 test("activity details renders the sixteen required Version 26 tabs in order plus the CUBI calendar tab", () => {
