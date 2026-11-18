@@ -103,6 +103,10 @@ export class FetchEnterpriseDashboardClient implements EnterpriseDashboardClient
     });
   }
 
+  listUsers(): Promise<{ users: Array<{ user_id: string; email: string; display_name: string; active: boolean }> }> {
+    return this.request("/../users");
+  }
+
   saveFilterOverride(dashboardId: string, filters: EnterpriseDashboardFilter[]): Promise<unknown> {
     return this.request(`/${encodeURIComponent(dashboardId)}/filter-override`, {
       method: "POST",
