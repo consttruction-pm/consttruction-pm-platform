@@ -121,7 +121,7 @@ import { mountInterchangePanel } from "./p6-interchange-panel.js";
 import { mountCapacityPanel } from "./p6-capacity-panel.js";
 import { openDesktopDialog, renderDesktopShell, WINDOW_TITLES, type DesktopCommand } from "./workspace-desktop-shell.js";
 import { renderStatusBar, type ChromeLayoutState } from "./workspace-chrome.js";
-import { enhanceActivityDetails } from "./workspace-activity-details.js";
+import { applyActivitySavedNotice, enhanceActivityDetails } from "./workspace-activity-details.js";
 import { enhanceWorkspaceComments } from "./workspace-comments.js";
 import { mountWorkspaceMobile } from "./workspace-mobile.js";
 import { openFormBuilder, type FormBuilderHandle } from "./workspace-forms.js";
@@ -1857,6 +1857,27 @@ function renderApp(
     }
     renderApp(container, nextState, persistence);
   };
+  /**
+   * Re-read the project after an Activity Master save. This is a data refresh,
+   * not navigation: keep the window, the selected activity and the details tab
+   * so the grid and Gantt repaint without throwing the user out of context.
+   */
+  const refreshWorkspaceAfterActivitySave = async (activityId: string, revision: number): Promise<void> => {
+    const current = currentWorkspaceState ?? state;
+    const refreshed = await new WorkspaceReadClient(aiTransport).load(current.context, {
+      locale: current.locale,
+      calendarMode: current.calendarMode,
+      primaryCalendarId: activeProjectSummary?.project_id === current.context.project_id ? activeProjectSummary.primary_calendar_id ?? null : null,
+    });
+    if (!refreshed.ok) throw new Error(refreshed.error.code);
+    let nextState = await loadP6Presentation(refreshed.data, aiTransport, current.context);
+    nextState = { ...nextState, activeMenu: current.activeMenu, locale: current.locale };
+    if (nextState.activities.some((row) => row.id === activityId)) {
+      nextState = selectActivity(nextState, activityId);
+    }
+    renderApp(container, nextState, persistence);
+    applyActivitySavedNotice(container, current.locale, revision);
+  };
   const projectWbsPath = (wbsId?: string): string =>
     `/api/projects/${encodeURIComponent(state.context.project_id)}/p6/wbs${wbsId ? `/${encodeURIComponent(wbsId)}` : ""}`;
   let refreshAIProposals: (() => Promise<void>) | undefined;
@@ -3118,6 +3139,15 @@ function renderApp(
           canWrite: activeWorkspaceRoles.includes("planner") || activeWorkspaceRoles.includes("project_admin"),
         },
         (activityId) => renderApp(container, selectActivity(detailsState, activityId), persistence),
+        // A successful Details save must not leave the table and Gantt on the
+        // previous revision; re-read the authoritative project immediately
+        // while keeping the selected activity and the General tab in place.
+        (record) => {
+          void refreshWorkspaceAfterActivitySave(record.activityId, record.recordRevision).catch((error) => {
+            const status = container.querySelector<HTMLElement>(".cp-app-status");
+            if (status) status.dataset.activityRefreshError = error instanceof Error ? error.message : "ACTIVITY_REFRESH_FAILED";
+          });
+        },
       );
     },
     onGanttCommand: (command) => openDesktopDialog(desktopHost, command),

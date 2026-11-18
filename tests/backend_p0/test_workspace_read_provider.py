@@ -208,6 +208,7 @@ def test_provider_joins_scoped_activities_layout_and_shared_core_facts() -> None
         assert first["cells"]["activity.name"] == "Excavation"
         assert first["cells"]["activity.status"] == "Not Started"
         assert first["cells"]["activity.type"] == "Task Dependent"
+        assert first["cells"]["activity.percent_complete_type"] == "DURATION"
         assert first["cells"]["activity.wbs"] == "WBS-1 Site works"
         assert first["cells"]["activity.activity_name"] == first["cells"]["activity.name"]
         assert first["cells"]["activity.activity_status"] == first["cells"]["activity.status"]

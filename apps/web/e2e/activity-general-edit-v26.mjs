@@ -219,6 +219,16 @@ async function main() {
   const showedProbe = await poll(page, `(document.querySelector('#cp-details')?.innerText ?? "").includes(${JSON.stringify(probeSuffix)})`, 8000);
   assert(showedProbe, "the details pane did not repaint with the saved authoritative name");
 
+  // The shell must re-read the project after a save instead of leaving the
+  // grid on the previous revision until a manual refresh.
+  const gridRefreshed = await poll(
+    page,
+    `(document.querySelector('#cp-activity-grid tbody tr[data-activity-id="${activityId}"]')?.textContent ?? "").includes(${JSON.stringify(probeSuffix)})`,
+    10000,
+  );
+  report.gridRefresh = { refreshed: gridRefreshed };
+  assert(gridRefreshed, "the Activity Grid was not re-read after the Details save");
+
   await page.navigate(`${baseUrl}/app?view=live&project=preview-rps-01`, "#cp-activity-grid tbody tr[data-activity-id]", "workspace reload");
   await openActivity(page);
   const persisted = await poll(page, `(document.querySelector('#cp-details')?.innerText ?? "").includes(${JSON.stringify(probeSuffix)})`, 10000);

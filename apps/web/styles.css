@@ -5443,7 +5443,10 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
   flex: 1 0 auto;
   width: 100%;
   min-width: 900px;
-  min-height: 540px;
+  /* Keep the approved 540px working floor whenever the host has room, but
+     never exceed the host height: at 1280x720 the preview banner and chrome
+     leave 521px, and a hard 540px floor created a 19px workspace scroller. */
+  min-height: min(540px, 100%);
   height: 100%;
   padding: 0;
   background: #fff;

@@ -1668,11 +1668,31 @@ export function renderActivityDetailsPanel(input: ActivityDetailsInput): string 
 }
 
 /**
+ * Re-show the saved-state confirmation after the shell repaints the pane from
+ * the authoritative project read. Without this, the full re-read would replace
+ * the confirmation element the user just received.
+ */
+export function applyActivitySavedNotice(
+  root: ParentNode,
+  locale: string,
+  revision: number,
+): void {
+  const panel = root.querySelector<HTMLElement>('[data-detail-panel="general"]');
+  if (!panel || panel.querySelector("[data-general-saved]")) return;
+  panel.insertAdjacentHTML("afterbegin", `<p class="cp-detail-hint" data-general-saved role="status">${esc(t(locale, `Saved to the project service at revision r${revision}. The Activity Grid and Gantt are re-read from the service.`, `در سرویس پروژه با نسخهٔ r${revision} ذخیره شد. جدول و گانت از سرویس دوباره خوانده می‌شوند.`))}</p>`);
+}
+
+/**
  * The panel is rendered once per workspace render. Tab switching is local so
  * the table keeps its scroll position; only the active tab has content in the
  * DOM, which keeps the lower pane cheap on mobile.
  */
-type DetailsRuntime = { input: ActivityDetailsInput; onSelect: (id: string) => void };
+type DetailsRuntime = {
+  input: ActivityDetailsInput;
+  onSelect: (id: string) => void;
+  /** Lets the shell re-read the project so the grid reflects a saved edit. */
+  onActivitySaved?: (record: ActivityGeneralRecord) => void;
+};
 const detailsRuntime = new WeakMap<HTMLElement, DetailsRuntime>();
 const detailsBound = new WeakSet<HTMLElement>();
 const detailsLoadToken = new WeakMap<HTMLElement, number>();
@@ -1873,12 +1893,13 @@ export function enhanceActivityDetails(
   host: HTMLElement,
   input: ActivityDetailsInput,
   onSelectActivity: (id: string) => void,
+  onActivitySaved?: (record: ActivityGeneralRecord) => void,
 ): void {
   const effective: ActivityDetailsInput = {
     ...input,
     visibleTabs: input.visibleTabs ?? readActivityDetailsVisibleTabs(),
   };
-  detailsRuntime.set(host, { input: effective, onSelect: onSelectActivity });
+  detailsRuntime.set(host, { input: effective, onSelect: onSelectActivity, onActivitySaved });
   host.innerHTML = renderActivityDetailsPanel(effective);
   generalRecordRuntime.delete(host);
   const key = detailsDataKey(effective);
@@ -2072,11 +2093,15 @@ export function enhanceActivityDetails(
           ? { ...row, name: updated.name, cells: applyActivityGeneralToCells(row.cells, updated) }
           : row);
         const nextInput: ActivityDetailsInput = { ...input, activities: nextActivities };
-        detailsRuntime.set(host, { input: nextInput, onSelect: onSelectActivity });
+        const savedCallback = detailsRuntime.get(host)?.onActivitySaved;
+        detailsRuntime.set(host, { input: nextInput, onSelect: onSelectActivity, onActivitySaved: savedCallback });
         generalRecordRuntime.delete(host);
         host.innerHTML = renderActivityDetailsPanel(nextInput);
-        const panel = host.querySelector<HTMLElement>('[data-detail-panel="general"]');
-        panel?.insertAdjacentHTML("afterbegin", `<p class="cp-detail-hint" data-general-saved role="status">${esc(t(locale, `Saved to the project service at revision r${updated.recordRevision}. The Activity Grid shows the new values after its next project read.`, `در سرویس پروژه با نسخهٔ r${updated.recordRevision} ذخیره شد. شبکهٔ فعالیت‌ها مقادیر تازه را پس از خواندن بعدی پروژه نشان می‌دهد.`))}</p>`);
+        applyActivitySavedNotice(host, locale, updated.recordRevision);
+        // The shell owns the project read; ask it to repaint the grid and Gantt
+        // instead of leaving them stale until the next manual refresh. The
+        // shell keeps the selected activity and re-applies this confirmation.
+        if (savedCallback) savedCallback(updated);
         return;
       }
       if (kind === "constraints") {
