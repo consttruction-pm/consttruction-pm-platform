@@ -1,0 +1,51 @@
+== sequential baseline ==
+   30 projects in 17.2s
+== scenarios ==
+   A_one_large r0: 958ms cpu=39.9% p95=957.57ms hash=ok
+   A_one_large r1: 979ms cpu=39.1% p95=979.02ms hash=ok
+   A_one_large r2: 1019ms cpu=39.5% p95=1018.65ms hash=ok
+   B_two_large r0: 1424ms cpu=30.4% p95=1371.312ms hash=ok
+   B_two_large r1: 1429ms cpu=30.3% p95=1376.293ms hash=ok
+   B_two_large r2: 1426ms cpu=30.7% p95=1373.238ms hash=ok
+   C_four_large r0: 1610ms cpu=72.8% p95=1593.77ms hash=ok
+   C_four_large r1: 1622ms cpu=73.2% p95=1602.304ms hash=ok
+   C_four_large r2: 1601ms cpu=73.1% p95=1584.73ms hash=ok
+   D_eight_large r0: 3325ms cpu=73.3% p95=1801.721ms hash=ok
+   D_eight_large r1: 3322ms cpu=73.4% p95=1794.545ms hash=ok
+   D_eight_large r2: 3318ms cpu=73.8% p95=1796.123ms hash=ok
+   E_ten_large r0: 3896ms cpu=84.6% p95=1798.814ms hash=ok
+   E_ten_large r1: 3899ms cpu=83.9% p95=1797.807ms hash=ok
+   E_ten_large r2: 3912ms cpu=84.1% p95=1803.041ms hash=ok
+   F_ten_large_five_small r0: 4229ms cpu=84.2% p95=1819.075ms hash=ok
+   F_ten_large_five_small r1: 4198ms cpu=84.4% p95=1793.97ms hash=ok
+   F_ten_large_five_small r2: 4198ms cpu=83.8% p95=1801.433ms hash=ok
+   G_ten_large_twenty_small r0: 4991ms cpu=83.3% p95=1787.977ms hash=ok
+   G_ten_large_twenty_small r1: 4955ms cpu=83.2% p95=1773.849ms hash=ok
+   G_ten_large_twenty_small r2: 4999ms cpu=83.0% p95=1791.044ms hash=ok
+   H_ten_large_staggered r0: 3924ms cpu=84.7% p95=1812.432ms hash=ok
+   H_ten_large_staggered r1: 3906ms cpu=84.6% p95=1806.652ms hash=ok
+   H_ten_large_staggered r2: 3946ms cpu=84.5% p95=1800.797ms hash=ok
+== capacity sweep (scenario E) ==
+   budget=1: 13605ms peak_slots=1 cpu=25.0% hashes=ok
+   budget=2: 6939ms peak_slots=2 cpu=48.1% hashes=ok
+   budget=4: 3926ms peak_slots=4 cpu=84.5% hashes=ok
+   budget=8: 3674ms peak_slots=8 cpu=92.6% hashes=ok
+   budget=16: 3531ms peak_slots=16 cpu=95.9% hashes=ok
+   budget=32: 4124ms peak_slots=32 cpu=95.2% hashes=ok
+== durable executor end to end (4 large + 4 small) ==
+   wall=1590ms cpu=82.4% process_starts=8 peak_slots=4 hash=ok
+== thread-pool baseline (scenario C) ==
+   threads 5026ms cpu=25.1%
+== cache cold/warm (scenario E) ==
+   cold=3918ms hits=0 | warm=0ms hits=10 hash=ok
+== repeated-run soak ==
+   iteration 1/8: parent_rss=94.3MB slots_held=0
+   iteration 2/8: parent_rss=94.3MB slots_held=0
+   iteration 3/8: parent_rss=94.3MB slots_held=0
+   iteration 4/8: parent_rss=94.3MB slots_held=0
+   iteration 5/8: parent_rss=94.3MB slots_held=0
+   iteration 6/8: parent_rss=94.3MB slots_held=0
+   iteration 7/8: parent_rss=94.3MB slots_held=0
+   iteration 8/8: parent_rss=94.3MB slots_held=0
+
+written /tmp/p0n/fixlogs/post-fix-full.json
