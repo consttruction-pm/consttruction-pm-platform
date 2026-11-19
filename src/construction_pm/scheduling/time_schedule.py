@@ -3,7 +3,7 @@ from __future__ import annotations
 import multiprocessing
 import pickle
 import threading
-from contextlib import AbstractContextManager, nullcontext
+from contextlib import AbstractContextManager, ExitStack, contextmanager, nullcontext
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
@@ -163,6 +163,8 @@ def time_backward_pass(
     registry: CalendarResolverRegistry,
     constraints: Iterable[TimeActivityConstraint] = (),
     relationship_lag_calendar: RelationshipLagCalendar | None = None,
+    *,
+    on_late: Callable[[str, TimeScheduledActivity], None] | None = None,
 ) -> Mapping[str, TimeScheduledActivity]:
     activity_list = list(activities)
     _validate_project_calendar_context(activity_list)
@@ -231,7 +233,13 @@ def time_backward_pass(
             late_start = apply_time_latest_constraints(activity, late_start, activity.duration, constraint_list, registry)
             late_finish = _add_duration(late_start, activity.duration, resolver)
         validate_time_late_window(activity, late_start, late_finish, constraint_list, registry)
-        late[activity_id] = TimeScheduledActivity(activity_id, late_start, late_finish, activity.duration)
+        scheduled_late = TimeScheduledActivity(activity_id, late_start, late_finish, activity.duration)
+        late[activity_id] = scheduled_late
+        # A late record is final once stored: the remaining iterations only
+        # touch earlier activities. The hook is how the float pipeline consumes
+        # it concurrently; it cannot change ``late`` and defaults to no hook.
+        if on_late is not None:
+            on_late(activity_id, scheduled_late)
 
     for rel in relationship_list:
         predecessor = late[rel.predecessor_id]
@@ -447,12 +455,21 @@ def _time_float_context(
 
 
 def _time_float_for_activity(
-    context: _TimeFloatContext, activity_id: str
+    context: _TimeFloatContext,
+    activity_id: str,
+    late_item: TimeScheduledActivity | None = None,
 ) -> TimeFloatActivity:
     """Calculate one activity's float from immutable inputs only.
 
     The function reads no global state and mutates nothing, so evaluating it in
     a child process yields exactly the value the sequential loop would produce.
+
+    ``late_item`` supplies this activity's own late dates when the complete
+    ``late`` mapping is not available yet. The calculation below reads
+    ``late[activity_id]`` and no other late entry (the free-float probe uses
+    early dates only), so passing the single record is exactly equivalent to
+    reading it from the mapping. The pipeline that overlaps the backward pass
+    uses this to avoid shipping a whole late map that is still being built.
     """
     activity_map = context.activity_map
     outgoing = context.outgoing
@@ -464,7 +481,7 @@ def _time_float_for_activity(
     activity = activity_map[activity_id]
     resolver = _resolver(activity, registry)
     e = early[activity_id]
-    l = late[activity_id]
+    l = late[activity_id] if late_item is None else late_item
     # P6 reports negative Total Float when the late dates precede the early
     # dates.  Compute the magnitude from the earlier/later pair instead of
     # asking the calendar for a reversed interval.
@@ -592,6 +609,30 @@ def _chunk_activity_ids(activity_ids: list[str], workers: int) -> list[list[str]
     return [activity_ids[index : index + size] for index in range(0, len(activity_ids), size)]
 
 
+def _fork_is_safe() -> bool:
+    """True when forking a child cannot inherit another thread's held lock."""
+    if multiprocessing.current_process().daemon:
+        return False
+    if multiprocessing.parent_process() is not None:
+        return False
+    if threading.active_count() != 1:
+        return False
+    return "fork" in set(multiprocessing.get_all_start_methods())
+
+
+def _spawn_is_safe(context: _TimeFloatContext, *, allow_spawn: bool) -> bool:
+    """True when an allowed ``spawn`` child can receive the float context."""
+    if not allow_spawn or "spawn" not in set(multiprocessing.get_all_start_methods()):
+        return False
+    if multiprocessing.current_process().daemon:
+        return False
+    try:
+        pickle.dumps(context)
+    except Exception:  # noqa: BLE001 - any pickling failure means "not safe"
+        return False
+    return True
+
+
 def _select_float_start_method(
     context: _TimeFloatContext, *, allow_spawn: bool = False
 ) -> str | None:
@@ -613,16 +654,9 @@ def _select_float_start_method(
     unpicklable calendar registry — returns ``None`` and the caller uses the
     exact sequential loop.
     """
-    if multiprocessing.current_process().daemon:
-        return None
-    methods = set(multiprocessing.get_all_start_methods())
-    if "fork" in methods and threading.active_count() == 1 and multiprocessing.parent_process() is None:
+    if _fork_is_safe():
         return "fork"
-    if allow_spawn and "spawn" in methods:
-        try:
-            pickle.dumps(context)
-        except Exception:  # noqa: BLE001 - any pickling failure means "not safe"
-            return None
+    if _spawn_is_safe(context, allow_spawn=allow_spawn):
         return "spawn"
     return None
 
@@ -700,6 +734,176 @@ def _parallel_time_floats(
         for item in chunk:
             merged[item.activity_id] = item
     return {activity_id: merged[activity_id] for activity_id in activity_ids}
+
+
+# ---------------------------------------------------------------------------
+# P0-M: overlap the backward pass with the per-activity float calculation
+# ---------------------------------------------------------------------------
+#
+# The float of one activity needs its own late dates and the early dates of the
+# whole network (Free Float probes successor *early* dates only). The backward
+# pass produces one activity's late dates at a time, in reverse topological
+# order, and an activity's late dates are final as soon as they are stored.
+# A float for activity A therefore depends on A's own backward result and on
+# nothing the backward pass does afterwards, so the two passes can run
+# concurrently: the parent runs the unchanged backward loop and hands each
+# finished activity's late record to child processes that run the unchanged
+# `_time_float_for_activity`.
+#
+# On a deep, narrow network (the benchmark DAG is a chain, depth == size,
+# width == 1) the backward pass itself cannot be split: every activity's late
+# dates depend on its successor's. The only intra-project parallelism available
+# there is exactly this producer/consumer split, and it removes the float phase
+# from the critical path instead of shrinking either phase.
+
+_PIPELINE_CONTEXT: _TimeFloatContext | None = None
+# One task carries one (id, late) pair per activity, so a batch is a few
+# kilobytes and the parent spends microseconds per dispatch while it runs the
+# backward loop. The size is calibrated on the reference host: a smaller batch
+# costs more IPC per activity, a larger one lengthens the drain tail by one
+# batch of float work. Targeting ~32 batches keeps the tail near 3 % of the
+# pass at every size measured in the P0-M evidence.
+_PIPELINE_TARGET_BATCHES = 32
+_PIPELINE_MIN_BATCH = 16
+_PIPELINE_MAX_BATCH = 1024
+# Below this size the pool start-up cost can exceed the float work hidden
+# behind the backward pass (measured: 100 activities are slower pipelined).
+# Execution only; a value never depends on it.
+_PIPELINE_MIN_ACTIVITIES = 256
+
+
+def _pipeline_batch_size(activity_count: int) -> int:
+    return max(_PIPELINE_MIN_BATCH, min(_PIPELINE_MAX_BATCH, activity_count // _PIPELINE_TARGET_BATCHES))
+
+
+def _pipeline_initializer(context: _TimeFloatContext) -> None:
+    global _PIPELINE_CONTEXT
+    _PIPELINE_CONTEXT = context
+
+
+def _pipeline_chunk(
+    items: list[tuple[str, TimeScheduledActivity]],
+) -> list[TimeFloatActivity]:
+    context = _PIPELINE_CONTEXT
+    if context is None:
+        raise RuntimeError("FLOAT_PIPELINE_CONTEXT_NOT_INITIALIZED")
+    return [
+        _time_float_for_activity(context, activity_id, late_item)
+        for activity_id, late_item in items
+    ]
+
+
+class _FloatPipeline:
+    """Batched dispatch of float work to children while the parent walks back.
+
+    ``submit`` must be called once per activity, with the late record the
+    backward pass just stored. ``finish`` waits for every dispatched batch and
+    returns the floats in canonical id order, which is what the sequential
+    pass returns.
+    """
+
+    def __init__(
+        self,
+        pool: object,
+        batch_size: int,
+    ) -> None:
+        self._pool = pool
+        self._batch_size = batch_size
+        self._buffer: list[tuple[str, TimeScheduledActivity]] = []
+        self._pending: list[object] = []
+        self.dispatched_activities = 0
+        self.dispatched_batches = 0
+
+    def submit(self, activity_id: str, late_item: TimeScheduledActivity) -> None:
+        self._buffer.append((activity_id, late_item))
+        if len(self._buffer) >= self._batch_size:
+            self._dispatch()
+
+    def _dispatch(self) -> None:
+        batch = self._buffer
+        self._buffer = []
+        self._pending.append(self._pool.apply_async(_pipeline_chunk, (batch,)))
+        self.dispatched_activities += len(batch)
+        self.dispatched_batches += 1
+
+    def finish(self) -> dict[str, TimeFloatActivity]:
+        if self._buffer:
+            self._dispatch()
+        merged: dict[str, TimeFloatActivity] = {}
+        for handle in self._pending:
+            for item in handle.get():
+                merged[item.activity_id] = item
+        self._pending = []
+        return {activity_id: merged[activity_id] for activity_id in sorted(merged)}
+
+
+@contextmanager
+def _float_pipeline(
+    context_factory: Callable[[], _TimeFloatContext],
+    *,
+    activity_count: int,
+    workers: int,
+    admission: Callable[[int], AbstractContextManager[int]] | None,
+    allow_spawn: bool = False,
+    batch_size: int | None = None,
+):
+    """Yield a float pipeline, or ``None`` when the exact sequential path must run.
+
+    The pipeline is used only when every condition that makes child processes
+    safe and worthwhile holds: more than one granted slot, a forkable
+    single-threaded parent (or an explicitly allowed spawn), no pool already
+    active in this process, and enough activities for the pool start-up to be
+    hidden. Any other state yields ``None`` and the caller keeps the historical
+    behaviour, so execution never changes a value.
+
+    ``context_factory`` builds the immutable float inputs. It is called only
+    when a safe start method exists and a child will actually be created, so a
+    fallback never pays for building an unused context.
+    """
+
+    if batch_size is None:
+        batch_size = _pipeline_batch_size(activity_count)
+    if workers <= 1 or activity_count < _PIPELINE_MIN_ACTIVITIES:
+        yield None
+        return
+    if _fork_is_safe():
+        start_method = "fork"
+    elif _spawn_is_safe(context_factory(), allow_spawn=allow_spawn):
+        start_method = "spawn"
+    else:
+        yield None
+        return
+    if not _FLOAT_POOL_GUARD.acquire(blocking=False):
+        yield None
+        return
+    stack = ExitStack()
+    try:
+        requested = workers
+        grant = admission(requested) if admission is not None else nullcontext(requested)
+        granted = min(requested, int(stack.enter_context(grant)))
+        # The parent keeps running the backward pass, so it occupies one of the
+        # granted slots and the pool gets the rest.
+        children = granted - 1
+        pool = None
+        if children >= 1:
+            pool_context = multiprocessing.get_context(start_method)
+            try:
+                pool = pool_context.Pool(
+                    processes=children,
+                    initializer=_pipeline_initializer,
+                    initargs=(context_factory(),),
+                )
+            except (OSError, RuntimeError):
+                pool = None
+        if pool is None:
+            yield None
+            return
+        stack.callback(pool.join)
+        stack.callback(pool.close)
+        yield _FloatPipeline(pool, batch_size)
+    finally:
+        stack.close()
+        _FLOAT_POOL_GUARD.release()
 
 
 @dataclass(frozen=True)
@@ -787,6 +991,11 @@ def time_schedule(
     _validate_project_calendar_context(activity_list)
     relationship_list = list(relationships)
     constraint_list = list(constraints)
+    # ``calculate_time_floats`` rejects this today; the pipeline path does not
+    # call it, so validate here too and keep the contract identical on every
+    # execution path.
+    if isinstance(float_workers, bool) or not isinstance(float_workers, int) or float_workers < 1:
+        raise ValueError("INVALID_FLOAT_WORKERS")
     selected_options = options or TimeScheduleOptions()
     early = time_forward_pass(
         activity_list,
@@ -802,25 +1011,83 @@ def time_schedule(
     effective_finish = project_finish or max(item.finish for item in early.values())
     if project_resolver is not None:
         effective_finish = project_resolver.normalize_finish(effective_finish)
-    late = time_backward_pass(
-        activity_list,
-        relationship_list,
-        early,
-        effective_finish,
-        registry,
-        constraint_list,
-        selected_options.relationship_lag_calendar,
+
+    selected_policy = (
+        float_policy
+        if float_policy is not None
+        else FloatExecutionPolicy(workers=float_workers)
     )
-    floats = calculate_time_floats(
-        activity_list,
-        relationship_list,
-        early,
-        late,
-        registry,
-        selected_options.relationship_lag_calendar,
-        workers=float_workers,
-        policy=float_policy,
-    )
+    if selected_policy.workers > 1 and activity_list:
+        # Float work depends only on its own late record and on early dates
+        # that are already final, so it runs while the backward pass walks.
+        # The pipeline is created before the pass so its children inherit the
+        # immutable inputs by fork; ``None`` means the historical path.
+        with _float_pipeline(
+            lambda: _time_float_context(
+                activity_list,
+                relationship_list,
+                early,
+                {},
+                registry,
+                selected_options.relationship_lag_calendar,
+            ),
+            activity_count=len(activity_list),
+            workers=selected_policy.workers,
+            admission=selected_policy.admission,
+            allow_spawn=selected_policy.allow_spawn,
+        ) as pipeline:
+            if pipeline is None:
+                late = time_backward_pass(
+                    activity_list,
+                    relationship_list,
+                    early,
+                    effective_finish,
+                    registry,
+                    constraint_list,
+                    selected_options.relationship_lag_calendar,
+                )
+                floats = calculate_time_floats(
+                    activity_list,
+                    relationship_list,
+                    early,
+                    late,
+                    registry,
+                    selected_options.relationship_lag_calendar,
+                    workers=float_workers,
+                    policy=float_policy,
+                )
+            else:
+                late = time_backward_pass(
+                    activity_list,
+                    relationship_list,
+                    early,
+                    effective_finish,
+                    registry,
+                    constraint_list,
+                    selected_options.relationship_lag_calendar,
+                    on_late=pipeline.submit,
+                )
+                floats = pipeline.finish()
+    else:
+        late = time_backward_pass(
+            activity_list,
+            relationship_list,
+            early,
+            effective_finish,
+            registry,
+            constraint_list,
+            selected_options.relationship_lag_calendar,
+        )
+        floats = calculate_time_floats(
+            activity_list,
+            relationship_list,
+            early,
+            late,
+            registry,
+            selected_options.relationship_lag_calendar,
+            workers=float_workers,
+            policy=float_policy,
+        )
     return TimeScheduleResult(
         activities=early,
         early_activities=early,

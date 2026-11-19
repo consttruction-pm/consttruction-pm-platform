@@ -1,0 +1,102 @@
+{
+ "size": 25000,
+ "shapes": [
+  {
+   "shape": "dag",
+   "size": 25000,
+   "relationships": 47881,
+   "depth": 25000,
+   "width_max": 1,
+   "width_mean": 1.0,
+   "level_count_with_width_1": 25000,
+   "forward_median_ms": 722.32,
+   "backward_median_ms": 2349.14,
+   "float_median_ms": 2763.85,
+   "forward_us_per_activity": 28.893,
+   "backward_us_per_activity": 93.966,
+   "barrier_count": 25000,
+   "barrier_overhead_ms": 3225.0,
+   "barrier_overhead_vs_forward": 4.465
+  },
+  {
+   "shape": "chain",
+   "size": 25000,
+   "relationships": 24999,
+   "depth": 25000,
+   "width_max": 1,
+   "width_mean": 1.0,
+   "level_count_with_width_1": 25000,
+   "forward_median_ms": 559.63,
+   "backward_median_ms": 1476.95,
+   "float_median_ms": 1386.24,
+   "forward_us_per_activity": 22.385,
+   "backward_us_per_activity": 59.078,
+   "barrier_count": 25000,
+   "barrier_overhead_ms": 3225.0,
+   "barrier_overhead_vs_forward": 5.763
+  },
+  {
+   "shape": "fan",
+   "size": 25000,
+   "relationships": 49996,
+   "depth": 3,
+   "width_max": 24998,
+   "width_mean": 8333.333,
+   "level_count_with_width_1": 2,
+   "forward_median_ms": 762.63,
+   "backward_median_ms": 3863.69,
+   "float_median_ms": 2600.57,
+   "forward_us_per_activity": 30.505,
+   "backward_us_per_activity": 154.548,
+   "barrier_count": 3,
+   "barrier_overhead_ms": 0.39,
+   "barrier_overhead_vs_forward": 0.001
+  },
+  {
+   "shape": "wide",
+   "size": 25000,
+   "relationships": 0,
+   "depth": 1,
+   "width_max": 25000,
+   "width_mean": 25000.0,
+   "level_count_with_width_1": 0,
+   "forward_median_ms": 378.35,
+   "backward_median_ms": 593.01,
+   "float_median_ms": 281.26,
+   "forward_us_per_activity": 15.134,
+   "backward_us_per_activity": 23.72,
+   "barrier_count": 1,
+   "barrier_overhead_ms": 0.13,
+   "barrier_overhead_vs_forward": 0.0
+  },
+  {
+   "shape": "mixed",
+   "size": 25000,
+   "relationships": 50671,
+   "depth": 25000,
+   "width_max": 1,
+   "width_mean": 1.0,
+   "level_count_with_width_1": 25000,
+   "forward_median_ms": 1038.79,
+   "backward_median_ms": 2436.56,
+   "float_median_ms": 3243.48,
+   "forward_us_per_activity": 41.551,
+   "backward_us_per_activity": 97.463,
+   "barrier_count": 25000,
+   "barrier_overhead_ms": 3225.0,
+   "barrier_overhead_vs_forward": 3.105
+  }
+ ],
+ "barrier": [
+  {
+   "children": 1,
+   "median_ms": 4.671,
+   "min_ms": 0.133
+  },
+  {
+   "children": 3,
+   "median_ms": 0.129,
+   "min_ms": 0.07
+  }
+ ]
+}

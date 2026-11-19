@@ -1269,3 +1269,139 @@ full-suite and flake logs, mutation check). Merged as `02704eea` (PR #2053).
 Post-merge suite on main `02704eea`: 5,272 passed, 1 skipped, 0 failed, with
 the post-merge time-1k canonical hash `bdb8a04616a6…` identical to the
 baseline; the merged tree is byte-identical to the tested `84064d52`.
+
+## 19. P0-M execution record: backward/float pipeline (2026-11-19)
+
+### 19.1 Requirement and reference mapping
+
+P6 Professional V26 Help defines Activity Total Float as the time an activity
+can be delayed without delaying the project finish or a constraint, and Free
+Float as the delay before it delays a successor; the engine already implements
+that with `time_forward_pass`, `time_backward_pass` and
+`calculate_time_floats`. P0-M changes only *where and when* the per-activity
+float is evaluated: the float of one activity is a pure function of its own late
+dates, the whole early schedule, its outgoing relationships and the calendar
+registry, and the backward pass stores each late record finally. Those late
+records are therefore handed to child processes while the parent keeps walking
+back, and the children run the unchanged `_time_float_for_activity`. No
+scheduling rule, relationship rule, calendar, constraint, float definition,
+decision order or output field changes.
+
+### 19.2 Measured bottlenecks and what is parallelizable
+
+Sequential phase medians (same fixtures, 5/3/2 repeats):
+
+| size | forward | backward | float | assembly | hashing | total | float share |
+|---|---|---|---|---|---|---|---|
+| 1,000 | 26.3 ms | 88.9 ms | 108.4 ms | 10.3 ms | 4.1 ms | 238.0 ms | 45.6 % |
+| 5,000 | 133.0 ms | 446.8 ms | 543.6 ms | 53.5 ms | 20.7 ms | 1,210.1 ms | 44.9 % |
+| 25,000 | 744.3 ms | 2,351.2 ms | 2,801.7 ms | 286.7 ms | 109.1 ms | 6,248.3 ms | 44.8 % |
+| 100,000 | 3,188.1 ms | 9,441.9 ms | 11,207.0 ms | 1,152.3 ms | 459.7 ms | 25,448.9 ms | 44.0 % |
+
+`cProfile` self time at 25k / 100k is dominated by calendar arithmetic (57.7 % /
+58.7 %) and engine bookkeeping (31.4 % / 31.3 %); the pass bodies and
+relationship helpers are small (backward 4.4 % / 4.1 %, float 3.3 % / 2.9 %,
+forward 2.0 % / 1.7 %, relationship evaluation 1.1 % / 1.1 %, topological
+ordering 0.2 % / 0.3 %). Per-activity cost on the benchmark DAG is 28.9 µs
+forward and 94.0 µs backward.
+
+The forward and backward passes cannot be wavefronted on these fixtures: the
+benchmark DAG is a spine with forward shortcuts, so `depth == size` and
+`width_max == 1` at every size. A level-synchronous pass pays one barrier per
+level; the measured pool round trip is 0.129 ms (3 children) / 4.671 ms
+(1 child), so 25,000 levels cost 3,225 ms against a 722 ms serial forward pass
+(4.47× worse before any calculation; chain 5.76×, mixed 3.11×). On the `fan`
+and `wide` shapes (depth 3 / 1, width 24,998 / 25,000) the barrier overhead is
+0.39 ms / 0.13 ms, so a wavefront could pay there; that is a different
+architecture, measured and recorded but not built and not claimed.
+
+### 19.3 The change
+
+`src/construction_pm/scheduling/time_schedule.py`
+
+* `time_backward_pass(..., *, on_late=None)` reports each final late record as
+  soon as it is stored. The default keeps the historical loop; the hook cannot
+  mutate `late`.
+* `_time_float_for_activity(..., late_item=None)` accepts the activity's own
+  late record. The calculation reads no other late entry (Free Float probes
+  successor *early* dates only), so the value is identical by construction.
+* `_FloatPipeline` batches `(id, late)` pairs (target ≈32 batches, clamps
+  16…1024; ~108 B per pair) and dispatches them with `apply_async` while the
+  parent walks back; `finish()` flushes, waits and merges in sorted id order.
+* `_float_pipeline` runs only with a safe start method (single-threaded parent,
+  no pool active, fork available; spawn only when the policy allows it and the
+  context pickles), more than one granted slot, at least 256 activities and a
+  pool that actually starts. It holds `_FLOAT_POOL_GUARD` and releases it on
+  every path; the parent keeps one granted slot, the pool gets `granted − 1`
+  children. Every other state runs the previous code path verbatim, including
+  the post-hoc parallel float pass.
+* `_fork_is_safe` / `_spawn_is_safe` are extracted from
+  `_select_float_start_method`, preserving its semantics. `float_workers` is
+  validated before any work because the pipeline path no longer calls
+  `calculate_time_floats`, which used to be the only validator.
+
+Children run the same engine function with the same registry; there is no
+second engine and no duplicated calculation.
+
+### 19.4 Equality evidence
+
+`tests/scheduling/test_time_schedule_pipeline_parallelism.py` (20 tests):
+mixed FS/SS/FF/SF network with ±lags and unconnected activities at 1/2/4 slots;
+four calendars with exception layers and a per-activity override; DST in
+`America/New_York`; earliest/latest constraints; actual start with
+out-of-sequence SS and a data date; all six fixture shapes; bounded Free Float
+window; 1 vs 8 slots on a small network; determinism across repeats; field-level
+equality with the post-hoc parallel float path; fallbacks (threaded process,
+below-threshold network, one granted slot, pool already active, backward-pass
+failure with guard release); hook ordering/exactly-once and `late_item`
+equivalence. Full suite at the tested tree: 5,292 passed, 1 skipped, 0 failed
+(baseline 5,272 + 20 new tests). Canonical hashes are identical to `9408552b`
+for time dag 1k/5k/25k/100k and time mixed 25k, and identical across 1/2/4 slots
+and both execution modes.
+
+### 19.5 Measured result
+
+Whole-run medians (one fresh process per configuration, warm-up, 5 repeats at
+1k/5k/10k and 3 at 25k/50k/100k):
+
+| size | 1 slot | 2 slots | 4 slots | 4-slot speedup | post-hoc 4 slots |
+|---|---|---|---|---|---|
+| 1,000 | 225.4 ms | 167.8 ms | 152.5 ms | 1.48× | 157.4 ms (1.42×) |
+| 5,000 | 1,138.8 ms | 780.0 ms | 669.3 ms | 1.70× | 771.1 ms (1.45×) |
+| 10,000 | 2,281.5 ms | 1,546.2 ms | 1,371.1 ms | 1.66× | 1,555.6 ms (1.47×) |
+| 25,000 | 5,825.9 ms | 4,250.2 ms | 3,583.8 ms | 1.63× | 3,978.6 ms (1.47×) |
+| 50,000 | 11,990.0 ms | 8,930.2 ms | 7,608.5 ms | 1.58× | 8,246.8 ms (1.45×) |
+| 100,000 | 24,202.1 ms | 18,051.6 ms | 15,012.9 ms | 1.61× | 16,447.0 ms (1.47×) |
+
+Total CPU utilisation at 4 slots is 1.77–1.88 of 4 CPUs; child-worker
+utilisation is 0.26–0.30 because the children only work while the parent is in
+the backward pass (the parent is the serial bottleneck). Serialization plus
+submission costs 0.25–2.05 ms per whole project (0.02 % of the 9.19 s gain at
+100k). The 4-slot wall time sits 2–5 % above the measured parent floor
+(forward + backward + assembly + hashing) at 5k–100k and 17 % above it at 1k,
+where fork start-up is amortised over only 225 ms. Parent peak RSS grows with
+the schedule as before (569 → 670 MB at 100k, +18 %); summed child RSS is
+1,450 MB at 100k, overcounting shared copy-on-write pages.
+
+### 19.6 Limits
+
+* The parent's forward and backward passes are serial on depth-1-width graphs,
+  so the attainable speedup is bounded by the 44–46 % float share (≈1.79–1.85×);
+  measured 1.58–1.70×.
+* Two granted slots leave one child, which becomes the bottleneck at ≥25k
+  (drain 0.68 s at 25k, 2.88 s at 100k).
+* Below 256 activities the pipeline declines (pool start is not amortised);
+  networks under that size use the sequential loop and the post-hoc path when
+  admitted.
+* `spawn` remains off by default (context transfer costs more than the work, as
+  measured in P0-J); non-forking processes fall back unless a caller opts in.
+* Result transport/unpickling adds ≈5 % at 100k; compact tuples are a measured
+  opportunity, not implemented.
+* Wavefront parallelism for wide graphs is measured but not implemented.
+* P0-M does not change any scheduling value; the maximum gain is fixed by the
+  serial passes, not by the number of workers.
+
+Evidence: `docs/workspace/evidence/p0m-intra-project-pipeline-2026-11-18/`
+(`summary.md`, `comparison.json`, raw matrix and clean re-measure logs, phase
+profiles, wavefront cost model, before/after hashes, full-suite log, source
+hashes, reproduction scripts).

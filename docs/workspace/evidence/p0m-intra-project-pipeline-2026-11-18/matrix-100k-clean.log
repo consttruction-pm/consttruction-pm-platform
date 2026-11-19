@@ -1,0 +1,7 @@
+100000 x1 pipeline: median 24202.1 ms  p95 24230.4  cpu 24201.0  util 1.0  ipc_submit 0.0 ms  drain 0.0 ms  child_rss 0 kB  e1c4396f5c0f
+100000 x2 pipeline: median 18051.6 ms  p95 18541.5  cpu 27450.8  util 1.521  ipc_submit 1.1 ms  drain 2876.99 ms  child_rss 490740 kB  e1c4396f5c0f
+100000 x4 pipeline: median 15012.9 ms  p95 15350.5  cpu 26956.2  util 1.796  ipc_submit 2.05 ms  drain 119.45 ms  child_rss 1485036 kB  e1c4396f5c0f
+100000 x1 posthoc: median 24187.0 ms  p95 24200.0  cpu 24185.0  util 1.0  ipc_submit 0.0 ms  drain 0.0 ms  child_rss 0 kB  e1c4396f5c0f
+100000 x2 posthoc: median 19639.0 ms  p95 19886.3  cpu 25654.9  util 1.306  ipc_submit 0.0 ms  drain 0.0 ms  child_rss 1008560 kB  e1c4396f5c0f
+100000 x4 posthoc: median 16447.0 ms  p95 16576.9  cpu 25237.0  util 1.534  ipc_submit 0.0 ms  drain 0.0 ms  child_rss 1905376 kB  e1c4396f5c0f
+DONE

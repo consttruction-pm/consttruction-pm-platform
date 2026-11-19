@@ -1,0 +1,227 @@
+[
+ {
+  "size": 100000,
+  "relationships": 191483,
+  "prep_ms": 4301.49,
+  "topo_ms": 134.23,
+  "forward_ms": 3188.12,
+  "backward_ms": 9441.85,
+  "float_ms": 11206.96,
+  "assemble_ms": 1152.3,
+  "hash_ms": 459.68,
+  "total_ms": 25448.91,
+  "forward_cpu_ms": 3187.9,
+  "backward_cpu_ms": 9441.29,
+  "float_cpu_ms": 11206.24,
+  "assemble_cpu_ms": 1152.22,
+  "hash_cpu_ms": 459.63,
+  "utilization": 1.0,
+  "peak_rss_kb": 627016,
+  "level_stats": {
+   "depth": 100000,
+   "width_max": 1,
+   "width_mean": 1.0,
+   "levels_with_width_ge_2": 0,
+   "levels_with_width_ge_4": 0,
+   "largest_level_share": 1e-05,
+   "level_size_head": [
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+   ]
+  },
+  "runs": [
+   {
+    "forward_ms": 3067.09,
+    "backward_ms": 9375.25,
+    "float_ms": 11150.32,
+    "assemble_ms": 1121.61,
+    "hash_ms": 460.66,
+    "total_ms": 25174.92,
+    "forward_cpu_ms": 3066.89,
+    "backward_cpu_ms": 9374.77,
+    "float_cpu_ms": 11149.57,
+    "assemble_cpu_ms": 1121.52,
+    "hash_cpu_ms": 460.61,
+    "sha256": "e1c4396f5c0fa98cc70fcbc4fb3b00920a29e20e0ec6dab8f79e79d8e8f9ecc5"
+   },
+   {
+    "forward_ms": 3309.16,
+    "backward_ms": 9508.46,
+    "float_ms": 11263.6,
+    "assemble_ms": 1182.99,
+    "hash_ms": 458.69,
+    "total_ms": 25722.9,
+    "forward_cpu_ms": 3308.92,
+    "backward_cpu_ms": 9507.81,
+    "float_cpu_ms": 11262.91,
+    "assemble_cpu_ms": 1182.91,
+    "hash_cpu_ms": 458.65,
+    "sha256": "e1c4396f5c0fa98cc70fcbc4fb3b00920a29e20e0ec6dab8f79e79d8e8f9ecc5"
+   }
+  ],
+  "float_share": 0.4404,
+  "serial_vs_parallelizable_ratio": 1.271,
+  "profile_self_by_category_ms": {
+   "other": 18661.21,
+   "calendar_arithmetic": 34999.68,
+   "float_calculation": 1709.36,
+   "topological_ordering": 166.39,
+   "backward_glue": 2454.27,
+   "forward_pass_glue": 1028.91,
+   "relationship_evaluation": 635.01
+  },
+  "profile_calls": {
+   "normalize_finish@time_calendar.py:369": {
+    "calls": 1248900,
+    "self_ms": 2054.63,
+    "cumulative_ms": 3763.45
+   },
+   "normalize_start@time_calendar.py:357": {
+    "calls": 1740382,
+    "self_ms": 3425.54,
+    "cumulative_ms": 6161.0
+   },
+   "calculate_time_floats@time_schedule.py:939": {
+    "calls": 1,
+    "self_ms": 96.67,
+    "cumulative_ms": 28409.35
+   },
+   "heap_topological_order@topological_order.py:37": {
+    "calls": 1,
+    "self_ms": 166.39,
+    "cumulative_ms": 235.52
+   },
+   "add_duration@time_unit_resolver.py:54": {
+    "calls": 1065931,
+    "self_ms": 903.47,
+    "cumulative_ms": 19709.06
+   },
+   "calculate_duration@time_unit_resolver.py:86": {
+    "calls": 291483,
+    "self_ms": 153.42,
+    "cumulative_ms": 4013.93
+   },
+   "subtract_duration@time_unit_resolver.py:70": {
+    "calls": 291483,
+    "self_ms": 259.93,
+    "cumulative_ms": 6155.38
+   },
+   "add_lag@time_unit_resolver.py:99": {
+    "calls": 574449,
+    "self_ms": 529.06,
+    "cumulative_ms": 6900.98
+   },
+   "subtract_lag@time_unit_resolver.py:123": {
+    "calls": 957415,
+    "self_ms": 826.56,
+    "cumulative_ms": 11965.21
+   },
+   "time_forward_pass@time_forward_pass.py:128": {
+    "calls": 1,
+    "self_ms": 786.45,
+    "cumulative_ms": 7556.06
+   },
+   "time_backward_pass@time_schedule.py:158": {
+    "calls": 1,
+    "self_ms": 1288.04,
+    "cumulative_ms": 24624.36
+   },
+   "_float_limit_interval_bound@time_schedule.py:350": {
+    "calls": 191483,
+    "self_ms": 195.84,
+    "cumulative_ms": 3551.08
+   },
+   "_latest_predecessor_start@time_schedule.py:118": {
+    "calls": 191483,
+    "self_ms": 372.93,
+    "cumulative_ms": 8289.56
+   },
+   "_time_float_for_activity@time_schedule.py:457": {
+    "calls": 100000,
+    "self_ms": 992.12,
+    "cumulative_ms": 28183.62
+   },
+   "time_schedule@time_schedule.py:978": {
+    "calls": 1,
+    "self_ms": 41.49,
+    "cumulative_ms": 60675.93
+   },
+   "_time_float_context@time_schedule.py:435": {
+    "calls": 1,
+    "self_ms": 109.43,
+    "cumulative_ms": 127.58
+   },
+   "resolve_relationship_lag@calendar_context.py:394": {
+    "calls": 574449,
+    "self_ms": 182.59,
+    "cumulative_ms": 467.4
+   },
+   "_add_signed_lag@time_forward_pass.py:82": {
+    "calls": 191483,
+    "self_ms": 46.92,
+    "cumulative_ms": 2799.78
+   },
+   "_inverse_lag@time_schedule.py:89": {
+    "calls": 957415,
+    "self_ms": 215.16,
+    "cumulative_ms": 12180.37
+   },
+   "resolve_calendar_aware@time_unit_resolver.py:146": {
+    "calls": 1657418,
+    "self_ms": 886.07,
+    "cumulative_ms": 2304.79
+   },
+   "normalize_start@time_unit_resolver.py:36": {
+    "calls": 100002,
+    "self_ms": 63.96,
+    "cumulative_ms": 316.01
+   },
+   "normalize_finish@time_unit_resolver.py:42": {
+    "calls": 2,
+    "self_ms": 0.01,
+    "cumulative_ms": 0.04
+   },
+   "intervals_for@time_calendar.py:305": {
+    "calls": 12791671,
+    "self_ms": 2626.65,
+    "cumulative_ms": 4752.54
+   },
+   "_verified_float_limit@time_schedule.py:401": {
+    "calls": 191483,
+    "self_ms": 315.3,
+    "cumulative_ms": 19992.5
+   }
+  },
+  "profile_total_ms": 59654.84
+ }
+]
