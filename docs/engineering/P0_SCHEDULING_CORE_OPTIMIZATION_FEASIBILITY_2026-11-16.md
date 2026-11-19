@@ -1415,3 +1415,214 @@ infrastructure-only Vercel project deployments failed. Post-merge verification o
 `main` at `2e1e9b2a`: full suite 5,292 passed / 1 skipped, and the canonical
 payload hashes (time dag 1k/5k/25k/100k, time mixed 25k) are identical to
 baseline `9408552b`.
+
+## 20. P0-N execution record: global orchestration and multi-project throughput (2026-11-19)
+
+### 20.1 Requirement and P6 reference mapping
+
+P6 Professional V26 runs one calculation per project and schedules activities by
+the CPM rules already implemented here (forward pass, backward pass, Total and
+Free Float, calendars, constraints, lag). Nothing in P6 defines how several
+independent projects share one machine, so P0-N changes only *placement*:
+which process evaluates a project, how many helpers it may use, when the next
+project starts and what may be reused. Every scheduling rule, decision order,
+float definition, calendar, constraint and output field is unchanged, and the
+proof is field-level equality of the canonical payload against the sequential
+engine for every project in every new test and benchmark run.
+
+### 20.2 Audit of the real path (implemented vs. active)
+
+The audit is the first deliverable because two of the questions below had
+"implemented but not reachable" answers.
+
+* `SchedulingJobService` / `SchedulingJobRepository` implement the durable
+  lifecycle (submit, claim, renew, complete, fail, cancel) for the in-memory
+  adapter and `PostgresSchedulingJobRepository`.
+* `SchedulingJobExecutor` is the only job loop. In the default `thread` mode it
+  runs `calculate` on a daemon thread and renews the lease from a second
+  `_LeaseHeartbeat` thread. That is why `_fork_is_safe()` (single thread, no
+  parent process) is false there: the P0-M pipeline declined in the real
+  executor, and `evaluate_schedule_snapshot(..., float_execution=None)` left
+  `float_workers=1`. Measured: four 5k projects as threads 5,845 ms against
+  5,666 ms sequential (the GIL removes the gain); four 5k projects as forked
+  processes 1,517 ms (3.7x).
+* `GlobalExecutionBudget` is the one process-wide semaphore. Before P0-N it was
+  consulted by the executor and by the pipeline admission, but every *inner*
+  pool computed its workers from its own request, so a caller could create
+  pools the budget never saw.
+* `OfflineSchedulingBundle v1`, the Local (in-memory) and PostgreSQL adapters,
+  optimistic locking (`compare_and_set` with revisions) and the multi-tenant
+  keys were already in place and are untouched.
+* No application entry point instantiates `SchedulingJobExecutor` today; the
+  worker harness in `scripts/scheduling_worker_benchmark.py` is the
+  production-shaped driver. P0-N therefore adds a mode and proves it on that
+  loop, and does not claim an API route that does not exist.
+
+Ten questions, answered from the code and the measurements:
+
+| question | answer |
+|---|---|
+| Is the P0-M pipeline called by the executor? | Only after P0-N. In thread mode `_fork_is_safe()` is false, so the pipeline declined; the default remains thread mode. |
+| Can a thread-based run safely use a process pool? | No. A thread cannot fork while other threads hold locks; the pipeline refuses, by design and by measurement. |
+| Is `spawn` safe? | Safe but slower here: 1,767 ms against 1,517 ms fork for four 5k projects, because the registry and snapshot must be pickled to every child. It stays opt-in. |
+| Unnecessary large copies? | Yes in thread mode: every project shares one address space and the payload is built once. Process mode copies the *result* only (pickle over a pipe; 5–10 ms per project measured, ≤0.3% of a 1.4 s job). The snapshot is inherited by fork, not copied. |
+| Is the cache shared or per project? | Per process, in memory; it was project-agnostic but not tenant-aware before P0-N. P0-N adds a tenant-isolated, weight-and-memory adaptive cache. |
+| Are worker assignments truly global? | After P0-N yes: every job in the executor asks one `SlotAllocationPolicy` under one `GlobalExecutionBudget`, and a job's float children are bounded by the slots it was granted. |
+| Can inner pools bypass the global budget? | In thread mode they could request workers directly. Process mode passes an admission callable capped at the grant (`slots - 1` children), and the children inherit a private budget copy, so the total is exactly the grant. |
+| Can forward/backward/float be parallelized effectively? | Float yes (P0-M pipeline, 1.6–1.7x). Forward/backward no: the benchmark DAGs are depth-1-width graphs, so a wavefront pays one barrier per activity (measured 3,225 ms of barriers against a 722 ms serial pass at 25k). |
+| Does a small project get trapped behind a big one? | No: small jobs are ordered first and capped at one slot; measured worst small wait 88 ms when 10 large projects are queued and 920 ms with 20 smalls competing. |
+| Does freed capacity reach waiting projects quickly? | Yes: a slot is released on process exit and the next dispatch poll (5 ms) starts a queued project; `slots_held` returns to 0 after every scenario and soak iteration. |
+
+### 20.3 The design
+
+`src/construction_pm/scheduling_worker_scheduler.py`
+
+* `SlotAllocationPolicy` — one deterministic plan per poll. Small or unknown
+  jobs get one slot and are ordered first; otherwise the desired depth is
+  `ceil(activities / 1250)`; each grant is bounded by
+  `free_slots // projects_still_waiting`; a project that is alone and nothing is
+  running takes the whole free budget (work conservation); waiting time raises
+  effective priority (aging), so no project starves.
+* `GlobalWorkerScheduler` — one process per job, owning `slots` from the
+  `GlobalExecutionBudget`. The parent is a single-threaded dispatch loop; it
+  renews leases synchronously (no heartbeat thread), which is what makes the
+  job process fork-safe. A slot is released at process exit and re-granted on
+  the next poll. Staggered arrivals (`release_at`) are held without spinning.
+* `make_slot_admission(slots)` — the child's admission callable; the engine may
+  use at most `slots - 1` float children, so a job's processes never exceed its
+  grant.
+
+`src/construction_pm/scheduling_job_executor.py`
+
+* `execution_mode="process"` adds `_run_process_mode`: claim → cache → reserve
+  slots → forked child (or exact inline fallback) → reap → persist. Leases are
+  renewed from the dispatch loop, so the process is single-threaded and nested
+  fork is safe. `thread` remains the default and is byte-for-byte the old path.
+* `calculate_with_slots(job, slots)` lets the engine use the grant; without it
+  the process runs the exact `calculate` function.
+
+`src/construction_pm/scheduling/time_schedule.py`
+
+* `FloatExecutionPolicy.allow_nested_fork` and `_fork_is_safe(allow_nested=...)`
+  let a dedicated, non-daemonic, single-threaded job process fork float
+  children. The default is false, so every other caller keeps the old refusal.
+
+`src/construction_pm/scheduling_result_cache.py`
+
+* `CacheKey` covers tenant, project, calculation identity, engine version and an
+  optional snapshot hash plus a schema version; the float policy is
+  deliberately excluded because it cannot change a value.
+* `ScheduleResultCache` is a weighted LRU with a per-tenant fair share, a
+  `max_entries` cap and `adapt(active_jobs, active_tenants, available_bytes)`,
+  which shrinks capacity when several projects run or free memory drops and
+  evicts immediately. Values are stored as bytes and copied on read.
+
+### 20.4 Measurement method
+
+`scripts/p0n_multi_project_benchmark.py` (new) drives the real engine only:
+the benchmark process never calculates for the measured runs. Ten large
+projects (4,200–6,000 activities: DAG, wide/independent, fan, mixed FS/SS/FF/SF
+with ±lags, one with two calendars and two constraints) and twenty small ones
+(740–900) are submitted through the scheduler under one budget. CPU comes from
+`os.times()` deltas in the job process (self plus waited-for float children),
+RSS and context switches from `psutil` sampling of the process tree, and the
+queue wait, run time and IPC overhead from the scheduler rows. Three repeats
+per scenario; medians are reported.
+
+### 20.5 Measured result (4 CPUs, budget 4)
+
+| scenario | projects | wall ms | proj/s | P95 job ms | P95 wait ms | CPU % | peak RSS MB |
+|---|---|---|---|---|---|---|---|
+| A one large | 1 | 993 | 1.01 | 993 | 0 | 39.3 | 227 |
+| B two large | 2 | 1,437 | 1.39 | 1,383 | 2 | 30.8 | 174 |
+| C four large | 4 | 1,609 | 2.49 | 1,592 | 3 | 75.3 | 280 |
+| D eight large | 8 | 3,352 | 2.39 | 1,812 | 1,579 | 74.7 | 290 |
+| E ten large | 10 | 3,933 | 2.54 | 1,825 | 1,981 | 85.9 | 293 |
+| F 10 large + 5 small | 15 | 4,240 | 3.54 | 1,811 | 2,155 | 85.6 | 291 |
+| G 10 large + 20 small | 30 | 5,021 | 5.97 | 1,795 | 2,796 | 87.1 | 294 |
+| H 10 large staggered | 10 | 3,960 | 2.52 | 1,824 | 1,979 | 85.6 | 293 |
+
+Sequential on the same host: 30 projects in 17,287 ms (10 large alone
+13,397 ms). Ten large projects therefore take 3.41x less wall time, and the
+thirty-project mix 3.44x less. Single project: 1,398 ms sequential → 993 ms
+with four slots (1.41x); inside the engine the float pass itself goes from
+1,120 ms to 671 ms (1.67x, the P0-M measurement reproduced).
+
+Capacity sweep on the ten large projects (one run per budget):
+
+| slots | wall ms | CPU % | peak RSS MB | voluntary ctx switches |
+|---|---|---|---|---|
+| 1 | 13,689 | 24.7 | 132 | 2,593 |
+| 2 | 6,952 | 48.5 | 186 | 1,315 |
+| 4 | 3,955 | 85.5 | 292 | 745 |
+| 8 | 3,682 | 92.8 | 505 | 695 |
+| 16 | 3,671 | 93.1 | 601 | 691 |
+| 32 | 4,180 | 95.2 | 1,039 | 1,381 |
+
+Throughput saturates at 8 slots (2.72 projects/s) and 16 adds nothing measurable
+(2.73 projects/s), because the four CPUs are already busy; 32 slots oversubscribe
+the machine and lose 12% against 16 while nearly doubling memory and doubling
+context switches.
+
+Baselines on four large projects: thread executor shape 5,093 ms at 25.1% CPU
+against 1,609 ms in process mode (3.17x); sequential 4,757 ms. The thread run is
+slower than sequential because the GIL serialises the work and adds switching.
+
+The durable job path end to end — 4 large + 4 small submitted through
+`SchedulingJobService`, claimed and executed by `SchedulingJobExecutor` in
+process mode on the in-memory adapter — takes 1,618 ms at 82.4% CPU with 8/8
+process starts, `peak_slots=4`, 8/8 persisted hashes equal to the sequential
+engine, and 0 failures. The same eight projects sequentially take 5,635 ms
+(3.48x).
+
+Cache: cold pass 3,939 ms with 0 hits; warm pass 0.2 ms with 10/10 hits, four
+tenants isolated, 3,618 bytes stored, no eviction. A two-CPU affinity cap
+(`taskset -c 0,1`, budget 4, ten large) takes 7,416 ms at 1.85 of 2 available
+cores (93% of the real capacity), so the budget saturates whatever the OS
+actually grants.
+
+Soak: eight iterations of two large projects, 11,567 ms total, parent RSS flat
+at 93.0 MB (0.0 MB growth), `slots_held` 0 after every iteration.
+
+### 20.6 Correctness evidence
+
+New tests (47): `test_worker_scheduler.py` (20), `test_schedule_result_cache.py`
+(13), `test_scheduling_job_executor_process.py` (11), `test_p0n_postgres_adapter.py`
+(3, PostgreSQL). They cover the policy arithmetic (fair share, reservation-free
+ordering, aging, unknown size, no over-allocation), real-process equality for
+dag/wide/fan/mixed networks, `peak_slots == 4` for a lone project, cache hits
+with zero process starts, engine-version key misses, cancellation terminating a
+child and releasing every slot, lease renewal, spawn fallback to the exact
+inline run, two schedulers sharing one budget, staggered arrivals, 8-thread
+cache concurrency, per-tenant fair share, adaptive shrink, and the executor on
+the PostgreSQL adapter including tenant isolation.
+
+Canonical hashes are identical to the P0-M baseline (`3d2f1f8d` for time dag
+5k, `bdb8a046` 1k, `84864c94` 25k, `e1c4396f` 100k, `7c6aa1b2` mixed 25k) for
+every project in every scenario and in both persistence adapters. Local suite
+at the tested tree: 5,161 passed, 132 skipped (skips are unrelated optional
+integrations), 0 failed, including 1,656 in `tests/scheduling`.
+
+### 20.7 Limits
+
+* Forward and backward remain serial per project; attainable intra-project
+  speedup is bounded by the 44–46% float share (measured 1.46–1.67x).
+* A two-slot grant buys one float child, which the engine's pipeline does not
+  use (it needs two children to overlap the backward pass), so a two-slot grant
+  behaves like one slot. The policy never loses wall time over it because the
+  alternative allocation is also bounded by the second project, but the CPU
+  percentage in scenarios A–B shows the resulting idle capacity.
+* `thread` remains the executor default; switching the default is a behavioural
+  change that belongs to the application wiring (P0-J scope), not here.
+* `spawn` is safe but slower on this host and stays opt-in.
+* The cache stores only what the caller hands the scheduler; the engine's
+  intermediate float context is not cached.
+* Wavefront parallelism for wide graphs is measured (P0-M) and still not
+  implemented; it is a different architecture, not an optimization.
+
+### 20.8 Evidence
+
+`docs/workspace/evidence/p0n-global-orchestration-2026-11-19/`: raw benchmark
+JSON and logs for the full matrix, the affinity run, the executor end-to-end
+run, the scheduling and PostgreSQL suites, environment and source hashes, and
+the reproduction commands.

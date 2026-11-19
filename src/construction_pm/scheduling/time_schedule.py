@@ -609,11 +609,20 @@ def _chunk_activity_ids(activity_ids: list[str], workers: int) -> list[list[str]
     return [activity_ids[index : index + size] for index in range(0, len(activity_ids), size)]
 
 
-def _fork_is_safe() -> bool:
-    """True when forking a child cannot inherit another thread's held lock."""
+def _fork_is_safe(*, allow_nested: bool = False) -> bool:
+    """True when forking a child cannot inherit another thread's held lock.
+
+    The safety condition is that *this* process has one thread: a child then
+    inherits no lock held by a thread that does not exist in the child. Being
+    the direct child of another process is not by itself unsafe, but it is
+    refused unless the caller explicitly opts in, because naively nesting pools
+    multiplies the process count beyond any budget. A dedicated job runner
+    (P0-N) opts in only after its parent has reserved the exact slot count it
+    may use, so the nested float children stay inside the global budget.
+    """
     if multiprocessing.current_process().daemon:
         return False
-    if multiprocessing.parent_process() is not None:
+    if multiprocessing.parent_process() is not None and not allow_nested:
         return False
     if threading.active_count() != 1:
         return False
@@ -634,7 +643,10 @@ def _spawn_is_safe(context: _TimeFloatContext, *, allow_spawn: bool) -> bool:
 
 
 def _select_float_start_method(
-    context: _TimeFloatContext, *, allow_spawn: bool = False
+    context: _TimeFloatContext,
+    *,
+    allow_spawn: bool = False,
+    allow_nested: bool = False,
 ) -> str | None:
     """Return a *safe* process start method for the current process state.
 
@@ -654,7 +666,7 @@ def _select_float_start_method(
     unpicklable calendar registry — returns ``None`` and the caller uses the
     exact sequential loop.
     """
-    if _fork_is_safe():
+    if _fork_is_safe(allow_nested=allow_nested):
         return "fork"
     if _spawn_is_safe(context, allow_spawn=allow_spawn):
         return "spawn"
@@ -668,6 +680,7 @@ def _parallel_time_floats(
     admission: Callable[[int], AbstractContextManager[int]] | None = None,
     *,
     allow_spawn: bool = False,
+    allow_nested: bool = False,
 ) -> dict[str, TimeFloatActivity]:
     """Evaluate independent activities in child processes, then merge by id.
 
@@ -696,7 +709,9 @@ def _parallel_time_floats(
 
     if workers <= 1 or len(activity_ids) <= 1:
         return sequential()
-    start_method = _select_float_start_method(context, allow_spawn=allow_spawn)
+    start_method = _select_float_start_method(
+        context, allow_spawn=allow_spawn, allow_nested=allow_nested
+    )
     if start_method is None:
         return sequential()
     if not _FLOAT_POOL_GUARD.acquire(blocking=False):
@@ -845,6 +860,7 @@ def _float_pipeline(
     workers: int,
     admission: Callable[[int], AbstractContextManager[int]] | None,
     allow_spawn: bool = False,
+    allow_nested: bool = False,
     batch_size: int | None = None,
 ):
     """Yield a float pipeline, or ``None`` when the exact sequential path must run.
@@ -866,7 +882,7 @@ def _float_pipeline(
     if workers <= 1 or activity_count < _PIPELINE_MIN_ACTIVITIES:
         yield None
         return
-    if _fork_is_safe():
+    if _fork_is_safe(allow_nested=allow_nested):
         start_method = "fork"
     elif _spawn_is_safe(context_factory(), allow_spawn=allow_spawn):
         start_method = "spawn"
@@ -921,11 +937,18 @@ class FloatExecutionPolicy:
     is serial work that, on the reference host, is larger than the parallel
     gain; the pass then runs the exact sequential loop. Processes that cannot
     ``fork`` at all can enable it when their own transfer cost is lower.
+
+    ``allow_nested_fork`` opts a dedicated, non-daemonic, single-threaded job
+    runner into forking float children even though it is itself a child process.
+    The global scheduler (P0-N) sets it only after reserving this job's exact
+    slot count, and the nested pool is bounded by ``workers``; a process without
+    that reservation keeps the default and declines.
     """
 
     workers: int = 1
     admission: Callable[[int], AbstractContextManager[int]] | None = None
     allow_spawn: bool = False
+    allow_nested_fork: bool = False
 
     def __post_init__(self) -> None:
         if isinstance(self.workers, bool) or not isinstance(self.workers, int) or self.workers < 1:
@@ -934,6 +957,8 @@ class FloatExecutionPolicy:
             raise ValueError("INVALID_FLOAT_ADMISSION")
         if not isinstance(self.allow_spawn, bool):
             raise ValueError("INVALID_FLOAT_ALLOW_SPAWN")
+        if not isinstance(self.allow_nested_fork, bool):
+            raise ValueError("INVALID_FLOAT_ALLOW_NESTED_FORK")
 
 
 def calculate_time_floats(
@@ -972,6 +997,7 @@ def calculate_time_floats(
         selected_policy.workers,
         selected_policy.admission,
         allow_spawn=selected_policy.allow_spawn,
+        allow_nested=selected_policy.allow_nested_fork,
     )
 
 
@@ -1035,6 +1061,7 @@ def time_schedule(
             workers=selected_policy.workers,
             admission=selected_policy.admission,
             allow_spawn=selected_policy.allow_spawn,
+            allow_nested=selected_policy.allow_nested_fork,
         ) as pipeline:
             if pipeline is None:
                 late = time_backward_pass(
