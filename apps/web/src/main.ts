@@ -88,6 +88,34 @@ import { mountAIAssistantChatPanel } from "./ai-assistant-chat.js";
 import { mountScheduleCyclePanels } from "./schedule-cycle.js";
 import { mountWorkspaceCalendarPage } from "./workspace-calendars.js";
 import { loadAssignmentPeriods, mountWorkspaceAssignmentsPage, type AssignmentPeriod } from "./workspace-assignments.js";
+import {
+  createGanttAttachment,
+  deleteGanttAttachment,
+  loadGanttAttachments,
+  updateGanttAttachment,
+  type GanttAttachmentInput,
+  type GanttAttachmentRecord,
+} from "./workspace-gantt-attachments.js";
+import {
+  deleteActivity,
+  dissolveActivity,
+  loadActivityRecordRevision,
+} from "./workspace-activity-edit.js";
+import {
+  buildPastedActivityPayload,
+  makeActivityClipboard,
+  nextPastedActivityId,
+  type ActivityClipboard,
+} from "./workspace-activity-clipboard.js";
+import {
+  assignActivityCode,
+  addNotebookTopic,
+  createActivityStep,
+  loadActivityCodes,
+  loadNotebookTopics,
+} from "./workspace-activity-children.js";
+import { loadActivitySteps } from "./workspace-activity-steps.js";
+import { mountActivityReplaceDialog, mountActivitySpellCheckDialog, planFillDown } from "./workspace-activity-bulk.js";
 import { mountWorkspaceResourcesPage } from "./workspace-resources.js";
 import {
   LAYOUT_SELECTION_STORAGE_PREFIX,
@@ -226,6 +254,14 @@ let activeAssignmentPeriodsProjectId: string | null = null;
 let activeAssignmentPeriodsStatus: "loading" | "loaded" | "error" = "loaded";
 let activeAssignmentPeriodsError: string | null = null;
 const activeAssignmentPeriodsInflight = new Set<string>();
+/** Project-level Gantt attachments (curtain / text / notebook links), never derived. */
+let activeGanttAttachments: readonly GanttAttachmentRecord[] = [];
+let activeGanttAttachmentsProjectId: string | null = null;
+let activeGanttAttachmentsStatus: "loading" | "loaded" | "error" = "loaded";
+let activeGanttAttachmentsError: string | null = null;
+const activeGanttAttachmentsInflight = new Set<string>();
+/** Activity Cut/Copy clipboard: authoritative source IDs, scoped to one project. */
+let activityClipboard: ActivityClipboard | null = null;
 /** Open windows and deferred focus are browser-local shell state, not project data. */
 let openWindowKeys: WorkspaceMenuKey[] | null = null;
 /** Project whose per-project window set the shell currently reads. */
@@ -1878,6 +1914,157 @@ function renderApp(
     renderApp(container, nextState, persistence);
     applyActivitySavedNotice(container, current.locale, revision);
   };
+  /**
+   * Re-read the project after Delete/Dissolve. The removed row cannot stay
+   * selected, so the selection is cleared instead of pointing at a ghost.
+   */
+  const refreshWorkspaceAfterActivityRemoval = async (removedId: string): Promise<void> => {
+    const current = currentWorkspaceState ?? state;
+    const refreshed = await new WorkspaceReadClient(aiTransport).load(current.context, {
+      locale: current.locale,
+      calendarMode: current.calendarMode,
+      primaryCalendarId: activeProjectSummary?.project_id === current.context.project_id ? activeProjectSummary.primary_calendar_id ?? null : null,
+    });
+    if (!refreshed.ok) throw new Error(refreshed.error.code);
+    let nextState = await loadP6Presentation(refreshed.data, aiTransport, current.context);
+    nextState = { ...nextState, activeMenu: current.activeMenu, locale: current.locale };
+    if (nextState.selectedActivityId === removedId) {
+      nextState = { ...nextState, selectedActivityId: null, selectedActivityIds: [], selectionAnchorId: null };
+    }
+    renderApp(container, nextState, persistence);
+  };
+  const runActivityEditCommand = (
+    action: "delete" | "dissolve",
+    activityId: string,
+  ): void => {
+    if (!window.confirm(action === "delete"
+      ? `Delete activity ${activityId}?`
+      : `Dissolve activity ${activityId} and join its predecessors to its successors?`)) return;
+    void (async () => {
+      try {
+        const revision = await loadActivityRecordRevision(aiTransport, state.context, activityId);
+        if (!revision.ok) throw new Error(revision.error.code);
+        const result = action === "delete"
+          ? await deleteActivity(aiTransport, state.context, activityId, revision.data)
+          : await dissolveActivity(aiTransport, state.context, activityId, revision.data);
+        if (!result.ok) throw new Error(result.error.code);
+        await refreshWorkspaceAfterActivityRemoval(activityId);
+      } catch (error) {
+        const code = error instanceof Error ? error.message : "ACTIVITY_EDIT_FAILED";
+        window.alert(`${action === "delete" ? "Delete" : "Dissolve"} activity failed: ${code}`);
+      }
+    })();
+  };
+  const activityApiPath = (activityId: string): string =>
+    `/api/projects/${encodeURIComponent(state.context.project_id)}/p6/activities/${encodeURIComponent(activityId)}`;
+  /** Apply name-only edits through revision-checked Activity Master PATCHes. */
+  const applyActivityNameEdits = async (edits: readonly { id: string; next: string }[]): Promise<void> => {
+    const current = currentWorkspaceState ?? state;
+    for (const edit of edits) {
+      const revision = await loadActivityRecordRevision(aiTransport, current.context, edit.id);
+      if (!revision.ok) throw new Error(`${edit.id}:${revision.error.code}`);
+      const saved = await aiTransport.patch<Record<string, unknown>, unknown>(
+        activityApiPath(edit.id),
+        {
+          contract_version: "p6-activity-master-api.v1",
+          name: edit.next,
+          expected_revision: revision.data,
+        },
+        current.context,
+      );
+      if (!saved.ok) throw new Error(`${edit.id}:${saved.error.code}`);
+    }
+    await refreshWorkspaceAfterActivityRemoval("");
+  };
+  /** Copy the supported child records; a failed child is reported, never hidden. */
+  const copyActivityChildren = async (sourceId: string, targetId: string): Promise<string[]> => {
+    const failures: string[] = [];
+    const codes = await loadActivityCodes(aiTransport, state.context, sourceId);
+    if (codes.ok) {
+      for (const code of codes.data) {
+        const saved = await assignActivityCode(aiTransport, state.context, targetId, {
+          codeType: code.codeType, codeValue: code.codeValue, description: code.description,
+        });
+        if (!saved.ok) failures.push(`code ${code.codeType}:${saved.error.code}`);
+      }
+    } else failures.push(`codes:${codes.error.code}`);
+    const topics = await loadNotebookTopics(aiTransport, state.context, sourceId);
+    if (topics.ok) {
+      for (const topic of topics.data) {
+        const saved = await addNotebookTopic(aiTransport, state.context, targetId, {
+          topicName: topic.topicName, description: topic.description,
+        });
+        if (!saved.ok) failures.push(`notebook ${topic.topicName}:${saved.error.code}`);
+      }
+    } else failures.push(`notebook:${topics.error.code}`);
+    const steps = await loadActivitySteps(aiTransport, state.context, sourceId);
+    if (steps.ok) {
+      for (const step of steps.data) {
+        const saved = await createActivityStep(aiTransport, state.context, targetId, {
+          description: step.description,
+          weight: step.weight,
+          percentComplete: step.percentComplete,
+          sequence: step.sequence,
+        });
+        if (!saved.ok) failures.push(`step ${step.sequence}:${saved.error.code}`);
+      }
+    } else failures.push(`steps:${steps.error.code}`);
+    return failures;
+  };
+  const pasteActivityClipboard = (): void => {
+    const clipboard = activityClipboard;
+    if (!clipboard || clipboard.projectId !== state.context.project_id) {
+      window.alert("The activity clipboard belongs to another project; copy the activity again in this project.");
+      return;
+    }
+    void (async () => {
+      const created: string[] = [];
+      const warnings: string[] = [];
+      try {
+        const taken = new Set(state.activities.map((activity) => activity.id));
+        for (const sourceId of clipboard.ids) {
+          const raw = await aiTransport.get<Record<string, unknown>>(activityApiPath(sourceId), state.context);
+          if (!raw.ok) throw new Error(`${sourceId}:${raw.error.code}`);
+          const sourceRow = state.activities.find((activity) => activity.id === sourceId);
+          const targetWbs = state.selectedWbsId ?? sourceRow?.wbsId ?? null;
+          const newId = nextPastedActivityId(sourceId, taken);
+          taken.add(newId);
+          const payload = buildPastedActivityPayload(raw.data, newId, targetWbs);
+          if (!payload) throw new Error(`${sourceId}:INVALID_CLONE_PAYLOAD`);
+          const saved = await aiTransport.post<Record<string, unknown>, { activity: { activity_id: string } }>(
+            activityApiPath(""),
+            payload,
+            state.context,
+          );
+          if (!saved.ok) throw new Error(`${sourceId}:${saved.error.code}`);
+          created.push(newId);
+          warnings.push(...(await copyActivityChildren(sourceId, newId)).map((item) => `${newId} ${item}`));
+        }
+        if (clipboard.mode === "cut") {
+          for (const sourceId of clipboard.ids) {
+            const revision = await loadActivityRecordRevision(aiTransport, state.context, sourceId);
+            if (!revision.ok) throw new Error(`CUT_${sourceId}:${revision.error.code}`);
+            const removed = await deleteActivity(aiTransport, state.context, sourceId, revision.data);
+            if (!removed.ok) throw new Error(`CUT_${sourceId}:${removed.error.code}`);
+          }
+        }
+        activityClipboard = null;
+        await refreshWorkspaceAfterActivityRemoval(created[0] ?? "");
+        if (created[0]) {
+          // The pasted activity is the useful focus; remove it from the "removed"
+          // clearing only when it survived the refresh.
+          const next = currentWorkspaceState;
+          if (next?.activities.some((activity) => activity.id === created[0])) {
+            renderApp(container, selectActivity(next, created[0]), persistence);
+          }
+        }
+        if (warnings.length) window.alert(`Pasted with child-record warnings:\n${warnings.join("\n")}`);
+      } catch (error) {
+        const code = error instanceof Error ? error.message : "ACTIVITY_PASTE_FAILED";
+        window.alert(`Paste failed: ${code}${created.length ? `\nCreated: ${created.join(", ")}` : ""}`);
+      }
+    })();
+  };
   const projectWbsPath = (wbsId?: string): string =>
     `/api/projects/${encodeURIComponent(state.context.project_id)}/p6/wbs${wbsId ? `/${encodeURIComponent(wbsId)}` : ""}`;
   let refreshAIProposals: (() => Promise<void>) | undefined;
@@ -2105,6 +2292,65 @@ function renderApp(
           selectedActivityIds: visible,
           selectionAnchorId: visible[0] ?? null,
         }, persistence);
+        return;
+      }
+      case "dialog.replace": {
+        mountActivityReplaceDialog({
+          locale: state.locale,
+          activities: state.activities.map((activity) => ({ id: activity.id, name: activity.name })),
+          selectedIds: selectedActivityIdList(state),
+          onApply: async (edits) => {
+            await applyActivityNameEdits(edits);
+          },
+        });
+        return;
+      }
+      case "edit.fill-down": {
+        const edits = planFillDown(state.activities, selectedActivityIdList(state));
+        if (!edits.length) {
+          window.alert("Fill Down needs at least two selected activities whose names differ.");
+          return;
+        }
+        const source = state.activities.find((activity) => activity.id === selectedActivityIdList(state)[0])?.name ?? "";
+        if (!window.confirm(`Fill Down will copy "${source}" to ${edits.length} selected activity name(s).`)) return;
+        void applyActivityNameEdits(edits).catch((error: unknown) => {
+          window.alert(`Fill Down failed: ${error instanceof Error ? error.message : "FILL_DOWN_FAILED"}`);
+        });
+        return;
+      }
+      case "dialog.spell-check": {
+        mountActivitySpellCheckDialog({
+          locale: state.locale,
+          activities: state.activities.map((activity) => ({ id: activity.id, name: activity.name })),
+          onApply: async (edits) => {
+            await applyActivityNameEdits(edits);
+          },
+        });
+        return;
+      }
+      case "edit.copy":
+      case "edit.cut": {
+        const ids = selectedActivityIdList(state);
+        const clipboard = makeActivityClipboard(state.context.project_id, ids, command === "edit.cut" ? "cut" : "copy");
+        if (!clipboard) return;
+        activityClipboard = clipboard;
+        renderApp(container, state, persistence);
+        return;
+      }
+      case "edit.paste": {
+        pasteActivityClipboard();
+        return;
+      }
+      case "edit.delete": {
+        const activityId = state.selectedActivityId;
+        if (!activityId) return;
+        runActivityEditCommand("delete", activityId);
+        return;
+      }
+      case "edit.dissolve": {
+        const activityId = state.selectedActivityId;
+        if (!activityId) return;
+        runActivityEditCommand("dissolve", activityId);
         return;
       }
       case "edit.link": {
@@ -2571,6 +2817,12 @@ function renderApp(
         canOpenFieldChooser: Boolean(state.p6Layout && state.p6FieldRegistry),
         hasLayout: Boolean(state.p6Layout),
         groupByWbs: state.activityGroupBy === "wbs",
+        canDissolveActivity: Boolean(
+          state.selectedActivityId
+          && state.relationships.some((item) => item.successorId === state.selectedActivityId)
+          && state.relationships.some((item) => item.predecessorId === state.selectedActivityId)
+        ),
+        hasActivityClipboard: activityClipboard?.projectId === state.context.project_id,
         canAdminister: activeWorkspaceRoles.includes("project_admin"),
       },
       hiddenToolbarGroups: activeWorkspaceUserId ? readHiddenToolbarGroups(activeWorkspaceUserId) : [],
@@ -3104,6 +3356,7 @@ function renderApp(
     toolbarConfig: toolbarWorkspace,
     onToolbarConfigChange: saveToolbarConfig,
     canAdminister: activeWorkspaceRoles.includes("project_admin"),
+    hasActivityClipboard: activityClipboard?.projectId === state.context.project_id,
     // The contextual rail derives its Add commands from the same session roles
     // and dispatches the same desktop commands as the toolbar and menus.
     canWrite: activeWorkspaceRoles.includes("planner") || activeWorkspaceRoles.includes("project_admin"),
@@ -3116,6 +3369,38 @@ function renderApp(
     activityUsage: activeActivityUsageSource(state.context.project_id),
     onActivityUsageRefresh: () => {
       void loadActiveAssignmentPeriods(container, state.context, true);
+    },
+    ganttAttachments: activeGanttAttachmentSource(state.context.project_id),
+    onGanttAttachmentSave: async (input) => {
+      const context = currentWorkspaceState?.context ?? state.context;
+      const transport = new FetchApiTransport(window.location.origin);
+      const dialog = container.querySelector<HTMLDialogElement>("[data-gantt-attachments-dialog]");
+      const reopen = dialog?.open === true;
+      const result = input.attachmentId
+        ? await updateGanttAttachment(transport, context, input.attachmentId, {
+          kind: input.kind,
+          label: input.label,
+          startDate: input.startDate,
+          endDate: input.endDate,
+          color: input.color,
+          activityId: input.activityId,
+          topicId: input.topicId,
+          visible: input.visible,
+          expectedRevision: input.expectedRevision ?? 1,
+        })
+        : await createGanttAttachment(transport, context, input);
+      if (!result.ok) throw new Error(result.error.code);
+      await loadActiveGanttAttachments(container, context, true);
+      if (reopen) reopenGanttAttachmentsDialog(container);
+    },
+    onGanttAttachmentDelete: async (attachmentId, expectedRevision) => {
+      const context = currentWorkspaceState?.context ?? state.context;
+      const dialog = container.querySelector<HTMLDialogElement>("[data-gantt-attachments-dialog]");
+      const reopen = dialog?.open === true;
+      const result = await deleteGanttAttachment(new FetchApiTransport(window.location.origin), context, attachmentId, expectedRevision);
+      if (!result.ok) throw new Error(result.error.code);
+      await loadActiveGanttAttachments(container, context, true);
+      if (reopen) reopenGanttAttachmentsDialog(container);
     },
     onProjectOpen: (projectId) => {
       switchProjectTab(projectId);
@@ -4395,6 +4680,58 @@ async function loadActiveAssignmentPeriods(
   }
 }
 
+/** A save/delete rerender replaces the dialog; keep it open for the operator. */
+function reopenGanttAttachmentsDialog(container: HTMLElement): void {
+  const dialog = container.querySelector<HTMLDialogElement>("[data-gantt-attachments-dialog]");
+  if (!dialog) return;
+  if (typeof dialog.showModal === "function") dialog.showModal();
+  else dialog.setAttribute("open", "");
+}
+
+/** The authoritative Gantt attachment read the bar chart draws. */
+function activeGanttAttachmentSource(projectId: string) {
+  if (activeGanttAttachmentsProjectId !== projectId) {
+    return { status: "loading" as const, errorCode: null, records: [] as readonly GanttAttachmentRecord[] };
+  }
+  return {
+    status: activeGanttAttachmentsStatus,
+    errorCode: activeGanttAttachmentsError,
+    records: activeGanttAttachments,
+  };
+}
+
+async function loadActiveGanttAttachments(
+  container: HTMLElement,
+  context: ProjectContext,
+  force = false,
+): Promise<void> {
+  const projectId = context.project_id;
+  if (activeGanttAttachmentsInflight.has(projectId)) return;
+  if (!force && activeGanttAttachmentsProjectId === projectId && activeGanttAttachmentsStatus === "loaded") return;
+  activeGanttAttachmentsInflight.add(projectId);
+  const previousProject = activeGanttAttachmentsProjectId;
+  activeGanttAttachmentsProjectId = projectId;
+  activeGanttAttachmentsStatus = "loading";
+  activeGanttAttachmentsError = null;
+  if (previousProject !== projectId) activeGanttAttachments = [];
+  const current = currentWorkspaceState;
+  if (current && current.context.project_id === projectId) renderAppPreservingDrafts(container, current);
+  try {
+    const result = await loadGanttAttachments(new FetchApiTransport(window.location.origin), context);
+    if (!currentWorkspaceState || currentWorkspaceState.context.project_id !== projectId) return;
+    if (result.ok) {
+      activeGanttAttachments = result.data;
+      activeGanttAttachmentsStatus = "loaded";
+    } else {
+      activeGanttAttachmentsStatus = "error";
+      activeGanttAttachmentsError = result.error.code;
+    }
+    renderAppPreservingDrafts(container, currentWorkspaceState);
+  } finally {
+    activeGanttAttachmentsInflight.delete(projectId);
+  }
+}
+
 /** The name the server already gave us for this project, from record or session list. */
 function activeProjectLabel(projectId: string): string {
   if (activeProjectSummary && activeProjectSummaryProjectId === projectId && activeProjectSummary.name) {
@@ -4453,6 +4790,7 @@ function renderBootstrapState(
     void loadActiveProjectDataDate(container, state.context);
     void loadActiveProjectBaseline(container, state.context);
     void loadActiveAssignmentPeriods(container, state.context);
+    void loadActiveGanttAttachments(container, state.context);
     return;
   }
 

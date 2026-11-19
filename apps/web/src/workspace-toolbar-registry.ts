@@ -76,6 +76,8 @@ export type ToolbarCapabilities = {
   groupByWbs: boolean;
   canAdminister: boolean;
   canOpenFieldChooser: boolean;
+  /** A Copy/Cut clipboard exists for this project, so Paste can create rows. */
+  hasActivityClipboard?: boolean;
 };
 
 export type ToolbarContext = {
@@ -130,7 +132,7 @@ const always = (label: LocalizedLabel) => () => label;
 const R = {
   selection: reason("Select an activity in the grid first", "ابتدا یک فعالیت را در جدول انتخاب کنید"),
   activities: reason("Load activities in the Activities window first", "ابتدا فعالیت‌ها را در پنجرهٔ فعالیت‌ها بارگذاری کنید"),
-  clipboard: reason("The activity clipboard is not connected to this workspace yet", "کلیپ‌بورد فعالیت هنوز به این محیط کار متصل نشده است"),
+  clipboard: reason("Copy or cut an activity first", "ابتدا یک فعالیت را کپی یا برش کنید"),
   deleteActivity: reason("Deleting activities is not available in this workspace yet", "حذف فعالیت هنوز در این محیط کار در دسترس نیست"),
   fillDown: reason("Fill Down needs editable table cells; edit each activity in Activity Details", "پرکردن به پایین به سلول‌های ویرایش‌پذیر نیاز دارد؛ هر فعالیت را در جزئیات فعالیت ویرایش کنید"),
   dissolve: reason("Dissolving a WBS band has no server contract; move its activities and delete the band instead", "انحلال باند WBS قرارداد سمت سرور ندارد؛ فعالیت‌ها را منتقل و باند را حذف کنید"),
@@ -248,8 +250,8 @@ export const TOOLBAR_COMMANDS: readonly ToolbarCommandDefinition[] = [
   cmd("edit.select-all", { en: "Select All", fa: "انتخاب همه" }, "check", ["edit", "find"], run("edit.select-all"), { windows: scheduleOnly, disabledReason: whenWindow(scheduleOnly, (context) => (context.capabilities.hasActivities ? null : R.activities)) }),
   cmd("edit.link", { en: "Link", fa: "پیوند" }, "link", ["edit"], run("edit.link"), { windows: scheduleOnly, disabledReason: whenWindow(scheduleOnly, (context) => (context.capabilities.hasSelectedActivity ? null : R.selection)) }),
   cmd("edit.unlink", { en: "Unlink", fa: "قطع پیوند" }, "unlink", ["edit"], run("edit.unlink"), { windows: scheduleOnly, disabledReason: whenWindow(scheduleOnly, (context) => (!context.capabilities.hasMultiSelection ? R.multi : context.capabilities.hasRelationships ? null : R.relationships)) }),
-  cmd("edit.fill-down", { en: "Fill Down", fa: "پرکردن به پایین" }, "fill", ["edit"], run("edit.select-all"), { windows: scheduleOnly, disabledReason: always(R.fillDown) }),
-  cmd("edit.dissolve", { en: "Dissolve", fa: "انحلال" }, "dissolve", ["edit"], run("view.collapse-to"), { windows: chartWindows, disabledReason: always(R.dissolve) }),
+  cmd("edit.fill-down", { en: "Fill Down", fa: "پرکردن به پایین" }, "fill", ["edit"], run("edit.fill-down"), { windows: scheduleOnly, disabledReason: whenWindow(scheduleOnly, (context) => (context.capabilities.hasMultiSelection ? null : R.multi)) }),
+  cmd("edit.dissolve", { en: "Dissolve", fa: "انحلال" }, "dissolve", ["edit"], run("edit.dissolve"), { windows: scheduleOnly, disabledReason: whenWindow(scheduleOnly, (context) => (context.capabilities.hasSelectedActivity ? null : R.selection)) }),
 
   // Right rail — Layout.
   cmd("layout.open", { en: "Open Layout", fa: "بازکردن چیدمان" }, "folder", ["layout"], run("layout.open"), { windows: scheduleOnly, disabledReason: whenWindow(scheduleOnly, (context) => (context.capabilities.canOpenFieldChooser ? null : R.fields)) }),
@@ -356,10 +358,10 @@ export const TOOLBAR_COMMANDS: readonly ToolbarCommandDefinition[] = [
   cmd("standard.print", { en: "Print", fa: "چاپ" }, "print", ["standard"], run("file.print")),
   cmd("standard.undo", { en: "Undo", fa: "بازگردانی" }, "undo", ["standard"], run("edit.undo"), { disabledReason: (context) => (context.capabilities.canUndoLayout ? null : R.undo) }),
   cmd("standard.redo", { en: "Redo", fa: "تکرار" }, "redo", ["standard"], run("edit.redo"), { disabledReason: (context) => (context.capabilities.canRedoLayout ? null : R.redo) }),
-  cmd("standard.cut", { en: "Cut", fa: "برش" }, "cut", ["standard"], run("edit.select-all"), { disabledReason: always(R.clipboard) }),
-  cmd("standard.copy", { en: "Copy", fa: "کپی" }, "copy", ["standard"], run("edit.select-all"), { disabledReason: always(R.clipboard) }),
-  cmd("standard.paste", { en: "Paste", fa: "چسباندن" }, "paste", ["standard"], run("edit.select-all"), { disabledReason: always(R.clipboard) }),
-  cmd("standard.delete", { en: "Delete Activity", fa: "حذف فعالیت" }, "delete", ["standard"], run("edit.select-all"), { disabledReason: always(R.deleteActivity) }),
+  cmd("standard.cut", { en: "Cut", fa: "برش" }, "cut", ["standard"], run("edit.cut"), { windows: scheduleOnly, disabledReason: whenWindow(scheduleOnly, (context) => (context.capabilities.hasSelectedActivity ? null : R.selection)) }),
+  cmd("standard.copy", { en: "Copy", fa: "کپی" }, "copy", ["standard"], run("edit.copy"), { windows: scheduleOnly, disabledReason: whenWindow(scheduleOnly, (context) => (context.capabilities.hasSelectedActivity ? null : R.selection)) }),
+  cmd("standard.paste", { en: "Paste", fa: "چسباندن" }, "paste", ["standard"], run("edit.paste"), { windows: scheduleOnly, disabledReason: whenWindow(scheduleOnly, (context) => (context.capabilities.hasActivityClipboard ? null : R.clipboard)) }),
+  cmd("standard.delete", { en: "Delete Activity", fa: "حذف فعالیت" }, "delete", ["standard"], run("edit.delete"), { windows: scheduleOnly, disabledReason: whenWindow(scheduleOnly, (context) => (context.capabilities.hasSelectedActivity ? null : R.selection)) }),
   cmd("standard.find", { en: "Find", fa: "یافتن" }, "find", ["standard"], run("edit.find"), { windows: scheduleOnly }),
   cmd("standard.help", { en: "Help", fa: "راهنما" }, "help", ["standard"], run("help.shortcuts")),
 

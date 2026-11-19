@@ -250,9 +250,13 @@ test("disabled commands expose a reason and administrator commands respect the r
   assert.ok(users);
   assert.ok(toolbarCommandDisabledReason(users, context()));
 
+  // Fill Down needs a multi-row selection, not a missing service.
   const edit = toolbarCommand("edit.fill-down");
   assert.ok(edit);
-  assert.ok(toolbarCommandDisabledReason(edit, context()));
+  assert.equal(toolbarCommandDisabledReason(edit, context()), null);
+  assert.ok(toolbarCommandDisabledReason(edit, context({
+    capabilities: { ...context().capabilities, hasMultiSelection: false },
+  })));
 
   const addActivity = toolbarCommand("planning.add-activity");
   assert.ok(addActivity);

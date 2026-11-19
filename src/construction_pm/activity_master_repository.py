@@ -167,6 +167,7 @@ class ActivityMasterRepository(Protocol):
     def save(self, activity: ActivityMaster, expected_revision: int | None = None) -> ActivityMaster: ...
     def get(self, scope: BackendScope, activity_id: str) -> ActivityMaster | None: ...
     def list(self, scope: BackendScope) -> tuple[ActivityMaster, ...]: ...
+    def delete(self, scope: BackendScope, activity_id: str, *, expected_revision: int) -> bool: ...
 
 
 def _decode_actual_start(value: object) -> date | datetime | None:
@@ -538,6 +539,42 @@ class SQLiteActivityMasterRepository:
             self._validate_wbs_assignment(scope, item.wbs_id, require_assignment=False)
         return result
 
+    def delete(self, scope: BackendScope, activity_id: str, *, expected_revision: int) -> bool:
+        """Remove one activity row and its WBS link.
+
+        Child records, relationships, assignments and document links are checked
+        by the application boundary before this call; the repository only owns
+        the activity row so a stale revision can never delete the wrong record.
+        """
+        scope.validate()
+        if not isinstance(activity_id, str) or not activity_id.strip():
+            raise ActivityPersistenceError("INVALID_ACTIVITY_ID")
+        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+            raise ActivityPersistenceError("INVALID_EXPECTED_REVISION")
+        row = self.connection.execute(
+            "SELECT record_revision,project_revision FROM activity_master "
+            "WHERE tenant_id=? AND project_id=? AND activity_id=?",
+            (scope.tenant_id, scope.project_id, activity_id),
+        ).fetchone()
+        if row is None:
+            raise ActivityPersistenceError("ACTIVITY_NOT_FOUND")
+        if int(row[1]) != scope.project_revision or int(row[0]) != expected_revision:
+            raise ActivityPersistenceError("REVISION_CONFLICT")
+        self.connection.execute(
+            "DELETE FROM activity_wbs_assignment WHERE tenant_id=? AND project_id=? AND activity_id=?",
+            (scope.tenant_id, scope.project_id, activity_id),
+        )
+        cursor = self.connection.execute(
+            "DELETE FROM activity_master WHERE tenant_id=? AND project_id=? "
+            "AND project_revision=? AND activity_id=? AND record_revision=?",
+            (scope.tenant_id, scope.project_id, scope.project_revision, activity_id, expected_revision),
+        )
+        if cursor.rowcount != 1:
+            self.connection.rollback()
+            raise ActivityPersistenceError("REVISION_CONFLICT")
+        self.connection.commit()
+        return True
+
 
 class PostgresActivityMasterRepository:
     def __init__(self, connection: object) -> None:
@@ -700,3 +737,32 @@ class PostgresActivityMasterRepository:
         for item in result:
             self._validate_wbs_assignment(scope, item.wbs_id, require_assignment=False)
         return result
+
+    def delete(self, scope: BackendScope, activity_id: str, *, expected_revision: int) -> bool:
+        scope.validate()
+        if not isinstance(activity_id, str) or not activity_id.strip():
+            raise ActivityPersistenceError("INVALID_ACTIVITY_ID")
+        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+            raise ActivityPersistenceError("INVALID_EXPECTED_REVISION")
+        row = self.connection.execute(
+            "SELECT record_revision,project_revision FROM activity_master "
+            "WHERE tenant_id=%s AND project_id=%s AND activity_id=%s",
+            (scope.tenant_id, scope.project_id, activity_id),
+        ).fetchone()
+        if row is None:
+            raise ActivityPersistenceError("ACTIVITY_NOT_FOUND")
+        if int(row[1]) != scope.project_revision or int(row[0]) != expected_revision:
+            raise ActivityPersistenceError("REVISION_CONFLICT")
+        self.connection.execute(
+            "DELETE FROM activity_wbs_assignment WHERE tenant_id=%s AND project_id=%s AND activity_id=%s",
+            (scope.tenant_id, scope.project_id, activity_id),
+        )
+        cursor = self.connection.execute(
+            "DELETE FROM activity_master WHERE tenant_id=%s AND project_id=%s "
+            "AND project_revision=%s AND activity_id=%s AND record_revision=%s",
+            (scope.tenant_id, scope.project_id, scope.project_revision, activity_id, expected_revision),
+        )
+        if getattr(cursor, "rowcount", 1) != 1:
+            self.connection.rollback()
+            raise ActivityPersistenceError("REVISION_CONFLICT")
+        return True

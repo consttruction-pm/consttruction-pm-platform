@@ -152,7 +152,11 @@ def build_project_lifecycle_wsgi_app(
     p6_issue_api: P6IssueAPI | None = None,
     p6_activity_step_api: P6ActivityStepReadAPI | None = None,
     p6_activity_step_write_api: object | None = None,
+    p6_gantt_attachment_api: object | None = None,
     p6_activity_children_api: object | None = None,
+    activity_children_repository: object | None = None,
+    activity_step_repository: object | None = None,
+    document_store: object | None = None,
     document_api: DocumentAPI | None = None,
     tracking_read_api: TrackingReadAPI | None = None,
     tracking_resource_assignment_repository: P6ResourceAssignmentRepository | None = None,
@@ -305,6 +309,11 @@ def build_project_lifecycle_wsgi_app(
             activity_master_repository,
             authorization_policy,
             checkout_lease=checkout_lease,
+            relationship_repository=relationship_master_repository,
+            assignment_repository=tracking_resource_assignment_repository,
+            children_repository=activity_children_repository,
+            step_repository=activity_step_repository,
+            document_store=document_store,
         )
     )
     if (
@@ -407,6 +416,7 @@ def build_project_lifecycle_wsgi_app(
         p6_issue_api=p6_issue_api,
         p6_activity_step_api=p6_activity_step_api,
         p6_activity_step_write_api=p6_activity_step_write_api,
+        p6_gantt_attachment_api=p6_gantt_attachment_api,
         p6_activity_children_api=p6_activity_children_api,
         document_api=document_api,
         tracking_read_api=tracking_read_api,

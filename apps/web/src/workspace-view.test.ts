@@ -562,9 +562,11 @@ test("full rerenders do not accumulate delegated workspace listeners", () => {
   renderMainWorkspace(container as unknown as HTMLElement, base);
   renderMainWorkspace(container as unknown as HTMLElement, { ...base, locale: "fa", direction: "rtl" });
 
+  // The attachment dialog adds one delegated click surface; rerenders must
+  // register the same set instead of accumulating it.
   assert.deepEqual(registrations, [
     "click", "click", "contextmenu", "pointerdown", "keydown",
-    "scroll", "focusout", "toggle", "pointerdown", "input", "submit", "click", "contextmenu", "dblclick", "keydown", "change",
+    "scroll", "focusout", "toggle", "pointerdown", "input", "click", "submit", "click", "contextmenu", "dblclick", "keydown", "change",
   ]);
 });
 

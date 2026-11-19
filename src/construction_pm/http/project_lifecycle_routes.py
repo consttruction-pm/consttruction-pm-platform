@@ -130,6 +130,7 @@ from ..p6_issue_api import P6IssueAPI, P6_ISSUE_API_VERSION
 from ..p6_activity_step_api import P6ActivityStepReadAPI
 from ..p6_activity_step_repository import P6ActivityStepPersistenceError
 from ..p6_activity_children import ActivityChildPersistenceError
+from ..p6_gantt_attachment import GanttAttachmentPersistenceError
 from ..document_api import DocumentAPI
 from ..document_storage import content_disposition
 from ..tracking_read_model import (
@@ -341,6 +342,7 @@ class ProjectLifecycleHttpRoutes:
         p6_issue_api: P6IssueAPI | None = None,
         p6_activity_step_api: P6ActivityStepReadAPI | None = None,
         p6_activity_step_write_api: object | None = None,
+        p6_gantt_attachment_api: object | None = None,
         p6_activity_children_api: object | None = None,
         document_api: DocumentAPI | None = None,
         tracking_read_api: TrackingReadAPI | None = None,
@@ -406,6 +408,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_issue_api = p6_issue_api
         self._p6_activity_step_api = p6_activity_step_api
         self._p6_activity_step_write_api = p6_activity_step_write_api
+        self._p6_gantt_attachment_api = p6_gantt_attachment_api
         self._p6_activity_children_api = p6_activity_children_api
         self._document_api = document_api
         self._tracking_read_api = tracking_read_api
@@ -1803,6 +1806,78 @@ class ProjectLifecycleHttpRoutes:
                     )
             if (
                 path.startswith("/api/projects/")
+                and "/p6/gantt/attachments" in path
+                and self._p6_gantt_attachment_api is not None
+            ):
+                prefix, suffix = path.split("/p6/gantt/attachments", 1)
+                project_id = prefix[len("/api/projects/"):].rstrip("/")
+                parts = [unquote(part) for part in suffix.strip("/").split("/") if part]
+                if not project_id or len(parts) > 1:
+                    return self._error(400, "P6_GANTT_ATTACHMENT_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                scope = BackendScope(context.tenant_id, context.project_id, context.revision)
+                payload = json.loads(body.decode("utf-8") or "{}") if body else {}
+                if not isinstance(payload, dict):
+                    return self._error(400, "P6_GANTT_ATTACHMENT_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    if method == "GET" and not parts:
+                        return self._json(200, self._p6_gantt_attachment_api.list(scope, auth_context=auth))
+                    if method == "POST" and not parts:
+                        return self._json(201, self._p6_gantt_attachment_api.create(
+                            scope,
+                            kind=payload.get("kind"),
+                            label=payload.get("label"),
+                            start_date=payload.get("start_date"),
+                            end_date=payload.get("end_date"),
+                            color=payload.get("color"),
+                            activity_id=payload.get("activity_id"),
+                            topic_id=payload.get("topic_id"),
+                            visible=payload.get("visible"),
+                            auth_context=auth,
+                        ))
+                    if method == "PATCH" and len(parts) == 1:
+                        return self._json(200, self._p6_gantt_attachment_api.update(
+                            scope,
+                            parts[0],
+                            kind=payload.get("kind"),
+                            label=payload.get("label"),
+                            start_date=payload.get("start_date"),
+                            end_date=payload.get("end_date"),
+                            color=payload.get("color"),
+                            activity_id=payload.get("activity_id"),
+                            topic_id=payload.get("topic_id"),
+                            visible=payload.get("visible"),
+                            expected_record_revision=payload.get("expected_record_revision"),
+                            auth_context=auth,
+                        ))
+                    if method == "DELETE" and len(parts) == 1:
+                        return self._json(200, self._p6_gantt_attachment_api.delete(
+                            scope,
+                            parts[0],
+                            expected_record_revision=payload.get("expected_record_revision"),
+                            auth_context=auth,
+                        ))
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                except AuthorizationError as exc:
+                    return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
+                except GanttAttachmentPersistenceError as exc:
+                    code = str(exc)
+                    if code == "REVISION_CONFLICT":
+                        return self._error(409, code, "error.revision.conflict")
+                    if code.endswith("_NOT_FOUND"):
+                        return self._error(404, code, "error.resource.not_found")
+                    return self._error(400, code, "error.request.invalid")
+                except (ValueError, TypeError) as exc:
+                    return self._error(400, _stable_error_code(exc, "P6_GANTT_ATTACHMENT_REQUEST_INVALID"), "error.request.invalid")
+            if (
+                path.startswith("/api/projects/")
                 and "/p6/activities" in path
                 and self._p6_activity_master_api is not None
             ):
@@ -2242,6 +2317,37 @@ class ProjectLifecycleHttpRoutes:
                         if result is None:
                             return self._error(404, "P6_ACTIVITY_MASTER_NOT_FOUND", "error.resource.not_found")
                         return self._json(200, result)
+                    if method == "DELETE" and len(parts) == 1 and parts[0]:
+                        expected_revision = payload.get("expected_revision")
+                        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+                            raise ValueError("EXPECTED_REVISION_REQUIRED")
+                        return self._json(
+                            200,
+                            self._p6_activity_master_api.delete(
+                                scope,
+                                parts[0],
+                                expected_revision=expected_revision,
+                                auth_context=auth,
+                            ),
+                        )
+                    if (
+                        method == "POST"
+                        and len(parts) == 2
+                        and parts[0]
+                        and parts[1] == "dissolve"
+                    ):
+                        expected_revision = payload.get("expected_revision")
+                        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+                            raise ValueError("EXPECTED_REVISION_REQUIRED")
+                        return self._json(
+                            200,
+                            self._p6_activity_master_api.dissolve(
+                                scope,
+                                parts[0],
+                                expected_revision=expected_revision,
+                                auth_context=auth,
+                            ),
+                        )
                     if method == "PATCH" and len(parts) == 1 and parts[0]:
                         expected_revision = payload.get("expected_revision")
                         if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
@@ -2268,6 +2374,12 @@ class ProjectLifecycleHttpRoutes:
                 except ActivityPersistenceError as exc:
                     if str(exc) == "REVISION_CONFLICT":
                         return self._error(409, _stable_error_code(exc, "REVISION_CONFLICT"), "error.revision.conflict")
+                    if str(exc) == "ACTIVITY_NOT_FOUND":
+                        return self._error(404, _stable_error_code(exc, "RESOURCE_NOT_FOUND"), "error.resource.not_found")
+                    if str(exc) == "DISSOLVE_UNAVAILABLE":
+                        return self._error(503, _stable_error_code(exc, "RESOURCE_UNAVAILABLE"), "error.resource.unavailable")
+                    if str(exc).startswith("ACTIVITY_HAS_") or str(exc).startswith("DISSOLVE_"):
+                        return self._error(409, _stable_error_code(exc, "RESOURCE_CONFLICT"), "error.p6.resource.conflict")
                     return self._error(400, _stable_error_code(exc, "REQUEST_INVALID"), "error.request.invalid")
                 except (TypeError, KeyError):
                     return self._error(500, "INTERNAL_ERROR", "error.internal")

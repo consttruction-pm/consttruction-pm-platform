@@ -1,6 +1,11 @@
 import type { WorkspaceActivityGroupLevel, WorkspaceActivityRow, WorkspaceCalendarMode, WorkspaceCellValue, WorkspaceColumn, WorkspaceGanttScale, WorkspaceProjectCalendar, WorkspaceRelationshipRow, WorkspaceRelationshipType, WorkspaceState, WorkspaceWbsMilestone } from "./workspace-model.js";
 import { computeNextActivityId } from "./activity-id.js";
 import { selectedActivityIdList } from "./workspace-model.js";
+import type {
+  GanttAttachmentInput,
+  GanttAttachmentKind,
+  GanttAttachmentRecord,
+} from "./workspace-gantt-attachments.js";
 import type { ProjectSummary } from "./session-api.js";
 import { GANTT_CONTENT_WIDTH, createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttNonWorkingBands, createGanttPeriodGroups, createGanttScale, ganttDisplayMetrics, ganttRowPitch, isoWeekNumber, ordinalNumberAt, progressPointRelation, relationshipTypeFromEdges, resolveGanttLabelPosition, timescaleMajorUnit, type GanttBarGeometry, type GanttLinkEdge, type GanttPeriodGroup, type GanttRowMetric, type GanttScale } from "./workspace-gantt.js";
 import { filterAndSortActivities } from "./workspace-filter-sort.js";
@@ -984,6 +989,87 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     const empty = container.querySelector<HTMLElement>("[data-reference-no-matches]");
     if (empty) empty.hidden = visible > 0;
   });
+  container.addEventListener("click", (event) => {
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function"
+      ? event.target as HTMLElement
+      : null;
+    if (!target) return;
+    const record = workspaceRenderRecords.get(container);
+    if (!record) return;
+    const dialog = container.querySelector<HTMLDialogElement>("[data-gantt-attachments-dialog]");
+    if (target.closest("[data-gantt-attachments-open]")) {
+      if (dialog && typeof dialog.showModal === "function") dialog.showModal();
+      else dialog?.setAttribute("open", "");
+      return;
+    }
+    if (target.closest("[data-gantt-attachments-close]")) {
+      if (dialog?.open) dialog.close();
+      else dialog?.removeAttribute("open");
+      return;
+    }
+    const form = dialog?.querySelector<HTMLFormElement>("[data-gantt-attachment-form]");
+    const setField = (name: string, value: string): void => {
+      const field = form?.elements.namedItem(name);
+      if (field instanceof HTMLInputElement || field instanceof HTMLSelectElement || field instanceof HTMLTextAreaElement) {
+        field.value = value;
+      }
+    };
+    const attachment = (id: string) => (record.options.ganttAttachments?.records ?? []).find((item) => item.attachmentId === id) ?? null;
+    const edit = target.closest<HTMLElement>("[data-gantt-attachment-edit]");
+    if (edit?.dataset.ganttAttachmentEdit) {
+      const item = attachment(edit.dataset.ganttAttachmentEdit);
+      if (!item || !form) return;
+      setField("attachmentId", item.attachmentId);
+      setField("expectedRevision", String(item.recordRevision));
+      setField("kind", item.kind);
+      setField("label", item.label);
+      setField("startDate", item.startDate ?? "");
+      setField("endDate", item.endDate ?? "");
+      setField("color", item.color ?? "#64748b");
+      setField("activityId", item.activityId ?? "");
+      setField("topicId", item.topicId ?? "");
+      const visible = form.elements.namedItem("visible") as HTMLInputElement | null;
+      if (visible) visible.checked = item.visible;
+      const save = form.querySelector<HTMLElement>("[data-gantt-attachment-save]");
+      if (save) save.textContent = uiText(record.state.locale, "Save changes", "ذخیرهٔ تغییرات");
+      form.querySelector<HTMLInputElement>('[name="label"]')?.focus();
+      return;
+    }
+    const toggle = target.closest<HTMLElement>("[data-gantt-attachment-toggle]");
+    if (toggle?.dataset.ganttAttachmentToggle) {
+      const item = attachment(toggle.dataset.ganttAttachmentToggle);
+      if (!item) return;
+      void record.options.onGanttAttachmentSave?.({
+        attachmentId: item.attachmentId,
+        expectedRevision: item.recordRevision,
+        kind: item.kind,
+        label: item.label,
+        startDate: item.startDate,
+        endDate: item.endDate,
+        color: item.color,
+        activityId: item.activityId,
+        topicId: item.topicId,
+        visible: !item.visible,
+      });
+      return;
+    }
+    const remove = target.closest<HTMLElement>("[data-gantt-attachment-delete]");
+    if (remove?.dataset.ganttAttachmentDelete) {
+      const revision = Number(remove.dataset.attachmentRevision);
+      if (!Number.isSafeInteger(revision) || revision < 1) return;
+      remove.setAttribute("disabled", "disabled");
+      void record.options.onGanttAttachmentDelete?.(remove.dataset.ganttAttachmentDelete, revision);
+      return;
+    }
+    if (target.closest("[data-gantt-attachment-reset]")) {
+      form?.reset();
+      setField("attachmentId", "");
+      setField("expectedRevision", "");
+      const save = form?.querySelector<HTMLElement>("[data-gantt-attachment-save]");
+      if (save) save.textContent = uiText(record.state.locale, "Create attachment", "ایجاد پیوست");
+    }
+  });
+
   container.addEventListener("submit", (event) => {
     const form = event.target && typeof (event.target as { matches?: unknown }).matches === "function" ? event.target as HTMLFormElement : null;
     if (!form) return;
@@ -994,6 +1080,42 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     const sequenceNumber = Number.parseInt(sequenceRaw, 10);
     // A rejected submit must say why; silently doing nothing looks like a lost
     // click. The server stays the authority for cross-activity rules.
+    if (form.matches("[data-gantt-attachment-form]")) {
+      event.preventDefault();
+      const formData = new FormData(form);
+      const text = (name: string): string => String(formData.get(name) ?? "").trim();
+      const message = form.querySelector<HTMLElement>("[data-gantt-attachment-message]");
+      const kind = text("kind");
+      const label = text("label");
+      if (!label || (kind !== "curtain" && kind !== "text" && kind !== "notebook")) {
+        if (message) { message.textContent = uiText(record.state.locale, "Enter a label and kind.", "برچسب و نوع را وارد کنید."); message.dataset.state = "error"; }
+        return;
+      }
+      const attachmentId = text("attachmentId");
+      const revision = Number(text("expectedRevision"));
+      if (!record.options.onGanttAttachmentSave) {
+        if (message) { message.textContent = uiText(record.state.locale, "Attachment service is not connected.", "سرویس پیوست متصل نیست."); message.dataset.state = "error"; }
+        return;
+      }
+      if (message) { message.textContent = uiText(record.state.locale, "Saving…", "در حال ذخیره…"); delete message.dataset.state; }
+      const visible = formData.get("visible") !== null;
+      void Promise.resolve(record.options.onGanttAttachmentSave({
+        ...(attachmentId ? { attachmentId, expectedRevision: revision } : {}),
+        kind,
+        label,
+        startDate: text("startDate") || null,
+        endDate: text("endDate") || null,
+        color: text("color") || null,
+        activityId: text("activityId") || null,
+        topicId: text("topicId") || null,
+        visible,
+      })).catch((error: unknown) => {
+        if (!message) return;
+        message.textContent = error instanceof Error ? error.message : "ATTACHMENT_SAVE_FAILED";
+        message.dataset.state = "error";
+      });
+      return;
+    }
     const relationshipInputNotice = (text: string): void => {
       const panel = container.querySelector<HTMLElement>("#cp-logic");
       if (!panel) return;
@@ -2743,6 +2865,12 @@ function activitySelectionRequest(
   return { additive: event.ctrlKey || event.metaKey, range: event.shiftKey, orderedIds };
 }
 
+export type GanttAttachmentSource = {
+  status: "loading" | "loaded" | "error";
+  errorCode: string | null;
+  records: readonly GanttAttachmentRecord[];
+};
+
 export type WorkspaceRendererOptions = {
   onMenuSelect?: (menu: WorkspaceState["activeMenu"]) => void;
   openWindows?: readonly WorkspaceState["activeMenu"][];
@@ -2781,6 +2909,10 @@ export type WorkspaceRendererOptions = {
   /** Persists one Gantt display toggle through the same layout presentation. */
   onGanttDisplayToggle?: (kind: "baseline" | "progress-line" | "data-date-line", visible: boolean) => void;
   onGanttCommand?: (command: "bars" | "font-row" | "user-preferences") => void;
+  /** Persisted curtain, text and notebook attachments of this project. */
+  ganttAttachments?: GanttAttachmentSource;
+  onGanttAttachmentSave?: (input: GanttAttachmentInput & { attachmentId?: string; expectedRevision?: number }) => void | Promise<void>;
+  onGanttAttachmentDelete?: (attachmentId: string, expectedRevision: number) => void | Promise<void>;
   onProjectSettings?: () => void;
   /** Authoritative metadata row of the open project, when the server returned it. */
   projectSummary?: ProjectSummary | null;
@@ -2835,6 +2967,8 @@ export type WorkspaceRendererOptions = {
   onToolbarConfigChange?: (next: ToolbarWorkspaceConfig) => void;
   /** True only when the signed-in session can use administrator commands. */
   canAdminister?: boolean;
+  /** A Copy/Cut clipboard exists for this project, so Paste can create rows. */
+  hasActivityClipboard?: boolean;
 };
 
 export function renderMainWorkspace(container: HTMLElement, state: WorkspaceState, options: WorkspaceRendererOptions = {}): void {
@@ -3062,6 +3196,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         groupByWbs: state.activityGroupBy === "wbs",
         canAdminister: options.canAdminister === true,
         canOpenFieldChooser: Boolean(state.p6Layout && state.p6FieldRegistry),
+        hasActivityClipboard: options.hasActivityClipboard === true,
       },
       detailsVisible,
       ganttVisible: state.visiblePanels.gantt,
@@ -3128,7 +3263,8 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
                   <div class="cp-p6-gantt-head">
                     <h2>${escapeHtml(t.gantt)}</h2>
                   </div>
-                  ${renderGantt(displayRows, state.relationships, state.ganttScale, state.calendarMode, scale, t, state.selectedActivityId, state.showGanttRelationships, presentation, state.locale, options.dataDate ?? null, state.projectCalendar, selectedActivityIdList(state))}
+                  ${renderGantt(displayRows, state.relationships, state.ganttScale, state.calendarMode, scale, t, state.selectedActivityId, state.showGanttRelationships, presentation, state.locale, options.dataDate ?? null, state.projectCalendar, selectedActivityIdList(state), options.ganttAttachments?.records ?? [])}
+                  ${renderGanttAttachmentsDialog(state, options, t)}
                 </section>`}`}
               </section>
               ${renderP6ModuleStage(container, state, t, options)}
@@ -5187,6 +5323,69 @@ function ganttLagText(lag: { value: string; unit: string }): string {
   return `${sign}${trimmed.replace(/^[+-]/, "")}${GANTT_LAG_UNITS[lag.unit] ?? ""}`;
 }
 
+function renderGanttAttachmentsDialog(
+  state: WorkspaceState,
+  options: WorkspaceRendererOptions,
+  t: WorkspaceLabels,
+): string {
+  const locale = state.locale;
+  const source = options.ganttAttachments;
+  const records = source?.records ?? [];
+  const status = source?.status ?? "loading";
+  const kindLabels: Record<GanttAttachmentKind, { en: string; fa: string }> = {
+    curtain: { en: "Curtain", fa: "پرده" },
+    text: { en: "Text", fa: "متن" },
+    notebook: { en: "Notebook", fa: "دفترچه" },
+  };
+  const rows = records.map((item) => `<tr data-gantt-attachment-row="${escapeAttribute(item.attachmentId)}" data-kind="${item.kind}">
+      <td>${escapeHtml(uiText(locale, kindLabels[item.kind].en, kindLabels[item.kind].fa))}</td>
+      <td>${escapeHtml(item.label)}</td>
+      <td>${escapeHtml(item.kind === "curtain" ? `${item.startDate ?? "—"} → ${item.endDate ?? "—"}` : item.activityId ?? "—")}</td>
+      <td>${item.visible ? escapeHtml(uiText(locale, "Shown", "نمایان")) : escapeHtml(uiText(locale, "Hidden", "پنهان"))}</td>
+      <td>
+        <button type="button" class="cp-detail-action" data-gantt-attachment-toggle="${escapeAttribute(item.attachmentId)}">${escapeHtml(item.visible ? uiText(locale, "Hide", "پنهان") : uiText(locale, "Show", "نمایش"))}</button>
+        <button type="button" class="cp-detail-action" data-gantt-attachment-edit="${escapeAttribute(item.attachmentId)}">${escapeHtml(uiText(locale, "Edit", "ویرایش"))}</button>
+        <button type="button" class="cp-detail-action" data-gantt-attachment-delete="${escapeAttribute(item.attachmentId)}" data-attachment-revision="${String(item.recordRevision)}">${escapeHtml(uiText(locale, "Delete", "حذف"))}</button>
+      </td>
+    </tr>`).join("");
+  const activityOptions = state.activities
+    .map((activity) => `<option value="${escapeAttribute(activity.id)}">${escapeHtml(`${activity.code ?? activity.id} — ${activity.name}`)}</option>`)
+    .join("");
+  const statusText = status === "loaded"
+    ? uiText(locale, `${records.length} attachment(s)`, `${records.length} پیوست`)
+    : status === "error"
+      ? uiText(locale, `Attachments could not be read (${source?.errorCode ?? "UNKNOWN"})`, `خواندن پیوست‌ها ناموفق بود (${source?.errorCode ?? "UNKNOWN"})`)
+      : uiText(locale, "Reading attachments…", "در حال خواندن پیوست‌ها…");
+  return `<dialog class="cp-gantt-attachments-dialog" data-gantt-attachments-dialog aria-labelledby="cp-gantt-attachments-title">
+    <header><h2 id="cp-gantt-attachments-title">${escapeHtml(uiText(locale, "Gantt Attachments", "پیوست‌های گانت"))}</h2><button type="button" data-gantt-attachments-close aria-label="${escapeAttribute(uiText(locale, "Close", "بستن"))}">×</button></header>
+    <p class="cp-detail-hint" data-gantt-attachments-status role="status">${escapeHtml(statusText)}</p>
+    <div class="cp-detail-table-wrap"><table class="cp-detail-table"><thead><tr><th>${escapeHtml(uiText(locale, "Kind", "نوع"))}</th><th>${escapeHtml(uiText(locale, "Label", "برچسب"))}</th><th>${escapeHtml(uiText(locale, "Range / Activity", "بازه / فعالیت"))}</th><th>${escapeHtml(uiText(locale, "State", "وضعیت"))}</th><th></th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="5" class="cp-detail-none">${escapeHtml(uiText(locale, "No curtain, text or notebook attachment is stored.", "هیچ پیوست پرده، متن یا دفترچه‌ای ذخیره نشده است."))}</td></tr>`}</tbody></table></div>
+    <form class="cp-detail-form" data-gantt-attachment-form novalidate>
+      <input type="hidden" name="attachmentId" value="">
+      <input type="hidden" name="expectedRevision" value="">
+      <div class="cp-detail-form-grid">
+        <label class="cp-detail-form-field"><span>${escapeHtml(uiText(locale, "Kind", "نوع"))}</span>
+          <select name="kind" required>
+            <option value="curtain">${escapeHtml(uiText(locale, "Curtain", "پرده"))}</option>
+            <option value="text">${escapeHtml(uiText(locale, "Text", "متن"))}</option>
+            <option value="notebook">${escapeHtml(uiText(locale, "Notebook", "دفترچه"))}</option>
+          </select>
+        </label>
+        <label class="cp-detail-form-field is-wide"><span>${escapeHtml(uiText(locale, "Label", "برچسب"))}</span><input name="label" type="text" required autocomplete="off"></label>
+        <label class="cp-detail-form-field"><span>${escapeHtml(uiText(locale, "Start date", "تاریخ شروع"))}</span><input name="startDate" type="date"></label>
+        <label class="cp-detail-form-field"><span>${escapeHtml(uiText(locale, "Finish date", "تاریخ پایان"))}</span><input name="endDate" type="date"></label>
+        <label class="cp-detail-form-field"><span>${escapeHtml(uiText(locale, "Colour", "رنگ"))}</span><input name="color" type="color" value="#64748b"></label>
+        <label class="cp-detail-form-field"><span>${escapeHtml(uiText(locale, "Activity", "فعالیت"))}</span><select name="activityId"><option value="">${escapeHtml(uiText(locale, "None", "هیچ"))}</option>${activityOptions}</select></label>
+        <label class="cp-detail-form-field"><span>${escapeHtml(uiText(locale, "Notebook topic ID", "شناسهٔ موضوع دفترچه"))}</span><input name="topicId" type="text" autocomplete="off"></label>
+        <label class="cp-detail-check"><input name="visible" type="checkbox" checked> ${escapeHtml(uiText(locale, "Show on the chart", "نمایش روی نمودار"))}</label>
+      </div>
+      <div class="cp-detail-form-actions"><button type="submit" class="cp-detail-action" data-gantt-attachment-save>${escapeHtml(uiText(locale, "Create attachment", "ایجاد پیوست"))}</button><button type="button" class="cp-detail-action" data-gantt-attachment-reset>${escapeHtml(uiText(locale, "Clear", "پاک‌کردن"))}</button><span class="cp-detail-form-message" data-gantt-attachment-message role="status"></span></div>
+    </form>
+    <p class="cp-detail-hint">${escapeHtml(uiText(locale, "Curtains use their own date range. Text and notebook attachments sit at the linked activity's bar. Notebook bodies stay in the Notebook tab; this record only links a topic to the bar.", "پرده‌ها بازهٔ زمانی مستقل دارند. پیوست‌های متن و دفترچه روی میلهٔ فعالیت پیوندشده می‌نشینند. متن موضوع دفترچه در زبانهٔ دفترچه می‌ماند؛ این رکورد فقط موضوع را به میله پیوند می‌دهد."))}</p>
+  </dialog>`;
+}
+
 function renderGantt(
   rows: readonly WorkspaceDisplayRow[],
   relationships: readonly WorkspaceRelationshipRow[],
@@ -5201,6 +5400,7 @@ function renderGantt(
   dataDate: string | null = null,
   projectCalendar: WorkspaceProjectCalendar | null = null,
   selectedActivityIds?: readonly string[],
+  attachments: readonly GanttAttachmentRecord[] = [],
 ): string {
   if (!rows.length) {
     return `<div class="cp-gantt-placeholder" role="img" aria-label="${escapeAttribute(t.gantt)}">${escapeHtml(t.noSchedule)}</div>`;
@@ -5240,7 +5440,7 @@ function renderGantt(
     quarter: t.scaleQuarter,
     year: t.scaleYear,
   };
-  const toolbar = `<div class="cp-gantt-toolbar" aria-label="${escapeAttribute(uiText(locale, "Gantt chart controls", "کنترل‌های نمودار گانت"))}"><div class="cp-gantt-scale-controls" role="group" aria-label="${escapeAttribute(t.ganttScaleLabel)}">${(["day", "week", "month", "quarter", "year"] as const).map((mode) => `<button type="button" class="cp-gantt-scale-button${mode === ganttScale ? " is-active" : ""}" data-gantt-scale="${mode}" aria-pressed="${mode === ganttScale ? "true" : "false"}">${escapeHtml(scaleModeLabels[mode])}</button>`).join("")}</div><button type="button" class="cp-gantt-relationships-toggle${showRelationships ? " is-active" : ""}" data-gantt-relationships-toggle="${showRelationships ? "false" : "true"}" aria-pressed="${showRelationships ? "true" : "false"}" title="${escapeAttribute(t.ganttLinksToggle)}"><span>${escapeHtml(t.ganttLinksToggle)}</span><strong>${escapeHtml(showRelationships ? t.ganttLinksOn : t.ganttLinksOff)}</strong></button></div>`;
+  const toolbar = `<div class="cp-gantt-toolbar" aria-label="${escapeAttribute(uiText(locale, "Gantt chart controls", "کنترل‌های نمودار گانت"))}"><div class="cp-gantt-scale-controls" role="group" aria-label="${escapeAttribute(t.ganttScaleLabel)}">${(["day", "week", "month", "quarter", "year"] as const).map((mode) => `<button type="button" class="cp-gantt-scale-button${mode === ganttScale ? " is-active" : ""}" data-gantt-scale="${mode}" aria-pressed="${mode === ganttScale ? "true" : "false"}">${escapeHtml(scaleModeLabels[mode])}</button>`).join("")}</div><button type="button" class="cp-gantt-relationships-toggle${showRelationships ? " is-active" : ""}" data-gantt-relationships-toggle="${showRelationships ? "false" : "true"}" aria-pressed="${showRelationships ? "true" : "false"}" title="${escapeAttribute(t.ganttLinksToggle)}"><span>${escapeHtml(t.ganttLinksToggle)}</span><strong>${escapeHtml(showRelationships ? t.ganttLinksOn : t.ganttLinksOff)}</strong></button><button type="button" class="cp-gantt-attachments-open" data-gantt-attachments-open title="${escapeAttribute(uiText(locale, "Curtain, text and notebook attachments", "پیوست‌های پرده، متن و دفترچه"))}" aria-label="${escapeAttribute(uiText(locale, "Attachments", "پیوست‌ها"))}">${escapeHtml(uiText(locale, "Attachments", "پیوست‌ها"))}<span data-gantt-attachments-count>${String(attachments.length)}</span></button></div>`;
   const axis = hasTimeline ? (() => {
     const timescale = presentation.timescale;
     const ordinalStartMs = timescale.ordinalStart
@@ -5353,6 +5553,46 @@ function renderGantt(
   const nonWorkingLayer = nonWorkingBands.length
     ? `<div class="cp-gantt-nonworking" aria-hidden="true">${nonWorkingBands.map((band) => `<span class="cp-gantt-nonworking-band is-${band.kind}" data-gantt-nonworking="${band.kind}" data-nonworking-from="${band.fromDate}" data-nonworking-to="${band.toDate}" data-nonworking-days="${band.days}" style="left:${ganttRound(band.leftPercent)}%;width:${ganttRound(band.widthPercent)}%" title="${escapeAttribute(`${band.kind === "holiday" ? "Holiday" : "Non-working day"} ${band.fromDate}${band.toDate === band.fromDate ? "" : ` – ${band.toDate}`}`)}"></span>`).join("")}</div>`
     : "";
+  // Curtain attachments: real date ranges projected onto the same timeline as
+  // the bars. They paint behind the rows; no schedule value is derived from them.
+  const datePercent = (value: string | null | undefined): number => {
+    if (!hasTimeline || !value) return Number.NaN;
+    const ms = Date.parse(`${value.slice(0, 10)}T00:00:00Z`);
+    if (!Number.isFinite(ms)) return Number.NaN;
+    return ((ms - viewScale.startMs) / viewScale.rangeMs) * 100;
+  };
+  const visibleAttachments = attachments.filter((item) => item.visible);
+  const curtains = visibleAttachments
+    .filter((item) => item.kind === "curtain" && item.startDate && item.endDate)
+    .map((item) => {
+      const left = datePercent(item.startDate);
+      const right = datePercent(item.endDate);
+      if (!Number.isFinite(left) || !Number.isFinite(right)) return "";
+      const clampedLeft = Math.max(0, Math.min(100, left));
+      const clampedRight = Math.max(0, Math.min(100, right));
+      return `<span class="cp-gantt-curtain" data-gantt-curtain="${escapeAttribute(item.attachmentId)}" data-curtain-from="${escapeAttribute(item.startDate ?? "")}" data-curtain-to="${escapeAttribute(item.endDate ?? "")}" style="left:${ganttRound(clampedLeft)}%;width:${ganttRound(Math.max(0.4, clampedRight - clampedLeft))}%;--cp-curtain-color:${escapeAttribute(item.color ?? "#64748b")}" title="${escapeAttribute(item.label)}"><span class="cp-gantt-curtain-label">${escapeHtml(item.label)}</span></span>`;
+    })
+    .join("");
+  const curtainLayer = curtains ? `<div class="cp-gantt-curtains" aria-hidden="true">${curtains}</div>` : "";
+  const barLabels = visibleAttachments
+    .filter((item) => item.kind === "text" || item.kind === "notebook")
+    .map((item) => {
+      const rowIndex = rows.findIndex((row) => row.kind === "activity" && row.activity.id === item.activityId);
+      const bar = item.activityId ? barById.get(item.activityId) : null;
+      const left = bar ? bar.leftPercent : datePercent(item.startDate);
+      if (!Number.isFinite(left)) return "";
+      const top = rowIndex >= 0 ? (rowMetrics[rowIndex]?.top ?? 0) + 2 : 2;
+      const kindClass = item.kind === "notebook" ? "is-notebook" : "is-text";
+      const icon = item.kind === "notebook" ? "▤" : "✎";
+      return `<span class="cp-gantt-bar-attachment ${kindClass}" data-gantt-bar-attachment="${escapeAttribute(item.attachmentId)}" data-gantt-attachment-kind="${item.kind}" data-gantt-attachment-activity="${escapeAttribute(item.activityId ?? "")}" style="left:${ganttRound(left)}%;top:${ganttRound(top)}px;--cp-attachment-color:${escapeAttribute(item.color ?? "#0f766e")}" title="${escapeAttribute(item.label)}"><span aria-hidden="true">${icon}</span>${escapeHtml(item.label)}</span>`;
+    })
+    .join("");
+  const attachmentLayer = barLabels ? `<div class="cp-gantt-attachments" aria-hidden="true">${barLabels}</div>` : "";
+  const attachmentCounts = {
+    curtain: visibleAttachments.filter((item) => item.kind === "curtain").length,
+    text: visibleAttachments.filter((item) => item.kind === "text").length,
+    notebook: visibleAttachments.filter((item) => item.kind === "notebook").length,
+  };
   // Horizontal sight lines: one before every summary band, plus the documented
   // row interval. They live in the body layer so they scroll with the chart.
   const horizontalSight: string[] = [];
@@ -5409,7 +5649,7 @@ function renderGantt(
   const legendBottom = gantt.legend.visible && gantt.legend.position === "bottom" ? legend : "";
   const rowsMarkup = renderGanttRows(rows, barById, activityById, presentation, rowHeight, rowMetrics, selectedActivityId, t, locale, viewScale, calendarMode, selectedActivityIds ? new Set(selectedActivityIds) : null, showRelationships);
 
-  return `<div class="cp-gantt-board" role="region" aria-label="${escapeAttribute(t.gantt)}" data-gantt-scale-mode="${ganttScale}" data-bar-labels="${gantt.showBarLabels}" style="--cp-gantt-row-height:${rowHeight}px;--cp-gantt-rows-height:${rowsHeight}px;--cp-gantt-content-width:${contentWidth}px;--cp-bar-label-size:${gantt.labelFontSize}px;--cp-bar-label-color:${gantt.labelColor}">${toolbar}${legendTop}<div class="cp-gantt-chart" style="--cp-gantt-rows:${rows.length}" data-gantt-rows="${rows.length}">${axis}<div class="cp-gantt-body" data-gantt-body="${rows.length}" style="height:${rowsHeight}px">${nonWorkingLayer}${gridLines || minorVertical ? `<div class="cp-gantt-grid" aria-hidden="true">${gridLines}${minorVertical}</div>` : ""}${horizontalSight.length ? `<div class="cp-gantt-sight-lines" aria-hidden="true">${horizontalSight.join("")}</div>` : ""}${rowsMarkup}${progressLine}${dataDateLine}${linkSvg}${lagBadges}</div>${legendBottom}</div></div>`;
+  return `<div class="cp-gantt-board" role="region" aria-label="${escapeAttribute(t.gantt)}" data-gantt-scale-mode="${ganttScale}" data-bar-labels="${gantt.showBarLabels}" data-gantt-curtains="${attachmentCounts.curtain}" data-gantt-text-attachments="${attachmentCounts.text}" data-gantt-notebook-attachments="${attachmentCounts.notebook}" style="--cp-gantt-row-height:${rowHeight}px;--cp-gantt-rows-height:${rowsHeight}px;--cp-gantt-content-width:${contentWidth}px;--cp-bar-label-size:${gantt.labelFontSize}px;--cp-bar-label-color:${gantt.labelColor}">${toolbar}${legendTop}<div class="cp-gantt-chart" style="--cp-gantt-rows:${rows.length}" data-gantt-rows="${rows.length}">${axis}<div class="cp-gantt-body" data-gantt-body="${rows.length}" style="height:${rowsHeight}px">${curtainLayer}${nonWorkingLayer}${gridLines || minorVertical ? `<div class="cp-gantt-grid" aria-hidden="true">${gridLines}${minorVertical}</div>` : ""}${horizontalSight.length ? `<div class="cp-gantt-sight-lines" aria-hidden="true">${horizontalSight.join("")}</div>` : ""}${rowsMarkup}${attachmentLayer}${progressLine}${dataDateLine}${linkSvg}${lagBadges}</div>${legendBottom}</div></div>`;
 }
 
 function renderGanttRows(
