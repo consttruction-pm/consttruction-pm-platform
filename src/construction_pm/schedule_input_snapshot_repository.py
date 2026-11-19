@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 import hashlib
 import json
+import threading
 from typing import Protocol
 
 from .backend_p0.models import BackendScope, MAX_SAFE_REVISION
@@ -144,6 +145,13 @@ def build_snapshot(
 
 class SQLiteScheduleInputSnapshotRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
+        # A single sqlite3 connection is not safe for concurrent statement
+        # execution even with ``check_same_thread=False``: an ``execute`` from
+        # one thread can reset another thread's statement and return interleaved
+        # or empty rows. Worker threads therefore share this repository, not the
+        # raw connection, so serialise every connection access. The lock is
+        # reentrant because ``migrate_calculation_identity`` calls ``get``.
+        self._lock = threading.RLock()
         self.connection = connection
         self.connection.execute(
             """CREATE TABLE IF NOT EXISTS schedule_input_snapshot (
@@ -179,57 +187,59 @@ class SQLiteScheduleInputSnapshotRepository:
 
     def save(self, snapshot: ScheduleInputSnapshot) -> ScheduleInputSnapshot:
         snapshot.validate()
-        existing = self.connection.execute(
-            "SELECT snapshot_hash,canonical_payload,calculation_identity,"
-            "calculation_identity_version,created_at,record_revision,project_revision "
-            "FROM schedule_input_snapshot WHERE tenant_id=? AND project_id=? AND snapshot_id=?",
-            (snapshot.scope.tenant_id, snapshot.scope.project_id, snapshot.snapshot_id),
-        ).fetchone()
-        if existing is not None:
-            if (
-                existing[0] == snapshot.snapshot_hash
-                and existing[1] == snapshot.canonical_payload
-                and existing[2] == snapshot.calculation_identity
-                and _parse_persisted_integer(existing[6], "INVALID_PROJECT_REVISION") == snapshot.scope.project_revision
-                and _parse_persisted_integer(existing[3], "INVALID_CALCULATION_IDENTITY_VERSION") == snapshot.calculation_identity_version
-            ):
-                result = ScheduleInputSnapshot(
-                    snapshot.scope, snapshot.snapshot_id, existing[0], existing[1], existing[2],
-                    _parse_created_at(existing[4]),
-                    _parse_persisted_integer(existing[5], "INVALID_RECORD_REVISION"),
-                    _parse_persisted_integer(existing[3], "INVALID_CALCULATION_IDENTITY_VERSION"),
-                )
-                result.validate()
-                return result
-            raise ScheduleSnapshotPersistenceError("SNAPSHOT_IMMUTABLE_CONFLICT")
+        with self._lock:
+            existing = self.connection.execute(
+                "SELECT snapshot_hash,canonical_payload,calculation_identity,"
+                "calculation_identity_version,created_at,record_revision,project_revision "
+                "FROM schedule_input_snapshot WHERE tenant_id=? AND project_id=? AND snapshot_id=?",
+                (snapshot.scope.tenant_id, snapshot.scope.project_id, snapshot.snapshot_id),
+            ).fetchone()
+            if existing is not None:
+                if (
+                    existing[0] == snapshot.snapshot_hash
+                    and existing[1] == snapshot.canonical_payload
+                    and existing[2] == snapshot.calculation_identity
+                    and _parse_persisted_integer(existing[6], "INVALID_PROJECT_REVISION") == snapshot.scope.project_revision
+                    and _parse_persisted_integer(existing[3], "INVALID_CALCULATION_IDENTITY_VERSION") == snapshot.calculation_identity_version
+                ):
+                    result = ScheduleInputSnapshot(
+                        snapshot.scope, snapshot.snapshot_id, existing[0], existing[1], existing[2],
+                        _parse_created_at(existing[4]),
+                        _parse_persisted_integer(existing[5], "INVALID_RECORD_REVISION"),
+                        _parse_persisted_integer(existing[3], "INVALID_CALCULATION_IDENTITY_VERSION"),
+                    )
+                    result.validate()
+                    return result
+                raise ScheduleSnapshotPersistenceError("SNAPSHOT_IMMUTABLE_CONFLICT")
 
-        was_in_transaction = self.connection.in_transaction
-        self.connection.execute(
-            "INSERT INTO schedule_input_snapshot "
-            "(tenant_id,project_id,project_revision,snapshot_id,snapshot_hash,canonical_payload,"
-            "calculation_identity,calculation_identity_version,created_at,record_revision) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?)",
-            (
-                snapshot.scope.tenant_id, snapshot.scope.project_id, snapshot.scope.project_revision,
-                snapshot.snapshot_id, snapshot.snapshot_hash, snapshot.canonical_payload,
-                snapshot.calculation_identity, snapshot.calculation_identity_version,
-                snapshot.created_at.isoformat(), snapshot.record_revision,
-            ),
-        )
-        if not was_in_transaction:
-            self.connection.commit()
-        return snapshot
+            was_in_transaction = self.connection.in_transaction
+            self.connection.execute(
+                "INSERT INTO schedule_input_snapshot "
+                "(tenant_id,project_id,project_revision,snapshot_id,snapshot_hash,canonical_payload,"
+                "calculation_identity,calculation_identity_version,created_at,record_revision) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?)",
+                (
+                    snapshot.scope.tenant_id, snapshot.scope.project_id, snapshot.scope.project_revision,
+                    snapshot.snapshot_id, snapshot.snapshot_hash, snapshot.canonical_payload,
+                    snapshot.calculation_identity, snapshot.calculation_identity_version,
+                    snapshot.created_at.isoformat(), snapshot.record_revision,
+                ),
+            )
+            if not was_in_transaction:
+                self.connection.commit()
+            return snapshot
 
     def get(self, scope: BackendScope, snapshot_id: str) -> ScheduleInputSnapshot | None:
         scope.validate()
         if not isinstance(snapshot_id, str) or not snapshot_id.strip():
             raise ScheduleSnapshotPersistenceError("INVALID_SNAPSHOT_ID")
-        row = self.connection.execute(
-            "SELECT snapshot_id,snapshot_hash,canonical_payload,calculation_identity,"
-            "calculation_identity_version,created_at,record_revision,project_revision "
-            "FROM schedule_input_snapshot WHERE tenant_id=? AND project_id=? AND snapshot_id=?",
-            (scope.tenant_id, scope.project_id, snapshot_id),
-        ).fetchone()
+        with self._lock:
+            row = self.connection.execute(
+                "SELECT snapshot_id,snapshot_hash,canonical_payload,calculation_identity,"
+                "calculation_identity_version,created_at,record_revision,project_revision "
+                "FROM schedule_input_snapshot WHERE tenant_id=? AND project_id=? AND snapshot_id=?",
+                (scope.tenant_id, scope.project_id, snapshot_id),
+            ).fetchone()
         if row is None:
             return None
         if _parse_persisted_integer(row[7], "INVALID_PROJECT_REVISION") != scope.project_revision:
@@ -244,13 +254,14 @@ class SQLiteScheduleInputSnapshotRepository:
 
     def list(self, scope: BackendScope) -> tuple[ScheduleInputSnapshot, ...]:
         scope.validate()
-        rows = self.connection.execute(
-            "SELECT snapshot_id,snapshot_hash,canonical_payload,calculation_identity,"
-            "created_at,record_revision,calculation_identity_version "
-            "FROM schedule_input_snapshot WHERE tenant_id=? AND project_id=? AND project_revision=? "
-            "ORDER BY snapshot_id",
-            (scope.tenant_id, scope.project_id, scope.project_revision),
-        ).fetchall()
+        with self._lock:
+            rows = self.connection.execute(
+                "SELECT snapshot_id,snapshot_hash,canonical_payload,calculation_identity,"
+                "created_at,record_revision,calculation_identity_version "
+                "FROM schedule_input_snapshot WHERE tenant_id=? AND project_id=? AND project_revision=? "
+                "ORDER BY snapshot_id",
+                (scope.tenant_id, scope.project_id, scope.project_revision),
+            ).fetchall()
         results = tuple(
             ScheduleInputSnapshot(
                 scope, row[0], row[1], row[2], row[3], _parse_created_at(row[4]),
@@ -269,27 +280,28 @@ class SQLiteScheduleInputSnapshotRepository:
         snapshot_id: str,
         context: CalculationContext,
     ) -> ScheduleInputSnapshot:
-        snapshot = self.get(scope, snapshot_id)
-        if snapshot is None:
-            raise ScheduleSnapshotPersistenceError("SCHEDULE_INPUT_SNAPSHOT_NOT_FOUND")
-        _validate_migration_context(snapshot, context)
-        updated = self.connection.execute(
-            "UPDATE schedule_input_snapshot "
-            "SET calculation_identity=?, calculation_identity_version=2 "
-            "WHERE tenant_id=? AND project_id=? AND snapshot_id=? "
-            "AND calculation_identity=? AND calculation_identity_version=1",
-            (
-                context.calculation_identity,
-                scope.tenant_id,
-                scope.project_id,
-                snapshot_id,
-                snapshot.calculation_identity,
-            ),
-        )
-        if updated.rowcount != 1:
-            raise ScheduleSnapshotPersistenceError("SNAPSHOT_IDENTITY_MIGRATION_CONFLICT")
-        self.connection.commit()
-        migrated = self.get(scope, snapshot_id)
+        with self._lock:
+            snapshot = self.get(scope, snapshot_id)
+            if snapshot is None:
+                raise ScheduleSnapshotPersistenceError("SCHEDULE_INPUT_SNAPSHOT_NOT_FOUND")
+            _validate_migration_context(snapshot, context)
+            updated = self.connection.execute(
+                "UPDATE schedule_input_snapshot "
+                "SET calculation_identity=?, calculation_identity_version=2 "
+                "WHERE tenant_id=? AND project_id=? AND snapshot_id=? "
+                "AND calculation_identity=? AND calculation_identity_version=1",
+                (
+                    context.calculation_identity,
+                    scope.tenant_id,
+                    scope.project_id,
+                    snapshot_id,
+                    snapshot.calculation_identity,
+                ),
+            )
+            if updated.rowcount != 1:
+                raise ScheduleSnapshotPersistenceError("SNAPSHOT_IDENTITY_MIGRATION_CONFLICT")
+            self.connection.commit()
+            migrated = self.get(scope, snapshot_id)
         if migrated is None:
             raise ScheduleSnapshotPersistenceError("SCHEDULE_INPUT_SNAPSHOT_NOT_FOUND")
         return migrated

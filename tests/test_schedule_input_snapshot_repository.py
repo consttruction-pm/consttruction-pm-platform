@@ -1,5 +1,6 @@
 from datetime import date, datetime, timezone
 import sqlite3
+import threading
 
 import pytest
 
@@ -71,6 +72,45 @@ def test_build_and_round_trip_snapshot():
     repo = SQLiteScheduleInputSnapshotRepository(sqlite3.connect(":memory:"))
     assert repo.save(snapshot) == snapshot
     assert repo.get(BackendScope("T-1", "P-1", 7), "S-1") == snapshot
+
+
+def test_sqlite_shared_connection_is_safe_for_concurrent_readers():
+    """Worker threads legitimately share one repository over one connection.
+
+    ``sqlite3`` connections are not safe for interleaved statement execution
+    even with ``check_same_thread=False``: before the repository serialised
+    access, concurrent ``get`` calls returned ``None`` or corrupt rows, which
+    the scheduling job executor surfaced as ``SCHEDULE_INPUT_SNAPSHOT_NOT_FOUND``.
+    """
+
+    snapshot = build_snapshot(
+        make_input(), make_context(), datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
+    )
+    connection = sqlite3.connect(":memory:", check_same_thread=False)
+    repo = SQLiteScheduleInputSnapshotRepository(connection)
+    repo.save(snapshot)
+    scope = BackendScope("T-1", "P-1", 7)
+
+    failures: list[BaseException] = []
+    barrier = threading.Barrier(8)
+
+    def reader() -> None:
+        try:
+            barrier.wait()
+            for _ in range(250):
+                if repo.get(scope, "S-1") != snapshot:
+                    raise AssertionError("SNAPSHOT_READ_MISMATCH")
+                if repo.list(scope) != (snapshot,):
+                    raise AssertionError("SNAPSHOT_LIST_MISMATCH")
+        except BaseException as error:  # noqa: BLE001 - reported on the main thread
+            failures.append(error)
+
+    threads = [threading.Thread(target=reader) for _ in range(8)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert failures == []
 
 
 def test_snapshot_is_immutable_and_idempotent_for_same_content():
