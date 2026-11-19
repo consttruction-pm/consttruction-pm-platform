@@ -1405,3 +1405,13 @@ Evidence: `docs/workspace/evidence/p0m-intra-project-pipeline-2026-11-18/`
 (`summary.md`, `comparison.json`, raw matrix and clean re-measure logs, phase
 profiles, wavefront cost model, before/after hashes, full-suite log, source
 hashes, reproduction scripts).
+
+### 19.7 Merge record
+
+PR #2057 squash-merged into `main` as
+`2e1e9b2a131e3bc1001299dda8c383f9f678d980` on 2026-11-19T05:26:13Z. Required CI
+(postgres, test 3.11/3.12/3.13, typechecks) passed before merge; only the known
+infrastructure-only Vercel project deployments failed. Post-merge verification on
+`main` at `2e1e9b2a`: full suite 5,292 passed / 1 skipped, and the canonical
+payload hashes (time dag 1k/5k/25k/100k, time mixed 25k) are identical to
+baseline `9408552b`.
