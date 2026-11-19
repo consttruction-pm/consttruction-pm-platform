@@ -1,0 +1,268 @@
+{
+  "contract": "cubi-activity-v31-renumber-copy.v1",
+  "url": "http://127.0.0.1:4300",
+  "projectId": "preview-rps-01",
+  "testedCodeSha": "894d435678796b00113d0a79855c2d4fd3314183",
+  "runId": "MWNO45L7",
+  "startedAt": "2026-11-19T14:51:11.564Z",
+  "steps": [
+    {
+      "feature": "renumber",
+      "action": "increment+relationship",
+      "status": "pass",
+      "from": "V31A878202",
+      "to": "V31A878212"
+    },
+    {
+      "feature": "copy-options",
+      "action": "codes+expenses+relationship, steps cleared",
+      "status": "pass",
+      "pasted": "V31C878202-C1"
+    },
+    {
+      "feature": "fill-down",
+      "action": "planned-duration-column",
+      "status": "pass",
+      "value": "9"
+    },
+    {
+      "feature": "curtain",
+      "action": "hide-all",
+      "status": "pass",
+      "count": 2
+    },
+    {
+      "feature": "curtain",
+      "action": "show-all+reload",
+      "status": "pass",
+      "count": 2
+    },
+    {
+      "feature": "cleanup",
+      "action": "fixtures removed",
+      "status": "pass"
+    }
+  ],
+  "dialogs": [],
+  "requests": [
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities",
+      "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"activity_id\":\"V31A878202\",\"name\":\"V31 renumber source\",\"duration_value\":4,\"duration_unit\":\"working-day\",\"wbs_id\":\"WBS-RPS-PM\",\"activity_type\":\"Task Dependent\",\"status\":\"Not Started\",\"status_code\":\"Planned\",\"percent_complete_type\":\"DURATION\",\"duration_type\":\"Fixed Duration & Units\",\"leveling_priority\":\"Normal\"}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities",
+      "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"activity_id\":\"V31B878202\",\"name\":\"V31 renumber successor\",\"duration_value\":3,\"duration_unit\":\"working-day\",\"wbs_id\":\"WBS-RPS-PM\",\"activity_type\":\"Task Dependent\",\"status\":\"Not Started\",\"status_code\":\"Planned\",\"percent_complete_type\":\"DURATION\",\"duration_type\":\"Fixed Duration & Units\",\"leveling_priority\":\"Normal\"}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/relationships",
+      "postData": "{\"relationship_id\":\"V31RNMWNO45L7\",\"predecessor_id\":\"V31A878202\",\"successor_id\":\"V31B878202\",\"relationship_type\":\"FS\",\"lag_value\":0,\"lag_unit\":\"working-day\"}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities/renumber",
+      "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"entries\":[{\"activity_id\":\"V31A878202\",\"new_activity_id\":\"V31A878212\",\"expected_revision\":1}],\"renumber_baselines\":true}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities",
+      "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"activity_id\":\"V31C878202\",\"name\":\"V31 copy source\",\"duration_value\":5,\"duration_unit\":\"working-day\",\"wbs_id\":\"WBS-RPS-PM\",\"activity_type\":\"Task Dependent\",\"status\":\"Not Started\",\"status_code\":\"Planned\",\"percent_complete_type\":\"DURATION\",\"duration_type\":\"Fixed Duration & Units\",\"leveling_priority\":\"Normal\"}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities",
+      "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"activity_id\":\"V31D878202\",\"name\":\"V31 copy successor\",\"duration_value\":2,\"duration_unit\":\"working-day\",\"wbs_id\":\"WBS-RPS-PM\",\"activity_type\":\"Task Dependent\",\"status\":\"Not Started\",\"status_code\":\"Planned\",\"percent_complete_type\":\"DURATION\",\"duration_type\":\"Fixed Duration & Units\",\"leveling_priority\":\"Normal\"}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/relationships",
+      "postData": "{\"relationship_id\":\"V31CPMWNO45L7\",\"predecessor_id\":\"V31C878202\",\"successor_id\":\"V31D878202\",\"relationship_type\":\"SS\",\"lag_value\":0,\"lag_unit\":\"working-day\"}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities/V31C878202/codes",
+      "postData": "{\"code_type\":\"AREA\",\"code_value\":\"CIVIL\",\"description\":\"Civil works\"}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities/V31C878202/steps",
+      "postData": "{\"description\":\"V31 step\",\"weight\":1,\"percent_complete\":0,\"sequence\":1}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/cost/expenses",
+      "postData": "{\"expense_id\":\"V31EXPMWNO45L7\",\"name\":\"V31 copy expense\",\"category\":\"equipment\",\"currency\":\"USD\",\"activity_id\":\"V31C878202\",\"planned_amount\":\"125.00\"}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities/",
+      "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"activity_id\":\"V31C878202-C1\",\"name\":\"V31 copy source\",\"duration_value\":\"5\",\"duration_unit\":\"working-day\",\"wbs_id\":\"WBS-RPS-PM\",\"activity_type\":\"Task Dependent\",\"status\":\"Not Started\",\"status_code\":\"Planned\",\"percent_complete_type\":\"DURATION\",\"duration_type\":\"Fixed Duration & Units\",\"cost_account_id\":null,\"leveling_priority\":\"Normal\"}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities/V31C878202-C1/codes",
+      "postData": "{\"code_type\":\"AREA\",\"code_value\":\"CIVIL\",\"description\":\"Civil works\"}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/cost/expenses",
+      "postData": "{\"expense_id\":\"V31EXPMWNO45L7-C1\",\"name\":\"V31 copy expense\",\"category\":\"equipment\",\"currency\":\"USD\",\"activity_id\":\"V31C878202-C1\",\"wbs_id\":null,\"cost_account_id\":null,\"expense_date\":null,\"accrual_date\":null,\"planned_amount\":\"125.00\",\"actual_amount\":null,\"remaining_amount\":null,\"note\":null}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/relationships",
+      "postData": "{\"relationship_id\":\"REL-V31C878202-C1-V31D878202-1\",\"predecessor_id\":\"V31C878202-C1\",\"successor_id\":\"V31D878202\",\"relationship_type\":\"SS\",\"lag_value\":\"0\",\"lag_unit\":\"working-day\"}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities",
+      "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"activity_id\":\"V31E878202\",\"name\":\"V31 fill source\",\"duration_value\":9,\"duration_unit\":\"working-day\",\"wbs_id\":\"WBS-RPS-PM\",\"activity_type\":\"Task Dependent\",\"status\":\"Not Started\",\"status_code\":\"Planned\",\"percent_complete_type\":\"DURATION\",\"duration_type\":\"Fixed Duration & Units\",\"leveling_priority\":\"Normal\"}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities",
+      "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"activity_id\":\"V31F878202\",\"name\":\"V31 fill target\",\"duration_value\":2,\"duration_unit\":\"working-day\",\"wbs_id\":\"WBS-RPS-PM\",\"activity_type\":\"Task Dependent\",\"status\":\"Not Started\",\"status_code\":\"Planned\",\"percent_complete_type\":\"DURATION\",\"duration_type\":\"Fixed Duration & Units\",\"leveling_priority\":\"Normal\"}"
+    },
+    {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities/V31F878202",
+      "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"duration_value\":\"9\",\"expected_revision\":1}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
+      "postData": "{\"kind\":\"curtain\",\"label\":\"V31 curtain A MWNO45L7\",\"start_date\":\"2026-09-21\",\"end_date\":\"2026-12-01\",\"color\":\"#b45309\",\"activity_id\":null,\"topic_id\":null,\"visible\":true}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
+      "postData": "{\"kind\":\"curtain\",\"label\":\"V31 curtain B MWNO45L7\",\"start_date\":\"2026-09-21\",\"end_date\":\"2026-12-01\",\"color\":\"#b45309\",\"activity_id\":null,\"topic_id\":null,\"visible\":true}"
+    },
+    {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments/GATT-0817d4c2-a736-4da7-9114-ef6c52f6bc41",
+      "postData": "{\"kind\":\"curtain\",\"label\":\"V31 curtain B MWNO45L7\",\"start_date\":\"2026-09-21\",\"end_date\":\"2026-12-01\",\"color\":\"#b45309\",\"activity_id\":null,\"topic_id\":null,\"visible\":false,\"expected_record_revision\":1}"
+    },
+    {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments/GATT-a134df55-ca75-4c0d-b0fe-30069231cf7e",
+      "postData": "{\"kind\":\"curtain\",\"label\":\"V31 curtain A MWNO45L7\",\"start_date\":\"2026-09-21\",\"end_date\":\"2026-12-01\",\"color\":\"#b45309\",\"activity_id\":null,\"topic_id\":null,\"visible\":false,\"expected_record_revision\":1}"
+    },
+    {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments/GATT-0817d4c2-a736-4da7-9114-ef6c52f6bc41",
+      "postData": "{\"kind\":\"curtain\",\"label\":\"V31 curtain B MWNO45L7\",\"start_date\":\"2026-09-21\",\"end_date\":\"2026-12-01\",\"color\":\"#b45309\",\"activity_id\":null,\"topic_id\":null,\"visible\":true,\"expected_record_revision\":2}"
+    },
+    {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments/GATT-a134df55-ca75-4c0d-b0fe-30069231cf7e",
+      "postData": "{\"kind\":\"curtain\",\"label\":\"V31 curtain A MWNO45L7\",\"start_date\":\"2026-09-21\",\"end_date\":\"2026-12-01\",\"color\":\"#b45309\",\"activity_id\":null,\"topic_id\":null,\"visible\":true,\"expected_record_revision\":2}"
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments/GATT-0817d4c2-a736-4da7-9114-ef6c52f6bc41",
+      "postData": "{\"expected_record_revision\":3}"
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments/GATT-a134df55-ca75-4c0d-b0fe-30069231cf7e",
+      "postData": "{\"expected_record_revision\":3}"
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/relationships/REL-V31C878202-C1-V31D878202-1",
+      "postData": "{\"expected_revision\":1}"
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/relationships/V31CPMWNO45L7",
+      "postData": "{\"expected_revision\":1}"
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/relationships/V31RNMWNO45L7",
+      "postData": "{\"expected_revision\":1}"
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities/V31A878212",
+      "postData": "{\"expected_revision\":1}"
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities/V31B878202",
+      "postData": "{\"expected_revision\":1}"
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities/V31C878202/codes/cd4c8595-8bc8-49ad-bc69-e483b5cb59df",
+      "postData": null
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities/V31C878202/steps/STEP-3f3df443-e70a-4e98-aaca-39d99e76697e",
+      "postData": null
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/cost/expenses/V31EXPMWNO45L7",
+      "postData": "{\"expected_revision\":1}"
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities/V31C878202",
+      "postData": "{\"expected_revision\":1}"
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities/V31D878202",
+      "postData": "{\"expected_revision\":1}"
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities/V31C878202-C1/codes/dd72c99e-859f-44bb-a63b-4650c9368bb6",
+      "postData": null
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/cost/expenses/V31EXPMWNO45L7-C1",
+      "postData": "{\"expected_revision\":1}"
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities/V31C878202-C1",
+      "postData": "{\"expected_revision\":1}"
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities/V31E878202",
+      "postData": "{\"expected_revision\":1}"
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities/V31F878202",
+      "postData": "{\"expected_revision\":2}"
+    }
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "screenshots": [
+    "screenshots/01-renumber-preview-en-1366.png",
+    "screenshots/02-renumber-complete-en-1366.png",
+    "screenshots/03-copy-options-en-1366.png",
+    "screenshots/04-fill-down-preview-en-1366.png",
+    "screenshots/05-fill-down-complete-en-1366.png",
+    "screenshots/06-curtains-hidden-en-1366.png",
+    "screenshots/07-curtains-shown-reload-en-1366.png"
+  ],
+  "createdActivityIds": [],
+  "createdRelationshipIds": [],
+  "createdAttachmentIds": [
+    "GATT-0817d4c2-a736-4da7-9114-ef6c52f6bc41",
+    "GATT-a134df55-ca75-4c0d-b0fe-30069231cf7e"
+  ],
+  "finishedAt": "2026-11-19T14:51:45.042Z",
+  "result": "pass"
+}

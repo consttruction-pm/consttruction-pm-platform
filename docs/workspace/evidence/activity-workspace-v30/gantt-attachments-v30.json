@@ -1,16 +1,16 @@
 {
   "contract": "cubi-gantt-attachments-v30.v1",
-  "url": "http://127.0.0.1:4200",
+  "url": "http://127.0.0.1:4300",
   "projectId": "preview-rps-01",
-  "testedCodeSha": "48f2f0c1b7d2e83427b549af0803563fea100ccc",
-  "runId": "mwmzg23q",
-  "startedAt": "2026-11-19T03:20:36.524Z",
+  "testedCodeSha": "894d435678796b00113d0a79855c2d4fd3314183",
+  "runId": "mwnocwi2",
+  "startedAt": "2026-11-19T14:57:59.690Z",
   "steps": [
     {
       "feature": "curtain",
       "action": "create",
       "status": "pass",
-      "id": "GATT-b4cb645c-a768-4559-ba71-d0f76aca99bf"
+      "id": "GATT-f48f919b-56dd-4e3d-8d14-ff6c9f132bb3"
     },
     {
       "feature": "curtain",
@@ -22,7 +22,7 @@
         "left": "0%",
         "width": "97.26%",
         "rectWidth": 778,
-        "label": "V30 curtain mwmzg23q"
+        "label": "V30 curtain mwnocwi2"
       },
       "count": 1
     },
@@ -30,11 +30,11 @@
       "feature": "text",
       "action": "create+draw",
       "status": "pass",
-      "id": "GATT-012d3138-a784-4663-845f-5b1e4d874c33",
+      "id": "GATT-af4dcac6-df09-4d66-ae1c-edfce92f2a1e",
       "mark": {
         "kind": "text",
         "activity": "A130",
-        "text": "✎V30 text mwmzg23q",
+        "text": "✎V30 text mwnocwi2",
         "top": "147px",
         "left": "21.92%"
       }
@@ -43,11 +43,11 @@
       "feature": "notebook",
       "action": "create+draw",
       "status": "pass",
-      "id": "GATT-3953b170-06c3-42d9-9619-50c01af09747",
+      "id": "GATT-ca21426b-f2f0-4b48-9f18-cf00b70fd1cd",
       "mark": {
         "kind": "notebook",
         "activity": "A130",
-        "text": "▤V30 notebook mwmzg23q"
+        "text": "▤V30 notebook mwnocwi2"
       }
     },
     {
@@ -76,7 +76,7 @@
       "action": "edit",
       "status": "pass",
       "revision": 2,
-      "mark": "✎V30 text edited mwmzg23q"
+      "mark": "✎V30 text edited mwnocwi2"
     },
     {
       "feature": "revision",
@@ -101,247 +101,247 @@
   "requests": [
     {
       "method": "GET",
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
       "postData": null
     },
     {
       "method": "POST",
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
-      "postData": "{\"kind\":\"curtain\",\"label\":\"V30 curtain mwmzg23q\",\"start_date\":\"2026-09-21\",\"end_date\":\"2026-12-01\",\"color\":\"#b45309\",\"activity_id\":null,\"topic_id\":null,\"visible\":true}"
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
+      "postData": "{\"kind\":\"curtain\",\"label\":\"V30 curtain mwnocwi2\",\"start_date\":\"2026-09-21\",\"end_date\":\"2026-12-01\",\"color\":\"#b45309\",\"activity_id\":null,\"topic_id\":null,\"visible\":true}"
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
       "postData": null
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
-      "postData": null
-    },
-    {
-      "method": "POST",
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
-      "postData": "{\"kind\":\"text\",\"label\":\"V30 text mwmzg23q\",\"start_date\":null,\"end_date\":null,\"color\":\"#0f766e\",\"activity_id\":\"A130\",\"topic_id\":null,\"visible\":true}"
-    },
-    {
-      "method": "GET",
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
-      "postData": null
-    },
-    {
-      "method": "GET",
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
       "postData": null
     },
     {
       "method": "POST",
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
-      "postData": "{\"kind\":\"notebook\",\"label\":\"V30 notebook mwmzg23q\",\"start_date\":null,\"end_date\":null,\"color\":\"#7c3aed\",\"activity_id\":\"A130\",\"topic_id\":\"V30-TOPIC-1\",\"visible\":true}"
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
+      "postData": "{\"kind\":\"text\",\"label\":\"V30 text mwnocwi2\",\"start_date\":null,\"end_date\":null,\"color\":\"#0f766e\",\"activity_id\":\"A130\",\"topic_id\":null,\"visible\":true}"
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
       "postData": null
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
       "postData": null
     },
     {
-      "method": "PATCH",
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments/GATT-b4cb645c-a768-4559-ba71-d0f76aca99bf",
-      "postData": "{\"kind\":\"curtain\",\"label\":\"V30 curtain mwmzg23q\",\"start_date\":\"2026-09-21\",\"end_date\":\"2026-12-01\",\"color\":\"#b45309\",\"activity_id\":null,\"topic_id\":null,\"visible\":false,\"expected_record_revision\":1}"
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
+      "postData": "{\"kind\":\"notebook\",\"label\":\"V30 notebook mwnocwi2\",\"start_date\":null,\"end_date\":null,\"color\":\"#7c3aed\",\"activity_id\":\"A130\",\"topic_id\":\"V30-TOPIC-1\",\"visible\":true}"
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
-      "postData": null
-    },
-    {
-      "method": "GET",
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
       "postData": null
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
       "postData": null
     },
     {
       "method": "PATCH",
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments/GATT-b4cb645c-a768-4559-ba71-d0f76aca99bf",
-      "postData": "{\"kind\":\"curtain\",\"label\":\"V30 curtain mwmzg23q\",\"start_date\":\"2026-09-21\",\"end_date\":\"2026-12-01\",\"color\":\"#b45309\",\"activity_id\":null,\"topic_id\":null,\"visible\":true,\"expected_record_revision\":2}"
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments/GATT-f48f919b-56dd-4e3d-8d14-ff6c9f132bb3",
+      "postData": "{\"kind\":\"curtain\",\"label\":\"V30 curtain mwnocwi2\",\"start_date\":\"2026-09-21\",\"end_date\":\"2026-12-01\",\"color\":\"#b45309\",\"activity_id\":null,\"topic_id\":null,\"visible\":false,\"expected_record_revision\":1}"
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
       "postData": null
     },
     {
       "method": "PATCH",
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments/GATT-012d3138-a784-4663-845f-5b1e4d874c33",
-      "postData": "{\"kind\":\"text\",\"label\":\"V30 text edited mwmzg23q\",\"start_date\":null,\"end_date\":null,\"color\":\"#0f766e\",\"activity_id\":\"A130\",\"topic_id\":null,\"visible\":true,\"expected_record_revision\":1}"
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments/GATT-f48f919b-56dd-4e3d-8d14-ff6c9f132bb3",
+      "postData": "{\"kind\":\"curtain\",\"label\":\"V30 curtain mwnocwi2\",\"start_date\":\"2026-09-21\",\"end_date\":\"2026-12-01\",\"color\":\"#b45309\",\"activity_id\":null,\"topic_id\":null,\"visible\":true,\"expected_record_revision\":2}"
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
-      "postData": null
-    },
-    {
-      "method": "GET",
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
       "postData": null
     },
     {
       "method": "PATCH",
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments/GATT-012d3138-a784-4663-845f-5b1e4d874c33",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments/GATT-af4dcac6-df09-4d66-ae1c-edfce92f2a1e",
+      "postData": "{\"kind\":\"text\",\"label\":\"V30 text edited mwnocwi2\",\"start_date\":null,\"end_date\":null,\"color\":\"#0f766e\",\"activity_id\":\"A130\",\"topic_id\":null,\"visible\":true,\"expected_record_revision\":1}"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
+      "postData": null
+    },
+    {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments/GATT-af4dcac6-df09-4d66-ae1c-edfce92f2a1e",
       "postData": "{\"kind\":\"text\",\"label\":\"stale write\",\"activity_id\":\"A130\",\"visible\":true,\"expected_record_revision\":1}"
     },
     {
       "method": "DELETE",
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments/GATT-b4cb645c-a768-4559-ba71-d0f76aca99bf",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments/GATT-f48f919b-56dd-4e3d-8d14-ff6c9f132bb3",
       "postData": "{\"expected_record_revision\":3}"
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
       "postData": null
     },
     {
       "method": "DELETE",
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments/GATT-012d3138-a784-4663-845f-5b1e4d874c33",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments/GATT-af4dcac6-df09-4d66-ae1c-edfce92f2a1e",
       "postData": "{\"expected_record_revision\":2}"
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
       "postData": null
     },
     {
       "method": "DELETE",
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments/GATT-3953b170-06c3-42d9-9619-50c01af09747",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments/GATT-ca21426b-f2f0-4b48-9f18-cf00b70fd1cd",
       "postData": "{\"expected_record_revision\":1}"
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
       "postData": null
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
       "postData": null
     }
   ],
   "responses": [
     {
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
       "status": 201
     },
     {
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
       "status": 201
     },
     {
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
       "status": 201
     },
     {
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments/GATT-b4cb645c-a768-4559-ba71-d0f76aca99bf",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments/GATT-f48f919b-56dd-4e3d-8d14-ff6c9f132bb3",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments/GATT-b4cb645c-a768-4559-ba71-d0f76aca99bf",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments/GATT-f48f919b-56dd-4e3d-8d14-ff6c9f132bb3",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments/GATT-012d3138-a784-4663-845f-5b1e4d874c33",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments/GATT-af4dcac6-df09-4d66-ae1c-edfce92f2a1e",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments/GATT-012d3138-a784-4663-845f-5b1e4d874c33",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments/GATT-af4dcac6-df09-4d66-ae1c-edfce92f2a1e",
       "status": 409
     },
     {
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments/GATT-b4cb645c-a768-4559-ba71-d0f76aca99bf",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments/GATT-f48f919b-56dd-4e3d-8d14-ff6c9f132bb3",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments/GATT-012d3138-a784-4663-845f-5b1e4d874c33",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments/GATT-af4dcac6-df09-4d66-ae1c-edfce92f2a1e",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments/GATT-3953b170-06c3-42d9-9619-50c01af09747",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments/GATT-ca21426b-f2f0-4b48-9f18-cf00b70fd1cd",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/gantt/attachments",
       "status": 200
     }
   ],
@@ -358,15 +358,15 @@
     "screenshots/08-viewer-denied-en-1366.png"
   ],
   "createdIds": [
-    "GATT-b4cb645c-a768-4559-ba71-d0f76aca99bf",
-    "GATT-012d3138-a784-4663-845f-5b1e4d874c33",
-    "GATT-3953b170-06c3-42d9-9619-50c01af09747"
+    "GATT-f48f919b-56dd-4e3d-8d14-ff6c9f132bb3",
+    "GATT-af4dcac6-df09-4d66-ae1c-edfce92f2a1e",
+    "GATT-ca21426b-f2f0-4b48-9f18-cf00b70fd1cd"
   ],
   "timeline": {
     "first": "2026-09-21",
     "last": "2026-12-01",
     "count": 4
   },
-  "finishedAt": "2026-11-19T03:21:01.917Z",
+  "finishedAt": "2026-11-19T14:58:25.427Z",
   "result": "pass"
 }
