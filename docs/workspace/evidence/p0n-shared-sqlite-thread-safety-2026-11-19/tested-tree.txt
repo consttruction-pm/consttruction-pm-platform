@@ -1,0 +1,4 @@
+commit 6d89de5efd854624210bce9990cdcc2420a4d538
+tree   0284dded7298c024b6428db13c41b354f229fa37
+docs   02ce356bf0e0605793f0d1f0a638801b87712395
+branch fix/sqlite-snapshot-thread-safety

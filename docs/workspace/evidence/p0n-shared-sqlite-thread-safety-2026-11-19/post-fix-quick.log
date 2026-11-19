@@ -1,0 +1,13 @@
+== scenarios ==
+   A_one_large r0: 354ms cpu=19.7% p95=354.35ms hash=ok
+   B_two_large r0: 355ms cpu=19.7% p95=341.075ms hash=ok
+   C_four_large r0: 378ms cpu=38.4% p95=373.908ms hash=ok
+   D_eight_large r0: 378ms cpu=39.7% p95=373.892ms hash=ok
+   E_ten_large r0: 379ms cpu=39.6% p95=374.892ms hash=ok
+   F_ten_large_five_small r0: 489ms cpu=41.4% p95=367.474ms hash=ok
+   G_ten_large_twenty_small r0: 796ms cpu=44.9% p95=333.667ms hash=ok
+   H_ten_large_staggered r0: 376ms cpu=38.6% p95=372.251ms hash=ok
+== cache cold/warm (scenario E) ==
+   cold=382ms hits=0 | warm=0ms hits=3 hash=ok
+
+written /tmp/p0n/fixlogs/post-fix-quick.json

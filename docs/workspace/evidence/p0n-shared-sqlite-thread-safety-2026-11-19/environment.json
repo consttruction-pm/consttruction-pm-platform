@@ -1,0 +1,12 @@
+{
+  "python": "3.12.13 (main, Mar  4 2026, 09:23:07) [GCC 11.4.0]",
+  "implementation": "CPython",
+  "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+  "machine": "x86_64",
+  "cpu_count": 4,
+  "cpu_affinity_count": 4,
+  "memory_total_kb": 8131540,
+  "git_sha": "02ce356bf0e0605793f0d1f0a638801b87712395",
+  "tree": "49a2b09bb2007bb28676a88b37e4d7bcdefb1d28",
+  "psutil": "7.2.2"
+}
