@@ -1,0 +1,37 @@
+[
+ {
+  "size": 1000,
+  "shape": "dag",
+  "activities": 1000,
+  "relationships": 1923,
+  "sha256": "bdb8a04616a6c0011030a076197b789369b35beb15e55500c29bd644287c663c"
+ },
+ {
+  "size": 5000,
+  "shape": "dag",
+  "activities": 5000,
+  "relationships": 9575,
+  "sha256": "3d2f1f8dc31ceb4f1fef6006a5008ef3ca051f0896f78f39f352eda0be606ae9"
+ },
+ {
+  "size": 25000,
+  "shape": "dag",
+  "activities": 25000,
+  "relationships": 47881,
+  "sha256": "84864c94f01706c01ac024f6dd99ae6e556d35b0c53eb1239726a61c86e93360"
+ },
+ {
+  "size": 100000,
+  "shape": "dag",
+  "activities": 100000,
+  "relationships": 191483,
+  "sha256": "e1c4396f5c0fa98cc70fcbc4fb3b00920a29e20e0ec6dab8f79e79d8e8f9ecc5"
+ },
+ {
+  "size": 25000,
+  "shape": "mixed",
+  "activities": 25000,
+  "relationships": 50671,
+  "sha256": "7c6aa1b2e001b445cb2d46c4625422a0045ffcf640b9289193e0b7a48e582404"
+ }
+]
