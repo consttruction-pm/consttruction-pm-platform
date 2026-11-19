@@ -4,7 +4,8 @@
 - Branch: `feat/2047-activity-workspace-v26`
 - PR: #2048 (open, not merged)
 - Tested code SHA: `894d435678796b00113d0a79855c2d4fd3314183`
-- Branch head for this report: `db4fb6281` (CSS-only sync of `apps/web/public/styles.css`; no behaviour change)
+- Code head: `db4fb6281` (CSS-only sync of `apps/web/public/styles.css`; no behaviour change)
+- Final evidence head: `db6391bbb` (documentation only)
 - Reference: Primavera P6 Professional Help **G57535-02, October 2026**, physical PDF (815 pages). The PDF footer reads “October 9, 2026”. The Oracle HTML help for the 26 release returned HTTP 403 in the V30 audit, so the physical PDF remains the readable authority for this increment.
 - Preview: local `construction_pm.preview` runtime on `127.0.0.1:4300` with a reset demo SQLite database. No manual deploy, no production write, no merge. The repository's existing PR integration produced a Vercel preview check automatically; no deployment was initiated from this session.
 
