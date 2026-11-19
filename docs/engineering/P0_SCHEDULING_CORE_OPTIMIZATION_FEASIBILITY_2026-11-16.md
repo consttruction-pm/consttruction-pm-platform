@@ -1636,3 +1636,40 @@ infrastructure-only Vercel project deployments failed. Post-merge verification o
 `main` at `3b30cec0`: full suite 5,161 passed / 132 skipped, and the canonical
 hashes (time dag 5k `3d2f1f8d`, 1k `bdb8a046`, 25k `84864c94`, 100k `e1c4396f`,
 time mixed 25k `7c6aa1b2`) are identical to the P0-M baseline.
+
+### 20.10 Stability follow-up: shared SQLite snapshot reads (2026-11-19)
+
+The final post-merge suite on `main` reproduced an intermittent failure that
+had also appeared once before P0-N, in
+`tests/scheduling/test_scheduling_job_authoritative_path.py::test_job_path_runs_the_authoritative_snapshot_engine_end_to_end`:
+`claimed=3, succeeded=1, failed=2`, with no P0-N code on the failing path
+(`process_starts=0`). Reprocessing the failure rather than dismissing it as
+flaky exposed a real thread-safety defect in the persistence adapter.
+
+Root cause. `SQLiteScheduleInputSnapshotRepository` is shared by the executor's
+worker threads. `check_same_thread=False` allows cross-thread calls but does not
+make interleaved statement execution safe; a concurrent `execute` can reset
+another thread's statement. A probe with eight threads calling `get` 2,000 times
+on one shared connection returned `INVALID_PROJECT_REVISION`,
+`INVALID_SNAPSHOT_TIMESTAMP`, `REVISION_CONFLICT`, `INVALID_SNAPSHOT_HASH` and
+`sqlite3.InterfaceError: bad parameter or other API misuse`. The executor
+surfaced the resulting missing row as
+`ValueError: SCHEDULE_INPUT_SNAPSHOT_NOT_FOUND`, i.e. two of three jobs were
+recorded `FAILED` at random. The failure rate alone was about 20% for that test
+file (2 of 10 runs), which matches the two full-suite appearances.
+
+Fix. Every connection access in the SQLite repository (`save`, `get`, `list`,
+`migrate_calculation_identity`) is serialised by a reentrant per-repository
+lock; migration re-enters `get`, hence `RLock`. Writer threads now share the
+repository, not the raw connection. Nothing else changed: no query, no revision
+rule, no persisted content, no calculation path.
+
+Regression proof. A new test
+(`test_sqlite_shared_connection_is_safe_for_concurrent_readers`) runs eight
+threads × 250 `get`+`list` calls through one shared connection. With the lock
+disabled it fails 3 of 3 runs; with the lock it passes. The previously flaky
+P0-J file passed 20 of 20 consecutive runs, and the complete suite passed
+5,340 tests with 1 skipped (PostgreSQL adapters included) and 0 failed; the
+scheduling and repository subset is 1,684 passed. A quick post-fix benchmark
+reproduced hash equality in all eight scenarios and in the cold/warm cache
+check, so the fix changes stability only.
