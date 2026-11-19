@@ -113,6 +113,18 @@ async function createRelationship(page, relationshipId, predecessor, successor, 
   return JSON.parse(response.body).relationship;
 }
 
+
+async function confirmCopyOptions(page) {
+  await page.waitForSelector("[data-activity-copy-dialog]", "copy activity options dialog");
+  await page.evaluate(`(() => {
+    const apply = document.querySelector('[data-activity-copy-dialog] [data-copy-apply]');
+    if (!apply) return false;
+    apply.click();
+    return true;
+  })()`);
+  await page.waitFor(`document.querySelector('[data-activity-copy-dialog]') === null`, "copy options dialog closed", 12000);
+}
+
 async function reloadWorkspace(page) {
   await page.navigate(`${baseUrl}/app?view=live&project=${projectId}`, "#cp-activity-grid tbody tr[data-activity-id]", "workspace reload");
   await sleep(1400);
@@ -269,6 +281,7 @@ async function main() {
   })()`);
   assert(pasteAfter, "Copy did not enable Paste");
   await runCommand(page, "edit.paste");
+  await confirmCopyOptions(page);
   const copiedId = `${clipSource}-C1`;
   await page.waitFor(`document.querySelector('#cp-activity-grid tbody tr[data-activity-id="${copiedId}"]') !== null`, "pasted row", 12000);
   const copiedStored = (await activities(page)).find((item) => item.activity?.activity_id === copiedId)?.activity;
@@ -281,6 +294,7 @@ async function main() {
   await selectActivity(page, copiedId);
   await runCommand(page, "edit.cut");
   await runCommand(page, "edit.paste");
+  await confirmCopyOptions(page);
   const movedId = `${copiedId}-C1`;
   await page.waitFor(`document.querySelector('#cp-activity-grid tbody tr[data-activity-id="${movedId}"]') !== null`, "cut/paste row", 12000);
   const afterCut = await activities(page);

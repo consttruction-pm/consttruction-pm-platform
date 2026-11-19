@@ -1007,6 +1007,19 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       else dialog?.removeAttribute("open");
       return;
     }
+    if (target.closest("[data-gantt-curtain-hide-all]") || target.closest("[data-gantt-curtain-show-all]")) {
+      const visible = Boolean(target.closest("[data-gantt-curtain-show-all]"));
+      const buttons = dialog?.querySelectorAll<HTMLButtonElement>("[data-gantt-curtain-hide-all],[data-gantt-curtain-show-all]");
+      buttons?.forEach((button) => { button.disabled = true; });
+      void Promise.resolve(record.options.onGanttCurtainsVisibilityChange?.(visible)).catch((error: unknown) => {
+        const message = dialog?.querySelector<HTMLElement>("[data-gantt-attachments-status]");
+        if (message) {
+          message.dataset.state = "error";
+          message.textContent = error instanceof Error ? error.message : "CURTAIN_VISIBILITY_FAILED";
+        }
+      });
+      return;
+    }
     const form = dialog?.querySelector<HTMLFormElement>("[data-gantt-attachment-form]");
     const setField = (name: string, value: string): void => {
       const field = form?.elements.namedItem(name);
@@ -2277,7 +2290,7 @@ function activityMenuItems(
     contextItem(state, "add", ACTIVITY_CONTEXT_LABELS.add, "plus", { shortcut: "Ins", disabled: !state.wbsNodes.length }),
     contextItem(state, "delete", ACTIVITY_CONTEXT_LABELS.delete, "delete", { shortcut: "Del", disabled: true, reason: ACTIVITY_CONTEXT_REASONS.delete }),
     contextItem(state, "dissolve", ACTIVITY_CONTEXT_LABELS.dissolve, "dissolve", { disabled: true, reason: ACTIVITY_CONTEXT_REASONS.dissolve }),
-    contextItem(state, "renumber", ACTIVITY_CONTEXT_LABELS.renumber, "renumber", { disabled: true, reason: ACTIVITY_CONTEXT_REASONS.renumber }),
+    contextItem(state, "renumber", ACTIVITY_CONTEXT_LABELS.renumber, "renumber", { disabled: !hasActivity }),
     contextItem(state, "export-excel", ACTIVITY_CONTEXT_LABELS.exportExcel, "excel", { disabled: true, reason: ACTIVITY_CONTEXT_REASONS.exportExcel }),
     contextItem(state, "assign", ACTIVITY_CONTEXT_LABELS.assign, "assignment", { disabled: true, reason: ACTIVITY_CONTEXT_REASONS.assign }),
     contextItem(state, "link", ACTIVITY_CONTEXT_LABELS.link, "link", { disabled: !hasActivity }),
@@ -2494,6 +2507,7 @@ function runWorkspaceMenuCommand(
     case "line-numbers":
     case "font-row":
     case "group-sort":
+    case "renumber":
       options.onActivityContextCommand?.(command, activityId);
       return;
     case "filters":
@@ -2841,7 +2855,8 @@ export type ActivityContextCommand =
   | "columns"
   | "line-numbers"
   | "font-row"
-  | "group-sort";
+  | "group-sort"
+  | "renumber";
 
 export type WorkspaceActivitySelection = {
   /** Ctrl/Cmd-click: toggle this row without clearing the others. */
@@ -2913,6 +2928,8 @@ export type WorkspaceRendererOptions = {
   ganttAttachments?: GanttAttachmentSource;
   onGanttAttachmentSave?: (input: GanttAttachmentInput & { attachmentId?: string; expectedRevision?: number }) => void | Promise<void>;
   onGanttAttachmentDelete?: (attachmentId: string, expectedRevision: number) => void | Promise<void>;
+  /** Hide All / Show All curtains in one pass; the server keeps each revision. */
+  onGanttCurtainsVisibilityChange?: (visible: boolean) => void | Promise<void>;
   onProjectSettings?: () => void;
   /** Authoritative metadata row of the open project, when the server returned it. */
   projectSummary?: ProjectSummary | null;
@@ -5351,6 +5368,8 @@ function renderGanttAttachmentsDialog(
   const activityOptions = state.activities
     .map((activity) => `<option value="${escapeAttribute(activity.id)}">${escapeHtml(`${activity.code ?? activity.id} — ${activity.name}`)}</option>`)
     .join("");
+  const visibleCurtains = records.filter((item) => item.kind === "curtain" && item.visible).length;
+  const hiddenCurtains = records.filter((item) => item.kind === "curtain" && !item.visible).length;
   const statusText = status === "loaded"
     ? uiText(locale, `${records.length} attachment(s)`, `${records.length} پیوست`)
     : status === "error"
@@ -5359,6 +5378,10 @@ function renderGanttAttachmentsDialog(
   return `<dialog class="cp-gantt-attachments-dialog" data-gantt-attachments-dialog aria-labelledby="cp-gantt-attachments-title">
     <header><h2 id="cp-gantt-attachments-title">${escapeHtml(uiText(locale, "Gantt Attachments", "پیوست‌های گانت"))}</h2><button type="button" data-gantt-attachments-close aria-label="${escapeAttribute(uiText(locale, "Close", "بستن"))}">×</button></header>
     <p class="cp-detail-hint" data-gantt-attachments-status role="status">${escapeHtml(statusText)}</p>
+    <div class="cp-gantt-attachment-bulk" role="group" aria-label="${escapeAttribute(uiText(locale, "Curtain visibility", "نمایش پرده‌ها"))}">
+      <button type="button" class="cp-detail-action" data-gantt-curtain-hide-all${visibleCurtains ? "" : " disabled"}>${escapeHtml(uiText(locale, "Hide all curtains", "پنهان‌کردن همهٔ پرده‌ها"))}</button>
+      <button type="button" class="cp-detail-action" data-gantt-curtain-show-all${hiddenCurtains ? "" : " disabled"}>${escapeHtml(uiText(locale, "Show all curtains", "نمایش همهٔ پرده‌ها"))}</button>
+    </div>
     <div class="cp-detail-table-wrap"><table class="cp-detail-table"><thead><tr><th>${escapeHtml(uiText(locale, "Kind", "نوع"))}</th><th>${escapeHtml(uiText(locale, "Label", "برچسب"))}</th><th>${escapeHtml(uiText(locale, "Range / Activity", "بازه / فعالیت"))}</th><th>${escapeHtml(uiText(locale, "State", "وضعیت"))}</th><th></th></tr></thead>
       <tbody>${rows || `<tr><td colspan="5" class="cp-detail-none">${escapeHtml(uiText(locale, "No curtain, text or notebook attachment is stored.", "هیچ پیوست پرده، متن یا دفترچه‌ای ذخیره نشده است."))}</td></tr>`}</tbody></table></div>
     <form class="cp-detail-form" data-gantt-attachment-form novalidate>

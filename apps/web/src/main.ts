@@ -87,7 +87,16 @@ import { mountAIActionPanel } from "./ai-action-panel.js";
 import { mountAIAssistantChatPanel } from "./ai-assistant-chat.js";
 import { mountScheduleCyclePanels } from "./schedule-cycle.js";
 import { mountWorkspaceCalendarPage } from "./workspace-calendars.js";
-import { loadAssignmentPeriods, mountWorkspaceAssignmentsPage, type AssignmentPeriod } from "./workspace-assignments.js";
+import {
+  loadAssignmentPeriods,
+  loadAssignments,
+  mountWorkspaceAssignmentsPage,
+  reviseAssignmentId,
+  saveAssignment,
+  saveAssignmentPeriod,
+  type AssignmentPeriod,
+  type AssignmentRecord,
+} from "./workspace-assignments.js";
 import {
   createGanttAttachment,
   deleteGanttAttachment,
@@ -111,11 +120,31 @@ import {
   assignActivityCode,
   addNotebookTopic,
   createActivityStep,
+  deleteActivityStep,
+  deleteNotebookTopic,
   loadActivityCodes,
   loadNotebookTopics,
+  removeActivityCode,
 } from "./workspace-activity-children.js";
 import { loadActivitySteps } from "./workspace-activity-steps.js";
 import { mountActivityReplaceDialog, mountActivitySpellCheckDialog, planFillDown } from "./workspace-activity-bulk.js";
+import { mountActivityRenumberDialog, renumberActivityIds } from "./workspace-activity-renumber.js";
+import {
+  buildFillDownPayload,
+  fillableColumnFor,
+  mountActivityFillDownDialog,
+  sourceValueFor,
+} from "./workspace-activity-fill.js";
+import {
+  DEFAULT_ACTIVITY_COPY_OPTIONS,
+  loadActivityCopyPreference,
+  mountActivityCopyOptionsDialog,
+  nextCopyId,
+  planCopiedRelationships,
+  saveActivityCopyPreference,
+  type ActivityCopyOptions,
+  type CopyableRelationship,
+} from "./workspace-activity-copy.js";
 import { mountWorkspaceResourcesPage } from "./workspace-resources.js";
 import {
   LAYOUT_SELECTION_STORAGE_PREFIX,
@@ -131,7 +160,8 @@ import {
   type LayoutSelection,
   type StoredLayoutScope,
 } from "./workspace-layout-selector.js";
-import { mountWorkspaceExpensesPage } from "./workspace-expenses.js";
+import { deleteExpense, loadExpenses, mountWorkspaceExpensesPage, saveExpense, type ExpenseRecord } from "./workspace-expenses.js";
+import { loadPeriodActuals, savePeriodActual, type StoredPeriodActual } from "./workspace-period-actuals.js";
 import { mountWorkspaceRisksPage } from "./workspace-risks.js";
 import { mountWorkspaceReportsPage } from "./workspace-reports.js";
 import { mountWorkspaceTrackingPage } from "./workspace-tracking.js";
@@ -140,7 +170,7 @@ import { mountWorkspaceExchangePage } from "./workspace-exchange.js";
 import { mountWorkspaceBackupPage } from "./workspace-backup.js";
 import { mountWorkspaceThresholdsPage } from "./workspace-thresholds.js";
 import { mountWorkspaceIssuesPage } from "./workspace-issues.js";
-import { mountWorkspaceDocumentsPage } from "./workspace-documents.js";
+import { loadDocuments, mountWorkspaceDocumentsPage, updateDocument, type DocumentRecord } from "./workspace-documents.js";
 import { loadBaselineActivityDates, loadBaselines, loadScheduleDataDate, mountWorkspaceCostPage, type BaselineRecord } from "./workspace-cost.js";
 import { mountWorkspaceProgressPage } from "./workspace-progress.js";
 import { mountWorkspaceRolesPage } from "./workspace-roles.js";
@@ -262,6 +292,8 @@ let activeGanttAttachmentsError: string | null = null;
 const activeGanttAttachmentsInflight = new Set<string>();
 /** Activity Cut/Copy clipboard: authoritative source IDs, scoped to one project. */
 let activityClipboard: ActivityClipboard | null = null;
+/** Last table column the operator clicked; Edit > Fill Down targets it. */
+let activeActivityColumnId: string | null = null;
 /** Open windows and deferred focus are browser-local shell state, not project data. */
 let openWindowKeys: WorkspaceMenuKey[] | null = null;
 /** Project whose per-project window set the shell currently reads. */
@@ -1757,6 +1789,15 @@ function renderApp(
 
   if (!appShell || !status || !workspace || !desktopHost || !desktopStatus) throw new Error("WORKSPACE_ROOT_NOT_FOUND");
   appShell.classList.add("cp-p6");
+  if (container.dataset.activeCellBound !== "true") {
+    container.dataset.activeCellBound = "true";
+    container.addEventListener("click", (event) => {
+      const target = event.target as HTMLElement | null;
+      const cell = target?.closest?.<HTMLElement>("#cp-activity-grid td[data-column-id],#cp-activity-grid th[data-column-id]");
+      const columnId = cell?.getAttribute("data-column-id");
+      if (columnId) activeActivityColumnId = columnId;
+    });
+  }
   mountWorkspaceMobile(container, state.locale);
   // The inline activity editor is created on demand. A background render (layout
   // history, authoritative schedule facts) must not close it under the user's
@@ -1933,6 +1974,31 @@ function renderApp(
     }
     renderApp(container, nextState, persistence);
   };
+  /** Re-read after Renumber; keep the renumbered rows selected under their new IDs. */
+  const refreshWorkspaceAfterRenumber = async (renumberedIds: readonly string[]): Promise<void> => {
+    const current = currentWorkspaceState ?? state;
+    const refreshed = await new WorkspaceReadClient(aiTransport).load(current.context, {
+      locale: current.locale,
+      calendarMode: current.calendarMode,
+      primaryCalendarId: activeProjectSummary?.project_id === current.context.project_id ? activeProjectSummary.primary_calendar_id ?? null : null,
+    });
+    if (!refreshed.ok) throw new Error(refreshed.error.code);
+    let nextState = await loadP6Presentation(refreshed.data, aiTransport, current.context);
+    nextState = { ...nextState, activeMenu: current.activeMenu, locale: current.locale };
+    const available = new Set(nextState.activities.map((activity) => activity.id));
+    const selected = renumberedIds.filter((id) => available.has(id));
+    if (selected.length) {
+      nextState = {
+        ...nextState,
+        selectedActivityId: selected[0] ?? null,
+        selectedActivityIds: selected,
+        selectionAnchorId: selected[0] ?? null,
+      };
+    } else {
+      nextState = { ...nextState, selectedActivityId: null, selectedActivityIds: [], selectionAnchorId: null };
+    }
+    renderApp(container, nextState, persistence);
+  };
   const runActivityEditCommand = (
     action: "delete" | "dissolve",
     activityId: string,
@@ -1976,42 +2042,258 @@ function renderApp(
     }
     await refreshWorkspaceAfterActivityRemoval("");
   };
-  /** Copy the supported child records; a failed child is reported, never hidden. */
-  const copyActivityChildren = async (sourceId: string, targetId: string): Promise<string[]> => {
+  /** Apply one validated Activity Master field to every target with a revision check. */
+  const applyActivityFieldEdits = async (
+    fieldPayload: Readonly<Record<string, unknown>>,
+    targetIds: readonly string[],
+  ): Promise<void> => {
+    const current = currentWorkspaceState ?? state;
+    for (const id of targetIds) {
+      const revision = await loadActivityRecordRevision(aiTransport, current.context, id);
+      if (!revision.ok) throw new Error(`${id}:${revision.error.code}`);
+      const saved = await aiTransport.patch<Record<string, unknown>, unknown>(
+        activityApiPath(id),
+        {
+          contract_version: "p6-activity-master-api.v1",
+          ...fieldPayload,
+          expected_revision: revision.data,
+        },
+        current.context,
+      );
+      if (!saved.ok) throw new Error(`${id}:${saved.error.code}`);
+    }
+    await refreshWorkspaceAfterActivityRemoval("");
+  };
+  type PasteChildCache = {
+    expenses: readonly ExpenseRecord[] | null;
+    periodActuals: readonly StoredPeriodActual[] | null;
+    assignments: readonly AssignmentRecord[] | null;
+    assignmentPeriods: readonly AssignmentPeriod[] | null;
+    documents: Map<string, DocumentRecord> | null;
+    expenseIds: Set<string>;
+    assignmentIds: Set<string>;
+  };
+
+  /** Load only the child collections the operator asked Paste to copy. */
+  const loadPasteChildCache = async (
+    options: ActivityCopyOptions,
+    warnings: string[],
+  ): Promise<PasteChildCache> => {
+    const cache: PasteChildCache = {
+      expenses: null,
+      periodActuals: null,
+      assignments: null,
+      assignmentPeriods: null,
+      documents: null,
+      expenseIds: new Set(),
+      assignmentIds: new Set(),
+    };
+    if (options.expenses) {
+      const result = await loadExpenses(aiTransport, state.context);
+      if (result.ok) {
+        cache.expenses = result.data;
+        for (const expense of result.data) cache.expenseIds.add(expense.expenseId);
+      } else warnings.push(`expenses:${result.error.code}`);
+    }
+    if (options.financialPeriodData) {
+      const result = await loadPeriodActuals(aiTransport, state.context);
+      if (result.ok) cache.periodActuals = result.data;
+      else warnings.push(`period actuals:${result.error.code}`);
+    }
+    if (options.resourceRoleAssignments) {
+      const result = await loadAssignments(aiTransport, state.context);
+      if (result.ok) {
+        cache.assignments = result.data;
+        for (const assignment of result.data) cache.assignmentIds.add(assignment.assignmentId);
+      } else warnings.push(`assignments:${result.error.code}`);
+      const periods = await loadAssignmentPeriods(aiTransport, state.context);
+      if (periods.ok) cache.assignmentPeriods = periods.data;
+      else warnings.push(`assignment periods:${periods.error.code}`);
+    }
+    if (options.wpsAndDocs) {
+      const result = await loadDocuments(aiTransport, state.context);
+      if (result.ok) cache.documents = new Map(result.data.map((document) => [document.documentId, document]));
+      else warnings.push(`documents:${result.error.code}`);
+    }
+    return cache;
+  };
+
+  /**
+   * Replay the chosen child records onto the pasted activity. A failed record
+   * is reported with its new identity, never silently dropped.
+   */
+  const copyActivityChildren = async (
+    sourceId: string,
+    targetId: string,
+    options: ActivityCopyOptions,
+    cache: PasteChildCache,
+  ): Promise<string[]> => {
     const failures: string[] = [];
-    const codes = await loadActivityCodes(aiTransport, state.context, sourceId);
-    if (codes.ok) {
-      for (const code of codes.data) {
-        const saved = await assignActivityCode(aiTransport, state.context, targetId, {
-          codeType: code.codeType, codeValue: code.codeValue, description: code.description,
+    if (options.activityCodes) {
+      const codes = await loadActivityCodes(aiTransport, state.context, sourceId);
+      if (codes.ok) {
+        for (const code of codes.data) {
+          const saved = await assignActivityCode(aiTransport, state.context, targetId, {
+            codeType: code.codeType, codeValue: code.codeValue, description: code.description,
+          });
+          if (!saved.ok) failures.push(`code ${code.codeType}:${saved.error.code}`);
+        }
+      } else failures.push(`codes:${codes.error.code}`);
+    }
+    if (options.notebook) {
+      const topics = await loadNotebookTopics(aiTransport, state.context, sourceId);
+      if (topics.ok) {
+        for (const topic of topics.data) {
+          const saved = await addNotebookTopic(aiTransport, state.context, targetId, {
+            topicName: topic.topicName, description: topic.description,
+          });
+          if (!saved.ok) failures.push(`notebook ${topic.topicName}:${saved.error.code}`);
+        }
+      } else failures.push(`notebook:${topics.error.code}`);
+    }
+    if (options.steps) {
+      const steps = await loadActivitySteps(aiTransport, state.context, sourceId);
+      if (steps.ok) {
+        for (const step of steps.data) {
+          const saved = await createActivityStep(aiTransport, state.context, targetId, {
+            description: step.description,
+            weight: step.weight,
+            percentComplete: step.percentComplete,
+            sequence: step.sequence,
+          });
+          if (!saved.ok) failures.push(`step ${step.sequence}:${saved.error.code}`);
+        }
+      } else failures.push(`steps:${steps.error.code}`);
+    }
+    if (options.expenses && cache.expenses) {
+      for (const expense of cache.expenses.filter((item) => item.activityId === sourceId)) {
+        const expenseId = nextCopyId(expense.expenseId, cache.expenseIds, "-C");
+        cache.expenseIds.add(expenseId);
+        const saved = await saveExpense(aiTransport, state.context, {
+          expenseId,
+          name: expense.name,
+          category: expense.category,
+          activityId: targetId,
+          wbsId: null,
+          costAccountId: expense.costAccountId,
+          expenseDate: expense.expenseDate,
+          accrualDate: expense.accrualDate,
+          plannedCost: expense.plannedCost,
+          actualCost: expense.actualCost,
+          remainingCost: expense.remainingCost,
+          currency: expense.currency,
+          note: expense.note,
         });
-        if (!saved.ok) failures.push(`code ${code.codeType}:${saved.error.code}`);
+        if (!saved.ok) failures.push(`expense ${expense.expenseId}:${saved.error.code}`);
       }
-    } else failures.push(`codes:${codes.error.code}`);
-    const topics = await loadNotebookTopics(aiTransport, state.context, sourceId);
-    if (topics.ok) {
-      for (const topic of topics.data) {
-        const saved = await addNotebookTopic(aiTransport, state.context, targetId, {
-          topicName: topic.topicName, description: topic.description,
+    }
+    if (options.financialPeriodData && cache.periodActuals) {
+      for (const actual of cache.periodActuals.filter((item) => item.activityId === sourceId)) {
+        const saved = await savePeriodActual(aiTransport, state.context, {
+          activityId: targetId,
+          periodId: actual.periodId,
+          actualUnits: actual.actualUnits ?? "",
+          actualCost: actual.actualCost ?? "",
+          unit: actual.unit ?? "",
+          currency: actual.currency ?? "",
+          note: actual.note ?? "",
         });
-        if (!saved.ok) failures.push(`notebook ${topic.topicName}:${saved.error.code}`);
+        if (!saved.ok) failures.push(`period ${actual.periodId}:${saved.error.code}`);
       }
-    } else failures.push(`notebook:${topics.error.code}`);
-    const steps = await loadActivitySteps(aiTransport, state.context, sourceId);
-    if (steps.ok) {
-      for (const step of steps.data) {
-        const saved = await createActivityStep(aiTransport, state.context, targetId, {
-          description: step.description,
-          weight: step.weight,
-          percentComplete: step.percentComplete,
-          sequence: step.sequence,
+    }
+    if (options.resourceRoleAssignments && cache.assignments) {
+      for (const assignment of cache.assignments.filter((item) => item.activityId === sourceId)) {
+        const assignmentId = reviseAssignmentId(assignment.assignmentId, cache.assignmentIds);
+        cache.assignmentIds.add(assignmentId);
+        const saved = await saveAssignment(aiTransport, state.context, {
+          assignmentId,
+          activityId: targetId,
+          resourceId: assignment.resourceId,
+          roleId: assignment.roleId,
+          units: assignment.units,
+          unit: assignment.unit,
+          plannedCost: assignment.plannedCost,
+          currency: assignment.currency,
+          calendarId: assignment.calendarId,
+          calendarVersion: assignment.calendarVersion,
+          note: assignment.note,
         });
-        if (!saved.ok) failures.push(`step ${step.sequence}:${saved.error.code}`);
+        if (!saved.ok) {
+          failures.push(`assignment ${assignment.assignmentId}:${saved.error.code}`);
+          continue;
+        }
+        if (cache.assignmentPeriods) {
+          for (const period of cache.assignmentPeriods.filter((item) => item.assignmentId === assignment.assignmentId)) {
+            const stored = await saveAssignmentPeriod(aiTransport, state.context, {
+              assignmentId,
+              activityId: targetId,
+              resourceId: assignment.resourceId,
+              periodStart: period.periodStart,
+              units: period.units,
+              cost: period.cost,
+            });
+            if (!stored.ok) failures.push(`assignment period ${period.periodStart}:${stored.error.code}`);
+          }
+        }
       }
-    } else failures.push(`steps:${steps.error.code}`);
+    }
+    if (options.wpsAndDocs && cache.documents) {
+      for (const document of cache.documents.values()) {
+        if (!document.linkedEntityRefs.includes(sourceId)) continue;
+        const refs = [...new Set([...document.linkedEntityRefs, targetId])];
+        const saved = await updateDocument(aiTransport, state.context, {
+          documentId: document.documentId,
+          resourceType: document.resourceType,
+          title: document.title,
+          storageRef: document.storageRef,
+          contentHash: document.contentHash,
+          linkedEntityRefs: refs,
+        }, document.status, document.revision);
+        if (!saved.ok) failures.push(`document ${document.documentId}:${saved.error.code}`);
+        else cache.documents.set(document.documentId, saved.data);
+      }
+    }
     return failures;
   };
-  const pasteActivityClipboard = (): void => {
+
+  const copyActivityRelationships = async (
+    newIdBySource: ReadonlyMap<string, string>,
+    options: ActivityCopyOptions,
+  ): Promise<string[]> => {
+    if (!options.relationships) return [];
+    const failures: string[] = [];
+    const taken = new Set(state.relationships.map((relationship) => relationship.id));
+    const planned = planCopiedRelationships(
+      state.relationships as readonly CopyableRelationship[],
+      [...newIdBySource.keys()],
+      newIdBySource,
+      options.onlyBetweenCopied,
+    );
+    for (const relationship of planned) {
+      const relationshipId = nextCopyId(
+        `REL-${relationship.predecessorId}-${relationship.successorId}`,
+        taken,
+        "-",
+      );
+      taken.add(relationshipId);
+      const saved = await aiTransport.post<Record<string, unknown>, unknown>(
+        `/api/projects/${encodeURIComponent(state.context.project_id)}/p6/relationships`,
+        {
+          relationship_id: relationshipId,
+          predecessor_id: relationship.predecessorId,
+          successor_id: relationship.successorId,
+          relationship_type: relationship.type,
+          lag_value: relationship.lagValue,
+          lag_unit: relationship.lagUnit,
+        },
+        state.context,
+      );
+      if (!saved.ok) failures.push(`relationship ${relationship.predecessorId}->${relationship.successorId}:${saved.error.code}`);
+    }
+    return failures;
+  };
+
+  const pasteActivityClipboard = (options: ActivityCopyOptions): void => {
     const clipboard = activityClipboard;
     if (!clipboard || clipboard.projectId !== state.context.project_id) {
       window.alert("The activity clipboard belongs to another project; copy the activity again in this project.");
@@ -2021,7 +2303,9 @@ function renderApp(
       const created: string[] = [];
       const warnings: string[] = [];
       try {
+        const cache = await loadPasteChildCache(options, warnings);
         const taken = new Set(state.activities.map((activity) => activity.id));
+        const newIdBySource = new Map<string, string>();
         for (const sourceId of clipboard.ids) {
           const raw = await aiTransport.get<Record<string, unknown>>(activityApiPath(sourceId), state.context);
           if (!raw.ok) throw new Error(`${sourceId}:${raw.error.code}`);
@@ -2038,9 +2322,23 @@ function renderApp(
           );
           if (!saved.ok) throw new Error(`${sourceId}:${saved.error.code}`);
           created.push(newId);
-          warnings.push(...(await copyActivityChildren(sourceId, newId)).map((item) => `${newId} ${item}`));
+          newIdBySource.set(sourceId, newId);
+          warnings.push(...(await copyActivityChildren(sourceId, newId, options, cache)).map((item) => `${newId} ${item}`));
         }
+        warnings.push(...(await copyActivityRelationships(newIdBySource, options)));
         if (clipboard.mode === "cut") {
+          // Remove the source's old logic only after the new links exist; the
+          // delete is still refused by the server when an unhandled child
+          // record remains, and that refusal is reported below.
+          for (const relationship of state.relationships) {
+            if (!newIdBySource.has(relationship.predecessorId) && !newIdBySource.has(relationship.successorId)) continue;
+            const removed = await aiTransport.delete?.<Record<string, unknown>, unknown>(
+              `/api/projects/${encodeURIComponent(state.context.project_id)}/p6/relationships/${encodeURIComponent(relationship.id)}`,
+              { expected_revision: relationship.recordRevision },
+              state.context,
+            );
+            if (removed && !removed.ok) warnings.push(`cut relationship ${relationship.id}:${removed.error.code}`);
+          }
           for (const sourceId of clipboard.ids) {
             const revision = await loadActivityRecordRevision(aiTransport, state.context, sourceId);
             if (!revision.ok) throw new Error(`CUT_${sourceId}:${revision.error.code}`);
@@ -2306,16 +2604,50 @@ function renderApp(
         return;
       }
       case "edit.fill-down": {
-        const edits = planFillDown(state.activities, selectedActivityIdList(state));
-        if (!edits.length) {
-          window.alert("Fill Down needs at least two selected activities whose names differ.");
+        const ids = selectedActivityIdList(state);
+        const column = fillableColumnFor(activeActivityColumnId, state.columns.map((entry) => entry.id));
+        if (!column || column.apiField === "name") {
+          const edits = planFillDown(state.activities, ids);
+          if (!edits.length) {
+            window.alert("Fill Down needs at least two selected activities whose names differ.");
+            return;
+          }
+          const source = state.activities.find((activity) => activity.id === ids[0])?.name ?? "";
+          if (!window.confirm(`Fill Down will copy "${source}" to ${edits.length} selected activity name(s).`)) return;
+          void applyActivityNameEdits(edits).catch((error: unknown) => {
+            window.alert(`Fill Down failed: ${error instanceof Error ? error.message : "FILL_DOWN_FAILED"}`);
+          });
           return;
         }
-        const source = state.activities.find((activity) => activity.id === selectedActivityIdList(state)[0])?.name ?? "";
-        if (!window.confirm(`Fill Down will copy "${source}" to ${edits.length} selected activity name(s).`)) return;
-        void applyActivityNameEdits(edits).catch((error: unknown) => {
-          window.alert(`Fill Down failed: ${error instanceof Error ? error.message : "FILL_DOWN_FAILED"}`);
-        });
+        if (ids.length < 2) {
+          window.alert("Fill Down needs at least two selected activities.");
+          return;
+        }
+        const sourceId = ids[0] ?? "";
+        const targets = ids.slice(1);
+        void (async () => {
+          const raw = await aiTransport.get<Record<string, unknown>>(activityApiPath(sourceId), state.context);
+          if (!raw.ok) {
+            window.alert(`Fill Down could not read ${sourceId}: ${raw.error.code}`);
+            return;
+          }
+          const value = sourceValueFor(column, raw.data);
+          let fieldPayload: Record<string, unknown>;
+          try {
+            fieldPayload = buildFillDownPayload(column, value);
+          } catch (error) {
+            window.alert(`Fill Down rejected the ${column.label.en} value: ${error instanceof Error ? error.message : "FILL_DOWN_INVALID_VALUE"}`);
+            return;
+          }
+          mountActivityFillDownDialog({
+            locale: state.locale,
+            column,
+            sourceId,
+            valueText: String(value ?? ""),
+            targetCount: targets.length,
+            onApply: () => applyActivityFieldEdits(fieldPayload, targets),
+          });
+        })();
         return;
       }
       case "dialog.spell-check": {
@@ -2338,7 +2670,27 @@ function renderApp(
         return;
       }
       case "edit.paste": {
-        pasteActivityClipboard();
+        const clipboardIds = activityClipboard?.projectId === state.context.project_id
+          ? activityClipboard.ids.length
+          : 0;
+        if (!clipboardIds) {
+          pasteActivityClipboard(DEFAULT_ACTIVITY_COPY_OPTIONS);
+          return;
+        }
+        const preference = loadActivityCopyPreference(window.localStorage);
+        if (preference?.skipDialog) {
+          pasteActivityClipboard(preference.options);
+          return;
+        }
+        mountActivityCopyOptionsDialog({
+          locale: state.locale,
+          options: preference?.options ?? DEFAULT_ACTIVITY_COPY_OPTIONS,
+          activityCount: clipboardIds,
+          onApply: (options, skipDialog) => {
+            saveActivityCopyPreference(window.localStorage, options, skipDialog);
+            pasteActivityClipboard(options);
+          },
+        });
         return;
       }
       case "edit.delete": {
@@ -2351,6 +2703,29 @@ function renderApp(
         const activityId = state.selectedActivityId;
         if (!activityId) return;
         runActivityEditCommand("dissolve", activityId);
+        return;
+      }
+      case "edit.renumber": {
+        const ids = selectedActivityIdList(state).filter((id) => state.activities.some((activity) => activity.id === id));
+        if (!ids.length) return;
+        mountActivityRenumberDialog({
+          locale: state.locale,
+          activities: state.activities.map((activity) => ({ id: activity.id, name: activity.name })),
+          selectedIds: ids,
+          defaultRenumberBaselines: true,
+          onApply: async (entries, renumberBaselines) => {
+            const prepared: Array<{ activityId: string; newActivityId: string; expectedRevision: number }> = [];
+            const current = currentWorkspaceState ?? state;
+            for (const entry of entries) {
+              const revision = await loadActivityRecordRevision(aiTransport, current.context, entry.activityId);
+              if (!revision.ok) throw new Error(`${entry.activityId}:${revision.error.code}`);
+              prepared.push({ ...entry, expectedRevision: revision.data });
+            }
+            const result = await renumberActivityIds(aiTransport, current.context, prepared, renumberBaselines);
+            if (!result.ok) throw new Error(result.error.code);
+            await refreshWorkspaceAfterRenumber(prepared.map((entry) => entry.newActivityId));
+          },
+        });
         return;
       }
       case "edit.link": {
@@ -3402,6 +3777,29 @@ function renderApp(
       await loadActiveGanttAttachments(container, context, true);
       if (reopen) reopenGanttAttachmentsDialog(container);
     },
+    onGanttCurtainsVisibilityChange: async (visible) => {
+      const context = currentWorkspaceState?.context ?? state.context;
+      const transport = new FetchApiTransport(window.location.origin);
+      const dialog = container.querySelector<HTMLDialogElement>("[data-gantt-attachments-dialog]");
+      const reopen = dialog?.open === true;
+      const source = activeGanttAttachmentSource(context.project_id);
+      for (const item of source.records.filter((entry) => entry.kind === "curtain" && entry.visible !== visible)) {
+        const result = await updateGanttAttachment(transport, context, item.attachmentId, {
+          kind: item.kind,
+          label: item.label,
+          startDate: item.startDate,
+          endDate: item.endDate,
+          color: item.color,
+          activityId: item.activityId,
+          topicId: item.topicId,
+          visible,
+          expectedRevision: item.recordRevision,
+        });
+        if (!result.ok) throw new Error(`${item.attachmentId}:${result.error.code}`);
+      }
+      await loadActiveGanttAttachments(container, context, true);
+      if (reopen) reopenGanttAttachmentsDialog(container);
+    },
     onProjectOpen: (projectId) => {
       switchProjectTab(projectId);
     },
@@ -3465,6 +3863,9 @@ function renderApp(
           return;
         case "group-sort":
           openDesktopDialog(desktopHost, "group-sort");
+          return;
+        case "renumber":
+          runDesktopCommand("edit.renumber");
           return;
       }
     },

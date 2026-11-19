@@ -42,6 +42,7 @@ export type DesktopCommand =
   | "edit.unlink"
   | "edit.delete"
   | "edit.dissolve"
+  | "edit.renumber"
   | "project.add-wbs"
   | "project.add-activity"
   | "project.edit-activity"
@@ -406,6 +407,7 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
         },
         { id: "edit.fill-down", label: { en: "Fill Down", fa: "پرکردن به پایین" }, command: "edit.fill-down", shortcut: "Ctrl+E", disabledReason: caps.hasMultiSelection ? undefined : unavailable(REASONS.noMultiSelection, locale) },
         { id: "edit.dissolve", label: { en: "Dissolve", fa: "انحلال" }, command: "edit.dissolve", disabledReason: caps.canDissolveActivity ? undefined : unavailable(REASONS.dissolve, locale) },
+        { id: "edit.renumber", label: { en: "Renumber Activity IDs…", fa: "شماره‌گذاری دوبارهٔ شناسه‌های فعالیت…" }, command: "edit.renumber", disabledReason: caps.hasSelectedActivity ? undefined : unavailable(REASONS.noSelection, locale) },
       ],
     },
     {

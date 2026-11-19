@@ -152,6 +152,35 @@ class P6ActivityMasterAPI:
         require_project_write_ownership(self.checkout_lease, activity.scope, auth_context)
         return _dto(self.repository.save(activity, expected_revision=expected_revision))
 
+    def renumber(
+        self,
+        scope: BackendScope,
+        entries: tuple[tuple[str, str, int], ...],
+        *,
+        renumber_baselines: bool,
+        auth_context: AuthorizationContext,
+    ) -> dict[str, Any]:
+        """Renumber activity IDs in one project, preserving every reference.
+
+        Reference: P6 Professional Help G57535-02, "Renumber activity IDs in
+        the Activity Table" and "Renumber Activity IDs dialog box". Baselines
+        are renumbered only when the operator leaves the checkbox marked; when
+        cleared, the renamed activities are disconnected from the baseline,
+        exactly as the reference describes.
+        """
+        self._require_write(scope, auth_context)
+        if not isinstance(renumber_baselines, bool):
+            raise ActivityPersistenceError("INVALID_RENUMBER_BASELINES")
+        result = self.repository.renumber(
+            scope, entries, include_baselines=renumber_baselines
+        )
+        return {
+            "contract_version": P6_ACTIVITY_MASTER_API_VERSION,
+            "kind": "p6_activity_renumber",
+            "scope": _scope_dto(scope),
+            **result,
+        }
+
     def get(
         self,
         scope: BackendScope,

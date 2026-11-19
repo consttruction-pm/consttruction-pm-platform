@@ -2310,6 +2310,44 @@ class ProjectLifecycleHttpRoutes:
                                     auth_context=auth,
                                 ),
                             )
+                    if (
+                        method == "POST"
+                        and len(parts) == 1
+                        and parts[0] == "renumber"
+                    ):
+                        raw_entries = payload.get("entries")
+                        if not isinstance(raw_entries, list) or not raw_entries:
+                            raise ValueError("INVALID_RENUMBER_ENTRIES")
+                        entries: list[tuple[str, str, int]] = []
+                        for entry in raw_entries:
+                            if not isinstance(entry, dict):
+                                raise ValueError("INVALID_RENUMBER_ENTRIES")
+                            old_id = entry.get("activity_id")
+                            new_id = entry.get("new_activity_id")
+                            expected_revision = entry.get("expected_revision")
+                            if not isinstance(old_id, str) or not old_id.strip():
+                                raise ValueError("INVALID_ACTIVITY_ID")
+                            if not isinstance(new_id, str) or not new_id.strip():
+                                raise ValueError("INVALID_NEW_ACTIVITY_ID")
+                            if (
+                                isinstance(expected_revision, bool)
+                                or not isinstance(expected_revision, int)
+                                or expected_revision < 1
+                            ):
+                                raise ValueError("EXPECTED_REVISION_REQUIRED")
+                            entries.append((old_id, new_id, expected_revision))
+                        renumber_baselines = payload.get("renumber_baselines", True)
+                        if not isinstance(renumber_baselines, bool):
+                            raise ValueError("INVALID_RENUMBER_BASELINES")
+                        return self._json(
+                            200,
+                            self._p6_activity_master_api.renumber(
+                                scope,
+                                tuple(entries),
+                                renumber_baselines=renumber_baselines,
+                                auth_context=auth,
+                            ),
+                        )
                     if method == "GET" and len(parts) == 1 and parts[0]:
                         result = self._p6_activity_master_api.get(
                             scope, parts[0], auth_context=auth
@@ -2378,6 +2416,8 @@ class ProjectLifecycleHttpRoutes:
                         return self._error(404, _stable_error_code(exc, "RESOURCE_NOT_FOUND"), "error.resource.not_found")
                     if str(exc) == "DISSOLVE_UNAVAILABLE":
                         return self._error(503, _stable_error_code(exc, "RESOURCE_UNAVAILABLE"), "error.resource.unavailable")
+                    if str(exc) == "RENUMBER_TARGET_EXISTS":
+                        return self._error(409, "RENUMBER_TARGET_EXISTS", "error.p6.resource.conflict")
                     if str(exc).startswith("ACTIVITY_HAS_") or str(exc).startswith("DISSOLVE_"):
                         return self._error(409, _stable_error_code(exc, "RESOURCE_CONFLICT"), "error.p6.resource.conflict")
                     return self._error(400, _stable_error_code(exc, "REQUEST_INVALID"), "error.request.invalid")

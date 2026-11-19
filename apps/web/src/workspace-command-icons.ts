@@ -69,6 +69,7 @@ const MENU_ITEM_ICONS: Readonly<Record<string, WorkspaceIconName>> = {
   "edit.unlink": "unlink",
   "edit.fill-down": "fill",
   "edit.dissolve": "dissolve",
+  "edit.renumber": "renumber",
   // View
   "view.fields": "columns",
   "view.filters": "filter",

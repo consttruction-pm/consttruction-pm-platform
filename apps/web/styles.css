@@ -10559,3 +10559,43 @@ html[data-cubi-theme="midnight"] .cp-p6 #cp-activity-grid tbody tr.is-filter-mat
 @media (max-width: 520px) {
   .cp-activity-bulk-dialog { width: calc(100vw - 16px); padding: 12px; }
 }
+
+/* V31 — Copy Activity Options, Renumber Activity IDs and column Fill Down. */
+.cp-activity-copy-dialog,
+.cp-activity-renumber-dialog,
+.cp-activity-fill-dialog {
+  width: min(680px, calc(100vw - 32px));
+  max-height: 88vh;
+  overflow: auto;
+}
+.cp-activity-copy-dialog form,
+.cp-activity-renumber-dialog form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cp-activity-copy-dialog .cp-detail-form-actions,
+.cp-activity-renumber-dialog .cp-detail-form-actions,
+.cp-activity-fill-dialog .cp-detail-form-actions { justify-content: flex-end; }
+.cp-activity-copy-dialog .cp-detail-check-nested { margin-inline-start: 24px; }
+.cp-activity-copy-dialog .cp-detail-check[hidden] { display: none; }
+.cp-activity-renumber-dialog [data-renumber-field][hidden] { display: none; }
+.cp-activity-renumber-dialog [data-renumber-preview] input { width: 100%; font: inherit; }
+.cp-activity-renumber-dialog tr[data-conflict="true"] td { color: #8a2b20; }
+.cp-activity-renumber-dialog [data-renumber-status][data-state="error"] { color: #8a2b20; }
+.cp-activity-fill-dialog .cp-fill-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid #d8e0e8;
+  border-radius: 4px;
+  background: #f7f9fc;
+}
+.cp-activity-fill-dialog [data-fill-status][data-state="error"] { color: #8a2b20; }
+.cp-gantt-attachment-bulk { display: flex; gap: 8px; margin-block: 4px 8px; }
+@media (max-width: 520px) {
+  .cp-activity-copy-dialog,
+  .cp-activity-renumber-dialog,
+  .cp-activity-fill-dialog { width: calc(100vw - 16px); padding: 12px; }
+}
