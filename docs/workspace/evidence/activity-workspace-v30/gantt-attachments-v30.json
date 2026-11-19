@@ -1,0 +1,372 @@
+{
+  "contract": "cubi-gantt-attachments-v30.v1",
+  "url": "http://127.0.0.1:4200",
+  "projectId": "preview-rps-01",
+  "testedCodeSha": "48f2f0c1b7d2e83427b549af0803563fea100ccc",
+  "runId": "mwmzg23q",
+  "startedAt": "2026-11-19T03:20:36.524Z",
+  "steps": [
+    {
+      "feature": "curtain",
+      "action": "create",
+      "status": "pass",
+      "id": "GATT-b4cb645c-a768-4559-ba71-d0f76aca99bf"
+    },
+    {
+      "feature": "curtain",
+      "action": "draw",
+      "status": "pass",
+      "drawn": {
+        "from": "2026-09-21",
+        "to": "2026-12-01",
+        "left": "0%",
+        "width": "97.26%",
+        "rectWidth": 778,
+        "label": "V30 curtain mwmzg23q"
+      },
+      "count": 1
+    },
+    {
+      "feature": "text",
+      "action": "create+draw",
+      "status": "pass",
+      "id": "GATT-012d3138-a784-4663-845f-5b1e4d874c33",
+      "mark": {
+        "kind": "text",
+        "activity": "A130",
+        "text": "✎V30 text mwmzg23q",
+        "top": "147px",
+        "left": "21.92%"
+      }
+    },
+    {
+      "feature": "notebook",
+      "action": "create+draw",
+      "status": "pass",
+      "id": "GATT-3953b170-06c3-42d9-9619-50c01af09747",
+      "mark": {
+        "kind": "notebook",
+        "activity": "A130",
+        "text": "▤V30 notebook mwmzg23q"
+      }
+    },
+    {
+      "feature": "curtain",
+      "action": "hide",
+      "status": "pass"
+    },
+    {
+      "feature": "attachments",
+      "action": "reload",
+      "status": "pass",
+      "state": {
+        "curtain": false,
+        "text": true,
+        "notebook": true,
+        "count": "3"
+      }
+    },
+    {
+      "feature": "curtain",
+      "action": "show",
+      "status": "pass"
+    },
+    {
+      "feature": "text",
+      "action": "edit",
+      "status": "pass",
+      "revision": 2,
+      "mark": "✎V30 text edited mwmzg23q"
+    },
+    {
+      "feature": "revision",
+      "action": "stale-write",
+      "status": "pass",
+      "statusCode": 409
+    },
+    {
+      "feature": "attachments",
+      "action": "delete",
+      "status": "pass",
+      "remaining": 0
+    },
+    {
+      "feature": "authorization",
+      "action": "viewer-read-write",
+      "status": "pass",
+      "read": 200,
+      "write": 403
+    }
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "postData": null
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "postData": "{\"kind\":\"curtain\",\"label\":\"V30 curtain mwmzg23q\",\"start_date\":\"2026-09-21\",\"end_date\":\"2026-12-01\",\"color\":\"#b45309\",\"activity_id\":null,\"topic_id\":null,\"visible\":true}"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "postData": null
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "postData": "{\"kind\":\"text\",\"label\":\"V30 text mwmzg23q\",\"start_date\":null,\"end_date\":null,\"color\":\"#0f766e\",\"activity_id\":\"A130\",\"topic_id\":null,\"visible\":true}"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "postData": null
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "postData": "{\"kind\":\"notebook\",\"label\":\"V30 notebook mwmzg23q\",\"start_date\":null,\"end_date\":null,\"color\":\"#7c3aed\",\"activity_id\":\"A130\",\"topic_id\":\"V30-TOPIC-1\",\"visible\":true}"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "postData": null
+    },
+    {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments/GATT-b4cb645c-a768-4559-ba71-d0f76aca99bf",
+      "postData": "{\"kind\":\"curtain\",\"label\":\"V30 curtain mwmzg23q\",\"start_date\":\"2026-09-21\",\"end_date\":\"2026-12-01\",\"color\":\"#b45309\",\"activity_id\":null,\"topic_id\":null,\"visible\":false,\"expected_record_revision\":1}"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "postData": null
+    },
+    {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments/GATT-b4cb645c-a768-4559-ba71-d0f76aca99bf",
+      "postData": "{\"kind\":\"curtain\",\"label\":\"V30 curtain mwmzg23q\",\"start_date\":\"2026-09-21\",\"end_date\":\"2026-12-01\",\"color\":\"#b45309\",\"activity_id\":null,\"topic_id\":null,\"visible\":true,\"expected_record_revision\":2}"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "postData": null
+    },
+    {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments/GATT-012d3138-a784-4663-845f-5b1e4d874c33",
+      "postData": "{\"kind\":\"text\",\"label\":\"V30 text edited mwmzg23q\",\"start_date\":null,\"end_date\":null,\"color\":\"#0f766e\",\"activity_id\":\"A130\",\"topic_id\":null,\"visible\":true,\"expected_record_revision\":1}"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "postData": null
+    },
+    {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments/GATT-012d3138-a784-4663-845f-5b1e4d874c33",
+      "postData": "{\"kind\":\"text\",\"label\":\"stale write\",\"activity_id\":\"A130\",\"visible\":true,\"expected_record_revision\":1}"
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments/GATT-b4cb645c-a768-4559-ba71-d0f76aca99bf",
+      "postData": "{\"expected_record_revision\":3}"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "postData": null
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments/GATT-012d3138-a784-4663-845f-5b1e4d874c33",
+      "postData": "{\"expected_record_revision\":2}"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "postData": null
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments/GATT-3953b170-06c3-42d9-9619-50c01af09747",
+      "postData": "{\"expected_record_revision\":1}"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "postData": null
+    }
+  ],
+  "responses": [
+    {
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "status": 201
+    },
+    {
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "status": 201
+    },
+    {
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "status": 201
+    },
+    {
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments/GATT-b4cb645c-a768-4559-ba71-d0f76aca99bf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments/GATT-b4cb645c-a768-4559-ba71-d0f76aca99bf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments/GATT-012d3138-a784-4663-845f-5b1e4d874c33",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments/GATT-012d3138-a784-4663-845f-5b1e4d874c33",
+      "status": 409
+    },
+    {
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments/GATT-b4cb645c-a768-4559-ba71-d0f76aca99bf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments/GATT-012d3138-a784-4663-845f-5b1e4d874c33",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments/GATT-3953b170-06c3-42d9-9619-50c01af09747",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4200/api/projects/preview-rps-01/p6/gantt/attachments",
+      "status": 200
+    }
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "screenshots": [
+    "screenshots/01-dialog-empty-en-1366.png",
+    "screenshots/02-curtain-drawn-en-1366.png",
+    "screenshots/03-all-attachments-en-1366.png",
+    "screenshots/04-curtain-hidden-en-1366.png",
+    "screenshots/05-reload-en-1366.png",
+    "screenshots/06-edited-en-1366.png",
+    "screenshots/07-deleted-en-1366.png",
+    "screenshots/08-viewer-denied-en-1366.png"
+  ],
+  "createdIds": [
+    "GATT-b4cb645c-a768-4559-ba71-d0f76aca99bf",
+    "GATT-012d3138-a784-4663-845f-5b1e4d874c33",
+    "GATT-3953b170-06c3-42d9-9619-50c01af09747"
+  ],
+  "timeline": {
+    "first": "2026-09-21",
+    "last": "2026-12-01",
+    "count": 4
+  },
+  "finishedAt": "2026-11-19T03:21:01.917Z",
+  "result": "pass"
+}
