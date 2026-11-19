@@ -1,6 +1,8 @@
 # V31 — Test results
 
 - Tested code SHA: `894d435678796b00113d0a79855c2d4fd3314183`
+- Report head: `db4fb6281` (public CSS copy only)
+- PR: #2048
 - Date: 2026-11-19
 - Environment: local Qoder Desktop, Windows, Node 26.10.0, Python 3.11.4, local full-stack preview on `127.0.0.1:4300`.
 
@@ -61,8 +63,18 @@ CUBI_TESTED_CODE_SHA=894d... node e2e/gantt-attachments-v30.mjs
 
 The Gantt attachments suite requires a freshly reset preview database; an earlier run against a database modified by the V31 suite failed its “fresh database” expectation, and passed after `--reset`. This is a fixture-precondition issue, not a product failure; the reset run is the recorded evidence.
 
+## Pull-request CI
+
+Head `db4fb6281` passed every PR check:
+
+- `web` (typecheck, unit tests, build, Pages assembly, preview smoke, browser E2E)
+- `typecheck (apps/web)`, `typecheck (apps/client-sync)`, `typecheck (apps/desktop)`, `typecheck (apps/mobile)`
+- `postgres` integration
+- `test (3.11)`, `test (3.12)`, `test (3.13)`
+
+The first push failed only on the “workspace CSS copies are identical” test because `apps/web/public/styles.css` had not received the new dialog rules; the follow-up commit `db4fb6281` synced the copy and all checks passed.
+
 ## Not run
 
-- GitHub Actions CI for the new commit (push not performed in this session).
-- PostgreSQL integration for `renumber` (the code path is implemented, but the executable proof here is SQLite).
+- PostgreSQL-specific execution of `renumber` against a live database (the `postgres` CI job exercises the wider integration suite; the renumber proof here is SQLite).
 - The full 6-theme × 3-size × 2-language visual matrix for the new dialogs (see `visual-regression.md`).

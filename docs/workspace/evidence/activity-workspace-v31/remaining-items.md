@@ -36,15 +36,14 @@ Known examples after V31:
 ## Explicit boundaries left by this increment
 
 1. **Cut with assignments or period actuals.** Paste/cut creates the new row and copies children, but the server refuses to delete an activity while assignment or period-actual rows still reference it. Moving those rows needs a shared-service contract. The refusal is named; no data is dropped.
-2. **PostgreSQL renumber execution.** The repository method is implemented for both dialects, but the executable proof in this session is SQLite (unit, HTTP and browser). A PostgreSQL integration run is required before claiming parity there.
+2. **PostgreSQL renumber execution.** The repository method is implemented for both dialects, and the PR `postgres` CI job passes, but no dedicated PostgreSQL renumber scenario was added there. The executable renumber proof remains SQLite (unit, HTTP and browser).
 3. **Full visual matrix.** The three new dialogs are captured at 1366×768 English. Six themes × three sizes × Persian RTL are not captured for these dialogs yet.
-4. **CI for this commit.** No push was performed in this session, so GitHub Actions and the Vercel preview for `894d435` were not run.
-5. **Risks/Issues write workflows.** V30 decision carried forward: shared services own those writes; Activities reads them.
-6. **EPPM-only surfaces.** Owners, EPPM tasks, discussions, team messaging and reflection remain out-of-scope.
+4. **Risks/Issues write workflows.** V30 decision carried forward: shared services own those writes; Activities reads them.
+5. **EPPM-only surfaces.** Owners, EPPM tasks, discussions, team messaging and reflection remain out-of-scope.
 
 ## Next increments (in order)
 
-1. Run PostgreSQL integration and CI on the V31 commit.
+1. Add a PostgreSQL renumber integration scenario (the code path exists; CI currently proves the wider integration only).
 2. Complete Gantt relationship editing as a dialog with type/lag, duplicate and cycle guards, plus predecessor/successor column chooser.
 3. Give each remaining `verify` row a browser action or an explicit owner decision.
 4. Move cut semantics for assignments/period actuals into the shared assignment service.
