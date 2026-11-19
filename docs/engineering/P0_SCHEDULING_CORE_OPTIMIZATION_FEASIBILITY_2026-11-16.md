@@ -1626,3 +1626,13 @@ integrations), 0 failed, including 1,656 in `tests/scheduling`.
 JSON and logs for the full matrix, the affinity run, the executor end-to-end
 run, the scheduling and PostgreSQL suites, environment and source hashes, and
 the reproduction commands.
+
+### 20.9 Merge record
+
+PR #2060 squash-merged into `main` as
+`3b30cec0baf540580129d61286e1d696a67a24ff` on 2026-11-19. Required CI
+(postgres, test 3.11/3.12/3.13, typechecks) passed before merge; only the known
+infrastructure-only Vercel project deployments failed. Post-merge verification on
+`main` at `3b30cec0`: full suite 5,161 passed / 132 skipped, and the canonical
+hashes (time dag 5k `3d2f1f8d`, 1k `bdb8a046`, 25k `84864c94`, 100k `e1c4396f`,
+time mixed 25k `7c6aa1b2`) are identical to the P0-M baseline.
