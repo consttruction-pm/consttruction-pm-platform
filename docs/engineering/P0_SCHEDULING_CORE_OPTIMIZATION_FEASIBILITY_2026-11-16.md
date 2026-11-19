@@ -1673,3 +1673,11 @@ P0-J file passed 20 of 20 consecutive runs, and the complete suite passed
 scheduling and repository subset is 1,684 passed. A quick post-fix benchmark
 reproduced hash equality in all eight scenarios and in the cold/warm cache
 check, so the fix changes stability only.
+
+Merge record: PR #2063 squash-merged into `main` as
+`4f681cabc002551db35165a29449f3815244e048` on 2026-11-19 (evidence commit
+`ab5afd84`). Required CI passed (test 3.11/3.12/3.13 and typechecks; only the
+known infrastructure-only Vercel deployments failed; the PostgreSQL workflow
+runs on `main` pushes, not on pull requests). Post-merge on `main` at
+`4f681cab`: full suite 5,340 passed / 1 skipped / 0 failed and the formerly
+flaky file 10/10 green.
