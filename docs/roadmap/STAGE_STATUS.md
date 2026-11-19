@@ -20,7 +20,7 @@ Status: **100% — implemented; runtime-verified 2026-09-27 through PR #174**
 
 **Priority: P0 — highest CUBI Engineering priority.** Registered under [Issue #1992](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1992). Canonical feasibility record: [P0 Scheduling Core Optimization Feasibility](../engineering/P0_SCHEDULING_CORE_OPTIMIZATION_FEASIBILITY_2026-11-16.md).
 
-Status: **P0-A through P0-I implemented and measured on merged main (`648cef68`); P0-J phases 1–2 merged in `92a62afd` (PR #2021) and phases 3–5 merged in `b6b3cb71` (PR #2022); P0-K merged in `57291794` (PR #2050); P0-L merged in `02704eea` (PR #2053); P0-M merged in `2e1e9b2a` (PR #2057); P0-N implemented and measured on branch `p0n-global-scheduler` (merge record pending).** This workstream takes precedence over Engineering enhancements that modify, extend or depend on Scheduling, Calendar, CPM, Float, Resource Loading or Resource Leveling. Unrelated work may continue only without changing or destabilizing the shared calculation core.
+Status: **P0-A through P0-I implemented and measured on merged main (`648cef68`); P0-J phases 1–2 merged in `92a62afd` (PR #2021) and phases 3–5 merged in `b6b3cb71` (PR #2022); P0-K merged in `57291794` (PR #2050); P0-L merged in `02704eea` (PR #2053); P0-M merged in `2e1e9b2a` (PR #2057); P0-N merged in `3b30cec0` (PR #2060).** This workstream takes precedence over Engineering enhancements that modify, extend or depend on Scheduling, Calendar, CPM, Float, Resource Loading or Resource Leveling. Unrelated work may continue only without changing or destabilizing the shared calculation core.
 
 Phase record (measured evidence under `docs/workspace/evidence/`; all listed phases are merged):
 
