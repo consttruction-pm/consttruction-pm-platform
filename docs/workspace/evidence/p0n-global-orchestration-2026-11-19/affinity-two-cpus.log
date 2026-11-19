@@ -1,0 +1,12 @@
+== scenarios ==
+   E_ten_large r0: 7416ms cpu=46.3% p95=3660.451ms hash=ok
+== durable executor end to end (4 large + 4 small) ==
+   wall=2924ms cpu=45.0% process_starts=8 peak_slots=4 hash=ok
+== cache cold/warm (scenario E) ==
+   cold=7324ms hits=0 | warm=0ms hits=10 hash=ok
+
+written docs/workspace/evidence/p0n-global-orchestration-2026-11-19/affinity-two-cpus.json
+
+real	0m17.919s
+user	0m33.496s
+sys	0m0.775s

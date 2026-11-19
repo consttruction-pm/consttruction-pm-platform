@@ -1,0 +1,55 @@
+== sequential baseline ==
+   30 projects in 17.3s
+== scenarios ==
+   A_one_large r0: 983ms cpu=38.7% p95=982.67ms hash=ok
+   A_one_large r1: 993ms cpu=38.5% p95=992.56ms hash=ok
+   A_one_large r2: 1000ms cpu=37.8% p95=999.6ms hash=ok
+   B_two_large r0: 1430ms cpu=30.4% p95=1376.459ms hash=ok
+   B_two_large r1: 1437ms cpu=30.6% p95=1383.737ms hash=ok
+   B_two_large r2: 1437ms cpu=30.8% p95=1383.161ms hash=ok
+   C_four_large r0: 1608ms cpu=73.4% p95=1590.771ms hash=ok
+   C_four_large r1: 1609ms cpu=73.5% p95=1592.279ms hash=ok
+   C_four_large r2: 1610ms cpu=73.0% p95=1592.355ms hash=ok
+   D_eight_large r0: 3348ms cpu=73.5% p95=1812.177ms hash=ok
+   D_eight_large r1: 3361ms cpu=73.2% p95=1812.812ms hash=ok
+   D_eight_large r2: 3352ms cpu=73.5% p95=1809.213ms hash=ok
+   E_ten_large r0: 3932ms cpu=84.6% p95=1825.141ms hash=ok
+   E_ten_large r1: 3935ms cpu=84.6% p95=1816.01ms hash=ok
+   E_ten_large r2: 3933ms cpu=84.4% p95=1827.644ms hash=ok
+   F_ten_large_five_small r0: 4257ms cpu=83.4% p95=1810.682ms hash=ok
+   F_ten_large_five_small r1: 4211ms cpu=84.5% p95=1810.252ms hash=ok
+   F_ten_large_five_small r2: 4240ms cpu=83.6% p95=1814.732ms hash=ok
+   G_ten_large_twenty_small r0: 5001ms cpu=83.5% p95=1792.77ms hash=ok
+   G_ten_large_twenty_small r1: 5022ms cpu=82.6% p95=1801.849ms hash=ok
+   G_ten_large_twenty_small r2: 5021ms cpu=83.0% p95=1795.281ms hash=ok
+   H_ten_large_staggered r0: 3960ms cpu=84.3% p95=1833.826ms hash=ok
+   H_ten_large_staggered r1: 3982ms cpu=83.4% p95=1823.578ms hash=ok
+   H_ten_large_staggered r2: 3928ms cpu=84.5% p95=1818.068ms hash=ok
+== capacity sweep (scenario E) ==
+   budget=1: 13689ms peak_slots=1 cpu=25.1% hashes=ok
+   budget=2: 6952ms peak_slots=2 cpu=48.3% hashes=ok
+   budget=4: 3955ms peak_slots=4 cpu=84.5% hashes=ok
+   budget=8: 3682ms peak_slots=8 cpu=92.3% hashes=ok
+   budget=16: 3671ms peak_slots=16 cpu=92.5% hashes=ok
+   budget=32: 4180ms peak_slots=32 cpu=95.1% hashes=ok
+== durable executor end to end (4 large + 4 small) ==
+   wall=1618ms cpu=82.4% process_starts=8 peak_slots=4 hash=ok
+== thread-pool baseline (scenario C) ==
+   threads 5093ms cpu=25.1%
+== cache cold/warm (scenario E) ==
+   cold=3939ms hits=0 | warm=0ms hits=10 hash=ok
+== repeated-run soak ==
+   iteration 1/8: parent_rss=93.0MB slots_held=0
+   iteration 2/8: parent_rss=93.0MB slots_held=0
+   iteration 3/8: parent_rss=93.0MB slots_held=0
+   iteration 4/8: parent_rss=93.0MB slots_held=0
+   iteration 5/8: parent_rss=93.0MB slots_held=0
+   iteration 6/8: parent_rss=93.0MB slots_held=0
+   iteration 7/8: parent_rss=93.0MB slots_held=0
+   iteration 8/8: parent_rss=93.0MB slots_held=0
+
+written docs/workspace/evidence/p0n-global-orchestration-2026-11-19/benchmark-full.json
+
+real	2m29.608s
+user	6m13.903s
+sys	0m8.807s

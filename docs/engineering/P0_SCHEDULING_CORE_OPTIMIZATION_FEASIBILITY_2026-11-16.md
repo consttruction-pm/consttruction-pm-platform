@@ -1533,55 +1533,56 @@ per scenario; medians are reported.
 
 | scenario | projects | wall ms | proj/s | P95 job ms | P95 wait ms | CPU % | peak RSS MB |
 |---|---|---|---|---|---|---|---|
-| A one large | 1 | 988 | 1.01 | 988 | 0 | 39.2 | 222 |
-| B two large | 2 | 1,437 | 1.39 | 1,384 | 2 | 31.0 | 170 |
-| C four large | 4 | 1,606 | 2.49 | 1,590 | 3 | 75.4 | 278 |
-| D eight large | 8 | 3,346 | 2.39 | 1,809 | 1,581 | 75.0 | 285 |
-| E ten large | 10 | 3,934 | 2.54 | 1,808 | 1,982 | 85.7 | 286 |
-| F 10 large + 5 small | 15 | 4,212 | 3.56 | 1,814 | 2,151 | 86.3 | 286 |
-| G 10 large + 20 small | 30 | 5,012 | 5.99 | 1,793 | 2,794 | 87.3 | 286 |
-| H 10 large staggered | 10 | 3,944 | 2.54 | 1,818 | 1,980 | 85.6 | 287 |
+| A one large | 1 | 993 | 1.01 | 993 | 0 | 39.3 | 227 |
+| B two large | 2 | 1,437 | 1.39 | 1,383 | 2 | 30.8 | 174 |
+| C four large | 4 | 1,609 | 2.49 | 1,592 | 3 | 75.3 | 280 |
+| D eight large | 8 | 3,352 | 2.39 | 1,812 | 1,579 | 74.7 | 290 |
+| E ten large | 10 | 3,933 | 2.54 | 1,825 | 1,981 | 85.9 | 293 |
+| F 10 large + 5 small | 15 | 4,240 | 3.54 | 1,811 | 2,155 | 85.6 | 291 |
+| G 10 large + 20 small | 30 | 5,021 | 5.97 | 1,795 | 2,796 | 87.1 | 294 |
+| H 10 large staggered | 10 | 3,960 | 2.52 | 1,824 | 1,979 | 85.6 | 293 |
 
-Sequential on the same host: 30 projects in 17,284 ms (10 large alone
-13,384 ms). Ten large projects therefore take 3.40x less wall time, and the
-thirty-project mix 3.45x less. Single project: 1,398 ms sequential → 988 ms
-with four slots (1.42x); inside the engine the float pass itself goes from
+Sequential on the same host: 30 projects in 17,287 ms (10 large alone
+13,397 ms). Ten large projects therefore take 3.41x less wall time, and the
+thirty-project mix 3.44x less. Single project: 1,398 ms sequential → 993 ms
+with four slots (1.41x); inside the engine the float pass itself goes from
 1,120 ms to 671 ms (1.67x, the P0-M measurement reproduced).
 
 Capacity sweep on the ten large projects (one run per budget):
 
 | slots | wall ms | CPU % | peak RSS MB | voluntary ctx switches |
 |---|---|---|---|---|
-| 1 | 13,647 | 24.7 | 128 | 2,588 |
-| 2 | 6,960 | 48.3 | 181 | 1,316 |
-| 4 | 3,937 | 85.8 | 286 | 741 |
-| 8 | 3,847 | 89.2 | 492 | 719 |
-| 16 | 3,547 | 96.7 | 583 | 666 |
-| 32 | 4,161 | 94.9 | 1,013 | 1,254 |
+| 1 | 13,689 | 24.7 | 132 | 2,593 |
+| 2 | 6,952 | 48.5 | 186 | 1,315 |
+| 4 | 3,955 | 85.5 | 292 | 745 |
+| 8 | 3,682 | 92.8 | 505 | 695 |
+| 16 | 3,671 | 93.1 | 601 | 691 |
+| 32 | 4,180 | 95.2 | 1,039 | 1,381 |
 
-16 slots is the throughput optimum here (2.82 projects/s, 96.7% of four CPUs);
-32 slots oversubscribe the machine and lose 17% against 16 while nearly doubling
-memory.
+Throughput saturates at 8 slots (2.72 projects/s) and 16 adds nothing measurable
+(2.73 projects/s), because the four CPUs are already busy; 32 slots oversubscribe
+the machine and lose 12% against 16 while nearly doubling memory and doubling
+context switches.
 
-Baselines on four large projects: thread executor shape 5,078 ms at 25.1% CPU
-against 1,606 ms in process mode (3.16x); sequential 4,757 ms. The thread run is
+Baselines on four large projects: thread executor shape 5,093 ms at 25.1% CPU
+against 1,609 ms in process mode (3.17x); sequential 4,757 ms. The thread run is
 slower than sequential because the GIL serialises the work and adds switching.
 
 The durable job path end to end — 4 large + 4 small submitted through
 `SchedulingJobService`, claimed and executed by `SchedulingJobExecutor` in
-process mode on the in-memory adapter — takes 1,614 ms at 82.3% CPU with 8/8
+process mode on the in-memory adapter — takes 1,618 ms at 82.4% CPU with 8/8
 process starts, `peak_slots=4`, 8/8 persisted hashes equal to the sequential
-engine, and 0 failures. The same eight projects sequentially take about
-5,639 ms (3.49x).
+engine, and 0 failures. The same eight projects sequentially take 5,635 ms
+(3.48x).
 
-Cache: cold pass 3,969 ms with 0 hits; warm pass 0.2 ms with 10/10 hits, four
+Cache: cold pass 3,939 ms with 0 hits; warm pass 0.2 ms with 10/10 hits, four
 tenants isolated, 3,618 bytes stored, no eviction. A two-CPU affinity cap
-(`taskset -c 0,1`, budget 4, ten large) takes 7,087 ms at 1.91 of 2 available
-cores (96% of the real capacity), so the budget saturates whatever the OS
+(`taskset -c 0,1`, budget 4, ten large) takes 7,416 ms at 1.85 of 2 available
+cores (93% of the real capacity), so the budget saturates whatever the OS
 actually grants.
 
-Soak: eight iterations of two large projects, 11,511 ms total, parent RSS flat
-at 89.7 MB (0.0 MB growth), `slots_held` 0 after every iteration.
+Soak: eight iterations of two large projects, 11,567 ms total, parent RSS flat
+at 93.0 MB (0.0 MB growth), `slots_held` 0 after every iteration.
 
 ### 20.6 Correctness evidence
 

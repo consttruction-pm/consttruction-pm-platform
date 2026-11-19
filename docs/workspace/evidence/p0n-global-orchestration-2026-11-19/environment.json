@@ -1,0 +1,15 @@
+{
+  "python": "3.12.13",
+  "implementation": "CPython",
+  "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+  "machine": "x86_64",
+  "cpu_count": 4,
+  "cpu_affinity_count": 4,
+  "memory_total_kb": 8131540,
+  "git_sha": "c9e15f0c596a013e4c94c7c4e4483cedfe8ce0e7",
+  "cpu_count_logical": 4,
+  "cpu_count_physical": 4,
+  "benchmark_git_sha": "c9e15f0c596a013e4c94c7c4e4483cedfe8ce0e7",
+  "start_method": "fork",
+  "generated_at": "2026-11-19T06:48:21.937362+00:00"
+}
