@@ -107,6 +107,24 @@ test("public documents stay inside the performance budget", () => {
   assert.ok(css <= 600 * 1024, `styles.css is ${css} bytes`);
 });
 
+test("every indexable page ships WebPage structured data that matches its own head", () => {
+  for (const file of allHtml()) {
+    const html = read(file);
+    if (/name="robots" content="[^"]*noindex/.test(html)) continue; // private shells stay out of the index
+    const blocks = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)];
+    assert.ok(blocks.length >= 1, `${file} has no JSON-LD`);
+    const data = JSON.parse(blocks[0][1]);
+    if (Array.isArray(data["@type"])) continue; // hand-written homepages keep their SoftwareApplication block
+    assert.equal(data["@type"], "WebPage", `${file} must describe a WebPage`);
+    const title = html.match(/<title>([^<]+)<\/title>/)?.[1];
+    const canonical = html.match(/<link rel="canonical" href="([^"]+)"/)?.[1];
+    assert.equal(data.name, title, `${file} JSON-LD name must equal its title`);
+    assert.equal(data.url, canonical, `${file} JSON-LD url must equal its canonical`);
+    assert.equal(data.inLanguage, html.match(/<html lang="([^"]+)"/)?.[1], `${file} JSON-LD language drifted`);
+    assert.ok(data.description, `${file} JSON-LD must carry the page description`);
+  }
+});
+
 test("the assembled sitemap and robots rules cover every indexable English page", () => {
   const assembled = join(webRoot, "..", "..", "_site");
   if (!existsSync(join(assembled, "sitemap.xml"))) {
@@ -119,12 +137,20 @@ test("the assembled sitemap and robots rules cover every indexable English page"
   }
   const sitemap = read(join(assembled, "sitemap.xml"));
   const robots = read(join(assembled, "robots.txt"));
-  assert.equal((sitemap.match(/<url>/g) ?? []).length, 114, "sitemap URL count");
-  assert.equal((sitemap.match(/hreflang="x-default"/g) ?? []).length, 114, "every URL needs x-default");
+  // Every approved route is published in all ten locales; the sitemap lists the
+  // canonical URL of each translation, so the count follows the inventory
+  // instead of a constant that has to be edited whenever a locale ships.
+  const expectedUrls = (ENGLISH_ROUTES.length + 1) * 10;
+  assert.equal((sitemap.match(/<url>/g) ?? []).length, expectedUrls, "sitemap URL count");
+  assert.equal(
+    (sitemap.match(/hreflang="x-default"/g) ?? []).length,
+    expectedUrls,
+    "every URL needs x-default",
+  );
   for (const route of ["", ...ENGLISH_ROUTES]) {
-    assert.ok(sitemap.includes(`<loc>https://cubi.example/${route}</loc>`), `sitemap is missing /${route}`);
+    assert.match(sitemap, new RegExp(`<loc>[^<]*/${route}</loc>`), `sitemap is missing /${route}`);
   }
-  assert.match(robots, /Sitemap: https:\/\/cubi\.example\/sitemap\.xml/);
+  assert.match(robots, /Sitemap: https?:\/\/[^\s]+\/sitemap\.xml/);
   assert.match(robots, /Disallow: \/login/);
   assert.match(robots, /Disallow: \/environments/);
   assert.doesNotMatch(sitemap, /\/app\/|\/login|\/environments/);

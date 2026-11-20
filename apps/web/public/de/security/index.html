@@ -8,12 +8,26 @@
 <link rel="alternate" hreflang="en" href="__CUBI_BASE_URL__/security/">
 <link rel="alternate" hreflang="fa" href="__CUBI_BASE_URL__/fa/security/">
 <link rel="alternate" hreflang="de" href="__CUBI_BASE_URL__/de/security/">
+<link rel="alternate" hreflang="fr" href="__CUBI_BASE_URL__/fr/security/">
+<link rel="alternate" hreflang="ru" href="__CUBI_BASE_URL__/ru/security/">
+<link rel="alternate" hreflang="tr-TR" href="__CUBI_BASE_URL__/tr/security/">
+<link rel="alternate" hreflang="ja" href="__CUBI_BASE_URL__/ja/security/">
+<link rel="alternate" hreflang="ko" href="__CUBI_BASE_URL__/ko/security/">
+<link rel="alternate" hreflang="zh-CN" href="__CUBI_BASE_URL__/zh/security/">
+<link rel="alternate" hreflang="ar" href="__CUBI_BASE_URL__/ar/security/">
 <link rel="alternate" hreflang="x-default" href="__CUBI_BASE_URL__/security/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="CUBI Platform">
 <meta property="og:locale" content="de_DE">
 <meta property="og:locale:alternate" content="en_US">
 <meta property="og:locale:alternate" content="fa_IR">
+<meta property="og:locale:alternate" content="fr_FR">
+<meta property="og:locale:alternate" content="ru_RU">
+<meta property="og:locale:alternate" content="tr_TR">
+<meta property="og:locale:alternate" content="ja_JP">
+<meta property="og:locale:alternate" content="ko_KR">
+<meta property="og:locale:alternate" content="zh_CN">
+<meta property="og:locale:alternate" content="ar_SA">
 <meta property="og:title" content="CUBI Sicherheit | Identität, Zugriff und Datengrenzen">
 <meta property="og:description" content="Wie CUBI Identität, Sitzungen, Projektmitgliedschaft, Datengrenzen und die Trennung von öffentlichen Seiten und Projektdaten handhabt.">
 <meta property="og:url" content="__CUBI_BASE_URL__/de/security/">
@@ -26,9 +40,24 @@
 <meta name="theme-color" content="#081A2F">
 <link rel="stylesheet" href="../../styles.css">
 <link rel="icon" href="../../cubi-platform-logo-primary.svg" type="image/svg+xml">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "name": "CUBI Sicherheit | Identität, Zugriff und Datengrenzen",
+  "description": "Wie CUBI Identität, Sitzungen, Projektmitgliedschaft, Datengrenzen und die Trennung von öffentlichen Seiten und Projektdaten handhabt.",
+  "url": "__CUBI_BASE_URL__/de/security/",
+  "inLanguage": "de",
+  "isPartOf": {
+    "@type": "WebSite",
+    "name": "CUBI Platform",
+    "url": "__CUBI_BASE_URL__/"
+  }
+}
+</script>
 </head>
 <body class="cubi-public-page">
-<header class="cubi-public-header"><a href="../" aria-label="Startseite"><img src="../../cubi-platform-logo-primary.svg" alt="CUBI Platform" width="132" height="48"></a><nav class="cubi-public-nav" aria-label="Hauptnavigation"><a href="../">Startseite</a><a href="../platform/">Plattform</a><a href="../features/">Funktionen</a><a href="../solutions/">Lösungen</a><a href="../pricing/">Preise</a><a href="../resources/">Ressourcen</a><a href="../about/">Über uns</a><a href="../contact/">Kontakt</a></nav><a class="cubi-public-language" hreflang="en" href="../../security/" lang="en">English</a><details class="cubi-public-languages"><summary>Sprachen</summary><nav aria-label="Sprachen"><a hreflang="fa" href="../../fa/security/" lang="fa">فارسی</a></nav></details></header>
+<header class="cubi-public-header"><a href="../" aria-label="Startseite"><img src="../../cubi-platform-logo-primary.svg" alt="CUBI Platform" width="132" height="48"></a><nav class="cubi-public-nav" aria-label="Hauptnavigation"><a href="../">Startseite</a><a href="../platform/">Plattform</a><a href="../features/">Funktionen</a><a href="../solutions/">Lösungen</a><a href="../pricing/">Preise</a><a href="../resources/">Ressourcen</a><a href="../about/">Über uns</a><a href="../contact/">Kontakt</a></nav><a class="cubi-public-language" hreflang="en" href="../../security/" lang="en">English</a><details class="cubi-public-languages"><summary>Sprachen</summary><nav aria-label="Sprachen"><a hreflang="fa" href="../../fa/security/" lang="fa">فارسی</a><a hreflang="fr" href="../../fr/security/" lang="fr">Français</a><a hreflang="ru" href="../../ru/security/" lang="ru">Русский</a><a hreflang="tr-TR" href="../../tr/security/" lang="tr-TR">Türkçe</a><a hreflang="ja" href="../../ja/security/" lang="ja">日本語</a><a hreflang="ko" href="../../ko/security/" lang="ko">한국어</a><a hreflang="zh-CN" href="../../zh/security/" lang="zh-CN">简体中文</a><a hreflang="ar" href="../../ar/security/" lang="ar">العربية</a></nav></details></header>
 <main>
 <section class="cubi-public-hero"><p class="eyebrow">SICHERHEIT</p><h1>Sicherheit klar benannt</h1><p>Diese Seite beschreibt, was das Produkt heute tatsächlich tut. Sie ist keine Zertifizierungsaussage und ersetzt keine Sicherheitsprüfung Ihrer eigenen Installation.</p></section>
 <section class="cubi-public-content"><h2>Identität und Sitzungen</h2><p>Zugang beginnt mit einem authentifizierten Konto und einer serverseitigen Sitzung.</p><div class="cubi-public-grid"><article class="cubi-public-card"><h3>Passwortbehandlung</h3><p>Passwörter werden als gesalzene scrypt-Hashes gespeichert, nie im Klartext.</p></article><article class="cubi-public-card"><h3>Sitzungsbehandlung</h3><p>Sitzungen nutzen HttpOnly-Cookies mit CSRF-Schutz bei zustandsändernden Anfragen.</p></article><article class="cubi-public-card"><h3>Anmeldedrosselung</h3><p>Wiederholte Fehlanmeldungen werden begrenzt, um Rateversuche zu verlangsamen.</p></article></div>
