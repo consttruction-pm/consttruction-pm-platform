@@ -1,0 +1,4948 @@
+{
+"document": "P6 Professional Help",
+"edition": "V26",
+"pdf": "P6_PROFESSIONAL_HELP_G57535-02.pdf",
+"pages": 815,
+"entries": [
+{
+"depth": 0,
+"title": "Contents",
+"page": 3
+},
+{
+"depth": 0,
+"title": "1 Welcome",
+"page": 27
+},
+{
+"depth": 1,
+"title": "Using the P6 Professional Help",
+"page": 27
+},
+{
+"depth": 1,
+"title": "Introducing P6 Professional",
+"page": 27
+},
+{
+"depth": 1,
+"title": "P6 Professional Cloud Connect",
+"page": 28
+},
+{
+"depth": 1,
+"title": "About P6 Professional Standalone",
+"page": 29
+},
+{
+"depth": 0,
+"title": "2 Getting Started",
+"page": 30
+},
+{
+"depth": 1,
+"title": "About Consent Notices",
+"page": 30
+},
+{
+"depth": 2,
+"title": "Viewing Your PI Data in P6 Professional",
+"page": 30
+},
+{
+"depth": 1,
+"title": "Workspace Basics",
+"page": 30
+},
+{
+"depth": 2,
+"title": "Symbols",
+"page": 30
+},
+{
+"depth": 2,
+"title": "Using main windows",
+"page": 33
+},
+{
+"depth": 2,
+"title": "Using Hint Help",
+"page": 35
+},
+{
+"depth": 2,
+"title": "Using the Status Bar and Layout Options bar",
+"page": 35
+},
+{
+"depth": 2,
+"title": "Display window details",
+"page": 36
+},
+{
+"depth": 2,
+"title": "Tile windows horizontally or vertically",
+"page": 36
+},
+{
+"depth": 2,
+"title": "Wizards",
+"page": 37
+},
+{
+"depth": 2,
+"title": "Navigate wizards",
+"page": 37
+},
+{
+"depth": 2,
+"title": "Select and assign information",
+"page": 37
+},
+{
+"depth": 2,
+"title": "Use shortcut menus",
+"page": 38
+},
+{
+"depth": 2,
+"title": "Select multiple items",
+"page": 38
+},
+{
+"depth": 2,
+"title": "Quickly enter the same text in multiple table rows",
+"page": 38
+},
+{
+"depth": 2,
+"title": "Copy and paste a range of cells",
+"page": 39
+},
+{
+"depth": 2,
+"title": "Using the HTML editor",
+"page": 41
+},
+{
+"depth": 2,
+"title": "Using Hot Keys",
+"page": 42
+},
+{
+"depth": 2,
+"title": "Using Shortcut Keys",
+"page": 45
+},
+{
+"depth": 2,
+"title": "Sharing your feedback with us",
+"page": 46
+},
+{
+"depth": 1,
+"title": "Working with Toolbars and Menus",
+"page": 47
+},
+{
+"depth": 2,
+"title": "Reset toolbars and menus to factory defaults",
+"page": 47
+},
+{
+"depth": 2,
+"title": "Customizing Toolbars",
+"page": 47
+},
+{
+"depth": 3,
+"title": "Customizing toolbars",
+"page": 47
+},
+{
+"depth": 3,
+"title": "Show or hide toolbars",
+"page": 47
+},
+{
+"depth": 3,
+"title": "Show or hide toolbar icons",
+"page": 48
+},
+{
+"depth": 3,
+"title": "Move toolbars",
+"page": 48
+},
+{
+"depth": 3,
+"title": "Move toolbar icons",
+"page": 49
+},
+{
+"depth": 3,
+"title": "Lock toolbars in position",
+"page": 49
+},
+{
+"depth": 3,
+"title": "Delete icons from toolbars",
+"page": 50
+},
+{
+"depth": 3,
+"title": "Set toolbar display options",
+"page": 50
+},
+{
+"depth": 3,
+"title": "Customize a toolbar icon",
+"page": 50
+},
+{
+"depth": 3,
+"title": "Create a custom toolbar",
+"page": 51
+},
+{
+"depth": 2,
+"title": "Customizing Menus",
+"page": 52
+},
+{
+"depth": 3,
+"title": "Customizing menus",
+"page": 52
+},
+{
+"depth": 3,
+"title": "Change the display order of menus",
+"page": 52
+},
+{
+"depth": 3,
+"title": "Move menu commands",
+"page": 52
+},
+{
+"depth": 3,
+"title": "Delete menus and menu commands",
+"page": 53
+},
+{
+"depth": 3,
+"title": "Customize a menu command",
+"page": 53
+},
+{
+"depth": 3,
+"title": "Create a custom menu",
+"page": 54
+},
+{
+"depth": 2,
+"title": "Menu, Toolbar, and Icon Reference",
+"page": 54
+},
+{
+"depth": 3,
+"title": "Menu bar",
+"page": 54
+},
+{
+"depth": 4,
+"title": "File Menu",
+"page": 55
+},
+{
+"depth": 4,
+"title": "Edit Menu",
+"page": 57
+},
+{
+"depth": 4,
+"title": "View Menu",
+"page": 60
+},
+{
+"depth": 4,
+"title": "Project Menu",
+"page": 64
+},
+{
+"depth": 4,
+"title": "Enterprise Menu",
+"page": 66
+},
+{
+"depth": 4,
+"title": "Tools Menu",
+"page": 70
+},
+{
+"depth": 4,
+"title": "Admin Menu (P6 Professional Only)",
+"page": 73
+},
+{
+"depth": 4,
+"title": "Help Menu",
+"page": 74
+},
+{
+"depth": 3,
+"title": "Action Toolbar",
+"page": 75
+},
+{
+"depth": 3,
+"title": "Administrator Toolbar (P6 Professional Only)",
+"page": 76
+},
+{
+"depth": 3,
+"title": "Assign Toolbar",
+"page": 77
+},
+{
+"depth": 3,
+"title": "Bottom Layout Toolbar",
+"page": 78
+},
+{
+"depth": 3,
+"title": "Dictionaries Toolbar",
+"page": 79
+},
+{
+"depth": 3,
+"title": "Display Toolbar",
+"page": 81
+},
+{
+"depth": 3,
+"title": "Edit Toolbar",
+"page": 86
+},
+{
+"depth": 3,
+"title": "Enterprise Toolbar",
+"page": 89
+},
+{
+"depth": 3,
+"title": "Find Toolbar",
+"page": 91
+},
+{
+"depth": 3,
+"title": "Layout Toolbar",
+"page": 92
+},
+{
+"depth": 3,
+"title": "Move Toolbar",
+"page": 95
+},
+{
+"depth": 3,
+"title": "Print Toolbar",
+"page": 95
+},
+{
+"depth": 3,
+"title": "Project Toolbar",
+"page": 96
+},
+{
+"depth": 3,
+"title": "Publish Toolbar",
+"page": 98
+},
+{
+"depth": 3,
+"title": "Reports Toolbar",
+"page": 99
+},
+{
+"depth": 3,
+"title": "Standard Toolbar",
+"page": 101
+},
+{
+"depth": 3,
+"title": "Tools Toolbar",
+"page": 102
+},
+{
+"depth": 3,
+"title": "Top Layout Toolbar",
+"page": 107
+},
+{
+"depth": 1,
+"title": "Setting User Preferences",
+"page": 108
+},
+{
+"depth": 2,
+"title": "Define user preferences",
+"page": 108
+},
+{
+"depth": 2,
+"title": "Define how to display time information",
+"page": 109
+},
+{
+"depth": 2,
+"title": "Specify a format for dates",
+"page": 110
+},
+{
+"depth": 2,
+"title": "Select a view currency",
+"page": 110
+},
+{
+"depth": 2,
+"title": "Specify a format for currency",
+"page": 110
+},
+{
+"depth": 2,
+"title": "Define how to display codes",
+"page": 111
+},
+{
+"depth": 2,
+"title": "Enter email settings",
+"page": 111
+},
+{
+"depth": 2,
+"title": "Set wizard options",
+"page": 111
+},
+{
+"depth": 2,
+"title": "Change my password",
+"page": 112
+},
+{
+"depth": 2,
+"title": "Set startup options",
+"page": 113
+},
+{
+"depth": 2,
+"title": "Select startup filters",
+"page": 114
+},
+{
+"depth": 2,
+"title": "Load resource summary data at startup",
+"page": 114
+},
+{
+"depth": 2,
+"title": "Select calculation options for resource and role assignments",
+"page": 114
+},
+{
+"depth": 1,
+"title": "Working with Projects",
+"page": 115
+},
+{
+"depth": 2,
+"title": "Projects",
+"page": 115
+},
+{
+"depth": 2,
+"title": "Create a project",
+"page": 115
+},
+{
+"depth": 2,
+"title": "Open a project",
+"page": 116
+},
+{
+"depth": 2,
+"title": "Specify a default project",
+"page": 117
+},
+{
+"depth": 2,
+"title": "Define a what-if project",
+"page": 117
+},
+{
+"depth": 2,
+"title": "Commit data to the database",
+"page": 117
+},
+{
+"depth": 2,
+"title": "Refresh data",
+"page": 117
+},
+{
+"depth": 2,
+"title": "Copy and paste a project",
+"page": 117
+},
+{
+"depth": 2,
+"title": "Close a project",
+"page": 118
+},
+{
+"depth": 2,
+"title": "Delete a project",
+"page": 118
+},
+{
+"depth": 1,
+"title": "Using Portfolios",
+"page": 118
+},
+{
+"depth": 2,
+"title": "Portfolios",
+"page": 119
+},
+{
+"depth": 2,
+"title": "Create a portfolio",
+"page": 119
+},
+{
+"depth": 2,
+"title": "Add projects to a portfolio",
+"page": 119
+},
+{
+"depth": 2,
+"title": "Add users to a portfolio",
+"page": 120
+},
+{
+"depth": 2,
+"title": "Remove projects from a portfolio",
+"page": 120
+},
+{
+"depth": 2,
+"title": "Change a portfolio name",
+"page": 121
+},
+{
+"depth": 2,
+"title": "Change the current portfolio",
+"page": 121
+},
+{
+"depth": 2,
+"title": "Delete a portfolio",
+"page": 121
+},
+{
+"depth": 2,
+"title": "View portfolio details",
+"page": 122
+},
+{
+"depth": 0,
+"title": "3 Structuring Projects",
+"page": 123
+},
+{
+"depth": 1,
+"title": "Setting up and starting to work with the EPS",
+"page": 123
+},
+{
+"depth": 2,
+"title": "Enterprise Project Structure overview",
+"page": 123
+},
+{
+"depth": 2,
+"title": "Defining the Enterprise Project Structure",
+"page": 123
+},
+{
+"depth": 2,
+"title": "Set up the EPS structure",
+"page": 124
+},
+{
+"depth": 2,
+"title": "Add a project to the EPS hierarchy",
+"page": 124
+},
+{
+"depth": 2,
+"title": "Show or hide details in the EPS hierarchy",
+"page": 125
+},
+{
+"depth": 2,
+"title": "Delete an EPS node or project",
+"page": 125
+},
+{
+"depth": 2,
+"title": "Copy an EPS node or project",
+"page": 125
+},
+{
+"depth": 1,
+"title": "Defining the WBS",
+"page": 126
+},
+{
+"depth": 2,
+"title": "Work Breakdown Structure",
+"page": 126
+},
+{
+"depth": 2,
+"title": "Using a WBS for top-down planning",
+"page": 126
+},
+{
+"depth": 2,
+"title": "Using weighted milestones in the work breakdown structure",
+"page": 127
+},
+{
+"depth": 2,
+"title": "WBS status types",
+"page": 127
+},
+{
+"depth": 2,
+"title": "View the WBS",
+"page": 127
+},
+{
+"depth": 2,
+"title": "Display work breakdown structure details",
+"page": 128
+},
+{
+"depth": 2,
+"title": "Add a WBS element",
+"page": 128
+},
+{
+"depth": 2,
+"title": "Edit a work breakdown structure element",
+"page": 128
+},
+{
+"depth": 2,
+"title": "Assign WBS weighted milestones",
+"page": 128
+},
+{
+"depth": 2,
+"title": "Determine a WBS element's status",
+"page": 129
+},
+{
+"depth": 2,
+"title": "Change the work breakdown structure chart display",
+"page": 129
+},
+{
+"depth": 2,
+"title": "Change the work breakdown structure table display",
+"page": 130
+},
+{
+"depth": 2,
+"title": "Move around the WBS chart",
+"page": 130
+},
+{
+"depth": 2,
+"title": "Copy and paste a work breakdown structure element",
+"page": 130
+},
+{
+"depth": 2,
+"title": "Cut and paste a work breakdown structure element",
+"page": 131
+},
+{
+"depth": 2,
+"title": "Define earned value settings for a specific work breakdown structure element",
+"page": 131
+},
+{
+"depth": 2,
+"title": "Delete a work breakdown structure element",
+"page": 131
+},
+{
+"depth": 1,
+"title": "Working with and defining the OBS",
+"page": 132
+},
+{
+"depth": 2,
+"title": "Organizational breakdown structure (OBS) overview",
+"page": 132
+},
+{
+"depth": 2,
+"title": "Setting up the OBS",
+"page": 132
+},
+{
+"depth": 2,
+"title": "View the OBS",
+"page": 132
+},
+{
+"depth": 2,
+"title": "OBS security",
+"page": 133
+},
+{
+"depth": 2,
+"title": "Add an OBS element",
+"page": 133
+},
+{
+"depth": 2,
+"title": "Assign an OBS element to a WBS element",
+"page": 134
+},
+{
+"depth": 2,
+"title": "Edit an OBS element",
+"page": 134
+},
+{
+"depth": 2,
+"title": "Copy and paste an OBS element",
+"page": 134
+},
+{
+"depth": 2,
+"title": "Cut and paste an OBS element",
+"page": 134
+},
+{
+"depth": 2,
+"title": "Delete an OBS element",
+"page": 135
+},
+{
+"depth": 2,
+"title": "View the OBS chart display",
+"page": 135
+},
+{
+"depth": 2,
+"title": "Change the OBS chart display",
+"page": 135
+},
+{
+"depth": 2,
+"title": "Move around the OBS chart",
+"page": 135
+},
+{
+"depth": 2,
+"title": "Change the OBS chart information",
+"page": 136
+},
+{
+"depth": 2,
+"title": "Assign responsibility for an issue",
+"page": 136
+},
+{
+"depth": 2,
+"title": "Assign responsibility for threshold-generated issues",
+"page": 136
+},
+{
+"depth": 1,
+"title": "Defining Project, Resource, and Activity Codes",
+"page": 137
+},
+{
+"depth": 2,
+"title": "Project Codes",
+"page": 137
+},
+{
+"depth": 3,
+"title": "Project codes and values",
+"page": 137
+},
+{
+"depth": 3,
+"title": "Create project codes",
+"page": 137
+},
+{
+"depth": 3,
+"title": "Create project code values",
+"page": 138
+},
+{
+"depth": 3,
+"title": "Assign project codes and values",
+"page": 138
+},
+{
+"depth": 3,
+"title": "Edit project codes",
+"page": 138
+},
+{
+"depth": 3,
+"title": "Edit project code values",
+"page": 139
+},
+{
+"depth": 3,
+"title": "Delete project codes",
+"page": 139
+},
+{
+"depth": 3,
+"title": "Delete project code values",
+"page": 139
+},
+{
+"depth": 2,
+"title": "Resource Codes",
+"page": 139
+},
+{
+"depth": 3,
+"title": "Resource codes",
+"page": 139
+},
+{
+"depth": 3,
+"title": "Create resource codes",
+"page": 140
+},
+{
+"depth": 3,
+"title": "Create resource code values",
+"page": 140
+},
+{
+"depth": 3,
+"title": "Assign resource codes and values",
+"page": 140
+},
+{
+"depth": 3,
+"title": "Edit resource codes",
+"page": 141
+},
+{
+"depth": 3,
+"title": "Edit resource code values",
+"page": 141
+},
+{
+"depth": 3,
+"title": "Delete resource codes",
+"page": 141
+},
+{
+"depth": 3,
+"title": "Delete resource code values",
+"page": 141
+},
+{
+"depth": 2,
+"title": "Role Codes",
+"page": 142
+},
+{
+"depth": 3,
+"title": "Role codes",
+"page": 142
+},
+{
+"depth": 3,
+"title": "Create role codes",
+"page": 142
+},
+{
+"depth": 3,
+"title": "Create role code values",
+"page": 142
+},
+{
+"depth": 3,
+"title": "Assign role codes and values",
+"page": 143
+},
+{
+"depth": 3,
+"title": "Edit role codes",
+"page": 143
+},
+{
+"depth": 3,
+"title": "Edit role code values",
+"page": 143
+},
+{
+"depth": 3,
+"title": "Delete role codes",
+"page": 144
+},
+{
+"depth": 2,
+"title": "Activity Codes",
+"page": 144
+},
+{
+"depth": 3,
+"title": "Activity codes and values",
+"page": 144
+},
+{
+"depth": 3,
+"title": "Assign activity codes and values to activities",
+"page": 144
+},
+{
+"depth": 3,
+"title": "Change activity code value assignments",
+"page": 145
+},
+{
+"depth": 3,
+"title": "Remove activity codes and values from activities",
+"page": 145
+},
+{
+"depth": 3,
+"title": "Defining Global Activity Codes and Values and Values Colors",
+"page": 145
+},
+{
+"depth": 4,
+"title": "Create global activity codes",
+"page": 145
+},
+{
+"depth": 4,
+"title": "Create global activity code values",
+"page": 146
+},
+{
+"depth": 4,
+"title": "Assign color to global activity code value",
+"page": 146
+},
+{
+"depth": 4,
+"title": "Edit global activity codes",
+"page": 147
+},
+{
+"depth": 4,
+"title": "Edit global activity code values",
+"page": 147
+},
+{
+"depth": 4,
+"title": "Edit color of global activity code value",
+"page": 147
+},
+{
+"depth": 4,
+"title": "Delete global activity codes",
+"page": 148
+},
+{
+"depth": 4,
+"title": "Delete global activity code values",
+"page": 148
+},
+{
+"depth": 3,
+"title": "Defining Project Activity Codes and Values and Values Colors",
+"page": 148
+},
+{
+"depth": 4,
+"title": "Create project-level activity codes",
+"page": 149
+},
+{
+"depth": 4,
+"title": "Create project-level activity code values",
+"page": 149
+},
+{
+"depth": 4,
+"title": "Assign color to project-level activity code value",
+"page": 149
+},
+{
+"depth": 4,
+"title": "Edit project-level activity codes",
+"page": 150
+},
+{
+"depth": 4,
+"title": "Edit project-level activity code values",
+"page": 150
+},
+{
+"depth": 4,
+"title": "Edit color of project-level activity code value",
+"page": 150
+},
+{
+"depth": 4,
+"title": "Delete project activity codes",
+"page": 151
+},
+{
+"depth": 4,
+"title": "Delete project-level activity code values",
+"page": 151
+},
+{
+"depth": 4,
+"title": "Promote project-level activity codes and values",
+"page": 152
+},
+{
+"depth": 3,
+"title": "Defining EPS-level Activity Codes and Values and Values Colors",
+"page": 152
+},
+{
+"depth": 4,
+"title": "Create EPS-level activity codes",
+"page": 152
+},
+{
+"depth": 4,
+"title": "Create EPS-level activity code values",
+"page": 152
+},
+{
+"depth": 4,
+"title": "Assign color to EPS-level activity code value",
+"page": 153
+},
+{
+"depth": 4,
+"title": "Edit EPS-level activity codes",
+"page": 153
+},
+{
+"depth": 4,
+"title": "Edit EPS-level activity code values",
+"page": 154
+},
+{
+"depth": 4,
+"title": "Edit color of EPS-level activity code value",
+"page": 154
+},
+{
+"depth": 4,
+"title": "Delete EPS level activity codes",
+"page": 155
+},
+{
+"depth": 4,
+"title": "Delete EPS level activity code values",
+"page": 155
+},
+{
+"depth": 4,
+"title": "Promote EPS-level activity codes and values",
+"page": 155
+},
+{
+"depth": 1,
+"title": "Defining Custom Fields",
+"page": 156
+},
+{
+"depth": 2,
+"title": "User-defined fields",
+"page": 156
+},
+{
+"depth": 2,
+"title": "Define custom user fields",
+"page": 157
+},
+{
+"depth": 2,
+"title": "Choosing data types for user-defined fields",
+"page": 158
+},
+{
+"depth": 2,
+"title": "Indicator user-defined fields",
+"page": 158
+},
+{
+"depth": 1,
+"title": "Defining Calendars",
+"page": 159
+},
+{
+"depth": 2,
+"title": "Calendars",
+"page": 159
+},
+{
+"depth": 2,
+"title": "Defining default hours per time period in calendars",
+"page": 160
+},
+{
+"depth": 2,
+"title": "Project Calendars",
+"page": 161
+},
+{
+"depth": 3,
+"title": "Create a project calendar",
+"page": 161
+},
+{
+"depth": 3,
+"title": "Edit a project calendar",
+"page": 162
+},
+{
+"depth": 3,
+"title": "Delete a project calendar",
+"page": 163
+},
+{
+"depth": 3,
+"title": "View project calendar assignments",
+"page": 163
+},
+{
+"depth": 2,
+"title": "Global Calendars",
+"page": 164
+},
+{
+"depth": 3,
+"title": "Create a global calendar",
+"page": 164
+},
+{
+"depth": 3,
+"title": "Edit a global calendar",
+"page": 164
+},
+{
+"depth": 3,
+"title": "Delete a global calendar",
+"page": 165
+},
+{
+"depth": 3,
+"title": "Specify a default global calendar",
+"page": 165
+},
+{
+"depth": 3,
+"title": "View global calendar assignments",
+"page": 166
+},
+{
+"depth": 2,
+"title": "Resource Calendars",
+"page": 166
+},
+{
+"depth": 3,
+"title": "Create a shared resource calendar",
+"page": 166
+},
+{
+"depth": 3,
+"title": "Create a personal resource calendar",
+"page": 166
+},
+{
+"depth": 3,
+"title": "Edit a resource calendar",
+"page": 167
+},
+{
+"depth": 3,
+"title": "Edit your personal resource calendar",
+"page": 168
+},
+{
+"depth": 3,
+"title": "Delete a resource calendar",
+"page": 169
+},
+{
+"depth": 3,
+"title": "View resource calendar assignments",
+"page": 169
+},
+{
+"depth": 3,
+"title": "Convert a shared resource calendar to a personal resource calendar",
+"page": 170
+},
+{
+"depth": 3,
+"title": "Convert a personal resource calendar to a shared resource calendar",
+"page": 170
+},
+{
+"depth": 1,
+"title": "Defining Resources and Roles",
+"page": 170
+},
+{
+"depth": 2,
+"title": "Resources",
+"page": 170
+},
+{
+"depth": 3,
+"title": "Resources",
+"page": 170
+},
+{
+"depth": 3,
+"title": "Add a resource",
+"page": 171
+},
+{
+"depth": 3,
+"title": "Adding resources using a wizard",
+"page": 172
+},
+{
+"depth": 3,
+"title": "View resources",
+"page": 173
+},
+{
+"depth": 3,
+"title": "Define resource shifts",
+"page": 173
+},
+{
+"depth": 3,
+"title": "Assign shared resource calendars to resources",
+"page": 173
+},
+{
+"depth": 3,
+"title": "Create and assign a personal resource calendar",
+"page": 174
+},
+{
+"depth": 3,
+"title": "Copy and paste a resource",
+"page": 174
+},
+{
+"depth": 3,
+"title": "Cut and paste a resource",
+"page": 175
+},
+{
+"depth": 3,
+"title": "Display resource details",
+"page": 175
+},
+{
+"depth": 3,
+"title": "Edit resource information",
+"page": 175
+},
+{
+"depth": 3,
+"title": "Delete a resource",
+"page": 176
+},
+{
+"depth": 3,
+"title": "Enter comments about resources",
+"page": 177
+},
+{
+"depth": 3,
+"title": "Specify the resource type for resources",
+"page": 177
+},
+{
+"depth": 3,
+"title": "Specify the unit of measure for material resources",
+"page": 178
+},
+{
+"depth": 3,
+"title": "Change Resources tab columns",
+"page": 178
+},
+{
+"depth": 3,
+"title": "Specify how resources report hours",
+"page": 179
+},
+{
+"depth": 3,
+"title": "Collaborate with resources and enter activity feedback",
+"page": 179
+},
+{
+"depth": 3,
+"title": "Having a discussion with team members",
+"page": 179
+},
+{
+"depth": 3,
+"title": "Enter multiple resource prices over time",
+"page": 180
+},
+{
+"depth": 3,
+"title": "Calculating cost when using multiple resource rates",
+"page": 181
+},
+{
+"depth": 2,
+"title": "Roles",
+"page": 182
+},
+{
+"depth": 3,
+"title": "Roles",
+"page": 182
+},
+{
+"depth": 3,
+"title": "Add a role",
+"page": 182
+},
+{
+"depth": 3,
+"title": "Change the proficiency of a role",
+"page": 183
+},
+{
+"depth": 3,
+"title": "Define price/unit rates for roles over time",
+"page": 183
+},
+{
+"depth": 3,
+"title": "Define role limits over time",
+"page": 184
+},
+{
+"depth": 3,
+"title": "Assign roles to activities",
+"page": 184
+},
+{
+"depth": 3,
+"title": "Assign roles to resources from the Resources window",
+"page": 185
+},
+{
+"depth": 3,
+"title": "Assign roles to resources from the Roles dialog box",
+"page": 185
+},
+{
+"depth": 3,
+"title": "Delete a role",
+"page": 185
+},
+{
+"depth": 3,
+"title": "Remove roles from activities",
+"page": 186
+},
+{
+"depth": 3,
+"title": "Remove roles from resources in the Resources window",
+"page": 186
+},
+{
+"depth": 3,
+"title": "Remove roles from resources in the Roles dialog box",
+"page": 186
+},
+{
+"depth": 3,
+"title": "View roles",
+"page": 186
+},
+{
+"depth": 1,
+"title": "Defining Resource Curves",
+"page": 187
+},
+{
+"depth": 2,
+"title": "Resource curves",
+"page": 187
+},
+{
+"depth": 2,
+"title": "Add a resource curve",
+"page": 188
+},
+{
+"depth": 2,
+"title": "Delete a resource curve",
+"page": 188
+},
+{
+"depth": 0,
+"title": "4 Working with the EPS",
+"page": 189
+},
+{
+"depth": 1,
+"title": "Managing projects using the EPS",
+"page": 189
+},
+{
+"depth": 1,
+"title": "Defining project details",
+"page": 189
+},
+{
+"depth": 1,
+"title": "Enter project dates",
+"page": 189
+},
+{
+"depth": 1,
+"title": "Specify a fiscal start month",
+"page": 189
+},
+{
+"depth": 1,
+"title": "Set project resource options",
+"page": 189
+},
+{
+"depth": 1,
+"title": "Change a project name",
+"page": 189
+},
+{
+"depth": 1,
+"title": "Change a project ID",
+"page": 190
+},
+{
+"depth": 1,
+"title": "Change the project leveling priority",
+"page": 190
+},
+{
+"depth": 1,
+"title": "Change a project's status",
+"page": 190
+},
+{
+"depth": 1,
+"title": "Set activity ID options",
+"page": 191
+},
+{
+"depth": 1,
+"title": "Set the default price for activities",
+"page": 191
+},
+{
+"depth": 1,
+"title": "Set the default rate type for resource assignments",
+"page": 192
+},
+{
+"depth": 1,
+"title": "Set the project default activity type",
+"page": 192
+},
+{
+"depth": 1,
+"title": "Set the project default activity duration type",
+"page": 192
+},
+{
+"depth": 1,
+"title": "Set the project default activity percent complete type",
+"page": 193
+},
+{
+"depth": 1,
+"title": "Set the project default activity calendar",
+"page": 193
+},
+{
+"depth": 1,
+"title": "Set the project default cost account",
+"page": 193
+},
+{
+"depth": 1,
+"title": "Set the float time for identifying critical activities",
+"page": 194
+},
+{
+"depth": 0,
+"title": "5 Developing Projects",
+"page": 195
+},
+{
+"depth": 1,
+"title": "Adding Activities to a Project",
+"page": 195
+},
+{
+"depth": 2,
+"title": "Activities",
+"page": 195
+},
+{
+"depth": 2,
+"title": "Activity types",
+"page": 195
+},
+{
+"depth": 2,
+"title": "Activity dates",
+"page": 196
+},
+{
+"depth": 2,
+"title": "Synchronizing activity duration, units, and resource units/time",
+"page": 198
+},
+{
+"depth": 2,
+"title": "Define general activity information",
+"page": 199
+},
+{
+"depth": 2,
+"title": "Add activities in the Activity Table",
+"page": 199
+},
+{
+"depth": 2,
+"title": "Add activities in the Activity Network",
+"page": 199
+},
+{
+"depth": 2,
+"title": "Adding activities using a wizard",
+"page": 200
+},
+{
+"depth": 2,
+"title": "Define activity types",
+"page": 200
+},
+{
+"depth": 2,
+"title": "Define activity duration types",
+"page": 200
+},
+{
+"depth": 2,
+"title": "Define activity percent complete types",
+"page": 201
+},
+{
+"depth": 2,
+"title": "Assign a calendar to an activity",
+"page": 201
+},
+{
+"depth": 2,
+"title": "Change an activity's cost breakdown structure assignment (P6 EPPM Only)",
+"page": 202
+},
+{
+"depth": 2,
+"title": "Change an activity's work breakdown structure assignment",
+"page": 202
+},
+{
+"depth": 2,
+"title": "Enter activity durations",
+"page": 202
+},
+{
+"depth": 2,
+"title": "Enter activity start and finish dates",
+"page": 203
+},
+{
+"depth": 2,
+"title": "Enter a physical percent complete for activities",
+"page": 204
+},
+{
+"depth": 2,
+"title": "Enter unit information for resource assignments",
+"page": 204
+},
+{
+"depth": 2,
+"title": "Enter cost information for resource assignments",
+"page": 205
+},
+{
+"depth": 2,
+"title": "Designating an activity owner (P6 EPPM Only)",
+"page": 205
+},
+{
+"depth": 2,
+"title": "Delete an activity",
+"page": 206
+},
+{
+"depth": 2,
+"title": "Dissolve an activity",
+"page": 206
+},
+{
+"depth": 2,
+"title": "Define milestones",
+"page": 207
+},
+{
+"depth": 2,
+"title": "View activity float values",
+"page": 207
+},
+{
+"depth": 2,
+"title": "View activity summaries",
+"page": 208
+},
+{
+"depth": 2,
+"title": "Copy and paste activities in the Activity Table",
+"page": 208
+},
+{
+"depth": 2,
+"title": "Copy and paste activities in the Activity Network",
+"page": 208
+},
+{
+"depth": 2,
+"title": "Cut and paste activities in the Activity Table",
+"page": 209
+},
+{
+"depth": 2,
+"title": "Cut and paste activities in the Activity Network",
+"page": 209
+},
+{
+"depth": 2,
+"title": "Renumber activity IDs in the Activity Table",
+"page": 210
+},
+{
+"depth": 1,
+"title": "Linking Activities with Relationships",
+"page": 211
+},
+{
+"depth": 2,
+"title": "Relationships",
+"page": 211
+},
+{
+"depth": 2,
+"title": "Adding relationships between activities",
+"page": 211
+},
+{
+"depth": 2,
+"title": "Add predecessor relationships",
+"page": 212
+},
+{
+"depth": 2,
+"title": "Add successor relationships",
+"page": 212
+},
+{
+"depth": 2,
+"title": "Create relationships in the Gantt Chart",
+"page": 213
+},
+{
+"depth": 2,
+"title": "Create relationships in the Activity Network",
+"page": 214
+},
+{
+"depth": 2,
+"title": "Change predecessor relationships",
+"page": 214
+},
+{
+"depth": 2,
+"title": "Change successor relationships",
+"page": 214
+},
+{
+"depth": 2,
+"title": "Edit relationships in the Gantt Chart",
+"page": 215
+},
+{
+"depth": 2,
+"title": "Edit relationships in the Activity Network",
+"page": 215
+},
+{
+"depth": 2,
+"title": "Change Predecessors tab columns",
+"page": 215
+},
+{
+"depth": 2,
+"title": "Change Successors tab columns",
+"page": 216
+},
+{
+"depth": 2,
+"title": "Delete relationships in the Gantt Chart",
+"page": 216
+},
+{
+"depth": 2,
+"title": "Delete relationships in the Activity Network",
+"page": 216
+},
+{
+"depth": 2,
+"title": "Remove predecessor relationships",
+"page": 216
+},
+{
+"depth": 2,
+"title": "Remove successor relationships",
+"page": 217
+},
+{
+"depth": 2,
+"title": "Viewing activity relationships",
+"page": 217
+},
+{
+"depth": 3,
+"title": "View activity relationships in the Activity Table",
+"page": 217
+},
+{
+"depth": 3,
+"title": "View activity relationships in Activity Details",
+"page": 217
+},
+{
+"depth": 3,
+"title": "View activity relationships in the Gantt Chart",
+"page": 218
+},
+{
+"depth": 3,
+"title": "View activity relationships in the Activity Network",
+"page": 218
+},
+{
+"depth": 3,
+"title": "View activity relationships in Trace logic",
+"page": 218
+},
+{
+"depth": 1,
+"title": "Assigning Resources and Roles to Activities",
+"page": 219
+},
+{
+"depth": 2,
+"title": "Assign resources to activities",
+"page": 219
+},
+{
+"depth": 2,
+"title": "Assign resources to activities by role",
+"page": 219
+},
+{
+"depth": 2,
+"title": "Associate a primary resource with an activity",
+"page": 219
+},
+{
+"depth": 2,
+"title": "Remove resources from activities",
+"page": 220
+},
+{
+"depth": 2,
+"title": "Replace resources assigned to activities",
+"page": 220
+},
+{
+"depth": 2,
+"title": "Assign a rate type to a resource assignment",
+"page": 221
+},
+{
+"depth": 2,
+"title": "Choose the rate source for an assignment",
+"page": 222
+},
+{
+"depth": 2,
+"title": "Change the resource's role assignments for an activity",
+"page": 223
+},
+{
+"depth": 2,
+"title": "Recalculate resource and role assignment costs",
+"page": 223
+},
+{
+"depth": 2,
+"title": "Assign roles to activities",
+"page": 224
+},
+{
+"depth": 1,
+"title": "Assigning Resource Curves",
+"page": 224
+},
+{
+"depth": 2,
+"title": "Assign a curve to a resource or role assignment",
+"page": 224
+},
+{
+"depth": 2,
+"title": "Remove a curve from a resource or role assignment",
+"page": 225
+},
+{
+"depth": 1,
+"title": "Manually Planning Future Period Assignments",
+"page": 225
+},
+{
+"depth": 2,
+"title": "Future period bucket planning",
+"page": 225
+},
+{
+"depth": 2,
+"title": "Future period bucket planning FAQ",
+"page": 227
+},
+{
+"depth": 3,
+"title": "General questions - Future period bucket planning FAQ",
+"page": 227
+},
+{
+"depth": 3,
+"title": "Troubleshooting - Future period bucket planning FAQ",
+"page": 228
+},
+{
+"depth": 3,
+"title": "Getting Started - Future period bucket planning FAQ",
+"page": 234
+},
+{
+"depth": 3,
+"title": "Application settings - Future period bucket planning FAQ",
+"page": 235
+},
+{
+"depth": 3,
+"title": "Entering and editing data in future period buckets - Future period bucket planning FAQ",
+"page": 236
+},
+{
+"depth": 3,
+"title": "Deleting, copying, and pasting future period bucket data - Future period bucket planning FAQ",
+"page": 239
+},
+{
+"depth": 3,
+"title": "Updating projects - Future period bucket planning FAQ",
+"page": 240
+},
+{
+"depth": 3,
+"title": "Adding, deleting, or replacing assignments - Future period bucket planning FAQ",
+"page": 242
+},
+{
+"depth": 3,
+"title": "Importing and exporting data - Future period bucket planning FAQ",
+"page": 243
+},
+{
+"depth": 3,
+"title": "Miscellaneous - Future period bucket planning FAQ",
+"page": 244
+},
+{
+"depth": 2,
+"title": "Create a future period bucket planning layout",
+"page": 245
+},
+{
+"depth": 2,
+"title": "Manually enter future period assignment values",
+"page": 246
+},
+{
+"depth": 2,
+"title": "How do user preference settings affect manual future period planning?",
+"page": 248
+},
+{
+"depth": 2,
+"title": "Here are some other considerations - Export projects to a Microsoft Project file",
+"page": 249
+},
+{
+"depth": 2,
+"title": "How - Select calculation options for resource and role assignments topic",
+"page": 249
+},
+{
+"depth": 1,
+"title": "Adding Expenses and Entering Cost Information for Activities",
+"page": 250
+},
+{
+"depth": 2,
+"title": "Expenses",
+"page": 250
+},
+{
+"depth": 3,
+"title": "Expenses",
+"page": 250
+},
+{
+"depth": 3,
+"title": "Add expenses",
+"page": 250
+},
+{
+"depth": 3,
+"title": "Add expenses from the Activities window",
+"page": 250
+},
+{
+"depth": 3,
+"title": "Change expenses tab columns",
+"page": 251
+},
+{
+"depth": 3,
+"title": "Assign an expense category",
+"page": 252
+},
+{
+"depth": 3,
+"title": "Assign expense categories from the Activities window",
+"page": 252
+},
+{
+"depth": 3,
+"title": "Specify an accrual type for an expense",
+"page": 252
+},
+{
+"depth": 3,
+"title": "Enter cost information for expenses",
+"page": 252
+},
+{
+"depth": 3,
+"title": "Change an expense's activity assignment",
+"page": 253
+},
+{
+"depth": 3,
+"title": "Copy and paste expenses",
+"page": 253
+},
+{
+"depth": 3,
+"title": "Cut and paste expenses",
+"page": 253
+},
+{
+"depth": 3,
+"title": "Delete expenses",
+"page": 253
+},
+{
+"depth": 3,
+"title": "Delete expenses from the Activities window",
+"page": 254
+},
+{
+"depth": 3,
+"title": "Change the expense categories display",
+"page": 254
+},
+{
+"depth": 2,
+"title": "Cost Accounts",
+"page": 254
+},
+{
+"depth": 3,
+"title": "Cost accounts",
+"page": 254
+},
+{
+"depth": 3,
+"title": "Create a cost account hierarchy",
+"page": 254
+},
+{
+"depth": 3,
+"title": "Edit a cost account",
+"page": 255
+},
+{
+"depth": 3,
+"title": "Delete a cost account",
+"page": 255
+},
+{
+"depth": 3,
+"title": "Copy and paste cost accounts",
+"page": 255
+},
+{
+"depth": 3,
+"title": "Cut and paste cost accounts",
+"page": 255
+},
+{
+"depth": 3,
+"title": "Set the project default cost account",
+"page": 256
+},
+{
+"depth": 1,
+"title": "Adding Activity Steps",
+"page": 256
+},
+{
+"depth": 2,
+"title": "Activity steps",
+"page": 256
+},
+{
+"depth": 2,
+"title": "Add steps to activities",
+"page": 257
+},
+{
+"depth": 2,
+"title": "Update activity steps",
+"page": 258
+},
+{
+"depth": 2,
+"title": "Add weights to steps",
+"page": 258
+},
+{
+"depth": 2,
+"title": "Remove steps from activities",
+"page": 259
+},
+{
+"depth": 2,
+"title": "Creating and Assigning Activity Step Templates",
+"page": 259
+},
+{
+"depth": 3,
+"title": "Activity step templates",
+"page": 259
+},
+{
+"depth": 3,
+"title": "Create activity step templates manually",
+"page": 260
+},
+{
+"depth": 3,
+"title": "Convert steps into an activity step template",
+"page": 260
+},
+{
+"depth": 3,
+"title": "Assign activity step templates to activities",
+"page": 261
+},
+{
+"depth": 1,
+"title": "Assigning Notebooks to Activities",
+"page": 261
+},
+{
+"depth": 2,
+"title": "Assign notebooks to activities",
+"page": 261
+},
+{
+"depth": 2,
+"title": "Remove notebooks from activities",
+"page": 262
+},
+{
+"depth": 0,
+"title": "6 Managing Projects",
+"page": 263
+},
+{
+"depth": 1,
+"title": "Budgeting",
+"page": 263
+},
+{
+"depth": 2,
+"title": "Establishing budgets",
+"page": 263
+},
+{
+"depth": 2,
+"title": "Tracking and analyzing budgets",
+"page": 263
+},
+{
+"depth": 2,
+"title": "Establish budgets",
+"page": 263
+},
+{
+"depth": 2,
+"title": "Enter budget changes",
+"page": 264
+},
+{
+"depth": 2,
+"title": "Define funding sources",
+"page": 264
+},
+{
+"depth": 2,
+"title": "Assign funding sources",
+"page": 264
+},
+{
+"depth": 2,
+"title": "Enter monthly spending amounts",
+"page": 265
+},
+{
+"depth": 2,
+"title": "View budget and spending plan totals",
+"page": 265
+},
+{
+"depth": 2,
+"title": "Compare budgets and variances",
+"page": 265
+},
+{
+"depth": 2,
+"title": "Print budget reports",
+"page": 266
+},
+{
+"depth": 1,
+"title": "Creating Baselines",
+"page": 266
+},
+{
+"depth": 2,
+"title": "Baselines",
+"page": 266
+},
+{
+"depth": 2,
+"title": "Create a baseline",
+"page": 267
+},
+{
+"depth": 2,
+"title": "Create a baseline type",
+"page": 268
+},
+{
+"depth": 2,
+"title": "Assign a baseline type",
+"page": 268
+},
+{
+"depth": 2,
+"title": "Assign baselines to projects",
+"page": 268
+},
+{
+"depth": 2,
+"title": "Copy a baseline",
+"page": 268
+},
+{
+"depth": 2,
+"title": "Update a baseline",
+"page": 269
+},
+{
+"depth": 2,
+"title": "Modify a baseline manually",
+"page": 272
+},
+{
+"depth": 2,
+"title": "Delete a baseline",
+"page": 273
+},
+{
+"depth": 1,
+"title": "Updating Projects",
+"page": 273
+},
+{
+"depth": 2,
+"title": "Updating the schedule",
+"page": 273
+},
+{
+"depth": 2,
+"title": "Update progress for all activities",
+"page": 274
+},
+{
+"depth": 2,
+"title": "Update progress for individual activities",
+"page": 274
+},
+{
+"depth": 2,
+"title": "Progress Spotlight",
+"page": 275
+},
+{
+"depth": 2,
+"title": "Update progress for spotlighted activities",
+"page": 276
+},
+{
+"depth": 2,
+"title": "Highlight activities for updating",
+"page": 276
+},
+{
+"depth": 2,
+"title": "Update progress for the project",
+"page": 277
+},
+{
+"depth": 2,
+"title": "Remove progress from an activity",
+"page": 277
+},
+{
+"depth": 2,
+"title": "Suspend or resume an activity's progress",
+"page": 278
+},
+{
+"depth": 2,
+"title": "Apply actuals",
+"page": 278
+},
+{
+"depth": 2,
+"title": "Earned Value",
+"page": 279
+},
+{
+"depth": 2,
+"title": "Calculating earned value using resource curves or manual future period buckets",
+"page": 280
+},
+{
+"depth": 2,
+"title": "Updating progress",
+"page": 280
+},
+{
+"depth": 1,
+"title": "Creating and Using Reflections",
+"page": 281
+},
+{
+"depth": 2,
+"title": "What is a reflection",
+"page": 281
+},
+{
+"depth": 2,
+"title": "Creating and using reflections",
+"page": 281
+},
+{
+"depth": 2,
+"title": "Create a Reflection",
+"page": 281
+},
+{
+"depth": 2,
+"title": "Printing a reflection difference report",
+"page": 282
+},
+{
+"depth": 2,
+"title": "Merging a Reflection with the Source project",
+"page": 283
+},
+{
+"depth": 2,
+"title": "Using Reflection projects and Activity Owner features to collect and review activity status (P6 EPPM Only)",
+"page": 285
+},
+{
+"depth": 2,
+"title": "Frequently asked questions about reflections",
+"page": 286
+},
+{
+"depth": 1,
+"title": "Scheduling Projects",
+"page": 287
+},
+{
+"depth": 2,
+"title": "Scheduling projects",
+"page": 287
+},
+{
+"depth": 2,
+"title": "Scheduling \"nondriving\" resource assignments",
+"page": 288
+},
+{
+"depth": 2,
+"title": "Types of constraints",
+"page": 288
+},
+{
+"depth": 2,
+"title": "Using the data date",
+"page": 289
+},
+{
+"depth": 2,
+"title": "Define critical activities",
+"page": 290
+},
+{
+"depth": 2,
+"title": "Shortening the critical path",
+"page": 290
+},
+{
+"depth": 2,
+"title": "Analyzing the schedule using multiple critical float paths",
+"page": 291
+},
+{
+"depth": 2,
+"title": "Calculate multiple float paths",
+"page": 292
+},
+{
+"depth": 2,
+"title": "Showing activity critical paths",
+"page": 293
+},
+{
+"depth": 2,
+"title": "Schedule a project",
+"page": 294
+},
+{
+"depth": 2,
+"title": "Schedule a project automatically",
+"page": 295
+},
+{
+"depth": 2,
+"title": "Enter activity constraints",
+"page": 295
+},
+{
+"depth": 2,
+"title": "Change the data date",
+"page": 296
+},
+{
+"depth": 2,
+"title": "Choose a calendar for relationship lag",
+"page": 296
+},
+{
+"depth": 1,
+"title": "Checking Schedules",
+"page": 296
+},
+{
+"depth": 2,
+"title": "Checking schedules",
+"page": 296
+},
+{
+"depth": 2,
+"title": "Check a schedule",
+"page": 298
+},
+{
+"depth": 1,
+"title": "Leveling Resources",
+"page": 298
+},
+{
+"depth": 2,
+"title": "Leveling resources",
+"page": 298
+},
+{
+"depth": 2,
+"title": "Leveling priority definitions",
+"page": 299
+},
+{
+"depth": 2,
+"title": "Specify leveling priorities",
+"page": 300
+},
+{
+"depth": 2,
+"title": "Level resources",
+"page": 300
+},
+{
+"depth": 2,
+"title": "Level selected resources",
+"page": 301
+},
+{
+"depth": 2,
+"title": "Limit resource leveling",
+"page": 301
+},
+{
+"depth": 2,
+"title": "Level resources automatically",
+"page": 302
+},
+{
+"depth": 2,
+"title": "Leveling resources on Task, Resource Dependent, and WBS summary activities",
+"page": 302
+},
+{
+"depth": 1,
+"title": "Adding and Assigning Issues",
+"page": 302
+},
+{
+"depth": 2,
+"title": "Issues",
+"page": 302
+},
+{
+"depth": 2,
+"title": "Add an issue",
+"page": 303
+},
+{
+"depth": 2,
+"title": "Assign responsibility for an issue",
+"page": 303
+},
+{
+"depth": 2,
+"title": "Assign a tracking layout to an issue",
+"page": 303
+},
+{
+"depth": 2,
+"title": "Assign an issue to a resource",
+"page": 304
+},
+{
+"depth": 2,
+"title": "Assign an issue to an activity",
+"page": 304
+},
+{
+"depth": 2,
+"title": "Change an issue's status",
+"page": 304
+},
+{
+"depth": 2,
+"title": "Track the duration of an issue",
+"page": 304
+},
+{
+"depth": 2,
+"title": "Delete an issue",
+"page": 305
+},
+{
+"depth": 2,
+"title": "Send Email about an issue",
+"page": 305
+},
+{
+"depth": 2,
+"title": "View or add to an issue's history",
+"page": 305
+},
+{
+"depth": 2,
+"title": "Use the issue navigator",
+"page": 305
+},
+{
+"depth": 1,
+"title": "Adding and Assigning Thresholds",
+"page": 306
+},
+{
+"depth": 2,
+"title": "Thresholds",
+"page": 306
+},
+{
+"depth": 2,
+"title": "Threshold parameter definitions",
+"page": 306
+},
+{
+"depth": 2,
+"title": "Add a threshold",
+"page": 307
+},
+{
+"depth": 2,
+"title": "Assign responsibility for threshold-generated issues",
+"page": 308
+},
+{
+"depth": 2,
+"title": "Assign a tracking layout to a threshold",
+"page": 308
+},
+{
+"depth": 2,
+"title": "Monitor a threshold",
+"page": 308
+},
+{
+"depth": 2,
+"title": "Delete a threshold",
+"page": 309
+},
+{
+"depth": 2,
+"title": "Disable or enable a threshold",
+"page": 309
+},
+{
+"depth": 2,
+"title": "View threshold issue details",
+"page": 309
+},
+{
+"depth": 2,
+"title": "Delete a threshold issue",
+"page": 310
+},
+{
+"depth": 1,
+"title": "Adding and Assigning Risks (P6 Professional Only)",
+"page": 310
+},
+{
+"depth": 2,
+"title": "Risks (P6 Professional Only)",
+"page": 310
+},
+{
+"depth": 2,
+"title": "Creating Risks (P6 Professional Only)",
+"page": 312
+},
+{
+"depth": 2,
+"title": "Assigning a risk to an activity (P6 Professional Only)",
+"page": 314
+},
+{
+"depth": 2,
+"title": "Responding to a risk (P6 Professional Only)",
+"page": 315
+},
+{
+"depth": 2,
+"title": "Deleting a risk (P6 Professional Only)",
+"page": 315
+},
+{
+"depth": 2,
+"title": "Modifying a risk (P6 Professional Only)",
+"page": 315
+},
+{
+"depth": 2,
+"title": "Removing risk assignments from activities (P6 Professional Only)",
+"page": 316
+},
+{
+"depth": 1,
+"title": "Adding and Assigning Work Products and Documents",
+"page": 316
+},
+{
+"depth": 2,
+"title": "Work Products and Documents",
+"page": 316
+},
+{
+"depth": 2,
+"title": "View a project's document library",
+"page": 317
+},
+{
+"depth": 2,
+"title": "Add a work product or document record",
+"page": 317
+},
+{
+"depth": 2,
+"title": "Assign a document status or category",
+"page": 317
+},
+{
+"depth": 2,
+"title": "Specify work product and document location references",
+"page": 318
+},
+{
+"depth": 2,
+"title": "Identify a document as a work product",
+"page": 318
+},
+{
+"depth": 2,
+"title": "Identify a work product or document as a deliverable",
+"page": 318
+},
+{
+"depth": 2,
+"title": "Display work product and document details in the WPs and Docs window",
+"page": 318
+},
+{
+"depth": 2,
+"title": "Display work product and document details in the Work Breakdown Structure window",
+"page": 318
+},
+{
+"depth": 2,
+"title": "Assign work products and documents from the WPs and Docs window",
+"page": 319
+},
+{
+"depth": 2,
+"title": "Assign work products and documents to an activity from the Activities window",
+"page": 319
+},
+{
+"depth": 2,
+"title": "Assign work products and documents to a WBS element from the Work Breakdown Structure window",
+"page": 320
+},
+{
+"depth": 2,
+"title": "Remove work product and document assignments from the WPs and Docs window",
+"page": 320
+},
+{
+"depth": 2,
+"title": "Remove work product and document assignments from the Activities window",
+"page": 320
+},
+{
+"depth": 2,
+"title": "Remove work product and document assignments in the Work Breakdown Structure window",
+"page": 321
+},
+{
+"depth": 2,
+"title": "Open a work product or document from the Work Products and Documents window",
+"page": 321
+},
+{
+"depth": 2,
+"title": "Open a work product or document from the Activities window",
+"page": 322
+},
+{
+"depth": 2,
+"title": "Open a work product or document from the Work Breakdown Structure window",
+"page": 322
+},
+{
+"depth": 2,
+"title": "Delete work product or document records",
+"page": 323
+},
+{
+"depth": 2,
+"title": "Display work product and document details in the Activities window",
+"page": 323
+},
+{
+"depth": 0,
+"title": "7 Customizing Activity Layouts",
+"page": 324
+},
+{
+"depth": 1,
+"title": "Overview",
+"page": 324
+},
+{
+"depth": 2,
+"title": "Open a layout",
+"page": 324
+},
+{
+"depth": 2,
+"title": "Open two layouts side-by-side",
+"page": 324
+},
+{
+"depth": 2,
+"title": "Create a new activity layout",
+"page": 324
+},
+{
+"depth": 2,
+"title": "Save a layout in the Activities or Resource Assignments window",
+"page": 325
+},
+{
+"depth": 2,
+"title": "Save a layout in the Projects or Work Breakdown Structure window",
+"page": 325
+},
+{
+"depth": 2,
+"title": "Save a layout as a project layout",
+"page": 325
+},
+{
+"depth": 2,
+"title": "Delete a layout",
+"page": 326
+},
+{
+"depth": 2,
+"title": "Expand or contract the visible area of a timescaled layout",
+"page": 327
+},
+{
+"depth": 2,
+"title": "Zoom in and out of a timescaled layout",
+"page": 327
+},
+{
+"depth": 2,
+"title": "Change the display timeperiod for a timescaled layout",
+"page": 327
+},
+{
+"depth": 2,
+"title": "Customize Activity Details",
+"page": 328
+},
+{
+"depth": 2,
+"title": "Add line numbers",
+"page": 328
+},
+{
+"depth": 1,
+"title": "Activity Table",
+"page": 329
+},
+{
+"depth": 2,
+"title": "The Activity Table",
+"page": 329
+},
+{
+"depth": 2,
+"title": "Define Activity Table columns",
+"page": 329
+},
+{
+"depth": 2,
+"title": "Customize activity column titles",
+"page": 330
+},
+{
+"depth": 2,
+"title": "Change activity information in the Activity Table",
+"page": 331
+},
+{
+"depth": 2,
+"title": "Sort activity information in the Activity Table",
+"page": 331
+},
+{
+"depth": 2,
+"title": "Change group row fonts and colors",
+"page": 331
+},
+{
+"depth": 2,
+"title": "Change Activity Table font, color, and row height",
+"page": 331
+},
+{
+"depth": 1,
+"title": "Gantt Chart",
+"page": 332
+},
+{
+"depth": 2,
+"title": "The Gantt Chart",
+"page": 332
+},
+{
+"depth": 2,
+"title": "Display the Gantt Chart",
+"page": 332
+},
+{
+"depth": 2,
+"title": "Change a layout's timescale format",
+"page": 332
+},
+{
+"depth": 2,
+"title": "Move around a Gantt Chart",
+"page": 333
+},
+{
+"depth": 2,
+"title": "Add a bar to the Gantt Chart",
+"page": 334
+},
+{
+"depth": 2,
+"title": "Change a bar in the Gantt Chart",
+"page": 334
+},
+{
+"depth": 2,
+"title": "Apply Gantt Chart settings from another layout",
+"page": 335
+},
+{
+"depth": 2,
+"title": "Position a bar in the Gantt Chart",
+"page": 335
+},
+{
+"depth": 2,
+"title": "Change the background lines in the Gantt Chart",
+"page": 335
+},
+{
+"depth": 2,
+"title": "Show or hide the Gantt Chart legend",
+"page": 336
+},
+{
+"depth": 2,
+"title": "Show or hide relationship lines in the Gantt Chart",
+"page": 336
+},
+{
+"depth": 2,
+"title": "Customize the data date line",
+"page": 336
+},
+{
+"depth": 2,
+"title": "Change a Gantt Chart bar's filter - under Gantt Chart",
+"page": 337
+},
+{
+"depth": 2,
+"title": "Change a Gantt Chart bar's label - under Gantt Chart",
+"page": 337
+},
+{
+"depth": 2,
+"title": "Change a Gantt Chart bar's settings",
+"page": 337
+},
+{
+"depth": 2,
+"title": "Change a Gantt Chart bar's style - under Gantt Chart",
+"page": 337
+},
+{
+"depth": 2,
+"title": "Change a Gantt Chart bar's timescale - under Gantt Chart",
+"page": 338
+},
+{
+"depth": 2,
+"title": "Move to a specific activity in the Gantt Chart",
+"page": 338
+},
+{
+"depth": 2,
+"title": "Change an activity's start and finish dates in the Gantt Chart",
+"page": 338
+},
+{
+"depth": 2,
+"title": "Delete a bar from the Gantt Chart",
+"page": 339
+},
+{
+"depth": 2,
+"title": "Change an activity's duration in the Gantt Chart",
+"page": 339
+},
+{
+"depth": 2,
+"title": "Add a curtain attachment in a Gantt Chart",
+"page": 339
+},
+{
+"depth": 2,
+"title": "Hide a curtain attachment in a Gantt Chart",
+"page": 340
+},
+{
+"depth": 2,
+"title": "Add a text attachment to a Gantt Chart",
+"page": 340
+},
+{
+"depth": 2,
+"title": "Remove a text attachment from a Gantt Chart",
+"page": 341
+},
+{
+"depth": 2,
+"title": "Attach notebook items to bars in a Gantt Chart",
+"page": 341
+},
+{
+"depth": 2,
+"title": "Hide all curtain attachments in the Gantt Chart",
+"page": 341
+},
+{
+"depth": 2,
+"title": "Delete a curtain attachment from a Gantt Chart",
+"page": 342
+},
+{
+"depth": 2,
+"title": "Display all curtain attachments in the Gantt Chart",
+"page": 342
+},
+{
+"depth": 2,
+"title": "Apply a Progress Line to the Gantt Chart",
+"page": 342
+},
+{
+"depth": 1,
+"title": "Activity Network",
+"page": 343
+},
+{
+"depth": 2,
+"title": "Activity Network",
+"page": 343
+},
+{
+"depth": 2,
+"title": "Display the Activity Network",
+"page": 344
+},
+{
+"depth": 2,
+"title": "Apply Activity Network settings from another layout",
+"page": 344
+},
+{
+"depth": 2,
+"title": "Move around in the Activity Network",
+"page": 345
+},
+{
+"depth": 2,
+"title": "Customize the Activity Network layout",
+"page": 345
+},
+{
+"depth": 2,
+"title": "Reorganize the Activity Network layout",
+"page": 345
+},
+{
+"depth": 2,
+"title": "View Activity Network Activity Details",
+"page": 346
+},
+{
+"depth": 2,
+"title": "Customize the activity box layout",
+"page": 346
+},
+{
+"depth": 2,
+"title": "Change activity box fonts and colors",
+"page": 346
+},
+{
+"depth": 2,
+"title": "Select the activity box layout",
+"page": 347
+},
+{
+"depth": 2,
+"title": "Save and Open an Activity Network Layout",
+"page": 347
+},
+{
+"depth": 1,
+"title": "Trace Logic",
+"page": 347
+},
+{
+"depth": 2,
+"title": "Trace Logic",
+"page": 347
+},
+{
+"depth": 2,
+"title": "Display Trace Logic",
+"page": 348
+},
+{
+"depth": 2,
+"title": "Move around in Trace Logic",
+"page": 348
+},
+{
+"depth": 2,
+"title": "Set Trace Logic preferences",
+"page": 348
+},
+{
+"depth": 1,
+"title": "Activity Usage and Resource Usage Profiles",
+"page": 348
+},
+{
+"depth": 2,
+"title": "Activity Usage Profile",
+"page": 348
+},
+{
+"depth": 3,
+"title": "The Activity Usage Profile",
+"page": 348
+},
+{
+"depth": 3,
+"title": "Display the Activity Usage Profile",
+"page": 350
+},
+{
+"depth": 3,
+"title": "Define the Activity Usage Profile",
+"page": 350
+},
+{
+"depth": 3,
+"title": "Show or hide the profile legend in the histogram",
+"page": 351
+},
+{
+"depth": 2,
+"title": "Resource Usage Profile",
+"page": 351
+},
+{
+"depth": 3,
+"title": "The Resource Usage Profile",
+"page": 351
+},
+{
+"depth": 3,
+"title": "Display the Resource Usage Profile",
+"page": 353
+},
+{
+"depth": 3,
+"title": "Define the Resource Usage Profile",
+"page": 354
+},
+{
+"depth": 3,
+"title": "Define the Resource Usage Profile - Regular Histogram",
+"page": 354
+},
+{
+"depth": 3,
+"title": "Define the Resource Usage Profile - Stacked Histogram",
+"page": 355
+},
+{
+"depth": 3,
+"title": "View a profile of resource allocation across all projects",
+"page": 356
+},
+{
+"depth": 3,
+"title": "View a profile of resource allocation for a specific project",
+"page": 357
+},
+{
+"depth": 3,
+"title": "Show or hide resource limits in the Resource Usage Profile",
+"page": 358
+},
+{
+"depth": 3,
+"title": "Show or hide resource overallocation in the Resource Usage Profile",
+"page": 358
+},
+{
+"depth": 3,
+"title": "Show or hide resource availability in the Resource Usage Profile",
+"page": 358
+},
+{
+"depth": 3,
+"title": "Show or hide overtime information in the Resource Usage Profile",
+"page": 359
+},
+{
+"depth": 3,
+"title": "Filter activities according to the Resource Usage Profile",
+"page": 359
+},
+{
+"depth": 3,
+"title": "Show or hide the profile legend",
+"page": 360
+},
+{
+"depth": 1,
+"title": "Activity Usage and Resource Usage Spreadsheets",
+"page": 360
+},
+{
+"depth": 2,
+"title": "Activity Usage Spreadsheet",
+"page": 360
+},
+{
+"depth": 3,
+"title": "The Activity Usage Spreadsheet",
+"page": 360
+},
+{
+"depth": 3,
+"title": "Display the Activity Usage Spreadsheet",
+"page": 361
+},
+{
+"depth": 3,
+"title": "Customize Activity Usage Spreadsheet columns",
+"page": 361
+},
+{
+"depth": 3,
+"title": "Select Activity Usage Spreadsheet fields",
+"page": 362
+},
+{
+"depth": 2,
+"title": "Resource Usage Spreadsheet",
+"page": 363
+},
+{
+"depth": 3,
+"title": "The Resource Usage Spreadsheet",
+"page": 363
+},
+{
+"depth": 3,
+"title": "Display the Resource Usage Spreadsheet",
+"page": 365
+},
+{
+"depth": 3,
+"title": "Display roles in the Resource Usage Spreadsheet",
+"page": 366
+},
+{
+"depth": 3,
+"title": "Select resources or roles for the Resource Usage Spreadsheet",
+"page": 366
+},
+{
+"depth": 3,
+"title": "View a spreadsheet of resource allocation across all projects",
+"page": 366
+},
+{
+"depth": 3,
+"title": "View a spreadsheet of resource allocation for a specific project",
+"page": 367
+},
+{
+"depth": 3,
+"title": "View a spreadsheet of resource overallocation across all projects",
+"page": 367
+},
+{
+"depth": 3,
+"title": "Filter activities according to the Resource Usage Spreadsheet",
+"page": 367
+},
+{
+"depth": 3,
+"title": "Customize Resource Usage Spreadsheet columns",
+"page": 368
+},
+{
+"depth": 3,
+"title": "Select Resource Usage Spreadsheet fields",
+"page": 369
+},
+{
+"depth": 3,
+"title": "Resize the panes of the Resource Usage Spreadsheet",
+"page": 369
+},
+{
+"depth": 3,
+"title": "Group and sort Resource Usage Spreadsheet columns in the Activities window",
+"page": 369
+},
+{
+"depth": 3,
+"title": "Group and sort Resource Usage Spreadsheet columns in the Resource Assignments window",
+"page": 369
+},
+{
+"depth": 3,
+"title": "Copy and paste resource spreadsheet data to Microsoft Excel",
+"page": 370
+},
+{
+"depth": 3,
+"title": "Copy and paste data from Microsoft Excel into P6 Professional",
+"page": 370
+},
+{
+"depth": 0,
+"title": "8 Tracking Projects",
+"page": 372
+},
+{
+"depth": 1,
+"title": "Overview",
+"page": 372
+},
+{
+"depth": 2,
+"title": "Tracking",
+"page": 372
+},
+{
+"depth": 2,
+"title": "Tracking layouts",
+"page": 372
+},
+{
+"depth": 2,
+"title": "Open a tracking layout",
+"page": 373
+},
+{
+"depth": 2,
+"title": "Types of tracking layouts",
+"page": 373
+},
+{
+"depth": 2,
+"title": "Share a layout with other users",
+"page": 373
+},
+{
+"depth": 2,
+"title": "Save a tracking layout",
+"page": 374
+},
+{
+"depth": 2,
+"title": "Export a tracking layout",
+"page": 374
+},
+{
+"depth": 2,
+"title": "Import a tracking layout",
+"page": 374
+},
+{
+"depth": 2,
+"title": "Delete a tracking layout",
+"page": 374
+},
+{
+"depth": 2,
+"title": "Expand all information in a tracking layout",
+"page": 374
+},
+{
+"depth": 2,
+"title": "Collapse all information in a tracking layout",
+"page": 374
+},
+{
+"depth": 2,
+"title": "Hide or show the bottom window in a tracking layout",
+"page": 375
+},
+{
+"depth": 2,
+"title": "Hide or show the top window in a tracking layout",
+"page": 375
+},
+{
+"depth": 2,
+"title": "Hide or show the left columns in a tracking layout",
+"page": 375
+},
+{
+"depth": 2,
+"title": "Change the table font, color, and row height used in a tracking layout",
+"page": 375
+},
+{
+"depth": 2,
+"title": "Define columns for a tracking layout",
+"page": 375
+},
+{
+"depth": 2,
+"title": "Modify a column's title, width, and alignment",
+"page": 376
+},
+{
+"depth": 2,
+"title": "Filter a tracking layout",
+"page": 377
+},
+{
+"depth": 2,
+"title": "Group and sort a tracking layout using standard settings",
+"page": 377
+},
+{
+"depth": 2,
+"title": "Group and sort a tracking layout using custom settings",
+"page": 378
+},
+{
+"depth": 2,
+"title": "Zoom in and out of a timescaled layout",
+"page": 379
+},
+{
+"depth": 2,
+"title": "Expand or contract the visible area of a timescaled tracking layout",
+"page": 379
+},
+{
+"depth": 2,
+"title": "Change the display timeperiod for a timescaled tracking layout",
+"page": 379
+},
+{
+"depth": 1,
+"title": "Project Table",
+"page": 379
+},
+{
+"depth": 2,
+"title": "Project Table layouts",
+"page": 379
+},
+{
+"depth": 2,
+"title": "Create a Project Table",
+"page": 380
+},
+{
+"depth": 2,
+"title": "Customize a Project Table",
+"page": 380
+},
+{
+"depth": 1,
+"title": "Project Bar Chart",
+"page": 380
+},
+{
+"depth": 2,
+"title": "Project Bar Charts",
+"page": 381
+},
+{
+"depth": 2,
+"title": "Create a Project Bar Chart",
+"page": 381
+},
+{
+"depth": 2,
+"title": "Customize a Project Bar Chart",
+"page": 381
+},
+{
+"depth": 2,
+"title": "Specify Project Bar Chart data and display options",
+"page": 381
+},
+{
+"depth": 2,
+"title": "View bar details in a Project Bar Chart",
+"page": 382
+},
+{
+"depth": 1,
+"title": "Project Gantt/Profile and Resource Analysis",
+"page": 382
+},
+{
+"depth": 2,
+"title": "Project Gantt/Profiles",
+"page": 382
+},
+{
+"depth": 2,
+"title": "Resource Analysis layouts",
+"page": 382
+},
+{
+"depth": 2,
+"title": "Using Resource Analysis forecasting to dynamically level resources",
+"page": 383
+},
+{
+"depth": 2,
+"title": "Resource Explorer window",
+"page": 383
+},
+{
+"depth": 2,
+"title": "Specify how resources are listed in the Resource Explorer window",
+"page": 384
+},
+{
+"depth": 2,
+"title": "Create a Project Gantt/Profile",
+"page": 384
+},
+{
+"depth": 2,
+"title": "Display project data as a profile or spreadsheet",
+"page": 385
+},
+{
+"depth": 2,
+"title": "Customize a Project Gantt/Profile",
+"page": 385
+},
+{
+"depth": 2,
+"title": "Create a Resource Analysis tracking layout",
+"page": 385
+},
+{
+"depth": 2,
+"title": "Display resource data as a profile or spreadsheet",
+"page": 386
+},
+{
+"depth": 2,
+"title": "Customize a Resource Analysis layout",
+"page": 386
+},
+{
+"depth": 2,
+"title": "Group and sort resources in the Resource Explorer window",
+"page": 387
+},
+{
+"depth": 2,
+"title": "Filter resources in the Resource Explorer window",
+"page": 388
+},
+{
+"depth": 2,
+"title": "Working with the Gantt Chart",
+"page": 388
+},
+{
+"depth": 3,
+"title": "Specify Gantt Chart bar data and display options",
+"page": 388
+},
+{
+"depth": 3,
+"title": "Add or modify a Gantt Chart bar filter",
+"page": 389
+},
+{
+"depth": 3,
+"title": "Assign a filter to a Gantt Chart bar",
+"page": 389
+},
+{
+"depth": 3,
+"title": "Change a Gantt Chart bar's timescale",
+"page": 390
+},
+{
+"depth": 3,
+"title": "Change a Gantt Chart bar's label",
+"page": 390
+},
+{
+"depth": 3,
+"title": "Change a Gantt Chart bar's style",
+"page": 390
+},
+{
+"depth": 3,
+"title": "Change a Gantt Chart's background lines",
+"page": 391
+},
+{
+"depth": 3,
+"title": "Customize the data date line",
+"page": 391
+},
+{
+"depth": 3,
+"title": "Show or hide a Gantt Chart's legend",
+"page": 391
+},
+{
+"depth": 3,
+"title": "Delete a bar from a Gantt Chart",
+"page": 392
+},
+{
+"depth": 2,
+"title": "Working with the Profile and Spreadsheet",
+"page": 392
+},
+{
+"depth": 3,
+"title": "Select spreadsheet data fields",
+"page": 392
+},
+{
+"depth": 3,
+"title": "Modify a spreadsheet field title in a tracking layout",
+"page": 393
+},
+{
+"depth": 3,
+"title": "Show or hide resource availability in a profile",
+"page": 393
+},
+{
+"depth": 3,
+"title": "Show or hide resource limits and overallocation in a profile",
+"page": 394
+},
+{
+"depth": 3,
+"title": "Show or hide resource overtime in a profile",
+"page": 394
+},
+{
+"depth": 3,
+"title": "Display past period actuals in a profile",
+"page": 394
+},
+{
+"depth": 3,
+"title": "Dynamically level resources",
+"page": 395
+},
+{
+"depth": 3,
+"title": "Change a profile's background lines",
+"page": 396
+},
+{
+"depth": 3,
+"title": "Show or hide a profile legend",
+"page": 396
+},
+{
+"depth": 3,
+"title": "Specify a project profile's data, filter, and display options",
+"page": 396
+},
+{
+"depth": 3,
+"title": "Specify a resource profile's data and display options for a regular histogram",
+"page": 398
+},
+{
+"depth": 3,
+"title": "Specify a resource profile's data and display options for a stacked histogram",
+"page": 399
+},
+{
+"depth": 3,
+"title": "Why are some spreadsheet cells gray?",
+"page": 401
+},
+{
+"depth": 0,
+"title": "9 Grouping, Filtering, and Summarizing Data",
+"page": 403
+},
+{
+"depth": 1,
+"title": "Grouping and Sorting",
+"page": 403
+},
+{
+"depth": 2,
+"title": "Grouping activities by field",
+"page": 403
+},
+{
+"depth": 2,
+"title": "Grouping by hierarchy",
+"page": 403
+},
+{
+"depth": 2,
+"title": "Grouping activities by WBS path",
+"page": 403
+},
+{
+"depth": 2,
+"title": "Sorting",
+"page": 404
+},
+{
+"depth": 2,
+"title": "Setting Page Breaks by Group Band",
+"page": 404
+},
+{
+"depth": 2,
+"title": "Group activities by field",
+"page": 405
+},
+{
+"depth": 2,
+"title": "Group activities by hierarchy",
+"page": 406
+},
+{
+"depth": 2,
+"title": "Group activities by WBS path",
+"page": 406
+},
+{
+"depth": 2,
+"title": "Sort activities",
+"page": 407
+},
+{
+"depth": 2,
+"title": "Remove activity groupings",
+"page": 407
+},
+{
+"depth": 2,
+"title": "Format grouping bands",
+"page": 407
+},
+{
+"depth": 2,
+"title": "Set Page Breaks by Group Band",
+"page": 407
+},
+{
+"depth": 2,
+"title": "Show or hide empty title bands",
+"page": 408
+},
+{
+"depth": 2,
+"title": "Show field titles in grouping bands",
+"page": 408
+},
+{
+"depth": 2,
+"title": "Group and sort resource assignments",
+"page": 408
+},
+{
+"depth": 1,
+"title": "Filtering",
+"page": 409
+},
+{
+"depth": 2,
+"title": "Filtering data",
+"page": 409
+},
+{
+"depth": 2,
+"title": "Default filter criteria",
+"page": 409
+},
+{
+"depth": 2,
+"title": "Create a filter",
+"page": 410
+},
+{
+"depth": 2,
+"title": "Apply a filter",
+"page": 411
+},
+{
+"depth": 2,
+"title": "Combine filters",
+"page": 412
+},
+{
+"depth": 2,
+"title": "Change a Gantt Chart bar's filter",
+"page": 412
+},
+{
+"depth": 2,
+"title": "Create a lookahead filter",
+"page": 412
+},
+{
+"depth": 2,
+"title": "Filter by project status",
+"page": 413
+},
+{
+"depth": 2,
+"title": "Remove filters",
+"page": 413
+},
+{
+"depth": 2,
+"title": "Delete filters",
+"page": 414
+},
+{
+"depth": 1,
+"title": "Summarizing",
+"page": 414
+},
+{
+"depth": 2,
+"title": "Summarizing activity data",
+"page": 414
+},
+{
+"depth": 2,
+"title": "How data is summarized",
+"page": 414
+},
+{
+"depth": 2,
+"title": "Collapse or expand grouped data",
+"page": 417
+},
+{
+"depth": 2,
+"title": "Collapse or expand all groups in a layout",
+"page": 417
+},
+{
+"depth": 2,
+"title": "Show a grand total",
+"page": 417
+},
+{
+"depth": 2,
+"title": "Display summary data when grouping",
+"page": 418
+},
+{
+"depth": 0,
+"title": "10 Publishing Project Web sites",
+"page": 419
+},
+{
+"depth": 1,
+"title": "Project Web Site Publisher",
+"page": 419
+},
+{
+"depth": 1,
+"title": "Project Web sites",
+"page": 419
+},
+{
+"depth": 1,
+"title": "Publishing activity and tracking layouts",
+"page": 420
+},
+{
+"depth": 1,
+"title": "Publish projects as Web sites",
+"page": 420
+},
+{
+"depth": 1,
+"title": "Publish activity and tracking layouts on a Project Website",
+"page": 421
+},
+{
+"depth": 1,
+"title": "Publish reports on a Project Website",
+"page": 421
+},
+{
+"depth": 1,
+"title": "Customize a Project Website",
+"page": 422
+},
+{
+"depth": 1,
+"title": "Publish Activity layouts",
+"page": 422
+},
+{
+"depth": 1,
+"title": "Publish tracking layouts",
+"page": 422
+},
+{
+"depth": 1,
+"title": "Remove activity or tracking layouts from a Project Web site",
+"page": 423
+},
+{
+"depth": 1,
+"title": "Remove reports from a Project Website",
+"page": 423
+},
+{
+"depth": 1,
+"title": "Delete a Project Website scheme",
+"page": 423
+},
+{
+"depth": 0,
+"title": "11 Tools",
+"page": 424
+},
+{
+"depth": 1,
+"title": "Launching External Applications",
+"page": 424
+},
+{
+"depth": 2,
+"title": "Open external applications from the Tools menu",
+"page": 424
+},
+{
+"depth": 1,
+"title": "P6 Visualizer",
+"page": 426
+},
+{
+"depth": 2,
+"title": "P6 Visualizer overview",
+"page": 426
+},
+{
+"depth": 2,
+"title": "Launching P6 Visualizer from P6 Professional",
+"page": 427
+},
+{
+"depth": 1,
+"title": "Approvals (P6 EPPM Only)",
+"page": 427
+},
+{
+"depth": 2,
+"title": "Timesheets overview",
+"page": 427
+},
+{
+"depth": 3,
+"title": "Approving or rejecting timesheets",
+"page": 428
+},
+{
+"depth": 3,
+"title": "Assigning a project manager delegate for timesheets",
+"page": 429
+},
+{
+"depth": 3,
+"title": "Assigning a resource manager delegate for timesheets",
+"page": 429
+},
+{
+"depth": 3,
+"title": "Adding notes to a timesheet",
+"page": 429
+},
+{
+"depth": 2,
+"title": "Status Updates overview",
+"page": 429
+},
+{
+"depth": 3,
+"title": "Approving or rejecting status updates",
+"page": 430
+},
+{
+"depth": 3,
+"title": "Overriding status updates",
+"page": 430
+},
+{
+"depth": 3,
+"title": "Putting status updates on hold",
+"page": 431
+},
+{
+"depth": 3,
+"title": "Participating in discussions",
+"page": 431
+},
+{
+"depth": 3,
+"title": "Viewing the update history of an activity",
+"page": 431
+},
+{
+"depth": 1,
+"title": "Summary Service",
+"page": 431
+},
+{
+"depth": 2,
+"title": "Viewing summary project information",
+"page": 431
+},
+{
+"depth": 2,
+"title": "Rolling up data with the summary service",
+"page": 432
+},
+{
+"depth": 2,
+"title": "Set a project's summarization options",
+"page": 432
+},
+{
+"depth": 2,
+"title": "Set global summarization options (P6 Professional Only)",
+"page": 432
+},
+{
+"depth": 2,
+"title": "Summarize project data",
+"page": 433
+},
+{
+"depth": 2,
+"title": "Select a baseline for summarization",
+"page": 434
+},
+{
+"depth": 1,
+"title": "Job Services (P6 Professional Only)",
+"page": 434
+},
+{
+"depth": 2,
+"title": "Automating processes with Job Services (P6 Professional Only)",
+"page": 434
+},
+{
+"depth": 2,
+"title": "Configure a job service (P6 Professional Only)",
+"page": 435
+},
+{
+"depth": 1,
+"title": "Global Change",
+"page": 437
+},
+{
+"depth": 2,
+"title": "Global change",
+"page": 437
+},
+{
+"depth": 2,
+"title": "Global change conditions",
+"page": 438
+},
+{
+"depth": 2,
+"title": "Change data globally",
+"page": 439
+},
+{
+"depth": 2,
+"title": "Add an If statement",
+"page": 440
+},
+{
+"depth": 2,
+"title": "Add Then and Else statements",
+"page": 441
+},
+{
+"depth": 2,
+"title": "Edit a statement",
+"page": 441
+},
+{
+"depth": 2,
+"title": "Rearrange Global change statements",
+"page": 442
+},
+{
+"depth": 2,
+"title": "Cut, copy, or paste a statement",
+"page": 442
+},
+{
+"depth": 2,
+"title": "Search for blank fields",
+"page": 442
+},
+{
+"depth": 2,
+"title": "Preview Global Change in a report",
+"page": 442
+},
+{
+"depth": 2,
+"title": "Delete a statement",
+"page": 443
+},
+{
+"depth": 2,
+"title": "Combine text fields",
+"page": 443
+},
+{
+"depth": 2,
+"title": "Copy and paste a specification",
+"page": 443
+},
+{
+"depth": 2,
+"title": "Delete a specification",
+"page": 443
+},
+{
+"depth": 2,
+"title": "Export a Global Change specification",
+"page": 444
+},
+{
+"depth": 2,
+"title": "Global change functions",
+"page": 444
+},
+{
+"depth": 2,
+"title": "Import a Global Change specification",
+"page": 444
+},
+{
+"depth": 2,
+"title": "Operators and valid calculations",
+"page": 444
+},
+{
+"depth": 2,
+"title": "Use arithmetic with Global change",
+"page": 445
+},
+{
+"depth": 2,
+"title": "Use date arithmetic",
+"page": 445
+},
+{
+"depth": 2,
+"title": "Assign a day of the week to a date",
+"page": 445
+},
+{
+"depth": 1,
+"title": "Store Period Performance",
+"page": 446
+},
+{
+"depth": 2,
+"title": "Store Period Performance",
+"page": 446
+},
+{
+"depth": 2,
+"title": "Post actual amounts for a period",
+"page": 446
+},
+{
+"depth": 2,
+"title": "Edit past period actual data",
+"page": 447
+},
+{
+"depth": 2,
+"title": "View past period actual data in spreadsheets",
+"page": 448
+},
+{
+"depth": 1,
+"title": "Auto-Reorganization",
+"page": 449
+},
+{
+"depth": 2,
+"title": "Reorganizing window data automatically",
+"page": 449
+},
+{
+"depth": 2,
+"title": "Enable or disable auto-reorganization",
+"page": 450
+},
+{
+"depth": 1,
+"title": "Performing Top-down Estimation (P6 Professional Only)",
+"page": 450
+},
+{
+"depth": 2,
+"title": "Performing top-down estimations using prior experience (P6 Professional Only)",
+"page": 451
+},
+{
+"depth": 2,
+"title": "Performing top-down estimations using function points (P6 Professional Only)",
+"page": 451
+},
+{
+"depth": 2,
+"title": "Applying Saved Top-Down Estimations To a Project (P6 Professional Only)",
+"page": 452
+},
+{
+"depth": 1,
+"title": "Project Checker",
+"page": 452
+},
+{
+"depth": 2,
+"title": "Project Checker",
+"page": 452
+},
+{
+"depth": 2,
+"title": "Running the Project Checker",
+"page": 453
+},
+{
+"depth": 2,
+"title": "Viewing the project checker report",
+"page": 454
+},
+{
+"depth": 0,
+"title": "12 Administration",
+"page": 455
+},
+{
+"depth": 1,
+"title": "Managing Personal Information in P6 Professional",
+"page": 455
+},
+{
+"depth": 2,
+"title": "About Consent Notices",
+"page": 455
+},
+{
+"depth": 3,
+"title": "About Personal Information",
+"page": 455
+},
+{
+"depth": 3,
+"title": "Cookies Usage in P6 Professional",
+"page": 455
+},
+{
+"depth": 2,
+"title": "Your Responsibilities",
+"page": 456
+},
+{
+"depth": 3,
+"title": "Personal Information (PI) Data in P6 Professional",
+"page": 456
+},
+{
+"depth": 3,
+"title": "Configuring Consent Notices (P6 Professional Only)",
+"page": 456
+},
+{
+"depth": 3,
+"title": "Auditing Consent Notices (P6 Professional Only)",
+"page": 457
+},
+{
+"depth": 1,
+"title": "Defining Administrative Preferences (P6 Professional Only)",
+"page": 457
+},
+{
+"depth": 2,
+"title": "Administrative preferences (P6 Professional Only)",
+"page": 457
+},
+{
+"depth": 2,
+"title": "Define invalid file types for upload (P6 Professional Only)",
+"page": 457
+},
+{
+"depth": 2,
+"title": "Define Clickable Websites",
+"page": 458
+},
+{
+"depth": 2,
+"title": "Change the global code separator (P6 Professional Only)",
+"page": 459
+},
+{
+"depth": 2,
+"title": "Set the week start day (P6 Professional Only)",
+"page": 459
+},
+{
+"depth": 2,
+"title": "Set a default activity duration (P6 Professional Only)",
+"page": 459
+},
+{
+"depth": 2,
+"title": "Define maximum hierarchy levels (P6 Professional Only)",
+"page": 460
+},
+{
+"depth": 2,
+"title": "Define maximum project activity codes (P6 Professional Only)",
+"page": 460
+},
+{
+"depth": 2,
+"title": "Define maximum baselines (P6 Professional Only)",
+"page": 460
+},
+{
+"depth": 2,
+"title": "Define maximum ID lengths (P6 Professional Only)",
+"page": 460
+},
+{
+"depth": 2,
+"title": "Set default workhours (P6 Professional Only)",
+"page": 460
+},
+{
+"depth": 2,
+"title": "Set abbreviations for displaying time (P6 Professional Only)",
+"page": 461
+},
+{
+"depth": 2,
+"title": "Define default earned value settings (P6 Professional Only)",
+"page": 461
+},
+{
+"depth": 2,
+"title": "Set global summarization options (P6 Professional Only)",
+"page": 461
+},
+{
+"depth": 2,
+"title": "Set the Online Help location (P6 Professional Only)",
+"page": 462
+},
+{
+"depth": 1,
+"title": "Set the Industry Type (P6 EPPM Only)",
+"page": 463
+},
+{
+"depth": 1,
+"title": "Setting the Industry Type",
+"page": 463
+},
+{
+"depth": 1,
+"title": "Installing Local Copies of P6 Professional and Visualizer Help",
+"page": 464
+},
+{
+"depth": 1,
+"title": "Defining Administrative Categories (P6 Professional Only)",
+"page": 465
+},
+{
+"depth": 2,
+"title": "Administrative categories (P6 Professional Only)",
+"page": 465
+},
+{
+"depth": 2,
+"title": "Baseline Types (P6 Professional Only)",
+"page": 466
+},
+{
+"depth": 3,
+"title": "Create a baseline type",
+"page": 466
+},
+{
+"depth": 3,
+"title": "Edit a baseline type (P6 Professional Only)",
+"page": 466
+},
+{
+"depth": 3,
+"title": "Delete a baseline type (P6 Professional Only)",
+"page": 466
+},
+{
+"depth": 2,
+"title": "Expense Categories (P6 Professional Only)",
+"page": 466
+},
+{
+"depth": 3,
+"title": "Create expense categories (P6 Professional Only)",
+"page": 467
+},
+{
+"depth": 3,
+"title": "Rename expense categories (P6 Professional Only)",
+"page": 467
+},
+{
+"depth": 3,
+"title": "Delete expense categories (P6 Professional Only)",
+"page": 467
+},
+{
+"depth": 2,
+"title": "WBS Category (P6 Professional Only)",
+"page": 467
+},
+{
+"depth": 3,
+"title": "Edit the WBS category (P6 Professional Only)",
+"page": 467
+},
+{
+"depth": 3,
+"title": "Create WBS category values (P6 Professional Only)",
+"page": 468
+},
+{
+"depth": 3,
+"title": "Assign WBS Category values (P6 Professional Only)",
+"page": 468
+},
+{
+"depth": 3,
+"title": "Change WBS category values (P6 Professional Only)",
+"page": 468
+},
+{
+"depth": 3,
+"title": "Delete WBS category values (P6 Professional Only)",
+"page": 468
+},
+{
+"depth": 2,
+"title": "Document Categories (P6 Professional Only)",
+"page": 469
+},
+{
+"depth": 3,
+"title": "Create document categories (P6 Professional Only)",
+"page": 469
+},
+{
+"depth": 3,
+"title": "Rename document categories (P6 Professional Only)",
+"page": 469
+},
+{
+"depth": 3,
+"title": "Delete document categories (P6 Professional Only)",
+"page": 469
+},
+{
+"depth": 2,
+"title": "Document Statuses (P6 Professional Only)",
+"page": 469
+},
+{
+"depth": 3,
+"title": "Create a document status (P6 Professional Only)",
+"page": 469
+},
+{
+"depth": 3,
+"title": "Change document status names (P6 Professional Only)",
+"page": 470
+},
+{
+"depth": 3,
+"title": "Delete a document status (P6 Professional Only)",
+"page": 470
+},
+{
+"depth": 2,
+"title": "Risk Categories (P6 Professional Only)",
+"page": 470
+},
+{
+"depth": 3,
+"title": "Create risk categories (P6 Professional Only)",
+"page": 470
+},
+{
+"depth": 3,
+"title": "Edit risk categories (P6 Professional Only)",
+"page": 471
+},
+{
+"depth": 3,
+"title": "Delete risk categories (P6 Professional Only)",
+"page": 471
+},
+{
+"depth": 2,
+"title": "Notebook Topics (P6 Professional Only)",
+"page": 471
+},
+{
+"depth": 3,
+"title": "Create notebooks (P6 Professional Only)",
+"page": 471
+},
+{
+"depth": 3,
+"title": "Change notebook names (P6 Professional Only)",
+"page": 472
+},
+{
+"depth": 3,
+"title": "Delete notebooks (P6 Professional Only)",
+"page": 472
+},
+{
+"depth": 2,
+"title": "Units of Measure (P6 Professional Only)",
+"page": 472
+},
+{
+"depth": 3,
+"title": "Define the units of measure for material resources (P6 Professional Only)",
+"page": 472
+},
+{
+"depth": 3,
+"title": "Delete Units of Measure (P6 Professional Only)",
+"page": 473
+},
+{
+"depth": 1,
+"title": "Defining Currencies (P6 Professional Only)",
+"page": 473
+},
+{
+"depth": 2,
+"title": "Currencies (P6 Professional Only)",
+"page": 473
+},
+{
+"depth": 2,
+"title": "Add a view currency (P6 Professional Only)",
+"page": 473
+},
+{
+"depth": 2,
+"title": "Define a base currency (P6 Professional Only)",
+"page": 474
+},
+{
+"depth": 1,
+"title": "Managing Financial Periods (P6 Professional Only)",
+"page": 474
+},
+{
+"depth": 2,
+"title": "Financial Periods (P6 Professional Only)",
+"page": 474
+},
+{
+"depth": 2,
+"title": "Create a financial period calendar (P6 Professional Only)",
+"page": 475
+},
+{
+"depth": 2,
+"title": "Create a financial period (P6 Professional Only)",
+"page": 476
+},
+{
+"depth": 2,
+"title": "Create a batch of financial periods (P6 Professional Only)",
+"page": 477
+},
+{
+"depth": 2,
+"title": "Delete a financial period (P6 Professional Only)",
+"page": 478
+},
+{
+"depth": 1,
+"title": "Managing User Security (P6 Professional Only)",
+"page": 478
+},
+{
+"depth": 2,
+"title": "Users (P6 Professional Only)",
+"page": 478
+},
+{
+"depth": 2,
+"title": "Setting up user security (P6 Professional Only)",
+"page": 479
+},
+{
+"depth": 2,
+"title": "Module access (P6 Professional Only)",
+"page": 480
+},
+{
+"depth": 2,
+"title": "Security profiles",
+"page": 480
+},
+{
+"depth": 2,
+"title": "Global profiles",
+"page": 481
+},
+{
+"depth": 3,
+"title": "Global Privilege Definitions (P6 Professional Only)",
+"page": 482
+},
+{
+"depth": 2,
+"title": "Project profiles",
+"page": 487
+},
+{
+"depth": 3,
+"title": "Project Privilege Definitions (P6 Professional Only)",
+"page": 488
+},
+{
+"depth": 2,
+"title": "Add new users (P6 Professional Only)",
+"page": 493
+},
+{
+"depth": 2,
+"title": "List number of users having access to P6 Professional (P6 Professional Only)",
+"page": 494
+},
+{
+"depth": 2,
+"title": "Change user security profiles (P6 Professional Only)",
+"page": 494
+},
+{
+"depth": 2,
+"title": "Change user passwords (P6 Professional Only)",
+"page": 495
+},
+{
+"depth": 2,
+"title": "Enable or disable user access to P6 Professional (P6 Professional Only)",
+"page": 495
+},
+{
+"depth": 2,
+"title": "Remove users (P6 Professional Only)",
+"page": 496
+},
+{
+"depth": 2,
+"title": "Create global profiles (P6 Professional Only)",
+"page": 496
+},
+{
+"depth": 2,
+"title": "Assign global profiles (P6 Professional Only)",
+"page": 496
+},
+{
+"depth": 2,
+"title": "Change global profiles (P6 Professional Only)",
+"page": 496
+},
+{
+"depth": 2,
+"title": "Delete global profiles (P6 Professional Only)",
+"page": 496
+},
+{
+"depth": 2,
+"title": "Create project profiles (P6 Professional Only)",
+"page": 497
+},
+{
+"depth": 2,
+"title": "Assign project profiles (P6 Professional Only)",
+"page": 497
+},
+{
+"depth": 2,
+"title": "Change project profiles (P6 Professional Only)",
+"page": 498
+},
+{
+"depth": 2,
+"title": "Delete project profiles (P6 Professional Only)",
+"page": 498
+},
+{
+"depth": 1,
+"title": "Managing Resource Security (P6 Professional Only)",
+"page": 498
+},
+{
+"depth": 2,
+"title": "Introduction to Resource Security",
+"page": 498
+},
+{
+"depth": 2,
+"title": "Implementing Resource Security (P6 Professional Only)",
+"page": 500
+},
+{
+"depth": 2,
+"title": "Enable Resource Security (P6 Professional Only)",
+"page": 500
+},
+{
+"depth": 2,
+"title": "Disable Resource Security (P6 Professional Only)",
+"page": 501
+},
+{
+"depth": 2,
+"title": "Displaying Resource Access Information (P6 Professional Only)",
+"page": 502
+},
+{
+"depth": 2,
+"title": "Change Resource Security (P6 Professional Only)",
+"page": 502
+},
+{
+"depth": 1,
+"title": "Managing EPS-level Activity Code Security (P6 Professional Only)",
+"page": 502
+},
+{
+"depth": 2,
+"title": "Set up security for EPS-level activity codes (P6 Professional Only)",
+"page": 502
+},
+{
+"depth": 2,
+"title": "Global and project privileges for EPS-level activity code security (P6 Professional Only)",
+"page": 503
+},
+{
+"depth": 0,
+"title": "13 Reference",
+"page": 504
+},
+{
+"depth": 1,
+"title": "Working with remote projects",
+"page": 504
+},
+{
+"depth": 2,
+"title": "Managing remote projects",
+"page": 504
+},
+{
+"depth": 2,
+"title": "Check out a project to XML",
+"page": 504
+},
+{
+"depth": 2,
+"title": "Check out a project to P6 Pro Local Database",
+"page": 505
+},
+{
+"depth": 2,
+"title": "View the check-out status of a project",
+"page": 505
+},
+{
+"depth": 2,
+"title": "Modify check in update options for an XML file",
+"page": 506
+},
+{
+"depth": 2,
+"title": "Check in a project from XML",
+"page": 506
+},
+{
+"depth": 2,
+"title": "Check in a project from P6 Pro Local Database",
+"page": 507
+},
+{
+"depth": 1,
+"title": "Working with multiple projects",
+"page": 507
+},
+{
+"depth": 2,
+"title": "Single-project mode versus multiproject mode",
+"page": 507
+},
+{
+"depth": 2,
+"title": "Details on how project elements are handled in multiproject mode",
+"page": 508
+},
+{
+"depth": 1,
+"title": "Working With Oracle Primavera Cloud (P6 EPPM Only)",
+"page": 510
+},
+{
+"depth": 2,
+"title": "Exchanging data with Oracle Primavera Cloud using Primavera Gateway (P6 EPPM Only)",
+"page": 510
+},
+{
+"depth": 1,
+"title": "Primavera Cache Service (P6 EPPM Only)",
+"page": 511
+},
+{
+"depth": 2,
+"title": "Primavera.CacheService.exe",
+"page": 511
+},
+{
+"depth": 2,
+"title": "Logging on and creating a local cache for Cloud",
+"page": 512
+},
+{
+"depth": 2,
+"title": "Synchronizing the Local Cache and Cloud Connect Database",
+"page": 512
+},
+{
+"depth": 3,
+"title": "Viewing the synchronization log",
+"page": 513
+},
+{
+"depth": 2,
+"title": "Working offline",
+"page": 513
+},
+{
+"depth": 3,
+"title": "Guidance and Best Practice for Working Offline",
+"page": 514
+},
+{
+"depth": 2,
+"title": "Operations that are Not Cached for Cloud",
+"page": 515
+},
+{
+"depth": 1,
+"title": "Linking Primavera Unifier data (P6 EPPM only)",
+"page": 515
+},
+{
+"depth": 2,
+"title": "Link a project with a Primavera Unifier Project (P6 EPPM Only)",
+"page": 515
+},
+{
+"depth": 2,
+"title": "Exchanging data with Primavera Unifier using Schedule Sheet Integration",
+"page": 517
+},
+{
+"depth": 2,
+"title": "Exchanging data with Primavera Unifier using Summary Sheet Integration",
+"page": 518
+},
+{
+"depth": 2,
+"title": "Exchanging data with Primavera Unifier using Activity Sheet Integration",
+"page": 518
+},
+{
+"depth": 1,
+"title": "Moving EPS-level activity codes",
+"page": 519
+},
+{
+"depth": 1,
+"title": "Using Undo",
+"page": 520
+},
+{
+"depth": 1,
+"title": "Cookies Policy P6 Professional",
+"page": 520
+}
+]
+}

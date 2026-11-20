@@ -1,0 +1,48 @@
+{
+  "generated_at": "2026-11-20T14:59:36.425459+00:00",
+  "target": "127.0.0.1:5432/cubi",
+  "engine": "PostgreSQL 14.24 (Ubuntu 14.24-0ubuntu0.22.04.1)",
+  "checks": [
+    {
+      "name": "bootstrap_is_idempotent_and_additive",
+      "ok": true,
+      "tables_before": 27,
+      "tables_after_first_run": 27,
+      "tables_after_second_run": 27
+    },
+    {
+      "name": "session_survives_commit_in_a_new_process",
+      "ok": true,
+      "session_resolved": true,
+      "session_tenant": "tenant-cubisite-a",
+      "tenant_user_rows": 2,
+      "foreign_user_rows": 0,
+      "foreign_task_rows": 0
+    },
+    {
+      "name": "tenant_isolation",
+      "ok": true
+    },
+    {
+      "name": "task_row_persisted",
+      "ok": true
+    },
+    {
+      "name": "no_plaintext_secrets",
+      "ok": true
+    },
+    {
+      "name": "logout_revokes_session",
+      "ok": true
+    },
+    {
+      "name": "revoked_session_unresolvable_in_new_process",
+      "ok": true
+    }
+  ],
+  "ok": true,
+  "tenant_isolation": {
+    "tenant": "tenant-cubisite-b",
+    "foreign_rows": 0
+  }
+}
