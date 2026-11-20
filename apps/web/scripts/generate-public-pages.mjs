@@ -171,6 +171,26 @@ function renderCta(locale, page, fromDir) {
   return `<div class="cubi-public-cta"><div><strong>${esc(cta.title)}</strong><p>${esc(cta.text)}</p></div><a href="${relDir(fromDir, "/app/") || "/app/"}">${esc(label)} ${arrow}</a></div>`;
 }
 
+function renderStructuredData(page, locale, routeUrl) {
+  // WebPage + WebSite only: they describe what the document already says in its
+  // title, description and canonical URL. No offer, rating or breadcrumb is
+  // emitted that the page does not show.
+  const data = {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: page.title,
+    description: page.description,
+    url: `__CUBI_BASE_URL__${routeUrl}`,
+    inLanguage: locale.htmlLang,
+    isPartOf: {
+      "@type": "WebSite",
+      name: "CUBI Platform",
+      url: "__CUBI_BASE_URL__/",
+    },
+  };
+  return `<script type="application/ld+json">\n${JSON.stringify(data, null, 2).replace(/<\//g, "<\\/")}\n</script>`;
+}
+
 function renderPage(locale, page) {
   const routePath = page.path;
   const prefix = locale.prefix;
@@ -208,6 +228,7 @@ ${renderOgAlternates(page.id, locale.code)}
 <meta name="theme-color" content="#081A2F">
 <link rel="stylesheet" href="${relFile(fromDir, "/styles.css")}">
 <link rel="icon" href="${relFile(fromDir, "/cubi-platform-logo-primary.svg")}" type="image/svg+xml">
+${renderStructuredData(page, locale, routeUrl)}
 </head>
 <body class="cubi-public-page">
 <header class="cubi-public-header"><a href="${homeHref}" aria-label="${esc(locale.nav.home)}"><img src="${relFile(fromDir, "/cubi-platform-logo-primary.svg")}" alt="CUBI Platform" width="132" height="48"></a>${renderNav(locale, page.id, fromDir)}${renderLanguageSwitch(locale, page.id, fromDir)}</header>
@@ -262,6 +283,30 @@ function refreshHandwritten(pageId, code, relativeFile, fromDir) {
   html = html.replace(/\s*<meta property="og:locale:alternate" content="[^"]*">/g, "");
   const ogAlternates = renderOgAlternates(pageId, code).replaceAll("\n", `\n${indent}`);
   html = html.replace(/(<meta property="og:locale" content="[^"]*">)/, `$1${ogAlternates ? `\n${indent}${ogAlternates}` : ""}`);
+
+  // Hand-written documents carry the same WebPage structured data as the
+  // generated pages, built from their own title, description and canonical URL.
+  if (!html.includes("application/ld+json")) {
+    const canonical = html.match(/<link rel="canonical" href="([^"]+)"/)?.[1] ?? "";
+    const title = html.match(/<title>([^<]+)<\/title>/)?.[1] ?? "";
+    const description = html.match(/<meta name="description" content="([^"]*)"/)?.[1] ?? "";
+    const lang = html.match(/<html lang="([^"]+)"/)?.[1] ?? locale.htmlLang;
+    const data = {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      name: title,
+      description,
+      url: canonical,
+      inLanguage: lang,
+      isPartOf: { "@type": "WebSite", name: "CUBI Platform", url: "__CUBI_BASE_URL__/" },
+    };
+    const block = `<script type="application/ld+json">\n${JSON.stringify(data, null, 2).replace(/<\//g, "<\\/")}\n</script>\n${indent}`;
+    html = html.replace(/<\/head>/, `${indent}${block}</head>`);
+  }
+
+  // The alternate block is re-emitted on every run. Pin the line that follows
+  // it to the document indent so repeated generation cannot accumulate spaces.
+  html = html.replace(/(hreflang="x-default"[^>]*>)\r?\n[ \t]+/, `$1\n${indent}`);
 
   // Replace a legacy single twin link with the twin plus the language menu.
   html = html.replace(/<details class="cubi-public-languages">[\s\S]*?<\/details>/g, "");
