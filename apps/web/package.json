@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "test": "tsc -p tsconfig.test.json && tsx --test src/*.test.ts && node --test preview-server.test.mjs",
     "traceability:render": "node scripts/render-traceability.mjs",
-    "capabilities:generate": "node scripts/generate-capability-catalog.mjs"
+    "capabilities:generate": "node scripts/generate-capability-catalog.mjs",
+    "audit:responsive": "node e2e/public-site-responsive.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
