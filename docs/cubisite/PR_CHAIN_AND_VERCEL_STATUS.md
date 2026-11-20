@@ -25,6 +25,7 @@ immediate parent.
 | 9 | #2078 | `feat/cubi-r4-public-pages` | `feat/cubi-r3-ten-locales` | `3d519c5`, `1074889`, `e5ec850`, `e0c84cc`, `8cc98bf`, `84dc26f`, `5ba3487`, `2b2f2ac` | 128 |
 | 10 | #2079 | `feat/cubi-r5-contextual-help` | `feat/cubi-r4-public-pages` | `93369b8` | 11 |
 | 11 | #2080 | `feat/cubi-r6-capability-matrix` | `feat/cubi-r5-contextual-help` | `d7fc646` | 8 |
+| 12 | #2081 | `feat/cubi-r7-seo-hardening` | `feat/cubi-r6-capability-matrix` | `3220060` | 255 |
 
 Each PR previously targeted `main` while containing all of its ancestors. That is
 what produced the appearance of duplicate commits and one ambiguous giant diff.
@@ -50,6 +51,11 @@ R6 (#2080) is documentation and its generator: it adds no runtime path. The matr
 JSON registry are rendered from the committed Help registry by `npm run cubisite:matrix`, so
 they cannot claim a topic the assistant would not cite.
 
+R7 (#2081) is the pre-acceptance hardening pass: it gives every indexable page its own
+`WebPage` structured data, makes the generator idempotent, and repairs the sitemap test that
+had been passing only against a stale `public/`. Its head is the tree the final QA matrix was
+run on (see `FINAL_QA_2026-11-20.md`).
+
 ## Validation per increment
 
 | PR | Validation run on its own head |
@@ -65,6 +71,7 @@ they cannot claim a topic the assistant would not cite.
 | #2078 | `npm test` (1209 passed), `npm run typecheck`, `npm run build` on `2b2f2ac`: all ten locales publish the 25 approved routes, localized headlines, canonical and hreflang alternates, no dangling internal link |
 | #2079 | `npm test` (1221 src + 15 preview passed), `npm run typecheck`, `npm run build` on `93369b8`: registry parity against both traceability sources and the capability contract, direct/parent/inherited/internal-docs resolution, ten-locale labels |
 | #2080 | `npm test` (1229 src + 15 preview passed), `npm run typecheck`, `npm run build` on `d7fc646`: matrix renders from the Help registry; 53/53 PDF pages and 69/69 official topics reconciled |
+| #2081 | `pytest` on PostgreSQL 14.24 (5363 passed), `npm test` (1230 src + 15 preview), typecheck, build, browser E2E (101 checks), responsive audit (18/18), artifact SEO scan on `3220060` |
 
 CI for #2076 on the final head `ad47fc9`: `typecheck (apps/web)` pass, `web` pass,
 `postgres` pass, `Vercel – cubi-web-preview` pass.
