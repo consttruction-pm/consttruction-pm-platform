@@ -1,0 +1,543 @@
+/**
+ * Enterprise Workbench localisation.
+ *
+ * Languages are product-level (fa, en, de, zh, ar, fr, ja, ko, ru, tr-TR).
+ * Shell navigation, page titles and common actions are translated for all ten
+ * locales. Long-form page copy is authored in English and Persian; other
+ * locales fall back to English until a reviewed translation is supplied. The
+ * fallback is visible in Settings > Language so no untranslated string is
+ * presented as reviewed localisation.
+ */
+
+export type EnterpriseLocale = "en" | "fa" | "de" | "zh" | "ar" | "fr" | "ja" | "ko" | "ru" | "tr";
+
+export const ENTERPRISE_LOCALES: readonly EnterpriseLocale[] = [
+  "fa", "en", "de", "zh", "ar", "fr", "ja", "ko", "ru", "tr",
+];
+
+export const LOCALE_LABELS: Record<EnterpriseLocale, string> = {
+  en: "English",
+  fa: "فارسی",
+  de: "Deutsch",
+  zh: "中文",
+  ar: "العربية",
+  fr: "Français",
+  ja: "日本語",
+  ko: "한국어",
+  ru: "Русский",
+  tr: "Türkçe",
+};
+
+export const RTL_LOCALES: ReadonlySet<EnterpriseLocale> = new Set<EnterpriseLocale>(["fa", "ar"]);
+
+type Dict = Record<string, string>;
+
+const en: Dict = {
+  "brand.name": "CUBI",
+  "brand.suite": "CUBI Platform",
+  "brand.workbench": "CUBI Workbench",
+  "brand.enterprise": "CUBI Enterprise",
+  "brand.engineering": "CUBI Engineering",
+
+  "nav.home": "Home",
+  "nav.login": "Sign in",
+  "nav.roles": "Role & access",
+  "nav.workbench": "Workbench",
+  "nav.environments": "Environments",
+  "nav.dashboard": "Dashboards",
+  "nav.portfolio": "Portfolio",
+  "nav.projects": "Projects",
+  "nav.access": "Organization & access",
+  "nav.tasks": "Team & tasks",
+  "nav.workflows": "Workflow studio",
+  "nav.approvals": "Approvals",
+  "nav.resources": "Resources & capacity",
+  "nav.reports": "Reports & operations",
+  "nav.knowledge": "Knowledge & PMBOK",
+  "nav.help": "Product help",
+  "nav.group.entry": "Getting started",
+  "nav.group.personal": "Personal workspace",
+  "nav.group.enterprise": "Enterprise",
+
+  "common.back": "Back",
+  "common.refresh": "Refresh",
+  "common.save": "Save",
+  "common.cancel": "Cancel",
+  "common.create": "Create",
+  "common.search": "Search",
+  "common.filter": "Filter",
+  "common.all": "All",
+  "common.loading": "Loading…",
+  "common.error": "Something went wrong. Please try again.",
+  "common.empty": "Nothing to show yet.",
+  "common.forbidden": "You do not have permission for this action.",
+  "common.unavailable": "Not available",
+  "common.notConnected": "Source not connected",
+  "common.retry": "Try again",
+  "common.close": "Close",
+  "common.details": "Details",
+  "common.status": "Status",
+  "common.revision": "Revision",
+  "common.source": "Source",
+  "common.updated": "Updated",
+  "common.actions": "Actions",
+  "common.open": "Open",
+  "common.signIn": "Sign in",
+  "common.signOut": "Sign out",
+  "common.learnMore": "Learn more",
+  "common.viewAll": "View all",
+  "common.welcome": "Welcome",
+  "common.notProvided": "Not provided",
+  "common.localOnly": "Saved on this device only",
+  "common.requiresServer": "Needs a server connection",
+  "common.role": "Role",
+  "common.organization": "Organization",
+  "common.locale": "Language",
+  "common.optional": "optional",
+  "common.required": "required",
+  "common.noData": "No records",
+  "common.connected": "Connected",
+  "common.restricted": "Restricted by the server",
+
+  "page.home.title": "CUBI Platform",
+  "page.home.subtitle": "Two deliberate environments for engineering delivery and organizational control.",
+  "page.login.title": "Sign in",
+  "page.login.subtitle": "Use your CUBI account. Permissions are resolved on the server.",
+  "page.roles.title": "Role & permission selection",
+  "page.roles.subtitle": "Choose from the environments and roles the server has already granted you.",
+  "page.workbench.title": "Personal workbench",
+  "page.workbench.subtitle": "Your command centre across Enterprise — not a third environment.",
+  "page.environments.title": "Choose an environment",
+  "page.environments.subtitle": "Engineering and Enterprise are independent products with separate ownership.",
+  "page.dashboard.title": "Enterprise dashboard & portlets",
+  "page.dashboard.subtitle": "Compose role-aware dashboards from portlets that cite their source, date and revision.",
+  "page.portfolio.title": "Portfolio & executive center",
+  "page.portfolio.subtitle": "Portfolio register, hierarchy and decisions. Indicators are read from their owner and never recalculated here.",
+  "page.projects.title": "Enterprise projects",
+  "page.projects.subtitle": "The enterprise project register with drill-down into the authoritative Engineering records.",
+  "page.access.title": "Organization & access center",
+  "page.access.subtitle": "Organizations, people, teams, memberships, invitations, roles and grants, enforced server-side.",
+  "page.tasks.title": "Team & task center",
+  "page.tasks.subtitle": "Generic enterprise tasks and team assignments, distinct from P6 activities and timesheets.",
+  "page.workflows.title": "Workflow studio",
+  "page.workflows.subtitle": "Versioned workflow designs with validated transitions before anything can be published.",
+  "page.approvals.title": "Feedback & approval center",
+  "page.approvals.subtitle": "Revision-pinned decisions. Stale and duplicate submissions are rejected by the server.",
+  "page.resources.title": "Resources & capacity",
+  "page.resources.subtitle": "Read-only projections of Engineering-owned resource and capacity records.",
+  "page.reports.title": "Reports & operations",
+  "page.reports.subtitle": "Reuse the existing reporting and job runtime; this page never starts a second queue.",
+  "page.knowledge.title": "Knowledge & PMBOK center",
+  "page.knowledge.subtitle": "CUBI-owned guidance and PMBOK material, reusing the shared Form Builder and knowledge API.",
+
+  "status.fresh": "Fresh",
+  "status.stale": "Stale",
+  "status.unknown": "Unknown",
+  "status.active": "Active",
+  "status.completed": "Completed",
+  "status.pending": "Pending",
+  "status.draft": "Draft",
+  "status.archived": "Archived",
+  "status.locked": "Locked",
+  "status.allowed": "Allowed",
+  "status.denied": "Denied",
+};
+
+const fa: Dict = {
+  "brand.suite": "پلتفرم کوبی",
+  "brand.workbench": "میزکار کوبی",
+  "brand.enterprise": "کوبی سازمانی",
+  "brand.engineering": "کوبی مهندسی",
+
+  "nav.home": "خانه",
+  "nav.login": "ورود",
+  "nav.roles": "نقش و دسترسی",
+  "nav.workbench": "میزکار",
+  "nav.environments": "محیط‌ها",
+  "nav.dashboard": "داشبوردها",
+  "nav.portfolio": "پورتفولیو",
+  "nav.projects": "پروژه‌ها",
+  "nav.access": "سازمان و دسترسی",
+  "nav.tasks": "تیم و وظایف",
+  "nav.workflows": "استودیوی گردش‌کار",
+  "nav.approvals": "تأییدها",
+  "nav.resources": "منابع و ظرفیت",
+  "nav.reports": "گزارش‌ها و عملیات",
+  "nav.knowledge": "دانش و PMBOK",
+  "nav.help": "راهنمای محصول",
+  "nav.group.entry": "شروع کار",
+  "nav.group.personal": "فضای کاری شخصی",
+  "nav.group.enterprise": "سازمانی",
+
+  "common.back": "بازگشت",
+  "common.refresh": "تازه‌سازی",
+  "common.save": "ذخیره",
+  "common.cancel": "انصراف",
+  "common.create": "ایجاد",
+  "common.search": "جستجو",
+  "common.filter": "فیلتر",
+  "common.all": "همه",
+  "common.loading": "در حال بارگذاری…",
+  "common.error": "خطایی رخ داد. دوباره تلاش کنید.",
+  "common.empty": "هنوز چیزی برای نمایش نیست.",
+  "common.forbidden": "برای این عملیات مجوز ندارید.",
+  "common.unavailable": "در دسترس نیست",
+  "common.notConnected": "منبع متصل نیست",
+  "common.retry": "تلاش دوباره",
+  "common.close": "بستن",
+  "common.details": "جزئیات",
+  "common.status": "وضعیت",
+  "common.revision": "نسخه",
+  "common.source": "منبع",
+  "common.updated": "به‌روزرسانی",
+  "common.actions": "عملیات",
+  "common.open": "بازکردن",
+  "common.signIn": "ورود",
+  "common.signOut": "خروج",
+  "common.learnMore": "بیشتر بدانید",
+  "common.viewAll": "مشاهده همه",
+  "common.welcome": "خوش آمدید",
+  "common.notProvided": "ارائه نشده",
+  "common.localOnly": "فقط روی این دستگاه ذخیره شده است",
+  "common.requiresServer": "نیازمند اتصال سرور",
+  "common.role": "نقش",
+  "common.organization": "سازمان",
+  "common.locale": "زبان",
+  "common.optional": "اختیاری",
+  "common.required": "الزامی",
+  "common.noData": "رکوردی نیست",
+  "common.connected": "متصل",
+  "common.restricted": "کنترل‌شده توسط سرور",
+
+  "page.home.title": "پلتفرم کوبی",
+  "page.home.subtitle": "دو محیط مستقل برای تحویل مهندسی و کنترل سازمانی.",
+  "page.login.title": "ورود",
+  "page.login.subtitle": "با حساب کوبی خود وارد شوید. مجوزها در سرور تعیین می‌شوند.",
+  "page.roles.title": "انتخاب نقش و مجوز",
+  "page.roles.subtitle": "فقط محیط‌ها و نقش‌هایی را انتخاب کنید که سرور به شما داده است.",
+  "page.workbench.title": "میزکار شخصی",
+  "page.workbench.subtitle": "مرکز فرمان شما در محیط سازمانی — نه محیط سوم.",
+  "page.environments.title": "انتخاب محیط",
+  "page.environments.subtitle": "مهندسی و سازمانی دو محصول مستقل با مالکیت جدا هستند.",
+  "page.dashboard.title": "داشبورد و پورتلت‌های سازمانی",
+  "page.dashboard.subtitle": "داشبوردهای نقش‌محور از پورتلت‌هایی بسازید که منبع، تاریخ و نسخه خود را نشان می‌دهند.",
+  "page.portfolio.title": "پورتفولیو و مرکز مدیریت",
+  "page.portfolio.subtitle": "فهرست پورتفولیو، سلسله‌مراتب و تصمیم‌ها. شاخص‌ها از مالک خود خوانده می‌شوند و هرگز اینجا بازمحاسبه نمی‌شوند.",
+  "page.projects.title": "پروژه‌های سازمانی",
+  "page.projects.subtitle": "فهرست پروژه‌های سازمانی با مرور جزئیات از رکوردهای معتبر محیط مهندسی.",
+  "page.access.title": "مرکز سازمان و دسترسی",
+  "page.access.subtitle": "سازمان‌ها، افراد، تیم‌ها، عضویت‌ها، دعوت‌ها، نقش‌ها و مجوزها؛ همه در سرور اعمال می‌شوند.",
+  "page.tasks.title": "مرکز تیم و وظایف",
+  "page.tasks.subtitle": "وظایف عمومی سازمانی و تخصیص تیم، جدا از فعالیت‌ها و تایم‌شیت‌های P6.",
+  "page.workflows.title": "استودیوی گردش‌کار",
+  "page.workflows.subtitle": "طراحی نسخه‌دار گردش‌کار با اعتبارسنجی انتقال‌ها پیش از انتشار.",
+  "page.approvals.title": "مرکز بازخورد و تأیید",
+  "page.approvals.subtitle": "تصمیم‌های متصل به نسخه. ارسال‌های قدیمی و تکراری در سرور رد می‌شوند.",
+  "page.resources.title": "منابع و ظرفیت",
+  "page.resources.subtitle": "نمایش فقط‌خواندنی از رکوردهای منابع و ظرفیت که مالکیت آن‌ها با محیط مهندسی است.",
+  "page.reports.title": "گزارش‌ها و عملیات",
+  "page.reports.subtitle": "استفاده مجدد از موتور گزارش و کارهای موجود؛ این صفحه صف دومی نمی‌سازد.",
+  "page.knowledge.title": "مرکز دانش و PMBOK",
+  "page.knowledge.subtitle": "راهنمای سازمانی کوبی و مطالب PMBOK با استفاده مجدد از Form Builder و API دانش.",
+
+  "status.fresh": "به‌روز",
+  "status.stale": "قدیمی",
+  "status.unknown": "نامشخص",
+  "status.active": "فعال",
+  "status.completed": "تکمیل‌شده",
+  "status.pending": "در انتظار",
+  "status.draft": "پیش‌نویس",
+  "status.archived": "بایگانی",
+  "status.locked": "قفل",
+  "status.allowed": "مجاز",
+  "status.denied": "غیرمجاز",
+};
+
+const de: Dict = {
+  "brand.suite": "CUBI Plattform", "brand.workbench": "CUBI Arbeitsbereich", "brand.enterprise": "CUBI Enterprise", "brand.engineering": "CUBI Engineering",
+  "nav.home": "Start", "nav.login": "Anmelden", "nav.roles": "Rolle & Zugriff", "nav.workbench": "Arbeitsbereich", "nav.environments": "Umgebungen",
+  "nav.dashboard": "Dashboards", "nav.portfolio": "Portfolio", "nav.projects": "Projekte", "nav.access": "Organisation & Zugriff",
+  "nav.tasks": "Team & Aufgaben", "nav.workflows": "Workflow-Studio", "nav.approvals": "Genehmigungen", "nav.resources": "Ressourcen & Kapazität",
+  "nav.reports": "Berichte & Betrieb", "nav.knowledge": "Wissen & PMBOK", "nav.help": "Produkthilfe",
+  "nav.group.entry": "Erste Schritte", "nav.group.personal": "Persönlicher Arbeitsbereich", "nav.group.enterprise": "Enterprise",
+  "common.back": "Zurück", "common.refresh": "Aktualisieren", "common.save": "Speichern", "common.cancel": "Abbrechen", "common.create": "Erstellen",
+  "common.search": "Suchen", "common.filter": "Filtern", "common.all": "Alle", "common.loading": "Wird geladen…", "common.error": "Etwas ist schiefgelaufen.",
+  "common.empty": "Noch keine Einträge.", "common.forbidden": "Keine Berechtigung.", "common.unavailable": "Nicht verfügbar", "common.notConnected": "Quelle nicht verbunden",
+  "common.retry": "Erneut versuchen", "common.close": "Schließen", "common.details": "Details", "common.status": "Status", "common.revision": "Revision",
+  "common.source": "Quelle", "common.updated": "Aktualisiert", "common.actions": "Aktionen", "common.open": "Öffnen", "common.signIn": "Anmelden",
+  "common.signOut": "Abmelden", "common.learnMore": "Mehr erfahren", "common.viewAll": "Alle anzeigen", "common.welcome": "Willkommen",
+  "common.notProvided": "Nicht angegeben", "common.localOnly": "Nur auf diesem Gerät gespeichert", "common.requiresServer": "Serververbindung erforderlich",
+  "common.role": "Rolle", "common.organization": "Organisation", "common.locale": "Sprache", "common.optional": "optional", "common.required": "erforderlich",
+  "common.noData": "Keine Datensätze", "common.connected": "Verbunden", "common.restricted": "Vom Server eingeschränkt",
+  "page.home.title": "CUBI Plattform", "page.home.subtitle": "Zwei eigenständige Umgebungen für Engineering-Lieferung und Organisationskontrolle.",
+  "page.login.title": "Anmelden", "page.login.subtitle": "Melden Sie sich mit Ihrem CUBI-Konto an. Berechtigungen werden serverseitig aufgelöst.",
+  "page.roles.title": "Rolle & Berechtigung", "page.roles.subtitle": "Wählen Sie nur vom Server gewährte Umgebungen und Rollen.",
+  "page.workbench.title": "Persönlicher Arbeitsbereich", "page.workbench.subtitle": "Ihre Zentrale über Enterprise — keine dritte Umgebung.",
+  "page.environments.title": "Umgebung wählen", "page.environments.subtitle": "Engineering und Enterprise sind unabhängige Produkte.",
+  "page.dashboard.title": "Enterprise-Dashboards & Portlets", "page.portfolio.title": "Portfolio & Führungszentrum", "page.projects.title": "Enterprise-Projekte",
+  "page.access.title": "Organisation & Zugriff", "page.tasks.title": "Team & Aufgaben", "page.workflows.title": "Workflow-Studio",
+  "page.approvals.title": "Feedback & Genehmigungen", "page.resources.title": "Ressourcen & Kapazität", "page.reports.title": "Berichte & Betrieb",
+  "page.knowledge.title": "Wissen & PMBOK",
+  "status.fresh": "Aktuell", "status.stale": "Veraltet", "status.unknown": "Unbekannt", "status.active": "Aktiv", "status.completed": "Abgeschlossen",
+  "status.pending": "Ausstehend", "status.draft": "Entwurf", "status.archived": "Archiviert", "status.locked": "Gesperrt", "status.allowed": "Erlaubt", "status.denied": "Verweigert",
+};
+
+const zh: Dict = {
+  "brand.suite": "CUBI 平台", "brand.workbench": "CUBI 工作台", "brand.enterprise": "CUBI 企业版", "brand.engineering": "CUBI 工程版",
+  "nav.home": "首页", "nav.login": "登录", "nav.roles": "角色与权限", "nav.workbench": "工作台", "nav.environments": "环境",
+  "nav.dashboard": "仪表板", "nav.portfolio": "项目组合", "nav.projects": "项目", "nav.access": "组织与访问",
+  "nav.tasks": "团队与任务", "nav.workflows": "工作流工作室", "nav.approvals": "审批", "nav.resources": "资源与产能",
+  "nav.reports": "报告与运营", "nav.knowledge": "知识与 PMBOK", "nav.help": "产品帮助",
+  "nav.group.entry": "入门", "nav.group.personal": "个人工作区", "nav.group.enterprise": "企业版",
+  "common.back": "返回", "common.refresh": "刷新", "common.save": "保存", "common.cancel": "取消", "common.create": "创建",
+  "common.search": "搜索", "common.filter": "筛选", "common.all": "全部", "common.loading": "加载中…", "common.error": "出错了，请重试。",
+  "common.empty": "暂无内容。", "common.forbidden": "没有权限执行此操作。", "common.unavailable": "不可用", "common.notConnected": "数据源未连接",
+  "common.retry": "重试", "common.close": "关闭", "common.details": "详情", "common.status": "状态", "common.revision": "版本",
+  "common.source": "来源", "common.updated": "更新", "common.actions": "操作", "common.open": "打开", "common.signIn": "登录",
+  "common.signOut": "退出", "common.learnMore": "了解更多", "common.viewAll": "查看全部", "common.welcome": "欢迎",
+  "common.notProvided": "未提供", "common.localOnly": "仅保存在本设备", "common.requiresServer": "需要服务器连接",
+  "common.role": "角色", "common.organization": "组织", "common.locale": "语言", "common.optional": "可选", "common.required": "必填",
+  "common.noData": "无记录", "common.connected": "已连接", "common.restricted": "由服务器限制",
+  "page.home.title": "CUBI 平台", "page.home.subtitle": "面向工程交付与组织控制的两个独立环境。",
+  "page.login.title": "登录", "page.login.subtitle": "使用 CUBI 账户登录，权限由服务器判定。",
+  "page.roles.title": "角色与权限选择", "page.roles.subtitle": "只能选择服务器已授予的环境与角色。",
+  "page.workbench.title": "个人工作台", "page.workbench.subtitle": "企业版的指挥中心，而不是第三个环境。",
+  "page.environments.title": "选择环境", "page.environments.subtitle": "工程版与企业版是相互独立的产品。",
+  "page.dashboard.title": "企业仪表板与小组件", "page.portfolio.title": "项目组合与高管中心", "page.projects.title": "企业项目",
+  "page.access.title": "组织与访问中心", "page.tasks.title": "团队与任务中心", "page.workflows.title": "工作流工作室",
+  "page.approvals.title": "反馈与审批中心", "page.resources.title": "资源与产能", "page.reports.title": "报告与运营",
+  "page.knowledge.title": "知识与 PMBOK 中心",
+  "status.fresh": "最新", "status.stale": "过期", "status.unknown": "未知", "status.active": "进行中", "status.completed": "已完成",
+  "status.pending": "待处理", "status.draft": "草稿", "status.archived": "已归档", "status.locked": "已锁定", "status.allowed": "允许", "status.denied": "拒绝",
+};
+
+const ar: Dict = {
+  "brand.suite": "منصة كوبي", "brand.workbench": "مساحة عمل كوبي", "brand.enterprise": "كوبي للمؤسسات", "brand.engineering": "كوبي للهندسة",
+  "nav.home": "الرئيسية", "nav.login": "تسجيل الدخول", "nav.roles": "الدور والوصول", "nav.workbench": "مساحة العمل", "nav.environments": "البيئات",
+  "nav.dashboard": "لوحات المعلومات", "nav.portfolio": "المحفظة", "nav.projects": "المشاريع", "nav.access": "المؤسسة والوصول",
+  "nav.tasks": "الفريق والمهام", "nav.workflows": "استوديو سير العمل", "nav.approvals": "الموافقات", "nav.resources": "الموارد والطاقة",
+  "nav.reports": "التقارير والعمليات", "nav.knowledge": "المعرفة وPMBOK", "nav.help": "مساعدة المنتج",
+  "nav.group.entry": "البدء", "nav.group.personal": "مساحة شخصية", "nav.group.enterprise": "المؤسسة",
+  "common.back": "عودة", "common.refresh": "تحديث", "common.save": "حفظ", "common.cancel": "إلغاء", "common.create": "إنشاء",
+  "common.search": "بحث", "common.filter": "تصفية", "common.all": "الكل", "common.loading": "جارٍ التحميل…", "common.error": "حدث خطأ، حاول مجددًا.",
+  "common.empty": "لا يوجد شيء بعد.", "common.forbidden": "ليس لديك صلاحية.", "common.unavailable": "غير متاح", "common.notConnected": "المصدر غير متصل",
+  "common.retry": "إعادة المحاولة", "common.close": "إغلاق", "common.details": "التفاصيل", "common.status": "الحالة", "common.revision": "المراجعة",
+  "common.source": "المصدر", "common.updated": "آخر تحديث", "common.actions": "إجراءات", "common.open": "فتح", "common.signIn": "دخول",
+  "common.signOut": "خروج", "common.learnMore": "اعرف المزيد", "common.viewAll": "عرض الكل", "common.welcome": "مرحبًا",
+  "common.notProvided": "غير متوفر", "common.localOnly": "محفوظ على هذا الجهاز فقط", "common.requiresServer": "يتطلب اتصالًا بالخادم",
+  "common.role": "الدور", "common.organization": "المؤسسة", "common.locale": "اللغة", "common.optional": "اختياري", "common.required": "مطلوب",
+  "common.noData": "لا سجلات", "common.connected": "متصل", "common.restricted": "مقيّد من الخادم",
+  "page.home.title": "منصة كوبي", "page.home.subtitle": "بيئتان مستقلتان لتسليم الهندسة والتحكم المؤسسي.",
+  "page.login.title": "تسجيل الدخول", "page.login.subtitle": "استخدم حساب كوبي. تُحدَّد الصلاحيات على الخادم.",
+  "page.roles.title": "اختيار الدور والصلاحية", "page.roles.subtitle": "اختر فقط البيئات والأدوار التي منحها الخادم.",
+  "page.workbench.title": "مساحة العمل الشخصية", "page.workbench.subtitle": "مركز قيادتك عبر المؤسسة — ليست بيئة ثالثة.",
+  "page.environments.title": "اختر بيئة", "page.environments.subtitle": "الهندسة والمؤسسة منتجان مستقلان.",
+  "page.dashboard.title": "لوحات المؤسسة والبطاقات", "page.portfolio.title": "المحفظة والمركز التنفيذي", "page.projects.title": "مشاريع المؤسسة",
+  "page.access.title": "مركز المؤسسة والوصول", "page.tasks.title": "مركز الفريق والمهام", "page.workflows.title": "استوديو سير العمل",
+  "page.approvals.title": "مركز الملاحظات والموافقات", "page.resources.title": "الموارد والطاقة", "page.reports.title": "التقارير والعمليات",
+  "page.knowledge.title": "مركز المعرفة وPMBOK",
+  "status.fresh": "حديث", "status.stale": "قديم", "status.unknown": "غير معروف", "status.active": "نشط", "status.completed": "مكتمل",
+  "status.pending": "قيد الانتظار", "status.draft": "مسودة", "status.archived": "مؤرشف", "status.locked": "مقفل", "status.allowed": "مسموح", "status.denied": "مرفوض",
+};
+
+const fr: Dict = {
+  "brand.suite": "Plateforme CUBI", "brand.workbench": "Espace CUBI", "brand.enterprise": "CUBI Enterprise", "brand.engineering": "CUBI Engineering",
+  "nav.home": "Accueil", "nav.login": "Connexion", "nav.roles": "Rôle & accès", "nav.workbench": "Espace de travail", "nav.environments": "Environnements",
+  "nav.dashboard": "Tableaux de bord", "nav.portfolio": "Portefeuille", "nav.projects": "Projets", "nav.access": "Organisation & accès",
+  "nav.tasks": "Équipe & tâches", "nav.workflows": "Studio de workflow", "nav.approvals": "Approbations", "nav.resources": "Ressources & capacité",
+  "nav.reports": "Rapports & opérations", "nav.knowledge": "Connaissances & PMBOK", "nav.help": "Aide produit",
+  "nav.group.entry": "Démarrage", "nav.group.personal": "Espace personnel", "nav.group.enterprise": "Enterprise",
+  "common.back": "Retour", "common.refresh": "Actualiser", "common.save": "Enregistrer", "common.cancel": "Annuler", "common.create": "Créer",
+  "common.search": "Rechercher", "common.filter": "Filtrer", "common.all": "Tout", "common.loading": "Chargement…", "common.error": "Une erreur est survenue.",
+  "common.empty": "Rien à afficher.", "common.forbidden": "Vous n'avez pas la permission.", "common.unavailable": "Indisponible", "common.notConnected": "Source non connectée",
+  "common.retry": "Réessayer", "common.close": "Fermer", "common.details": "Détails", "common.status": "Statut", "common.revision": "Révision",
+  "common.source": "Source", "common.updated": "Mis à jour", "common.actions": "Actions", "common.open": "Ouvrir", "common.signIn": "Se connecter",
+  "common.signOut": "Se déconnecter", "common.learnMore": "En savoir plus", "common.viewAll": "Tout voir", "common.welcome": "Bienvenue",
+  "common.notProvided": "Non fourni", "common.localOnly": "Enregistré sur cet appareil uniquement", "common.requiresServer": "Nécessite une connexion serveur",
+  "common.role": "Rôle", "common.organization": "Organisation", "common.locale": "Langue", "common.optional": "facultatif", "common.required": "requis",
+  "common.noData": "Aucun enregistrement", "common.connected": "Connecté", "common.restricted": "Limité par le serveur",
+  "page.home.title": "Plateforme CUBI", "page.home.subtitle": "Deux environnements distincts pour la livraison d'ingénierie et le contrôle organisationnel.",
+  "page.login.title": "Connexion", "page.login.subtitle": "Utilisez votre compte CUBI. Les autorisations sont résolues côté serveur.",
+  "page.roles.title": "Sélection du rôle", "page.roles.subtitle": "Choisissez uniquement les environnements et rôles accordés par le serveur.",
+  "page.workbench.title": "Espace de travail personnel", "page.workbench.subtitle": "Votre centre de commande Enterprise — pas un troisième environnement.",
+  "page.environments.title": "Choisir un environnement", "page.environments.subtitle": "Engineering et Enterprise sont des produits indépendants.",
+  "page.dashboard.title": "Tableaux de bord & portlets", "page.portfolio.title": "Portefeuille & centre exécutif", "page.projects.title": "Projets Enterprise",
+  "page.access.title": "Centre organisation & accès", "page.tasks.title": "Centre équipe & tâches", "page.workflows.title": "Studio de workflow",
+  "page.approvals.title": "Centre retours & approbations", "page.resources.title": "Ressources & capacité", "page.reports.title": "Rapports & opérations",
+  "page.knowledge.title": "Centre de connaissances & PMBOK",
+  "status.fresh": "À jour", "status.stale": "Obsolète", "status.unknown": "Inconnu", "status.active": "Actif", "status.completed": "Terminé",
+  "status.pending": "En attente", "status.draft": "Brouillon", "status.archived": "Archivé", "status.locked": "Verrouillé", "status.allowed": "Autorisé", "status.denied": "Refusé",
+};
+
+const ja: Dict = {
+  "brand.suite": "CUBI プラットフォーム", "brand.workbench": "CUBI ワークベンチ", "brand.enterprise": "CUBI エンタープライズ", "brand.engineering": "CUBI エンジニアリング",
+  "nav.home": "ホーム", "nav.login": "サインイン", "nav.roles": "ロールと権限", "nav.workbench": "ワークベンチ", "nav.environments": "環境",
+  "nav.dashboard": "ダッシュボード", "nav.portfolio": "ポートフォリオ", "nav.projects": "プロジェクト", "nav.access": "組織とアクセス",
+  "nav.tasks": "チームとタスク", "nav.workflows": "ワークフロースタジオ", "nav.approvals": "承認", "nav.resources": "リソースとキャパシティ",
+  "nav.reports": "レポートと運用", "nav.knowledge": "ナレッジと PMBOK", "nav.help": "製品ヘルプ",
+  "nav.group.entry": "はじめに", "nav.group.personal": "個人ワークスペース", "nav.group.enterprise": "エンタープライズ",
+  "common.back": "戻る", "common.refresh": "更新", "common.save": "保存", "common.cancel": "キャンセル", "common.create": "作成",
+  "common.search": "検索", "common.filter": "絞り込み", "common.all": "すべて", "common.loading": "読み込み中…", "common.error": "エラーが発生しました。",
+  "common.empty": "表示する項目はありません。", "common.forbidden": "権限がありません。", "common.unavailable": "利用不可", "common.notConnected": "ソース未接続",
+  "common.retry": "再試行", "common.close": "閉じる", "common.details": "詳細", "common.status": "状態", "common.revision": "リビジョン",
+  "common.source": "ソース", "common.updated": "更新日時", "common.actions": "操作", "common.open": "開く", "common.signIn": "サインイン",
+  "common.signOut": "サインアウト", "common.learnMore": "詳細を見る", "common.viewAll": "すべて表示", "common.welcome": "ようこそ",
+  "common.notProvided": "未提供", "common.localOnly": "この端末のみに保存", "common.requiresServer": "サーバー接続が必要",
+  "common.role": "ロール", "common.organization": "組織", "common.locale": "言語", "common.optional": "任意", "common.required": "必須",
+  "common.noData": "レコードなし", "common.connected": "接続済み", "common.restricted": "サーバーで制限",
+  "page.home.title": "CUBI プラットフォーム", "page.home.subtitle": "エンジニアリング納品と組織統制のための 2 つの独立環境。",
+  "page.login.title": "サインイン", "page.login.subtitle": "CUBI アカウントでサインイン。権限はサーバーで判定されます。",
+  "page.roles.title": "ロールと権限の選択", "page.roles.subtitle": "サーバーが付与した環境とロールのみ選択できます。",
+  "page.workbench.title": "個人ワークベンチ", "page.workbench.subtitle": "エンタープライズ全体の司令塔。第三の環境ではありません。",
+  "page.environments.title": "環境を選択", "page.environments.subtitle": "エンジニアリングとエンタープライズは独立した製品です。",
+  "page.dashboard.title": "エンタープライズダッシュボード", "page.portfolio.title": "ポートフォリオと経営センター", "page.projects.title": "エンタープライズプロジェクト",
+  "page.access.title": "組織とアクセスセンター", "page.tasks.title": "チームとタスクセンター", "page.workflows.title": "ワークフロースタジオ",
+  "page.approvals.title": "フィードバックと承認", "page.resources.title": "リソースとキャパシティ", "page.reports.title": "レポートと運用",
+  "page.knowledge.title": "ナレッジと PMBOK",
+  "status.fresh": "最新", "status.stale": "古い", "status.unknown": "不明", "status.active": "進行中", "status.completed": "完了",
+  "status.pending": "保留", "status.draft": "下書き", "status.archived": "アーカイブ", "status.locked": "ロック", "status.allowed": "許可", "status.denied": "拒否",
+};
+
+const ko: Dict = {
+  "brand.suite": "CUBI 플랫폼", "brand.workbench": "CUBI 워크벤치", "brand.enterprise": "CUBI 엔터프라이즈", "brand.engineering": "CUBI 엔지니어링",
+  "nav.home": "홈", "nav.login": "로그인", "nav.roles": "역할 및 권한", "nav.workbench": "워크벤치", "nav.environments": "환경",
+  "nav.dashboard": "대시보드", "nav.portfolio": "포트폴리오", "nav.projects": "프로젝트", "nav.access": "조직 및 접근",
+  "nav.tasks": "팀 및 작업", "nav.workflows": "워크플로 스튜디오", "nav.approvals": "승인", "nav.resources": "리소스 및 역량",
+  "nav.reports": "보고서 및 운영", "nav.knowledge": "지식 및 PMBOK", "nav.help": "제품 도움말",
+  "nav.group.entry": "시작하기", "nav.group.personal": "개인 워크스페이스", "nav.group.enterprise": "엔터프라이즈",
+  "common.back": "뒤로", "common.refresh": "새로고침", "common.save": "저장", "common.cancel": "취소", "common.create": "생성",
+  "common.search": "검색", "common.filter": "필터", "common.all": "전체", "common.loading": "불러오는 중…", "common.error": "오류가 발생했습니다.",
+  "common.empty": "표시할 항목이 없습니다.", "common.forbidden": "권한이 없습니다.", "common.unavailable": "사용할 수 없음", "common.notConnected": "소스 미연결",
+  "common.retry": "다시 시도", "common.close": "닫기", "common.details": "세부 정보", "common.status": "상태", "common.revision": "리비전",
+  "common.source": "소스", "common.updated": "업데이트", "common.actions": "작업", "common.open": "열기", "common.signIn": "로그인",
+  "common.signOut": "로그아웃", "common.learnMore": "자세히", "common.viewAll": "모두 보기", "common.welcome": "환영합니다",
+  "common.notProvided": "제공되지 않음", "common.localOnly": "이 기기에만 저장됨", "common.requiresServer": "서버 연결 필요",
+  "common.role": "역할", "common.organization": "조직", "common.locale": "언어", "common.optional": "선택", "common.required": "필수",
+  "common.noData": "레코드 없음", "common.connected": "연결됨", "common.restricted": "서버에서 제한됨",
+  "page.home.title": "CUBI 플랫폼", "page.home.subtitle": "엔지니어링 제공과 조직 통제를 위한 두 개의 독립 환경.",
+  "page.login.title": "로그인", "page.login.subtitle": "CUBI 계정으로 로그인하세요. 권한은 서버에서 판단됩니다.",
+  "page.roles.title": "역할 및 권한 선택", "page.roles.subtitle": "서버가 부여한 환경과 역할만 선택할 수 있습니다.",
+  "page.workbench.title": "개인 워크벤치", "page.workbench.subtitle": "엔터프라이즈 전반의 지휘 센터이며 세 번째 환경이 아닙니다.",
+  "page.environments.title": "환경 선택", "page.environments.subtitle": "엔지니어링과 엔터프라이즈는 독립 제품입니다.",
+  "page.dashboard.title": "엔터프라이즈 대시보드 및 포틀릿", "page.portfolio.title": "포트폴리오 및 경영 센터", "page.projects.title": "엔터프라이즈 프로젝트",
+  "page.access.title": "조직 및 접근 센터", "page.tasks.title": "팀 및 작업 센터", "page.workflows.title": "워크플로 스튜디오",
+  "page.approvals.title": "피드백 및 승인 센터", "page.resources.title": "리소스 및 역량", "page.reports.title": "보고서 및 운영",
+  "page.knowledge.title": "지식 및 PMBOK 센터",
+  "status.fresh": "최신", "status.stale": "오래됨", "status.unknown": "알 수 없음", "status.active": "활성", "status.completed": "완료",
+  "status.pending": "대기", "status.draft": "초안", "status.archived": "보관", "status.locked": "잠김", "status.allowed": "허용", "status.denied": "거부",
+};
+
+const ru: Dict = {
+  "brand.suite": "Платформа CUBI", "brand.workbench": "Рабочее место CUBI", "brand.enterprise": "CUBI Enterprise", "brand.engineering": "CUBI Engineering",
+  "nav.home": "Главная", "nav.login": "Вход", "nav.roles": "Роль и доступ", "nav.workbench": "Рабочее место", "nav.environments": "Среды",
+  "nav.dashboard": "Панели", "nav.portfolio": "Портфель", "nav.projects": "Проекты", "nav.access": "Организация и доступ",
+  "nav.tasks": "Команда и задачи", "nav.workflows": "Студия процессов", "nav.approvals": "Согласования", "nav.resources": "Ресурсы и загрузка",
+  "nav.reports": "Отчёты и операции", "nav.knowledge": "Знания и PMBOK", "nav.help": "Справка",
+  "nav.group.entry": "Начало", "nav.group.personal": "Личное пространство", "nav.group.enterprise": "Enterprise",
+  "common.back": "Назад", "common.refresh": "Обновить", "common.save": "Сохранить", "common.cancel": "Отмена", "common.create": "Создать",
+  "common.search": "Поиск", "common.filter": "Фильтр", "common.all": "Все", "common.loading": "Загрузка…", "common.error": "Произошла ошибка.",
+  "common.empty": "Пока нет данных.", "common.forbidden": "Нет прав для этого действия.", "common.unavailable": "Недоступно", "common.notConnected": "Источник не подключён",
+  "common.retry": "Повторить", "common.close": "Закрыть", "common.details": "Детали", "common.status": "Статус", "common.revision": "Ревизия",
+  "common.source": "Источник", "common.updated": "Обновлено", "common.actions": "Действия", "common.open": "Открыть", "common.signIn": "Войти",
+  "common.signOut": "Выйти", "common.learnMore": "Подробнее", "common.viewAll": "Все", "common.welcome": "Добро пожаловать",
+  "common.notProvided": "Не указано", "common.localOnly": "Сохранено только на этом устройстве", "common.requiresServer": "Требуется соединение с сервером",
+  "common.role": "Роль", "common.organization": "Организация", "common.locale": "Язык", "common.optional": "необязательно", "common.required": "обязательно",
+  "common.noData": "Нет записей", "common.connected": "Подключено", "common.restricted": "Ограничено сервером",
+  "page.home.title": "Платформа CUBI", "page.home.subtitle": "Две независимые среды для инженерной поставки и организационного контроля.",
+  "page.login.title": "Вход", "page.login.subtitle": "Используйте учётную запись CUBI. Права проверяются на сервере.",
+  "page.roles.title": "Выбор роли и прав", "page.roles.subtitle": "Выбирайте только предоставленные сервером среды и роли.",
+  "page.workbench.title": "Личное рабочее место", "page.workbench.subtitle": "Ваш центр управления Enterprise, а не третья среда.",
+  "page.environments.title": "Выбор среды", "page.environments.subtitle": "Engineering и Enterprise — независимые продукты.",
+  "page.dashboard.title": "Панели и портлеты Enterprise", "page.portfolio.title": "Портфель и центр руководства", "page.projects.title": "Проекты Enterprise",
+  "page.access.title": "Центр организации и доступа", "page.tasks.title": "Центр команды и задач", "page.workflows.title": "Студия процессов",
+  "page.approvals.title": "Центр отзывов и согласований", "page.resources.title": "Ресурсы и загрузка", "page.reports.title": "Отчёты и операции",
+  "page.knowledge.title": "Центр знаний и PMBOK",
+  "status.fresh": "Актуально", "status.stale": "Устарело", "status.unknown": "Неизвестно", "status.active": "Активно", "status.completed": "Завершено",
+  "status.pending": "Ожидание", "status.draft": "Черновик", "status.archived": "Архив", "status.locked": "Заблокировано", "status.allowed": "Разрешено", "status.denied": "Запрещено",
+};
+
+const tr: Dict = {
+  "brand.suite": "CUBI Platformu", "brand.workbench": "CUBI Çalışma Alanı", "brand.enterprise": "CUBI Kurumsal", "brand.engineering": "CUBI Mühendislik",
+  "nav.home": "Ana sayfa", "nav.login": "Giriş", "nav.roles": "Rol ve erişim", "nav.workbench": "Çalışma alanı", "nav.environments": "Ortamlar",
+  "nav.dashboard": "Panolar", "nav.portfolio": "Portföy", "nav.projects": "Projeler", "nav.access": "Kurum ve erişim",
+  "nav.tasks": "Ekip ve görevler", "nav.workflows": "İş akışı stüdyosu", "nav.approvals": "Onaylar", "nav.resources": "Kaynaklar ve kapasite",
+  "nav.reports": "Raporlar ve operasyon", "nav.knowledge": "Bilgi ve PMBOK", "nav.help": "Ürün yardımı",
+  "nav.group.entry": "Başlangıç", "nav.group.personal": "Kişisel çalışma alanı", "nav.group.enterprise": "Kurumsal",
+  "common.back": "Geri", "common.refresh": "Yenile", "common.save": "Kaydet", "common.cancel": "İptal", "common.create": "Oluştur",
+  "common.search": "Ara", "common.filter": "Filtrele", "common.all": "Tümü", "common.loading": "Yükleniyor…", "common.error": "Bir hata oluştu.",
+  "common.empty": "Henüz gösterilecek bir şey yok.", "common.forbidden": "Bu işlem için izniniz yok.", "common.unavailable": "Kullanılamıyor", "common.notConnected": "Kaynak bağlı değil",
+  "common.retry": "Tekrar dene", "common.close": "Kapat", "common.details": "Ayrıntılar", "common.status": "Durum", "common.revision": "Revizyon",
+  "common.source": "Kaynak", "common.updated": "Güncellendi", "common.actions": "İşlemler", "common.open": "Aç", "common.signIn": "Giriş yap",
+  "common.signOut": "Çıkış yap", "common.learnMore": "Daha fazla", "common.viewAll": "Tümünü gör", "common.welcome": "Hoş geldiniz",
+  "common.notProvided": "Belirtilmedi", "common.localOnly": "Yalnızca bu cihazda kayıtlı", "common.requiresServer": "Sunucu bağlantısı gerekir",
+  "common.role": "Rol", "common.organization": "Kurum", "common.locale": "Dil", "common.optional": "isteğe bağlı", "common.required": "zorunlu",
+  "common.noData": "Kayıt yok", "common.connected": "Bağlı", "common.restricted": "Sunucu tarafından kısıtlı",
+  "page.home.title": "CUBI Platformu", "page.home.subtitle": "Mühendislik teslimi ve kurumsal kontrol için iki ayrı ortam.",
+  "page.login.title": "Giriş", "page.login.subtitle": "CUBI hesabınızla giriş yapın. Yetkiler sunucuda belirlenir.",
+  "page.roles.title": "Rol ve yetki seçimi", "page.roles.subtitle": "Yalnızca sunucunun verdiği ortam ve rolleri seçin.",
+  "page.workbench.title": "Kişisel çalışma alanı", "page.workbench.subtitle": "Kurumsal genelinde komuta merkeziniz — üçüncü bir ortam değil.",
+  "page.environments.title": "Ortam seçin", "page.environments.subtitle": "Mühendislik ve Kurumsal bağımsız ürünlerdir.",
+  "page.dashboard.title": "Kurumsal panolar ve portletler", "page.portfolio.title": "Portföy ve yönetim merkezi", "page.projects.title": "Kurumsal projeler",
+  "page.access.title": "Kurum ve erişim merkezi", "page.tasks.title": "Ekip ve görev merkezi", "page.workflows.title": "İş akışı stüdyosu",
+  "page.approvals.title": "Geri bildirim ve onay merkezi", "page.resources.title": "Kaynaklar ve kapasite", "page.reports.title": "Raporlar ve operasyon",
+  "page.knowledge.title": "Bilgi ve PMBOK merkezi",
+  "status.fresh": "Güncel", "status.stale": "Eski", "status.unknown": "Bilinmiyor", "status.active": "Aktif", "status.completed": "Tamamlandı",
+  "status.pending": "Beklemede", "status.draft": "Taslak", "status.archived": "Arşiv", "status.locked": "Kilitli", "status.allowed": "İzinli", "status.denied": "Reddedildi",
+};
+
+const DICTIONARIES: Record<EnterpriseLocale, Dict> = { en, fa, de, zh, ar, fr, ja, ko, ru, tr };
+
+export function normalizeLocale(value: string | null | undefined): EnterpriseLocale {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (!raw) return "en";
+  if (raw.startsWith("fa")) return "fa";
+  if (raw.startsWith("de")) return "de";
+  if (raw.startsWith("zh")) return "zh";
+  if (raw.startsWith("ar")) return "ar";
+  if (raw.startsWith("fr")) return "fr";
+  if (raw.startsWith("ja")) return "ja";
+  if (raw.startsWith("ko")) return "ko";
+  if (raw.startsWith("ru")) return "ru";
+  if (raw === "tr" || raw.startsWith("tr-")) return "tr";
+  return "en";
+}
+
+export function readLocalePreference(): EnterpriseLocale {
+  try {
+    const stored = window.localStorage.getItem("cubi.enterprise.locale");
+    if (stored) return normalizeLocale(stored);
+  } catch {
+    // Storage can be unavailable in hardened browsers; default to English.
+  }
+  return normalizeLocale(navigator.language);
+}
+
+export function rememberLocale(locale: EnterpriseLocale): void {
+  try {
+    window.localStorage.setItem("cubi.enterprise.locale", locale);
+  } catch {
+    // Non-fatal: the choice still applies to this page view.
+  }
+}
+
+export function isRtl(locale: EnterpriseLocale): boolean {
+  return RTL_LOCALES.has(locale);
+}
+
+/** Full-content locales are reviewed for product copy; others use shell copy only. */
+export function hasReviewedContent(locale: EnterpriseLocale): boolean {
+  return locale === "en" || locale === "fa";
+}
+
+export function translator(locale: EnterpriseLocale): (key: string, vars?: Record<string, string | number>) => string {
+  const primary = DICTIONARIES[locale] ?? en;
+  return (key, vars) => {
+    let text = primary[key] ?? en[key] ?? key;
+    if (vars) {
+      for (const [name, value] of Object.entries(vars)) {
+        text = text.replace(new RegExp(`\\{${name}\\}`, "g"), String(value));
+      }
+    }
+    return text;
+  };
+}

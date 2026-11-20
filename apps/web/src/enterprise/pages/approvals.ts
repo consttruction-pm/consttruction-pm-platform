@@ -1,0 +1,175 @@
+import type { PageContext } from "../app.js";
+import { probe } from "../api.js";
+import { badge, el } from "../ui.js";
+import {
+  labelled,
+  note,
+  section,
+  sectionBody,
+  selectControl,
+  sourceState,
+  testId,
+  textArea,
+  textInput,
+} from "./shared.js";
+
+/**
+ * Page 12 — Feedback and approval center.
+ *
+ * Decisions are pinned to the revision the reviewer saw. The server rejects a
+ * stale expected_revision and a replayed decision; this page implements that
+ * contract and never fakes an approval.
+ */
+
+export function renderApprovals(ctx: PageContext, host: HTMLElement): void {
+  const intro = section("Revision-pinned decisions", "An approval is a decision about one exact revision of one item. If the item changes, the old revision cannot be approved.");
+  sectionBody(intro,
+    note("The client sends expected_revision and an Idempotency-Key. The server compares the revision, rejects stale or duplicate decisions and writes the audit record.", "warning"),
+  );
+  testId(intro, "approvals-intro");
+  host.append(intro);
+
+  const queue = section("Pending approvals", "The queue is read from the approval service. No item is listed unless the server returned it.");
+  const queueHost = el("div", {}, el("div", { class: "cubi-loading" }, el("div", { class: "cubi-spinner" }), el("span", { text: ctx.t("common.loading") })));
+  sectionBody(queue, queueHost);
+  testId(queue, "approvals-queue");
+  host.append(queue);
+
+  const decision = section("Record a decision", "Approve, reject or request changes against the revision that was reviewed.");
+  const form = el("form", { class: "cubi-form-grid" });
+  const itemId = testId(textInput({ placeholder: "approval item id" }), "approvals-item-id");
+  const revision = testId(textInput({ type: "number", placeholder: "expected revision" }), "approvals-revision");
+  const outcome = testId(selectControl([
+    { value: "approve", label: "Approve" },
+    { value: "reject", label: "Reject" },
+    { value: "request_changes", label: "Request changes" },
+  ], "approve", () => {}), "approvals-outcome");
+  const comment = textAreaLocal();
+  const submit = testId(el("button", { class: "cubi-btn cubi-btn-primary", text: "Submit decision", attrs: { type: "submit" } }), "approvals-submit");
+  const result = testId(el("p", { class: "cubi-alert cubi-alert-info", attrs: { role: "status", hidden: "hidden" } }), "approvals-result");
+  form.append(
+    labelled("Item", itemId, "Identifier returned by the approval queue."),
+    labelled("Expected revision", revision, "The exact revision you reviewed."),
+    labelled("Decision", outcome),
+    labelled("Comment", comment, "Recorded with the decision."),
+  );
+  form.append(result, submit);
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    result.hidden = true;
+    const id = itemId.value.trim();
+    const expected = Number(revision.value);
+    if (!id) {
+      showResult(result, "Enter the approval item identifier.", true);
+      return;
+    }
+    if (!Number.isInteger(expected) || expected < 1) {
+      showResult(result, "Enter the integer revision that was reviewed.", true);
+      return;
+    }
+    submit.disabled = true;
+    const key = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `decision-${Date.now()}`;
+    const body = JSON.stringify({ expected_revision: expected, decision: outcome.value, comment: comment.value });
+    fetch(`/api/enterprise/approvals/${encodeURIComponent(id)}/decisions`, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "Idempotency-Key": key,
+        ...csrfHeader(),
+      },
+      body,
+    })
+      .then(async (response) => {
+        submit.disabled = false;
+        if (response.ok) {
+          showResult(result, "Decision recorded by the server. The queue will refresh.", false);
+          ctx.toast("Decision recorded.", "info");
+          return;
+        }
+        const payload = await response.json().catch(() => ({} as Record<string, unknown>));
+        const code = String(payload.code ?? `HTTP_${response.status}`);
+        if (response.status === 409 && /STALE|REVISION/.test(code)) {
+          showResult(result, `Rejected as stale (${code}). The item changed after revision ${expected}; review the new revision before deciding.`, true);
+        } else if (response.status === 409 && /DUPLICATE|REPLAY/.test(code)) {
+          showResult(result, `Rejected as a duplicate decision (${code}). The idempotency key was already used.`, true);
+        } else if (response.status === 403) {
+          showResult(result, `Forbidden (${code}). Your server roles do not allow this decision.`, true);
+        } else if (response.status === 404) {
+          showResult(result, "The approval service route is not mounted on this server. No decision was recorded.", true);
+        } else {
+          showResult(result, `The decision was not recorded: ${code} (HTTP ${response.status}).`, true);
+        }
+      })
+      .catch(() => {
+        submit.disabled = false;
+        showResult(result, "The server could not be reached. No decision was recorded.", true);
+      });
+  });
+  sectionBody(decision, form);
+  testId(decision, "approvals-decision");
+  host.append(decision);
+
+  const feedback = section("Feedback queue", "Feedback items use the same revision pinning rules as approvals.");
+  const feedbackHost = el("div");
+  sectionBody(feedback, feedbackHost);
+  testId(feedback, "approvals-feedback");
+  host.append(feedback);
+
+  const states = section("Decision outcomes", "These are the server outcomes this page is designed to show.");
+  const list = el("div", { class: "cubi-list" });
+  list.append(
+    outcomeRow("Recorded", "The decision was accepted for the expected revision and written to audit.", "success"),
+    outcomeRow("Stale revision", "HTTP 409 · the item has moved on; the reviewer must re-read it.", "danger"),
+    outcomeRow("Duplicate decision", "HTTP 409 · the same idempotency key cannot decide twice.", "warning"),
+    outcomeRow("Forbidden", "HTTP 403 · the server session lacks the decision permission.", "neutral"),
+    outcomeRow("Not connected", "HTTP 404 · the route is not mounted; nothing is recorded.", "neutral"),
+  );
+  sectionBody(states, list);
+  testId(states, "approvals-outcomes");
+  host.append(states);
+
+  void loadQueue(ctx, queueHost, feedbackHost, submit);
+}
+
+async function loadQueue(ctx: PageContext, queueHost: HTMLElement, feedbackHost: HTMLElement, submit: HTMLButtonElement): Promise<void> {
+  const [queue, feedback] = await Promise.all([
+    probe("/api/enterprise/approvals"),
+    probe("/api/enterprise/feedback"),
+  ]);
+  if (queue.state === "available") {
+    queueHost.replaceChildren(el("p", { class: "cubi-field-hint", text: "The approval service responded. Queue rows are rendered by the approval read model." }));
+  } else {
+    queueHost.replaceChildren(sourceState(queue, ctx.t, { title: "Approval queue is not connected", source: "Enterprise approval API", detail: "Submit remains disabled until the server route is mounted." }));
+    submit.disabled = true;
+    submit.title = "The approval service is not connected.";
+  }
+  feedbackHost.replaceChildren(
+    feedback.state === "available"
+      ? el("p", { class: "cubi-field-hint", text: "The feedback service responded." })
+      : sourceState(feedback, ctx.t, { title: "Feedback queue is not connected", source: "Enterprise feedback API" }),
+  );
+}
+
+function textAreaLocal(): HTMLTextAreaElement {
+  return textArea({ placeholder: "Decision comment", rows: 3 });
+}
+
+function csrfHeader(): Record<string, string> {
+  for (const part of document.cookie.split(";")) {
+    const [key, ...rest] = part.trim().split("=");
+    if (key === "cp_csrf") return { "x-csrf-token": decodeURIComponent(rest.join("=")) };
+  }
+  return {};
+}
+
+function showResult(node: HTMLElement, message: string, error: boolean): void {
+  node.textContent = message;
+  node.className = `cubi-alert ${error ? "cubi-alert-error" : "cubi-alert-info"}`;
+  node.hidden = false;
+}
+
+function outcomeRow(title: string, body: string, tone: "success" | "danger" | "warning" | "neutral"): HTMLElement {
+  return el("div", { class: "cubi-list-item" }, el("div", {}, el("strong", { text: title }), el("p", { class: "cubi-field-hint", text: body })), badge(title.toLowerCase(), tone));
+}

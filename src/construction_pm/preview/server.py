@@ -79,12 +79,26 @@ def _html(status: int, document: str) -> tuple[int, dict[str, str], bytes]:
 
 
 def _safe_next(raw: object) -> str:
-    """Allow only a validated project selector and canonical live workspace mode."""
+    """Allow only canonical live workspace mode or a local Enterprise path.
+
+    Both destinations are same-origin product routes. Nothing from the query
+    string is trusted beyond a project identifier and the fixed view mode.
+    """
     value = str(raw or "").strip()
     try:
         parsed = urlsplit(value)
     except ValueError:
         return "/app?view=live"
+    if (
+        not parsed.scheme
+        and not parsed.netloc
+        and not parsed.fragment
+        and (parsed.path == "/cubi" or parsed.path.startswith("/cubi/"))
+        and "\\" not in value
+        and not any(ord(char) < 0x20 for char in value)
+    ):
+        # The Enterprise Workbench owns its own client router under /cubi/*.
+        return value or "/cubi/"
     if (
         parsed.scheme
         or parsed.netloc
@@ -202,6 +216,11 @@ class PreviewFrontend:
             return self._file(self.root / "app.html")
         if segments == ["app.html"]:
             return self._file(self.root / "app.html")
+        if segments and segments[0] == "cubi":
+            # The Enterprise Workbench is its own document and bundle. Every
+            # /cubi/* route is resolved by the client router, so all of them
+            # serve the same shell.
+            return self._file(self.root / "enterprise.html")
         if segments[0] == "dist":
             rest = segments[1:]
             if not rest:
@@ -650,6 +669,7 @@ class PreviewApplication:
                 "planner": "Read projects, edit activities, save layouts and publish schedule snapshots.",
                 "viewer": "Read-only project access. Writes are denied by the server.",
                 "admin": "Planner capabilities plus project creation.",
+                "enterprise": "Enterprise administrator. Opens the /cubi Enterprise Workbench with the enterprise_admin tier.",
                 "newcomer": "A new account with no project yet. Use it to create and open the first project.",
             }[user.role]
             cards.append(

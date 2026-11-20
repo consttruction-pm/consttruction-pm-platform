@@ -377,7 +377,13 @@ class SqliteKnowledgeStore:
             self._connection = location
             self._owns_connection = False
         else:
-            self._connection = sqlite3.connect(str(location), timeout=30)
+            # The knowledge middleware is mounted in front of the WSGI app, which
+            # serves requests on a worker thread pool. A connection created on
+            # the boot thread must therefore be usable from a request thread;
+            # SQLite still serialises access to the database file itself.
+            self._connection = sqlite3.connect(
+                str(location), timeout=30, check_same_thread=False
+            )
             self._connection.row_factory = sqlite3.Row
             self._owns_connection = True
         self._connection.execute("PRAGMA foreign_keys = ON")

@@ -1,0 +1,768 @@
+{
+  "generated_at": "2026-11-20T21:35:00Z",
+  "base_url": "http://127.0.0.1:4180",
+  "preview_entry": "/cubi/",
+  "login_path": "/preview/login?next=/cubi/",
+  "login_persona": "enterprise",
+  "session_status": 200,
+  "signed_in_url": "http://127.0.0.1:4180/cubi/",
+  "browser": "Chromium (headless) via Playwright, /usr/bin/chromium --no-sandbox",
+  "pages": [
+    {
+      "order": 1,
+      "id": "01-home",
+      "route": "/cubi/",
+      "screenshot": "artifacts/enterprise-preview/01-home.png",
+      "http_status": 200,
+      "final_url": "http://127.0.0.1:4180/cubi/",
+      "h1": "CUBI Platform",
+      "signed_in": true,
+      "login_persona": "enterprise",
+      "session_status": 200,
+      "api_calls": 2,
+      "api_failures": [],
+      "console_errors": [],
+      "page_errors": [],
+      "state_marks": {
+        "unavailable": 0,
+        "forbidden": 0,
+        "error": 0
+      },
+      "refresh": {
+        "url": "http://127.0.0.1:4180/cubi/",
+        "h1_count": 1
+      },
+      "browser_test": "Chromium headless, 1440x1000, real /preview/login enterprise persona; page loaded, rendered h1, refreshed"
+    },
+    {
+      "order": 2,
+      "id": "02-login",
+      "route": "/cubi/login",
+      "screenshot": "artifacts/enterprise-preview/02-login.png",
+      "http_status": 200,
+      "final_url": "http://127.0.0.1:4180/cubi/login",
+      "h1": "Sign in",
+      "signed_in": true,
+      "login_persona": "enterprise",
+      "session_status": 200,
+      "api_calls": 2,
+      "api_failures": [],
+      "console_errors": [],
+      "page_errors": [],
+      "state_marks": {
+        "unavailable": 0,
+        "forbidden": 0,
+        "error": 0
+      },
+      "refresh": {
+        "url": "http://127.0.0.1:4180/cubi/login",
+        "h1_count": 1
+      },
+      "browser_test": "Chromium headless, 1440x1000, real /preview/login enterprise persona; page loaded, rendered h1, refreshed"
+    },
+    {
+      "order": 3,
+      "id": "03-roles",
+      "route": "/cubi/roles",
+      "screenshot": "artifacts/enterprise-preview/03-roles.png",
+      "http_status": 200,
+      "final_url": "http://127.0.0.1:4180/cubi/roles",
+      "h1": "Role & permission selection",
+      "signed_in": true,
+      "login_persona": "enterprise",
+      "session_status": 200,
+      "api_calls": 2,
+      "api_failures": [],
+      "console_errors": [],
+      "page_errors": [],
+      "state_marks": {
+        "unavailable": 0,
+        "forbidden": 0,
+        "error": 0
+      },
+      "refresh": {
+        "url": "http://127.0.0.1:4180/cubi/roles",
+        "h1_count": 1
+      },
+      "browser_test": "Chromium headless, 1440x1000, real /preview/login enterprise persona; page loaded, rendered h1, refreshed"
+    },
+    {
+      "order": 4,
+      "id": "04-workbench",
+      "route": "/cubi/workbench",
+      "screenshot": "artifacts/enterprise-preview/04-workbench.png",
+      "http_status": 200,
+      "final_url": "http://127.0.0.1:4180/cubi/workbench",
+      "h1": "Personal workbench",
+      "signed_in": true,
+      "login_persona": "enterprise",
+      "session_status": 200,
+      "api_calls": 6,
+      "api_failures": [
+        {
+          "status": 404,
+          "url": "http://127.0.0.1:4180/api/enterprise/tasks"
+        },
+        {
+          "status": 404,
+          "url": "http://127.0.0.1:4180/api/enterprise/approvals"
+        },
+        {
+          "status": 404,
+          "url": "http://127.0.0.1:4180/api/enterprise/dashboards"
+        },
+        {
+          "status": 404,
+          "url": "http://127.0.0.1:4180/api/enterprise/organizations"
+        }
+      ],
+      "console_errors": [
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        }
+      ],
+      "page_errors": [],
+      "state_marks": {
+        "unavailable": 19,
+        "forbidden": 0,
+        "error": 0
+      },
+      "refresh": {
+        "url": "http://127.0.0.1:4180/cubi/workbench",
+        "h1_count": 1
+      },
+      "browser_test": "Chromium headless, 1440x1000, real /preview/login enterprise persona; page loaded, rendered h1, refreshed"
+    },
+    {
+      "order": 5,
+      "id": "05-environments",
+      "route": "/cubi/environments",
+      "screenshot": "artifacts/enterprise-preview/05-environments.png",
+      "http_status": 200,
+      "final_url": "http://127.0.0.1:4180/cubi/environments",
+      "h1": "Choose an environment",
+      "signed_in": true,
+      "login_persona": "enterprise",
+      "session_status": 200,
+      "api_calls": 2,
+      "api_failures": [],
+      "console_errors": [],
+      "page_errors": [],
+      "state_marks": {
+        "unavailable": 0,
+        "forbidden": 0,
+        "error": 0
+      },
+      "refresh": {
+        "url": "http://127.0.0.1:4180/cubi/environments",
+        "h1_count": 1
+      },
+      "browser_test": "Chromium headless, 1440x1000, real /preview/login enterprise persona; page loaded, rendered h1, refreshed"
+    },
+    {
+      "order": 6,
+      "id": "06-dashboard",
+      "route": "/cubi/enterprise/dashboard",
+      "screenshot": "artifacts/enterprise-preview/06-dashboard.png",
+      "http_status": 200,
+      "final_url": "http://127.0.0.1:4180/cubi/enterprise/dashboard",
+      "h1": "Enterprise dashboard & portlets",
+      "signed_in": true,
+      "login_persona": "enterprise",
+      "session_status": 200,
+      "api_calls": 8,
+      "api_failures": [
+        {
+          "status": 404,
+          "url": "http://127.0.0.1:4180/api/enterprise/portlets/schedule-health?project_id=preview-rps-01"
+        },
+        {
+          "status": 404,
+          "url": "http://127.0.0.1:4180/api/enterprise/portlets/evm-summary?project_id=preview-rps-01"
+        },
+        {
+          "status": 404,
+          "url": "http://127.0.0.1:4180/api/enterprise/portlets/resource-capacity?project_id=preview-rps-01"
+        },
+        {
+          "status": 404,
+          "url": "http://127.0.0.1:4180/api/enterprise/approvals"
+        },
+        {
+          "status": 404,
+          "url": "http://127.0.0.1:4180/api/enterprise/tasks?project_id=preview-rps-01"
+        }
+      ],
+      "console_errors": [
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        }
+      ],
+      "page_errors": [],
+      "state_marks": {
+        "unavailable": 11,
+        "forbidden": 0,
+        "error": 0
+      },
+      "refresh": {
+        "url": "http://127.0.0.1:4180/cubi/enterprise/dashboard",
+        "h1_count": 1
+      },
+      "browser_test": "Chromium headless, 1440x1000, real /preview/login enterprise persona; page loaded, rendered h1, refreshed"
+    },
+    {
+      "order": 7,
+      "id": "07-portfolio",
+      "route": "/cubi/enterprise/portfolio",
+      "screenshot": "artifacts/enterprise-preview/07-portfolio.png",
+      "http_status": 200,
+      "final_url": "http://127.0.0.1:4180/cubi/enterprise/portfolio",
+      "h1": "Portfolio & executive center",
+      "signed_in": true,
+      "login_persona": "enterprise",
+      "session_status": 200,
+      "api_calls": 6,
+      "api_failures": [
+        {
+          "status": 404,
+          "url": "http://127.0.0.1:4180/api/enterprise/portfolio/trends?project_id=preview-rps-01"
+        },
+        {
+          "status": 404,
+          "url": "http://127.0.0.1:4180/api/enterprise/decisions?project_id=preview-rps-01"
+        },
+        {
+          "status": 404,
+          "url": "http://127.0.0.1:4180/api/enterprise/portfolio/indicators?project_id=preview-rps-01"
+        },
+        {
+          "status": 404,
+          "url": "http://127.0.0.1:4180/api/enterprise/evm/capability"
+        }
+      ],
+      "console_errors": [
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        }
+      ],
+      "page_errors": [],
+      "state_marks": {
+        "unavailable": 20,
+        "forbidden": 0,
+        "error": 0
+      },
+      "refresh": {
+        "url": "http://127.0.0.1:4180/cubi/enterprise/portfolio",
+        "h1_count": 1
+      },
+      "browser_test": "Chromium headless, 1440x1000, real /preview/login enterprise persona; page loaded, rendered h1, refreshed"
+    },
+    {
+      "order": 8,
+      "id": "08-projects",
+      "route": "/cubi/enterprise/projects",
+      "screenshot": "artifacts/enterprise-preview/08-projects.png",
+      "http_status": 200,
+      "final_url": "http://127.0.0.1:4180/cubi/enterprise/projects",
+      "h1": "Enterprise projects",
+      "signed_in": true,
+      "login_persona": "enterprise",
+      "session_status": 200,
+      "api_calls": 2,
+      "api_failures": [],
+      "console_errors": [],
+      "page_errors": [],
+      "state_marks": {
+        "unavailable": 0,
+        "forbidden": 0,
+        "error": 0
+      },
+      "refresh": {
+        "url": "http://127.0.0.1:4180/cubi/enterprise/projects",
+        "h1_count": 1
+      },
+      "browser_test": "Chromium headless, 1440x1000, real /preview/login enterprise persona; page loaded, rendered h1, refreshed"
+    },
+    {
+      "order": 9,
+      "id": "09-access",
+      "route": "/cubi/enterprise/access",
+      "screenshot": "artifacts/enterprise-preview/09-access.png",
+      "http_status": 200,
+      "final_url": "http://127.0.0.1:4180/cubi/enterprise/access",
+      "h1": "Organization & access center",
+      "signed_in": true,
+      "login_persona": "enterprise",
+      "session_status": 200,
+      "api_calls": 10,
+      "api_failures": [
+        {
+          "status": 404,
+          "url": "http://127.0.0.1:4180/api/enterprise/organizations"
+        },
+        {
+          "status": 404,
+          "url": "http://127.0.0.1:4180/api/enterprise/memberships"
+        },
+        {
+          "status": 404,
+          "url": "http://127.0.0.1:4180/api/enterprise/invitations"
+        },
+        {
+          "status": 404,
+          "url": "http://127.0.0.1:4180/api/enterprise/teams"
+        },
+        {
+          "status": 404,
+          "url": "http://127.0.0.1:4180/api/enterprise/users"
+        },
+        {
+          "status": 404,
+          "url": "http://127.0.0.1:4180/api/enterprise/roles"
+        },
+        {
+          "status": 404,
+          "url": "http://127.0.0.1:4180/api/enterprise/grants"
+        },
+        {
+          "status": 404,
+          "url": "http://127.0.0.1:4180/api/enterprise/audit"
+        }
+      ],
+      "console_errors": [
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        }
+      ],
+      "page_errors": [],
+      "state_marks": {
+        "unavailable": 48,
+        "forbidden": 0,
+        "error": 0
+      },
+      "refresh": {
+        "url": "http://127.0.0.1:4180/cubi/enterprise/access",
+        "h1_count": 1
+      },
+      "browser_test": "Chromium headless, 1440x1000, real /preview/login enterprise persona; page loaded, rendered h1, refreshed"
+    },
+    {
+      "order": 10,
+      "id": "10-tasks",
+      "route": "/cubi/enterprise/tasks",
+      "screenshot": "artifacts/enterprise-preview/10-tasks.png",
+      "http_status": 200,
+      "final_url": "http://127.0.0.1:4180/cubi/enterprise/tasks",
+      "h1": "Team & task center",
+      "signed_in": true,
+      "login_persona": "enterprise",
+      "session_status": 200,
+      "api_calls": 3,
+      "api_failures": [
+        {
+          "status": 404,
+          "url": "http://127.0.0.1:4180/api/enterprise/tasks"
+        }
+      ],
+      "console_errors": [
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        }
+      ],
+      "page_errors": [],
+      "state_marks": {
+        "unavailable": 3,
+        "forbidden": 0,
+        "error": 0
+      },
+      "refresh": {
+        "url": "http://127.0.0.1:4180/cubi/enterprise/tasks",
+        "h1_count": 1
+      },
+      "browser_test": "Chromium headless, 1440x1000, real /preview/login enterprise persona; page loaded, rendered h1, refreshed"
+    },
+    {
+      "order": 11,
+      "id": "11-workflows",
+      "route": "/cubi/enterprise/workflows",
+      "screenshot": "artifacts/enterprise-preview/11-workflows.png",
+      "http_status": 200,
+      "final_url": "http://127.0.0.1:4180/cubi/enterprise/workflows",
+      "h1": "Workflow studio",
+      "signed_in": true,
+      "login_persona": "enterprise",
+      "session_status": 200,
+      "api_calls": 3,
+      "api_failures": [
+        {
+          "status": 404,
+          "url": "http://127.0.0.1:4180/api/enterprise/workflows"
+        }
+      ],
+      "console_errors": [
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        }
+      ],
+      "page_errors": [],
+      "state_marks": {
+        "unavailable": 2,
+        "forbidden": 0,
+        "error": 0
+      },
+      "refresh": {
+        "url": "http://127.0.0.1:4180/cubi/enterprise/workflows",
+        "h1_count": 1
+      },
+      "browser_test": "Chromium headless, 1440x1000, real /preview/login enterprise persona; page loaded, rendered h1, refreshed"
+    },
+    {
+      "order": 12,
+      "id": "12-approvals",
+      "route": "/cubi/enterprise/approvals",
+      "screenshot": "artifacts/enterprise-preview/12-approvals.png",
+      "http_status": 200,
+      "final_url": "http://127.0.0.1:4180/cubi/enterprise/approvals",
+      "h1": "Feedback & approval center",
+      "signed_in": true,
+      "login_persona": "enterprise",
+      "session_status": 200,
+      "api_calls": 4,
+      "api_failures": [
+        {
+          "status": 404,
+          "url": "http://127.0.0.1:4180/api/enterprise/feedback"
+        },
+        {
+          "status": 404,
+          "url": "http://127.0.0.1:4180/api/enterprise/approvals"
+        }
+      ],
+      "console_errors": [
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        }
+      ],
+      "page_errors": [],
+      "state_marks": {
+        "unavailable": 7,
+        "forbidden": 0,
+        "error": 0
+      },
+      "refresh": {
+        "url": "http://127.0.0.1:4180/cubi/enterprise/approvals",
+        "h1_count": 1
+      },
+      "browser_test": "Chromium headless, 1440x1000, real /preview/login enterprise persona; page loaded, rendered h1, refreshed"
+    },
+    {
+      "order": 13,
+      "id": "13-resources",
+      "route": "/cubi/enterprise/resources",
+      "screenshot": "artifacts/enterprise-preview/13-resources.png",
+      "http_status": 200,
+      "final_url": "http://127.0.0.1:4180/cubi/enterprise/resources",
+      "h1": "Resources & capacity",
+      "signed_in": true,
+      "login_persona": "enterprise",
+      "session_status": 200,
+      "api_calls": 6,
+      "api_failures": [],
+      "console_errors": [],
+      "page_errors": [],
+      "state_marks": {
+        "unavailable": 0,
+        "forbidden": 0,
+        "error": 0
+      },
+      "refresh": {
+        "url": "http://127.0.0.1:4180/cubi/enterprise/resources",
+        "h1_count": 1
+      },
+      "browser_test": "Chromium headless, 1440x1000, real /preview/login enterprise persona; page loaded, rendered h1, refreshed"
+    },
+    {
+      "order": 14,
+      "id": "14-reports",
+      "route": "/cubi/enterprise/reports",
+      "screenshot": "artifacts/enterprise-preview/14-reports.png",
+      "http_status": 200,
+      "final_url": "http://127.0.0.1:4180/cubi/enterprise/reports",
+      "h1": "Reports & operations",
+      "signed_in": true,
+      "login_persona": "enterprise",
+      "session_status": 200,
+      "api_calls": 6,
+      "api_failures": [],
+      "console_errors": [],
+      "page_errors": [],
+      "state_marks": {
+        "unavailable": 1,
+        "forbidden": 0,
+        "error": 0
+      },
+      "refresh": {
+        "url": "http://127.0.0.1:4180/cubi/enterprise/reports",
+        "h1_count": 1
+      },
+      "browser_test": "Chromium headless, 1440x1000, real /preview/login enterprise persona; page loaded, rendered h1, refreshed"
+    },
+    {
+      "order": 15,
+      "id": "15-knowledge",
+      "route": "/cubi/enterprise/knowledge",
+      "screenshot": "artifacts/enterprise-preview/15-knowledge.png",
+      "http_status": 200,
+      "final_url": "http://127.0.0.1:4180/cubi/enterprise/knowledge",
+      "h1": "Knowledge & PMBOK center",
+      "signed_in": true,
+      "login_persona": "enterprise",
+      "session_status": 200,
+      "api_calls": 8,
+      "api_failures": [],
+      "console_errors": [],
+      "page_errors": [],
+      "state_marks": {
+        "unavailable": 0,
+        "forbidden": 0,
+        "error": 0
+      },
+      "refresh": {
+        "url": "http://127.0.0.1:4180/cubi/enterprise/knowledge",
+        "h1_count": 1
+      },
+      "browser_test": "Chromium headless, 1440x1000, real /preview/login enterprise persona; page loaded, rendered h1, refreshed"
+    }
+  ],
+  "api_matrix": [
+    {
+      "method": "GET",
+      "path": "/api/session",
+      "status": 200,
+      "sample": "{\"user_id\":\"preview-enterprise\",\"tenant_id\":\"cubi-preview-tenant\",\"roles\":[\"enterprise_admin\",\"proje"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects",
+      "status": 200,
+      "sample": "{\"projects\":[{\"project_id\":\"preview-rps-01\",\"tenant_id\":\"cubi-preview-tenant\",\"name\":\"Riverside Pump"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/preview-rps-01/p6/resources",
+      "status": 200,
+      "sample": "{\"contract_version\":\"p6-resource-api.v1\",\"resources\":[{\"contract_version\":\"p6-resource-api.v1\",\"kind"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/preview-rps-01/p6/resource-capacities",
+      "status": 200,
+      "sample": "{\"contract_version\":\"p6-resource-capacity-read-api.v1\",\"capacities\":[{\"contract_version\":\"p6-resourc"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/preview-rps-01/documents",
+      "status": 200,
+      "sample": "{\"contract_version\":\"1.0\",\"documents\":[]}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/preview-rps-01/risks",
+      "status": 200,
+      "sample": "{\"contract_version\":\"p6-risk-api.v1\",\"risks\":[]}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/preview-rps-01/p6/issues",
+      "status": 200,
+      "sample": "{\"contract_version\":\"p6-issue-api.v1\",\"issues\":[]}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/preview-rps-01/reports/catalogue",
+      "status": 200,
+      "sample": "{\"contract_version\":\"p6-report-api.v1\",\"subjects\":[{\"subject\":\"activities\",\"label\":\"Activities\",\"fie"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects/preview-rps-01/reports",
+      "status": 200,
+      "sample": "{\"contract_version\":\"p6-report-api.v1\",\"catalogue\":[{\"subject\":\"activities\",\"label\":\"Activities\",\"fi"
+    },
+    {
+      "method": "GET",
+      "path": "/api/knowledge/cards",
+      "status": 200,
+      "sample": "{\"cards\": []}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/knowledge/coverage",
+      "status": 200,
+      "sample": "{\"contract_version\": \"cubi-knowledge-coverage.v1\", \"sources\": [{\"source_id\": \"p6-26-html-help\", \"tit"
+    },
+    {
+      "method": "GET",
+      "path": "/api/knowledge/search?q=baseline",
+      "status": 200,
+      "sample": "{\"query\": \"baseline\", \"query_locale\": \"en\", \"response_locale\": \"en\", \"filters\": {\"locale\": null, \"la"
+    },
+    {
+      "method": "GET",
+      "path": "/api/forms/organization/overview",
+      "status": 200,
+      "sample": "{\"contract_version\":\"cubi-form-builder-api.v1\",\"kind\":\"form_builder_overview\",\"engine_version\":\"cubi"
+    },
+    {
+      "method": "GET",
+      "path": "/api/enterprise/tasks",
+      "status": 404,
+      "sample": "{\"code\":\"ROUTE_NOT_FOUND\",\"retryable\":false,\"message_key\":\"error.route.not_found\",\"available_actions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/enterprise/dashboards",
+      "status": 404,
+      "sample": "{\"code\":\"ROUTE_NOT_FOUND\",\"retryable\":false,\"message_key\":\"error.route.not_found\",\"available_actions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/enterprise/organizations",
+      "status": 404,
+      "sample": "{\"code\":\"ROUTE_NOT_FOUND\",\"retryable\":false,\"message_key\":\"error.route.not_found\",\"available_actions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/enterprise/approvals",
+      "status": 404,
+      "sample": "{\"code\":\"ROUTE_NOT_FOUND\",\"retryable\":false,\"message_key\":\"error.route.not_found\",\"available_actions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/enterprise/portfolios",
+      "status": 404,
+      "sample": "{\"code\":\"ROUTE_NOT_FOUND\",\"retryable\":false,\"message_key\":\"error.route.not_found\",\"available_actions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/enterprise/decisions",
+      "status": 404,
+      "sample": "{\"code\":\"ROUTE_NOT_FOUND\",\"retryable\":false,\"message_key\":\"error.route.not_found\",\"available_actions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/enterprise/workflows",
+      "status": 404,
+      "sample": "{\"code\":\"ROUTE_NOT_FOUND\",\"retryable\":false,\"message_key\":\"error.route.not_found\",\"available_actions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/enterprise/feedback",
+      "status": 404,
+      "sample": "{\"code\":\"ROUTE_NOT_FOUND\",\"retryable\":false,\"message_key\":\"error.route.not_found\",\"available_actions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/enterprise/portfolio/indicators?project_id=preview-rps-01",
+      "status": 404,
+      "sample": "{\"code\":\"ROUTE_NOT_FOUND\",\"retryable\":false,\"message_key\":\"error.route.not_found\",\"available_actions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/enterprise/portfolio/trends?project_id=preview-rps-01",
+      "status": 404,
+      "sample": "{\"code\":\"ROUTE_NOT_FOUND\",\"retryable\":false,\"message_key\":\"error.route.not_found\",\"available_actions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/schedule/projects/preview-rps-01/jobs/none",
+      "status": 404,
+      "sample": "{\"code\":\"ROUTE_NOT_FOUND\",\"retryable\":false,\"message_key\":\"error.route.not_found\",\"available_actions"
+    }
+  ],
+  "notes": [
+    "All 15 routes returned HTTP 200 and kept exactly one h1 after refresh.",
+    "Zero uncaught page errors on every page.",
+    "Expected 404s are honest capability probes for contracts not yet registered (/api/enterprise/*, scheduling job read).",
+    "No mock data is used; unavailable capabilities render a not-connected state."
+  ]
+}
