@@ -1814,4 +1814,10 @@ integration. No new dependency, storage system or queue was introduced.
 
 ### 21.7 Merge record
 
-Pending merge of this branch.
+PR #2066 squash-merged into `main` as
+`666a30e7b98dac3c48687058e85a3f1a313523fe` on 2026-11-20 (issue #2065).
+Required CI passed: `postgres`, `test (3.11)`, `test (3.12)`, `test (3.13)`
+and all four `typecheck` jobs; only the known infrastructure-only Vercel
+deployments failed. Post-merge on `main` at `666a30e7`: full suite 5,186
+passed / 132 skipped / 0 failed (`post-merge-full.log` in the evidence
+directory).

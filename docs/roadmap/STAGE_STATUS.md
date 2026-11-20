@@ -20,7 +20,7 @@ Status: **100% — implemented; runtime-verified 2026-09-27 through PR #174**
 
 **Priority: P0 — highest CUBI Engineering priority.** Registered under [Issue #1992](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1992). Canonical feasibility record: [P0 Scheduling Core Optimization Feasibility](../engineering/P0_SCHEDULING_CORE_OPTIMIZATION_FEASIBILITY_2026-11-16.md).
 
-Status: **P0-A through P0-I implemented and measured on merged main (`648cef68`); P0-J phases 1–2 merged in `92a62afd` (PR #2021) and phases 3–5 merged in `b6b3cb71` (PR #2022); P0-K merged in `57291794` (PR #2050); P0-L merged in `02704eea` (PR #2053); P0-M merged in `2e1e9b2a` (PR #2057); P0-N merged in `3b30cec0` (PR #2060), with the shared-SQLite thread-safety fix merged in `4f681cab` (PR #2063).** This workstream takes precedence over Engineering enhancements that modify, extend or depend on Scheduling, Calendar, CPM, Float, Resource Loading or Resource Leveling. Unrelated work may continue only without changing or destabilizing the shared calculation core.
+Status: **P0-A through P0-I implemented and measured on merged main (`648cef68`); P0-J phases 1–2 merged in `92a62afd` (PR #2021) and phases 3–5 merged in `b6b3cb71` (PR #2022); P0-K merged in `57291794` (PR #2050); P0-L merged in `02704eea` (PR #2053); P0-M merged in `2e1e9b2a` (PR #2057); P0-N merged in `3b30cec0` (PR #2060), with the shared-SQLite thread-safety fix merged in `4f681cab` (PR #2063) and the production job integration merged in `666a30e7` (PR #2066).** This workstream takes precedence over Engineering enhancements that modify, extend or depend on Scheduling, Calendar, CPM, Float, Resource Loading or Resource Leveling. Unrelated work may continue only without changing or destabilizing the shared calculation core.
 
 Phase record (measured evidence under `docs/workspace/evidence/`; all listed phases are merged):
 
@@ -39,6 +39,7 @@ Phase record (measured evidence under `docs/workspace/evidence/`; all listed pha
 | P0-L | Exact time-aware working-day capacity index + resolver memo (time CPM 1.36–1.43×, equal hashes) | `p0l-time-capacity-index-2026-11-18/` |
 | P0-M | Intra-project backward/float pipeline (time CPM 1.58–1.70× at 4 slots, equal hashes, exact fallbacks) | `p0m-intra-project-pipeline-2026-11-18/` |
 | P0-N | Global slot orchestration, process placement, adaptive tenant cache (10 large projects 3.40×, 30-project mix 3.45×, equal hashes) | `p0n-global-orchestration-2026-11-19/` |
+| P0-N integration | Durable job submit/execute/read path over the optimized engine (API routes, worker tick, process opt-in, equal hashes) | `p0n-production-job-integration-2026-11-20/` |
 
 Mandatory order:
 1. Establish reproducible large-schedule and concurrency baselines against the current authoritative engine. — done (P0-A).
