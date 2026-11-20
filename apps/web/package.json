@@ -14,6 +14,7 @@
     "test": "tsc -p tsconfig.test.json && tsx --test src/*.test.ts && node --test preview-server.test.mjs",
     "traceability:render": "node scripts/render-traceability.mjs",
     "capabilities:generate": "node scripts/generate-capability-catalog.mjs",
+    "assistant:generate": "node scripts/generate-assistant-registries.mjs",
     "audit:responsive": "node e2e/public-site-responsive.mjs"
   },
   "devDependencies": {

@@ -8,6 +8,7 @@ import {
   readAssistantGuideQuery,
   resolveAssistantGuide,
 } from "./assistant-guide.js";
+import { getAssistantHelpCopy } from "./assistant-help-copy.js";
 
 const ROOT_ID = "cubi-global-assistant";
 const AVATAR_ALT = "";
@@ -157,12 +158,43 @@ export function mountGlobalAssistantLauncher(): void {
   guideAction.type = "button";
   guideAction.className = "cubi-assistant-guide-action";
   guideAction.hidden = true;
+
+  // Contextual Help block. The topic, its URL and the PDF page come from the
+  // compiled Help registry; this block only renders them.
+  const guideHelp = document.createElement("div");
+  guideHelp.className = "cubi-assistant-help";
+  const guideHelpHeading = document.createElement("h3");
+  const guideHelpLevel = document.createElement("p");
+  guideHelpLevel.className = "cubi-assistant-help-level";
+  const guideHelpTopic = document.createElement("a");
+  guideHelpTopic.className = "cubi-assistant-help-topic";
+  guideHelpTopic.target = "_blank";
+  guideHelpTopic.rel = "noopener noreferrer";
+  const guideHelpMeta = document.createElement("p");
+  guideHelpMeta.className = "cubi-assistant-help-meta";
+  const guideHelpEmpty = document.createElement("p");
+  guideHelpEmpty.className = "cubi-assistant-help-empty";
+  const guideHelpDocs = document.createElement("a");
+  guideHelpDocs.className = "cubi-assistant-help-docs";
+  const guideHelpFeature = document.createElement("p");
+  guideHelpFeature.className = "cubi-assistant-help-feature";
+  guideHelp.append(
+    guideHelpHeading,
+    guideHelpLevel,
+    guideHelpTopic,
+    guideHelpMeta,
+    guideHelpEmpty,
+    guideHelpDocs,
+    guideHelpFeature,
+  );
+
   guide.append(
     guideHeading,
     guidePurpose,
     guideStepsLabel,
     guideSteps,
     guideError,
+    guideHelp,
     guideAction,
   );
 
@@ -245,6 +277,47 @@ export function mountGlobalAssistantLauncher(): void {
       guideAction.textContent = "";
       delete guideAction.dataset.guideTarget;
     }
+    const helpCopy = getAssistantHelpCopy(locale);
+    const help = entry.help;
+    guideHelpHeading.textContent = helpCopy.heading;
+    guideHelpLevel.textContent = helpCopy.level[help.level];
+    guideHelpLevel.hidden = help.level === "direct" && Boolean(help.topic);
+    if (help.topic) {
+      guideHelpTopic.hidden = false;
+      guideHelpTopic.textContent = help.topic.title;
+      guideHelpTopic.href = help.topic.url;
+      guideHelpMeta.hidden = false;
+      guideHelpMeta.textContent = help.topic.pdfPage
+        ? `${help.topic.source} · ${helpCopy.pdfPage} ${help.topic.pdfPage}`
+        : help.topic.source;
+      guideHelpEmpty.hidden = true;
+      guideHelpDocs.hidden = true;
+    } else {
+      guideHelpTopic.hidden = true;
+      guideHelpTopic.removeAttribute("href");
+      guideHelpTopic.textContent = "";
+      guideHelpMeta.hidden = true;
+      guideHelpMeta.textContent = "";
+      guideHelpEmpty.hidden = false;
+      guideHelpEmpty.textContent = help.reason
+        ? `${helpCopy.noTopic} ${help.reason}`
+        : helpCopy.noTopic;
+      guideHelpDocs.hidden = false;
+      guideHelpDocs.textContent = `${helpCopy.internalDocs} →`;
+      const localeSegment = locale === "en" || locale === "en-GB" ? "" : `${locale.split("-")[0]}/`;
+      guideHelpDocs.href = new URL(`${localeSegment}documentation/`, siteRoot).href;
+    }
+    if (help.feature) {
+      guideHelpFeature.hidden = false;
+      guideHelpFeature.textContent = `${helpCopy.feature}: ${help.feature.id} · ${help.feature.status}`;
+    } else {
+      guideHelpFeature.hidden = true;
+      guideHelpFeature.textContent = "";
+    }
+    guide.dataset.helpLevel = help.level;
+    if (entry.help.topic) guide.dataset.helpEntry = entry.help.topic.url;
+    else delete guide.dataset.helpEntry;
+
     guide.dataset.page = entry.page;
     guide.dataset.state = entry.state;
     if (entry.menu) guide.dataset.menu = entry.menu;
