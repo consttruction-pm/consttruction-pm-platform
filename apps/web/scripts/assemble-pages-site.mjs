@@ -230,10 +230,38 @@ for (const file of [
   "platform/index.html", "solutions/index.html", "resources/index.html", "contact/index.html", "about/index.html",
   "fa/index.html", "fa/platform/index.html", "fa/solutions/index.html", "fa/resources/index.html", "fa/contact/index.html", "fa/about/index.html",
   "pricing/index.html", "fa/pricing/index.html",
-  "environments/index.html",
+  "environments/index.html", "capabilities.json",
   "robots.txt", "sitemap.xml", ".nojekyll",
 ]) assert(existsSync(join(output, file)), "missing " + file);
 assert(!existsSync(join(output, "app.html")), "the preview-only app.html must not be shipped");
+
+// The public capability contract is generated from evidence-backed rows. It is
+// served as static JSON and must never leak the internal vendor baseline.
+const capabilityCatalog = JSON.parse(readFileSync(join(output, "capabilities.json"), "utf8"));
+assert(
+  capabilityCatalog.contract_version === "cubi-public-capabilities.v1",
+  "capability catalog contract version",
+);
+assert(capabilityCatalog.capabilities.length >= 10, "capability catalog must list every public capability");
+assert(
+  Number.isInteger(capabilityCatalog.offer?.unit_price_minor) && capabilityCatalog.offer.unit_price_minor > 0,
+  "capability catalog must carry the authoritative Pro price",
+);
+assert(
+  capabilityCatalog.offer?.currency === "USD",
+  "capability catalog currency must match the checkout constant",
+);
+for (const capability of capabilityCatalog.capabilities) {
+  assert(
+    existsSync(join(output, capability.route.replace(/^\/+/, ""), "index.html")),
+    "capability route not published: " + capability.route,
+  );
+  assert(!/oracle|primavera|eppm|\bp6\b/i.test(JSON.stringify(capability)), "capability leaks vendor branding: " + capability.id);
+}
+assert(
+  !/oracle|primavera|eppm|\bp6\b/i.test(JSON.stringify(capabilityCatalog.offer)),
+  "capability offer leaks vendor branding",
+);
 
 const expectedTitles = new Map([
   ["platform/index.html", "CUBI Platform | Construction Project Controls"],
