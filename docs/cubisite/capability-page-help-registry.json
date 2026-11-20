@@ -1,0 +1,1024 @@
+{
+  "schema": "cubi-capability-page-help-registry.v1",
+  "reconciliation": {
+    "engineeringPdfPages": 53,
+    "engineeringPdfPagesMatched": 53,
+    "officialTopics": 69,
+    "officialTopicsReachable": 69,
+    "checkedOn": "2026-11-20"
+  },
+  "capabilities": [
+    {
+      "id": "C01",
+      "name": "Workspace / Projects",
+      "status": "PARTIAL",
+      "publicRoutes": [
+        "platform/",
+        "get-started/"
+      ],
+      "workspaceRows": [
+        "ENG-WS-PROJECTS"
+      ],
+      "helpEntryId": "ENG-WS-PROJECTS",
+      "featureId": null,
+      "note": "Project lifecycle is wired on PostgreSQL; the public pages describe the workspace, not a second shell."
+    },
+    {
+      "id": "C02",
+      "name": "WBS / Activities",
+      "status": "PARTIAL",
+      "publicRoutes": [
+        "features/project-controls/"
+      ],
+      "workspaceRows": [
+        "ENG-WS-WBS",
+        "ENG-WS-ACTIVITY-TABLE"
+      ],
+      "helpEntryId": "ENG-WS-WBS",
+      "featureId": "project-controls",
+      "note": "WBS hierarchy and the activity table are one surface; the WBS topic owns the hierarchy."
+    },
+    {
+      "id": "C03",
+      "name": "Field Registry",
+      "status": "IMPLEMENTED",
+      "publicRoutes": [
+        "features/project-controls/"
+      ],
+      "workspaceRows": [
+        "ENG-WS-ACTIVITY-TABLE",
+        "ENG-WS-UDF"
+      ],
+      "helpEntryId": "ENG-WS-UDF",
+      "featureId": "project-controls",
+      "note": "Field choices and user-defined fields share the column definition path."
+    },
+    {
+      "id": "C04",
+      "name": "Grid / Layout",
+      "status": "PARTIAL",
+      "publicRoutes": [
+        "features/project-controls/"
+      ],
+      "workspaceRows": [
+        "ENG-WS-LAYOUTS",
+        "ENG-WS-ACTIVITY-TABLE"
+      ],
+      "helpEntryId": "ENG-WS-LAYOUTS",
+      "featureId": "project-controls",
+      "note": "Saved layouts apply to every grid; the layout topic documents the activity grid it is demonstrated on."
+    },
+    {
+      "id": "C05",
+      "name": "Unresolved — see workbook gap",
+      "status": "MISSING_EVIDENCE",
+      "publicRoutes": [],
+      "workspaceRows": [],
+      "helpEntryId": null,
+      "featureId": null,
+      "note": "The accepted enumeration jumps from C04 to C06. No accessible artefact names C05; no row is invented."
+    },
+    {
+      "id": "C06",
+      "name": "Calendar",
+      "status": "PARTIAL",
+      "publicRoutes": [
+        "features/scheduling/"
+      ],
+      "workspaceRows": [
+        "ENG-WS-CALENDARS"
+      ],
+      "helpEntryId": "ENG-WS-CALENDARS",
+      "featureId": "scheduling",
+      "note": "Project and resource calendars share one registry-driven editor."
+    },
+    {
+      "id": "C07",
+      "name": "Schedule Options",
+      "status": "PARTIAL",
+      "publicRoutes": [
+        "features/scheduling/"
+      ],
+      "workspaceRows": [
+        "ENG-WS-SCHEDULE"
+      ],
+      "helpEntryId": "ENG-WS-SCHEDULE",
+      "featureId": "scheduling",
+      "note": "Options are typed and bound to the authoritative schedule snapshot."
+    },
+    {
+      "id": "C08",
+      "name": "Relationships",
+      "status": "PARTIAL",
+      "publicRoutes": [
+        "features/scheduling/"
+      ],
+      "workspaceRows": [
+        "ENG-WS-RELATIONSHIPS",
+        "ENG-WS-GANTT-RELATIONSHIPS"
+      ],
+      "helpEntryId": "ENG-WS-RELATIONSHIPS",
+      "featureId": "scheduling",
+      "note": "Relationships are maintained on the activity grid and in the Gantt chart."
+    },
+    {
+      "id": "C09",
+      "name": "CPM Engine",
+      "status": "IMPLEMENTED",
+      "publicRoutes": [
+        "features/scheduling/"
+      ],
+      "workspaceRows": [
+        "ENG-WS-SCHEDULE",
+        "ENG-WS-CRITICAL-PATH"
+      ],
+      "helpEntryId": "ENG-WS-SCHEDULE",
+      "featureId": "scheduling",
+      "note": "Calculation runs in the shared scheduling core; the web layer only presents its result."
+    },
+    {
+      "id": "C10",
+      "name": "Progress / Actuals",
+      "status": "PARTIAL",
+      "publicRoutes": [
+        "features/project-controls/"
+      ],
+      "workspaceRows": [
+        "ENG-WS-TRACKING"
+      ],
+      "helpEntryId": "ENG-WS-TRACKING",
+      "featureId": "project-controls",
+      "note": "Actuals are recorded through the tracking surface; history is persisted server-side."
+    },
+    {
+      "id": "C11",
+      "name": "Baselines",
+      "status": "PARTIAL",
+      "publicRoutes": [
+        "features/project-controls/"
+      ],
+      "workspaceRows": [
+        "ENG-WS-BASELINES"
+      ],
+      "helpEntryId": "ENG-WS-BASELINES",
+      "featureId": "project-controls",
+      "note": "Baseline assignment persists per project; variance views stay inside the tracking surface."
+    },
+    {
+      "id": "C12",
+      "name": "Resources / Assignments",
+      "status": "PARTIAL",
+      "publicRoutes": [
+        "features/resources/"
+      ],
+      "workspaceRows": [
+        "ENG-WS-RESOURCES",
+        "ENG-WS-RESOURCE-USAGE"
+      ],
+      "helpEntryId": "ENG-WS-RESOURCES",
+      "featureId": "resources",
+      "note": "Resources, roles and assignments are one registry-backed surface."
+    },
+    {
+      "id": "C13",
+      "name": "Cost / Financial Periods",
+      "status": "PARTIAL",
+      "publicRoutes": [
+        "features/cost/",
+        "pricing/"
+      ],
+      "workspaceRows": [
+        "ENG-WS-EXPENSES"
+      ],
+      "helpEntryId": "ENG-WS-EXPENSES",
+      "featureId": "cost",
+      "note": "Expenses and cost accounts are persisted; financial periods remain a partial surface."
+    },
+    {
+      "id": "C14",
+      "name": "EVM / Earned Schedule",
+      "status": "PARTIAL",
+      "publicRoutes": [
+        "features/project-controls/"
+      ],
+      "workspaceRows": [
+        "ENG-WS-TRACKING",
+        "ENG-WS-USAGE-PROFILE"
+      ],
+      "helpEntryId": "ENG-WS-TRACKING",
+      "featureId": "project-controls",
+      "note": "Earned value reads the shared core's results; there is no parallel calculation in the web layer."
+    },
+    {
+      "id": "C15",
+      "name": "Codes / Steps / Issues / Risks",
+      "status": "PARTIAL",
+      "publicRoutes": [
+        "features/risks/"
+      ],
+      "workspaceRows": [
+        "ENG-WS-RISKS",
+        "ENG-WS-ISSUES",
+        "ENG-WS-STEPS",
+        "ENG-WS-ACTIVITY-CODES"
+      ],
+      "helpEntryId": "ENG-WS-RISKS",
+      "featureId": "risks",
+      "note": "Risk and issue registers, activity codes and steps are four documented surfaces behind one navigation area."
+    },
+    {
+      "id": "C16",
+      "name": "Interchange",
+      "status": "PARTIAL",
+      "publicRoutes": [
+        "integrations/"
+      ],
+      "workspaceRows": [
+        "ENG-WS-EXCHANGE"
+      ],
+      "helpEntryId": "ENG-WS-EXCHANGE",
+      "featureId": null,
+      "note": "Import/export is available through the exchange surface; the public integration page describes it."
+    },
+    {
+      "id": "C17",
+      "name": "Dashboard / Analytics",
+      "status": "PARTIAL",
+      "publicRoutes": [
+        "platform/",
+        "features/reporting/"
+      ],
+      "workspaceRows": [
+        "ENG-WS-PORTFOLIOS",
+        "ENT-DASHBOARDS"
+      ],
+      "helpEntryId": "ENT-DASHBOARDS",
+      "featureId": "portfolio-executive",
+      "note": "Portfolio views and dashboards are Enterprise surfaces; the shared feature index is their public entry."
+    },
+    {
+      "id": "C18",
+      "name": "Charts",
+      "status": "PREVIEW",
+      "publicRoutes": [
+        "features/reporting/"
+      ],
+      "workspaceRows": [
+        "ENG-WS-GANTT",
+        "ENG-WS-GANTT-BARS"
+      ],
+      "helpEntryId": "ENG-WS-GANTT",
+      "featureId": "reporting",
+      "note": "Gantt and profile charts render from the shared core's activity data."
+    },
+    {
+      "id": "C19",
+      "name": "Reporting",
+      "status": "PREVIEW",
+      "publicRoutes": [
+        "features/reporting/"
+      ],
+      "workspaceRows": [
+        "ENG-WS-REPORTS",
+        "ENT-REPORTS"
+      ],
+      "helpEntryId": "ENG-WS-REPORTS",
+      "featureId": "reporting",
+      "note": "Report definitions are persisted and printable; the web preview does not yet cover every report type."
+    },
+    {
+      "id": "C20",
+      "name": "Forms",
+      "status": "PARTIAL",
+      "publicRoutes": [
+        "features/"
+      ],
+      "workspaceRows": [],
+      "helpEntryId": null,
+      "featureId": null,
+      "note": "Form templates and submissions persist, but no dedicated public route ships; the feature index is the entry."
+    },
+    {
+      "id": "C21",
+      "name": "Form Calculations",
+      "status": "PARTIAL",
+      "publicRoutes": [
+        "features/"
+      ],
+      "workspaceRows": [],
+      "helpEntryId": null,
+      "featureId": null,
+      "note": "Formulas run through the shared calculation core; the feature index is the public entry."
+    },
+    {
+      "id": "C22",
+      "name": "Workflow / Approvals",
+      "status": "PARTIAL",
+      "publicRoutes": [
+        "features/"
+      ],
+      "workspaceRows": [
+        "ENT-WORKFLOW",
+        "ENT-FEEDBACK-APPROVAL"
+      ],
+      "helpEntryId": "ENT-WORKFLOW",
+      "featureId": "team-tasks",
+      "note": "Approval events persist; review workflow is documented on the Enterprise help baseline."
+    },
+    {
+      "id": "C23",
+      "name": "PMBOK Layer",
+      "status": "PARTIAL",
+      "publicRoutes": [
+        "platform/",
+        "features/"
+      ],
+      "workspaceRows": [],
+      "helpEntryId": null,
+      "featureId": null,
+      "note": "PMBOK-aligned templates exist as contracts, not as a separate public product."
+    },
+    {
+      "id": "C24",
+      "name": "AI Permissions",
+      "status": "PARTIAL",
+      "publicRoutes": [
+        "features/ai-assistant/",
+        "security/"
+      ],
+      "workspaceRows": [
+        "ENG-WS-ADMIN"
+      ],
+      "helpEntryId": "ENG-WS-ADMIN",
+      "featureId": "ai-assistant",
+      "note": "AI actions pass an explicit action boundary; grants are administered with the other security settings."
+    },
+    {
+      "id": "C25",
+      "name": "AI Project Bootstrap",
+      "status": "PARTIAL",
+      "publicRoutes": [
+        "features/ai-assistant/"
+      ],
+      "workspaceRows": [
+        "ENG-WS-PROJECTS"
+      ],
+      "helpEntryId": "ENG-WS-PROJECTS",
+      "featureId": "ai-assistant",
+      "note": "Bootstrap writes through the same project persistence as manual creation."
+    },
+    {
+      "id": "C26",
+      "name": "AI Schedule Analysis",
+      "status": "PARTIAL",
+      "publicRoutes": [
+        "features/ai-assistant/"
+      ],
+      "workspaceRows": [
+        "ENG-WS-SCHEDULE"
+      ],
+      "helpEntryId": "ENG-WS-SCHEDULE",
+      "featureId": "ai-assistant",
+      "note": "Schedule analysis reads the shared core's snapshot; it never recalculates in the assistant."
+    },
+    {
+      "id": "C27",
+      "name": "AI Document / Form Support",
+      "status": "PARTIAL",
+      "publicRoutes": [
+        "features/ai-assistant/",
+        "features/documents/"
+      ],
+      "workspaceRows": [
+        "ENG-WS-DOCUMENTS"
+      ],
+      "helpEntryId": "ENG-WS-DOCUMENTS",
+      "featureId": "ai-assistant",
+      "note": "Documents and form drafts are handled through the document surface."
+    },
+    {
+      "id": "C28",
+      "name": "AI Reliability",
+      "status": "PARTIAL",
+      "publicRoutes": [
+        "features/ai-assistant/"
+      ],
+      "workspaceRows": [],
+      "helpEntryId": null,
+      "featureId": "ai-assistant",
+      "note": "Idempotency and revision guards are enforced in the action layer; no separate public surface."
+    },
+    {
+      "id": "C29",
+      "name": "Localization",
+      "status": "PARTIAL",
+      "publicRoutes": [],
+      "workspaceRows": [],
+      "helpEntryId": null,
+      "featureId": null,
+      "note": "Site-wide: ten public locales are complete; the workspace UI is localized for English and Persian."
+    },
+    {
+      "id": "C30",
+      "name": "RTL / Calendar / Fonts",
+      "status": "PARTIAL",
+      "publicRoutes": [],
+      "workspaceRows": [],
+      "helpEntryId": null,
+      "featureId": null,
+      "note": "Site-wide: direction, locale-aware dates and the Inter/Vazirmatn pairing ship on every page."
+    },
+    {
+      "id": "C31",
+      "name": "Language Packs",
+      "status": "PARTIAL",
+      "publicRoutes": [],
+      "workspaceRows": [],
+      "helpEntryId": null,
+      "featureId": null,
+      "note": "Site-wide: the ten locale modules are the language packs for the public site."
+    },
+    {
+      "id": "C32",
+      "name": "Help / Documentation",
+      "status": "PARTIAL",
+      "publicRoutes": [
+        "documentation/",
+        "help/",
+        "faq/"
+      ],
+      "workspaceRows": [],
+      "helpEntryId": null,
+      "featureId": null,
+      "note": "Help and documentation index the same registries the assistant cites; neither page invent a topic."
+    },
+    {
+      "id": "C33",
+      "name": "AI / Product Guide",
+      "status": "PARTIAL",
+      "publicRoutes": [],
+      "workspaceRows": [],
+      "helpEntryId": null,
+      "featureId": "ai-assistant",
+      "note": "Site-wide: the contextual assistant launcher runs on every page and resolves help per route."
+    },
+    {
+      "id": "C34",
+      "name": "Security / Tenancy",
+      "status": "PARTIAL",
+      "publicRoutes": [
+        "security/",
+        "privacy/",
+        "terms/"
+      ],
+      "workspaceRows": [
+        "ENG-WS-ADMIN",
+        "ENT-ORG-ACCESS"
+      ],
+      "helpEntryId": "ENG-WS-ADMIN",
+      "featureId": null,
+      "note": "Tenant isolation is enforced server-side; the public security page describes only shipped controls."
+    },
+    {
+      "id": "C35",
+      "name": "Release / Quality",
+      "status": "PARTIAL",
+      "publicRoutes": [
+        "platform/"
+      ],
+      "workspaceRows": [],
+      "helpEntryId": null,
+      "featureId": null,
+      "note": "CI covers typecheck, unit and PostgreSQL suites; the release gate is recorded in the PR chain note."
+    }
+  ],
+  "pages": [
+    {
+      "route": "",
+      "capabilityIds": [
+        "C29",
+        "C30",
+        "C31",
+        "C33"
+      ],
+      "help": {
+        "level": "direct",
+        "entryId": "ENG-PUB-HOME",
+        "surface": "Home page",
+        "topic": {
+          "source": "P6 Professional V26 HTML Help",
+          "title": "Working with Projects",
+          "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/workingwithprojects.htm",
+          "pdfPage": 115
+        },
+        "reason": null,
+        "featureId": null
+      }
+    },
+    {
+      "route": "platform/",
+      "capabilityIds": [
+        "C01",
+        "C17",
+        "C23",
+        "C29",
+        "C30",
+        "C31",
+        "C33",
+        "C35"
+      ],
+      "help": {
+        "level": "internal-docs",
+        "entryId": "ENG-PUB-PLATFORM",
+        "surface": "Platform overview",
+        "topic": null,
+        "reason": "CUBI-owned public content; no P6 Professional Help topic documents this page.",
+        "featureId": null
+      }
+    },
+    {
+      "route": "features/",
+      "capabilityIds": [
+        "C20",
+        "C21",
+        "C22",
+        "C23",
+        "C29",
+        "C30",
+        "C31",
+        "C33"
+      ],
+      "help": {
+        "level": "direct",
+        "entryId": "ENG-PUB-FEATURES",
+        "surface": "Feature index",
+        "topic": {
+          "source": "P6 Professional V26 HTML Help",
+          "title": "Define Activity Table columns",
+          "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/define_activity_table_columns.htm",
+          "pdfPage": 329
+        },
+        "reason": null,
+        "featureId": "team-tasks"
+      }
+    },
+    {
+      "route": "features/scheduling/",
+      "capabilityIds": [
+        "C06",
+        "C07",
+        "C08",
+        "C09",
+        "C29",
+        "C30",
+        "C31",
+        "C33"
+      ],
+      "help": {
+        "level": "direct",
+        "entryId": "ENG-PUB-FEATURES-SCHEDULING",
+        "surface": "Scheduling feature page",
+        "topic": {
+          "source": "P6 Professional V26 HTML Help",
+          "title": "Scheduling Projects",
+          "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/schedulingprojects.htm",
+          "pdfPage": 287
+        },
+        "reason": null,
+        "featureId": "scheduling"
+      }
+    },
+    {
+      "route": "features/project-controls/",
+      "capabilityIds": [
+        "C02",
+        "C03",
+        "C04",
+        "C10",
+        "C11",
+        "C14",
+        "C29",
+        "C30",
+        "C31",
+        "C33"
+      ],
+      "help": {
+        "level": "direct",
+        "entryId": "ENG-PUB-FEATURES-PROJECT-CONTROLS",
+        "surface": "Project controls feature page",
+        "topic": {
+          "source": "P6 Professional V26 HTML Help",
+          "title": "Tracking",
+          "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/tracking.htm",
+          "pdfPage": 372
+        },
+        "reason": null,
+        "featureId": "project-controls"
+      }
+    },
+    {
+      "route": "features/resources/",
+      "capabilityIds": [
+        "C12",
+        "C29",
+        "C30",
+        "C31",
+        "C33"
+      ],
+      "help": {
+        "level": "direct",
+        "entryId": "ENG-PUB-FEATURES-RESOURCES",
+        "surface": "Resources feature page",
+        "topic": {
+          "source": "P6 Professional V26 HTML Help",
+          "title": "Resources",
+          "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/resources.htm",
+          "pdfPage": 170
+        },
+        "reason": null,
+        "featureId": "resources"
+      }
+    },
+    {
+      "route": "features/cost/",
+      "capabilityIds": [
+        "C13",
+        "C29",
+        "C30",
+        "C31",
+        "C33"
+      ],
+      "help": {
+        "level": "direct",
+        "entryId": "ENG-PUB-FEATURES-COST",
+        "surface": "Cost feature page",
+        "topic": {
+          "source": "P6 Professional V26 HTML Help",
+          "title": "Expenses",
+          "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/expenses.htm",
+          "pdfPage": 250
+        },
+        "reason": null,
+        "featureId": "cost"
+      }
+    },
+    {
+      "route": "features/documents/",
+      "capabilityIds": [
+        "C27",
+        "C29",
+        "C30",
+        "C31",
+        "C33"
+      ],
+      "help": {
+        "level": "direct",
+        "entryId": "ENG-PUB-FEATURES-DOCUMENTS",
+        "surface": "Documents feature page",
+        "topic": {
+          "source": "P6 Professional V26 HTML Help",
+          "title": "Work Products and Documents",
+          "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/work_products_and_documents.htm",
+          "pdfPage": 316
+        },
+        "reason": null,
+        "featureId": "documents"
+      }
+    },
+    {
+      "route": "features/risks/",
+      "capabilityIds": [
+        "C15",
+        "C29",
+        "C30",
+        "C31",
+        "C33"
+      ],
+      "help": {
+        "level": "direct",
+        "entryId": "ENG-PUB-FEATURES-RISKS",
+        "surface": "Risks feature page",
+        "topic": {
+          "source": "P6 Professional V26 HTML Help",
+          "title": "Risks (P6 Professional Only)",
+          "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/risks.htm",
+          "pdfPage": 310
+        },
+        "reason": null,
+        "featureId": "risks"
+      }
+    },
+    {
+      "route": "features/reporting/",
+      "capabilityIds": [
+        "C17",
+        "C18",
+        "C19",
+        "C29",
+        "C30",
+        "C31",
+        "C33"
+      ],
+      "help": {
+        "level": "direct",
+        "entryId": "ENG-PUB-FEATURES-REPORTING",
+        "surface": "Reporting feature page",
+        "topic": {
+          "source": "P6 Professional V26 HTML Help",
+          "title": "Print budget reports",
+          "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/print_budget_reports.htm",
+          "pdfPage": 266
+        },
+        "reason": null,
+        "featureId": "reporting"
+      }
+    },
+    {
+      "route": "features/ai-assistant/",
+      "capabilityIds": [
+        "C24",
+        "C25",
+        "C26",
+        "C27",
+        "C28",
+        "C29",
+        "C30",
+        "C31",
+        "C33"
+      ],
+      "help": {
+        "level": "internal-docs",
+        "entryId": "ENG-PUB-FEATURES-AI-ASSISTANT",
+        "surface": "AI assistant feature page",
+        "topic": null,
+        "reason": "CUBI-owned public content; no P6 Professional Help topic documents this page.",
+        "featureId": "ai-assistant"
+      }
+    },
+    {
+      "route": "solutions/",
+      "capabilityIds": [
+        "C29",
+        "C30",
+        "C31",
+        "C33"
+      ],
+      "help": {
+        "level": "internal-docs",
+        "entryId": "ENG-PUB-SOLUTIONS",
+        "surface": "Solutions page",
+        "topic": null,
+        "reason": "CUBI-owned public content; no P6 Professional Help topic documents this page.",
+        "featureId": null
+      }
+    },
+    {
+      "route": "integrations/",
+      "capabilityIds": [
+        "C16",
+        "C29",
+        "C30",
+        "C31",
+        "C33"
+      ],
+      "help": {
+        "level": "direct",
+        "entryId": "ENG-PUB-INTEGRATIONS",
+        "surface": "Integrations page",
+        "topic": {
+          "source": "P6 Professional V26 HTML Help",
+          "title": "Importing and exporting data - Future period bucket planning FAQ",
+          "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/48617.htm",
+          "pdfPage": 243
+        },
+        "reason": null,
+        "featureId": null
+      }
+    },
+    {
+      "route": "pricing/",
+      "capabilityIds": [
+        "C13",
+        "C29",
+        "C30",
+        "C31",
+        "C33"
+      ],
+      "help": {
+        "level": "internal-docs",
+        "entryId": "ENG-PUB-PRICING",
+        "surface": "Pricing page",
+        "topic": null,
+        "reason": "CUBI-owned public content; no P6 Professional Help topic documents this page.",
+        "featureId": null
+      }
+    },
+    {
+      "route": "resources/",
+      "capabilityIds": [
+        "C29",
+        "C30",
+        "C31",
+        "C33"
+      ],
+      "help": {
+        "level": "internal-docs",
+        "entryId": "ENG-PUB-RESOURCES",
+        "surface": "Resources page",
+        "topic": null,
+        "reason": "CUBI-owned public content; no P6 Professional Help topic documents this page.",
+        "featureId": null
+      }
+    },
+    {
+      "route": "documentation/",
+      "capabilityIds": [
+        "C29",
+        "C30",
+        "C31",
+        "C32",
+        "C33"
+      ],
+      "help": {
+        "level": "internal-docs",
+        "entryId": "ENG-PUB-DOCUMENTATION",
+        "surface": "Documentation page",
+        "topic": null,
+        "reason": "CUBI-owned public content; no P6 Professional Help topic documents this page.",
+        "featureId": null
+      }
+    },
+    {
+      "route": "help/",
+      "capabilityIds": [
+        "C29",
+        "C30",
+        "C31",
+        "C32",
+        "C33"
+      ],
+      "help": {
+        "level": "internal-docs",
+        "entryId": "ENG-PUB-HELP",
+        "surface": "Help center",
+        "topic": null,
+        "reason": "CUBI-owned public content; no P6 Professional Help topic documents this page.",
+        "featureId": null
+      }
+    },
+    {
+      "route": "faq/",
+      "capabilityIds": [
+        "C29",
+        "C30",
+        "C31",
+        "C32",
+        "C33"
+      ],
+      "help": {
+        "level": "internal-docs",
+        "entryId": "ENG-PUB-FAQ",
+        "surface": "FAQ page",
+        "topic": null,
+        "reason": "CUBI-owned public content; no P6 Professional Help topic documents this page.",
+        "featureId": null
+      }
+    },
+    {
+      "route": "about/",
+      "capabilityIds": [
+        "C29",
+        "C30",
+        "C31",
+        "C33"
+      ],
+      "help": {
+        "level": "internal-docs",
+        "entryId": "ENG-PUB-ABOUT",
+        "surface": "About page",
+        "topic": null,
+        "reason": "CUBI-owned public content; no P6 Professional Help topic documents this page.",
+        "featureId": null
+      }
+    },
+    {
+      "route": "security/",
+      "capabilityIds": [
+        "C24",
+        "C29",
+        "C30",
+        "C31",
+        "C33",
+        "C34"
+      ],
+      "help": {
+        "level": "direct",
+        "entryId": "ENG-PUB-SECURITY",
+        "surface": "Security page",
+        "topic": {
+          "source": "P6 Professional V26 HTML Help",
+          "title": "Setting up user security (P6 Professional Only)",
+          "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/setting_up_user_security.htm",
+          "pdfPage": 479
+        },
+        "reason": null,
+        "featureId": null
+      }
+    },
+    {
+      "route": "payments/",
+      "capabilityIds": [
+        "C29",
+        "C30",
+        "C31",
+        "C33"
+      ],
+      "help": {
+        "level": "internal-docs",
+        "entryId": "ENG-PUB-PAYMENTS",
+        "surface": "Payments page",
+        "topic": null,
+        "reason": "CUBI-owned public content; no P6 Professional Help topic documents this page.",
+        "featureId": null
+      }
+    },
+    {
+      "route": "contact/",
+      "capabilityIds": [
+        "C29",
+        "C30",
+        "C31",
+        "C33"
+      ],
+      "help": {
+        "level": "internal-docs",
+        "entryId": "ENG-PUB-CONTACT",
+        "surface": "Contact page",
+        "topic": null,
+        "reason": "CUBI-owned public content; no P6 Professional Help topic documents this page.",
+        "featureId": null
+      }
+    },
+    {
+      "route": "get-started/",
+      "capabilityIds": [
+        "C01",
+        "C29",
+        "C30",
+        "C31",
+        "C33"
+      ],
+      "help": {
+        "level": "internal-docs",
+        "entryId": "ENG-PUB-GET-STARTED",
+        "surface": "Get started page",
+        "topic": null,
+        "reason": "CUBI-owned public content; no P6 Professional Help topic documents this page.",
+        "featureId": null
+      }
+    },
+    {
+      "route": "privacy/",
+      "capabilityIds": [
+        "C29",
+        "C30",
+        "C31",
+        "C33",
+        "C34"
+      ],
+      "help": {
+        "level": "internal-docs",
+        "entryId": "ENG-PUB-PRIVACY",
+        "surface": "Privacy policy",
+        "topic": null,
+        "reason": "Legal policy page; no product Help topic applies.",
+        "featureId": null
+      }
+    },
+    {
+      "route": "terms/",
+      "capabilityIds": [
+        "C29",
+        "C30",
+        "C31",
+        "C33",
+        "C34"
+      ],
+      "help": {
+        "level": "internal-docs",
+        "entryId": "ENG-PUB-TERMS",
+        "surface": "Terms of service",
+        "topic": null,
+        "reason": "Legal policy page; no product Help topic applies.",
+        "featureId": null
+      }
+    }
+  ],
+  "evidenceGaps": [
+    {
+      "id": "C05",
+      "question": "Which CUBISITE capability owns the C05 slot between Grid/Layout (C04) and Calendar (C06)?",
+      "needed": "Row C05 of `/CUBISITE/cubisite.xlsx` v8 (sheet «ماتریس قابلیت‌ها»). Until it is supplied, C05 stays unnamed and uncited."
+    }
+  ]
+}
