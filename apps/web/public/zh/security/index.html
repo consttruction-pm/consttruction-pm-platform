@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN" dir="ltr">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CUBI 安全 | 身份、访问与数据边界</title>
+<meta name="description" content="CUBI 如何处理身份、会话、项目成员关系、数据边界，以及公开页面与项目数据的隔离。">
+<link rel="canonical" href="__CUBI_BASE_URL__/zh/security/">
+<link rel="alternate" hreflang="en" href="__CUBI_BASE_URL__/security/">
+<link rel="alternate" hreflang="fa" href="__CUBI_BASE_URL__/fa/security/">
+<link rel="alternate" hreflang="de" href="__CUBI_BASE_URL__/de/security/">
+<link rel="alternate" hreflang="zh-CN" href="__CUBI_BASE_URL__/zh/security/">
+<link rel="alternate" hreflang="ar" href="__CUBI_BASE_URL__/ar/security/">
+<link rel="alternate" hreflang="x-default" href="__CUBI_BASE_URL__/security/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="CUBI Platform">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:locale:alternate" content="en_US">
+<meta property="og:locale:alternate" content="fa_IR">
+<meta property="og:locale:alternate" content="de_DE">
+<meta property="og:locale:alternate" content="ar_SA">
+<meta property="og:title" content="CUBI 安全 | 身份、访问与数据边界">
+<meta property="og:description" content="CUBI 如何处理身份、会话、项目成员关系、数据边界，以及公开页面与项目数据的隔离。">
+<meta property="og:url" content="__CUBI_BASE_URL__/zh/security/">
+<meta property="og:image" content="__CUBI_BASE_URL__/cubi-platform-logo-primary.svg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="CUBI 安全 | 身份、访问与数据边界">
+<meta name="twitter:description" content="CUBI 如何处理身份、会话、项目成员关系、数据边界，以及公开页面与项目数据的隔离。">
+<meta name="twitter:image" content="__CUBI_BASE_URL__/cubi-platform-logo-primary.svg">
+<meta name="robots" content="index,follow">
+<meta name="theme-color" content="#081A2F">
+<link rel="stylesheet" href="../../styles.css">
+<link rel="icon" href="../../cubi-platform-logo-primary.svg" type="image/svg+xml">
+</head>
+<body class="cubi-public-page">
+<header class="cubi-public-header"><a href="../" aria-label="首页"><img src="../../cubi-platform-logo-primary.svg" alt="CUBI Platform" width="132" height="48"></a><nav class="cubi-public-nav" aria-label="主导航"><a href="../">首页</a><a href="../platform/">平台</a><a href="../features/">功能</a><a href="../solutions/">解决方案</a><a href="../pricing/">价格</a><a href="../resources/">资源</a><a href="../about/">关于我们</a><a href="../contact/">联系我们</a></nav><a class="cubi-public-language" hreflang="en" href="../../security/" lang="en">English</a><details class="cubi-public-languages"><summary>语言</summary><nav aria-label="语言"><a hreflang="fa" href="../../fa/security/" lang="fa">فارسی</a><a hreflang="de" href="../../de/security/" lang="de">Deutsch</a><a hreflang="ar" href="../../ar/security/" lang="ar">العربية</a></nav></details></header>
+<main>
+<section class="cubi-public-hero"><p class="eyebrow">安全</p><h1>清晰说明的安全</h1><p>本页描述产品今天实际做了什么。它不是认证声明，也不能替代对您自身部署的安全评审。</p></section>
+<section class="cubi-public-content"><h2>身份与会话</h2><p>访问始于已认证的账户和服务器端会话。</p><div class="cubi-public-grid"><article class="cubi-public-card"><h3>密码处理</h3><p>密码以加盐 scrypt 哈希存储，绝不保存明文。</p></article><article class="cubi-public-card"><h3>会话处理</h3><p>会话使用 HttpOnly Cookie，并对变更状态的请求提供 CSRF 防护。</p></article><article class="cubi-public-card"><h3>登录限速</h3><p>连续登录失败会被限速，以减缓凭据猜测。</p></article></div>
+<h2>数据边界</h2><p>项目数据按租户与项目隔离，并在服务器端强制执行。</p><div class="cubi-public-grid"><article class="cubi-public-card"><h3>租户与项目范围</h3><p>每次项目读写都限定于账户的租户与成员关系。</p></article><article class="cubi-public-card"><h3>基于角色的访问</h3><p>环境与操作访问遵循服务器校验的角色，而非客户端显示的按钮。</p></article><article class="cubi-public-card"><h3>公开与私有界面</h3><p>营销页面为静态；项目记录仅由已认证运行时提供。</p></article></div>
+<div class="cubi-public-cta"><div><strong>了解安全</strong><p>在文档中查看身份与访问细节。</p></div><a href="../../app/">文档 →</a></div></section>
+</main>
+<footer class="cubi-public-footer"><span>© 2026 CUBI Platform · 计划、控制、更聪明地建造。</span><nav aria-label="主导航"><div><b>产品</b><a href="../features/">功能</a> · <a href="../platform/">平台</a> · <a href="../pricing/">价格</a></div><div><b>学习</b><a href="../documentation/">文档</a> · <a href="../resources/">资源</a></div><div><b>公司</b><a href="../about/">关于我们</a> · <a href="../contact/">联系我们</a></div></nav></footer>
+<script type="module" src="../../dist/global-assistant-launcher.bundle.js"></script>
+</body></html>
