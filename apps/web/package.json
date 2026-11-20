@@ -15,6 +15,7 @@
     "traceability:render": "node scripts/render-traceability.mjs",
     "capabilities:generate": "node scripts/generate-capability-catalog.mjs",
     "assistant:generate": "node scripts/generate-assistant-registries.mjs",
+    "cubisite:matrix": "tsx scripts/generate-cubisite-matrix.ts",
     "audit:responsive": "node e2e/public-site-responsive.mjs"
   },
   "devDependencies": {
