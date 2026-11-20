@@ -24,6 +24,7 @@ immediate parent.
 | 8 | #2077 | `feat/cubi-r3-ten-locales` | `feat/cubi-r2-global-admin` | `8302980`, `5e48f8d`, `f515e99` | 40 |
 | 9 | #2078 | `feat/cubi-r4-public-pages` | `feat/cubi-r3-ten-locales` | `3d519c5`, `1074889`, `e5ec850`, `e0c84cc`, `8cc98bf`, `84dc26f`, `5ba3487`, `2b2f2ac` | 128 |
 | 10 | #2079 | `feat/cubi-r5-contextual-help` | `feat/cubi-r4-public-pages` | `93369b8` | 11 |
+| 11 | #2080 | `feat/cubi-r6-capability-matrix` | `feat/cubi-r5-contextual-help` | `d7fc646` | 8 |
 
 Each PR previously targeted `main` while containing all of its ancestors. That is
 what produced the appearance of duplicate commits and one ambiguous giant diff.
@@ -45,6 +46,10 @@ traceability into browser-safe registries and makes the contextual assistant cit
 only what those registries record, so every locale answers with the same four
 resolution levels.
 
+R6 (#2080) is documentation and its generator: it adds no runtime path. The matrix and the
+JSON registry are rendered from the committed Help registry by `npm run cubisite:matrix`, so
+they cannot claim a topic the assistant would not cite.
+
 ## Validation per increment
 
 | PR | Validation run on its own head |
@@ -59,6 +64,7 @@ resolution levels.
 | #2077 | `npm test` (1208 passed), `npm run typecheck`, `npm run build` on `5e48f8d`: ten-locale catalogs, full shared-sentence coverage, ten-locale Intl date/number/collation tags; German 25-route publication on `f515e99` |
 | #2078 | `npm test` (1209 passed), `npm run typecheck`, `npm run build` on `2b2f2ac`: all ten locales publish the 25 approved routes, localized headlines, canonical and hreflang alternates, no dangling internal link |
 | #2079 | `npm test` (1221 src + 15 preview passed), `npm run typecheck`, `npm run build` on `93369b8`: registry parity against both traceability sources and the capability contract, direct/parent/inherited/internal-docs resolution, ten-locale labels |
+| #2080 | `npm test` (1229 src + 15 preview passed), `npm run typecheck`, `npm run build` on `d7fc646`: matrix renders from the Help registry; 53/53 PDF pages and 69/69 official topics reconciled |
 
 CI for #2076 on the final head `ad47fc9`: `typecheck (apps/web)` pass, `web` pass,
 `postgres` pass, `Vercel – cubi-web-preview` pass.
