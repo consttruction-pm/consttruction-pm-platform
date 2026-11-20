@@ -71,8 +71,9 @@ Status at baseline: 1 implemented (schedule), 12 partial, 8 preview.
   `production_readiness.py` (`SQLITE_FORBIDDEN_IN_PRODUCTION`).
 - Pool: bounded, `psycopg` with `autocommit=False`, statement timeout 30 s, pool size ≤ 8.
 - Bootstrap: `initialize_production_schema()` — 16 repository `initialize()` calls, all
-  `CREATE TABLE IF NOT EXISTS`; no DROP / TRUNCATE anywhere.
-- Tables: **183 distinct tables** across 25 families:
+  `CREATE TABLE IF NOT EXISTS`; no DROP / TRUNCATE anywhere. On an empty database it creates
+  **27 tables**; the remaining tables are created lazily by their own repositories.
+- Tables across all repository DDL: **183 distinct tables** across 25 families:
   `project_*` 57, `p6_*` 36, `enterprise_*` 15, `knowledge_*` 10, `form_*` 7, `portfolio_*` 5,
   `preview_*` 5, `activity_*` 4, `ai_action_*` 4, `backend_p0_*` 4, `calendar_*` 4, `claim_*` 4,
   `assistant_*` 3, `identity_*` 3, `resource_*` 3, `sync_*` 3, plus 20 single-table families.
@@ -185,6 +186,9 @@ responsive CDP audit    18/18
 _site assembly          116 HTML files, 114 sitemap URLs
 Help URLs               60/60 HTTP 200
 ```
+
+Persistence proof on a real server: `docs/evidence/postgres/README.md` (7/7 checks,
+458 live integration tests green).
 
 ## Next increments (dependency order from Section 1)
 
