@@ -22,6 +22,7 @@ const localeDefinitions = new Map<string, WorkspaceLocaleDefinition>([
   ["ja", { locale: "ja", displayName: "日本語", direction: "ltr", translations: {} }],
   ["ko", { locale: "ko", displayName: "한국어", direction: "ltr", translations: {} }],
   ["ru", { locale: "ru", displayName: "Русский", direction: "ltr", translations: {} }],
+  ["tr", { locale: "tr", displayName: "Türkçe", direction: "ltr", translations: {} }],
 ]);
 
 /** Register translations from a verified, activated language pack. Keys are stable IDs, not English labels. */
@@ -107,6 +108,26 @@ export function getWorkspaceLocaleDisplayName(locale: WorkspaceLocale): string {
   return localeDefinitions.get(locale)?.displayName ?? locale;
 }
 
+/**
+ * BCP-47 tag used for Intl date, number and collation formatting. Every
+ * approved locale gets its own conventions instead of silently rendering with
+ * an English tag.
+ */
+export function getWorkspaceIntlLocale(locale: WorkspaceLocale): string {
+  switch (locale.split("-")[0].toLowerCase()) {
+    case "fa": return "fa-IR";
+    case "de": return "de-DE";
+    case "zh": return "zh-CN";
+    case "ar": return "ar-SA";
+    case "fr": return "fr-FR";
+    case "ja": return "ja-JP";
+    case "ko": return "ko-KR";
+    case "ru": return "ru-RU";
+    case "tr": return "tr-TR";
+    default: return "en-GB";
+  }
+}
+
 export function getAvailableWorkspaceLocales(): readonly WorkspaceLocale[] {
   return [...localeDefinitions.keys()];
 }
@@ -123,7 +144,7 @@ export function hasWorkspaceUiTranslations(locale: WorkspaceLocale): boolean {
   if (!definition) return false;
   if (Object.keys(definition.translations).length > 0) return true;
   const base = locale.split("-")[0].toLowerCase();
-  if (base === "en" || base === "fa" || base === "de" || base === "zh") return true;
+  if (base === "en" || base === "fa" || base === "de" || base === "zh" || base === "tr") return true;
   return catalogSize(locale) > 0;
 }
 

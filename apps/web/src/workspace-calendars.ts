@@ -5,6 +5,8 @@ import type {
 } from "./workspace-model.js";
 
 export type { WorkspaceCalendarRecord } from "./workspace-model.js";
+import { getWorkspaceIntlLocale } from "./workspace-localization.js";
+import type { WorkspaceLocale } from "./workspace-model.js";
 import {
   formatJalaliDateInput,
   isValidCanonicalIsoDate,
@@ -1032,7 +1034,7 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
 
   function monthTitle(grid: CalendarMonthGrid): string {
     const [year, month, day] = grid.days[0].date.split("-").map(Number);
-    const formatter = new Intl.DateTimeFormat(locale === "fa" ? "fa-IR" : "en-US", {
+    const formatter = new Intl.DateTimeFormat(getWorkspaceIntlLocale(locale as WorkspaceLocale), {
       calendar: grid.system === "jalali" ? "persian" : "gregory",
       year: "numeric",
       month: "long",

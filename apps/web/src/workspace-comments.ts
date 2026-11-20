@@ -4,7 +4,8 @@
  * records. The panel overlays the workspace so opening it cannot resize the
  * activity table, Gantt or details pane.
  */
-import { translateWorkspaceUiText } from "./workspace-localization.js";
+import { getWorkspaceIntlLocale, translateWorkspaceUiText } from "./workspace-localization.js";
+import type { WorkspaceLocale } from "./workspace-model.js";
 
 export type WorkspaceCommentsInput = {
   projectId: string;
@@ -32,12 +33,7 @@ function t(locale: string, en: string, persian: string): string {
 }
 
 function intlLocale(locale: string): string {
-  switch (locale.split("-")[0]) {
-    case "fa": return "fa-IR";
-    case "de": return "de-DE";
-    case "zh": return "zh-CN";
-    default: return "en-GB";
-  }
+  return getWorkspaceIntlLocale(locale as WorkspaceLocale);
 }
 
 function esc(value: string): string {
