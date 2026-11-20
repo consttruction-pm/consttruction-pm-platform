@@ -1,0 +1,13 @@
+........................................................................ [ 63%]
+..........................................                               [100%]
+=============================== warnings summary ===============================
+tests/integration/test_p0n2_runtime_activation.py:42
+  /data/work/repo/tests/integration/test_p0n2_runtime_activation.py:42: PytestUnknownMarkWarning: Unknown pytest.mark.postgres - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    pytestmark = pytest.mark.postgres
+
+tests/test_scheduling_job_postgres.py:25
+  /data/work/repo/tests/test_scheduling_job_postgres.py:25: PytestUnknownMarkWarning: Unknown pytest.mark.postgres - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    pytestmark = pytest.mark.postgres
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+114 passed, 2 warnings in 5.51s
