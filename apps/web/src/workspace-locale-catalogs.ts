@@ -9,6 +9,9 @@
  * German and Chinese keep their long-standing shared table in
  * `workspace-ui-translations.ts`; Persian carries its own `fa` text inline.
  */
+import { TURKISH_CATALOG, TURKISH_COLUMNS } from "./workspace-turkish-catalog.js";
+import { TURKISH_UI } from "./workspace-turkish-ui.js";
+
 export type InterfaceCatalog = Readonly<Record<string, string>>;
 
 const RU: InterfaceCatalog = {
@@ -1185,6 +1188,7 @@ export const INTERFACE_CATALOGS: Readonly<Record<string, InterfaceCatalog>> = {
   ja: { ...JA, ...COLUMN_CATALOGS.ja },
   ko: { ...KO, ...COLUMN_CATALOGS.ko },
   ar: { ...AR, ...COLUMN_CATALOGS.ar },
+  tr: { ...TURKISH_CATALOG, ...TURKISH_COLUMNS, ...TURKISH_UI },
 };
 
 export function translateCatalogString(locale: string, english: string): string | null {

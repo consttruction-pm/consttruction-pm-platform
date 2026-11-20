@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { getWorkspaceLanguageOptions } from "./workspace-language-switch.js";
 
-test("authenticated Visual Workspace exposes all nine approved languages", () => {
+test("authenticated Visual Workspace exposes all ten approved languages", () => {
   assert.deepEqual(
     getWorkspaceLanguageOptions().map(({ value, label, direction }) => [value, label, direction]),
     [
@@ -16,6 +16,7 @@ test("authenticated Visual Workspace exposes all nine approved languages", () =>
       ["ja", "日本語", "ltr"],
       ["ko", "한국어", "ltr"],
       ["ru", "Русский", "ltr"],
+      ["tr", "Türkçe", "ltr"],
     ],
   );
 });

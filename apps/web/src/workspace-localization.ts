@@ -22,6 +22,7 @@ const localeDefinitions = new Map<string, WorkspaceLocaleDefinition>([
   ["ja", { locale: "ja", displayName: "日本語", direction: "ltr", translations: {} }],
   ["ko", { locale: "ko", displayName: "한국어", direction: "ltr", translations: {} }],
   ["ru", { locale: "ru", displayName: "Русский", direction: "ltr", translations: {} }],
+  ["tr", { locale: "tr", displayName: "Türkçe", direction: "ltr", translations: {} }],
 ]);
 
 /** Register translations from a verified, activated language pack. Keys are stable IDs, not English labels. */
@@ -123,7 +124,7 @@ export function hasWorkspaceUiTranslations(locale: WorkspaceLocale): boolean {
   if (!definition) return false;
   if (Object.keys(definition.translations).length > 0) return true;
   const base = locale.split("-")[0].toLowerCase();
-  if (base === "en" || base === "fa" || base === "de" || base === "zh") return true;
+  if (base === "en" || base === "fa" || base === "de" || base === "zh" || base === "tr") return true;
   return catalogSize(locale) > 0;
 }
 

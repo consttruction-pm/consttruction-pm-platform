@@ -119,13 +119,14 @@ test("language-pack UI translations require the versioned schema before activati
 });
 
 
-test("Arabic, French, Japanese, Korean and Russian are registered as selectable workspace locales", () => {
+test("Arabic, French, Japanese, Korean, Russian and Turkish are registered as selectable workspace locales", () => {
   const expected = [
     ["ar", "العربية", "rtl"],
     ["fr", "Français", "ltr"],
     ["ja", "日本語", "ltr"],
     ["ko", "한국어", "ltr"],
     ["ru", "Русский", "ltr"],
+    ["tr", "Türkçe", "ltr"],
   ] as const;
   for (const [locale, displayName, direction] of expected) {
     assert.ok(getAvailableWorkspaceLocales().includes(locale));
@@ -138,7 +139,7 @@ test("Arabic, French, Japanese, Korean and Russian are registered as selectable 
 });
 
 
-test("baseline catalogs translate the command surface for Arabic, French, Japanese, Korean and Russian", async () => {
+test("baseline catalogs translate the command surface for Arabic, French, Japanese, Korean, Russian and Turkish", async () => {
   const { hasWorkspaceUiTranslations, translateWorkspaceUiText } = await import("./workspace-localization.js");
   const { catalogSize } = await import("./workspace-locale-catalogs.js");
   const { translateColumnLabel } = await import("./workspace-ui-translations.js");
@@ -149,15 +150,15 @@ test("baseline catalogs translate the command surface for Arabic, French, Japane
     "OK", "Cancel", "Close", "Activity Details", "Project Details",
   ];
   const columns = ["Activity ID", "Activity Name", "Start", "Finish", "Duration", "Status"];
-  for (const locale of ["ar", "fr", "ja", "ko", "ru"]) {
+  for (const locale of ["ar", "fr", "ja", "ko", "ru", "tr"]) {
     assert.equal(hasWorkspaceUiTranslations(locale), true, `${locale} must advertise translations`);
     assert.ok(catalogSize(locale) >= 150, `${locale} catalog covers fewer than 150 strings`);
     for (const english of chrome) {
       const translated = translateWorkspaceUiText(locale, english, "persian-fallback");
       assert.notEqual(translated, "persian-fallback", `${locale} fell back to Persian for "${english}"`);
       assert.ok(translated.trim().length > 0);
-      // "OK" is legitimately identical in French and English; every other key must change.
-      if (english !== "OK") {
+      // Brand and acronyms are legitimately identical; every other key must change.
+      if (!["OK", "WBS", "CUBI Modern 3D"].includes(english)) {
         assert.notEqual(translated, english, `${locale} is missing a translation for "${english}"`);
       }
     }
@@ -167,6 +168,9 @@ test("baseline catalogs translate the command surface for Arabic, French, Japane
   }
   assert.equal(getWorkspaceLocaleDirection("ar"), "rtl");
   assert.equal(getWorkspaceLocaleDirection("ru"), "ltr");
+  assert.equal(getWorkspaceLocaleDirection("tr"), "ltr");
+  assert.equal(translateWorkspaceUiText("tr", "Project", "x"), "Proje");
+  assert.equal(translateWorkspaceUiText("tr-TR", "Activity Details", "x"), "Etkinlik ayrıntıları");
 });
 
 
@@ -185,4 +189,17 @@ test("verified locale resources can translate the shared UI labels", async () =>
   assert.equal(translateWorkspaceText("fr", "command.Workspace", "Workspace"), "Espace de travail");
   assert.equal(translateWorkspaceText("fr", "command.New Project", "New Project"), "Nouveau projet");
   assert.equal(translateWorkspaceText("fr", "ui.Project", "Project"), "Projet");
+});
+
+test("Turkish translates every shared workspace sentence, not only the command surface", async () => {
+  const { translateWorkspaceUiText } = await import("./workspace-localization.js");
+  const { UI_TRANSLATIONS } = await import("./workspace-ui-translations.js");
+  const identical = new Set(["OK", "WBS", "EPS", "OBS", "Normal", "CUBI Modern 3D"]);
+  const missing: string[] = [];
+  for (const english of Object.keys(UI_TRANSLATIONS)) {
+    const translated = translateWorkspaceUiText("tr", english, "persian-fallback");
+    if (translated === "persian-fallback") missing.push(english);
+    else if (translated === english && !identical.has(english)) missing.push(english);
+  }
+  assert.deepEqual(missing, [], `Turkish still falls back for: ${missing.slice(0, 10).join(" | ")}`);
 });
