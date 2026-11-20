@@ -1,0 +1,85 @@
+{
+  "contract_version": "cubi-public-capabilities.v1",
+  "generated_from": "apps/web/site/capabilities.mjs",
+  "offer": {
+    "plan": "pro_monthly",
+    "currency": "USD",
+    "unit_price_minor": 999,
+    "price_source": "apps/web/src/pro-checkout.ts",
+    "checkout_route": "/pricing/"
+  },
+  "capabilities": [
+    {
+      "id": "scheduling",
+      "environment": "engineering",
+      "route": "/features/scheduling/",
+      "status": "IMPLEMENTED",
+      "traceability_id": "ENG-PUB-FEATURES-SCHEDULING"
+    },
+    {
+      "id": "project-controls",
+      "environment": "engineering",
+      "route": "/features/project-controls/",
+      "status": "IMPLEMENTED",
+      "traceability_id": "ENG-PUB-FEATURES-PROJECT-CONTROLS"
+    },
+    {
+      "id": "resources",
+      "environment": "engineering",
+      "route": "/features/resources/",
+      "status": "IMPLEMENTED",
+      "traceability_id": "ENG-PUB-FEATURES-RESOURCES"
+    },
+    {
+      "id": "cost",
+      "environment": "engineering",
+      "route": "/features/cost/",
+      "status": "PARTIAL",
+      "traceability_id": "ENG-PUB-FEATURES-COST"
+    },
+    {
+      "id": "documents",
+      "environment": "engineering",
+      "route": "/features/documents/",
+      "status": "PARTIAL",
+      "traceability_id": "ENG-PUB-FEATURES-DOCUMENTS"
+    },
+    {
+      "id": "risks",
+      "environment": "engineering",
+      "route": "/features/risks/",
+      "status": "PARTIAL",
+      "traceability_id": "ENG-PUB-FEATURES-RISKS"
+    },
+    {
+      "id": "reporting",
+      "environment": "engineering",
+      "route": "/features/reporting/",
+      "status": "PARTIAL",
+      "traceability_id": "ENG-PUB-FEATURES-REPORTING"
+    },
+    {
+      "id": "ai-assistant",
+      "environment": "engineering",
+      "route": "/features/ai-assistant/",
+      "status": "CUBI_OWNED",
+      "traceability_id": "ENG-PUB-FEATURES-AI-ASSISTANT"
+    },
+    {
+      "id": "team-tasks",
+      "environment": "enterprise",
+      "route": "/features/",
+      "status": "IMPLEMENTED",
+      "traceability_id": "ENT-TEAM-TASKS",
+      "route_note": "Enterprise capability; the shared feature index is the public entry until an Enterprise marketing route ships."
+    },
+    {
+      "id": "portfolio-executive",
+      "environment": "enterprise",
+      "route": "/features/",
+      "status": "PARTIAL",
+      "traceability_id": "ENT-PORTFOLIO",
+      "route_note": "Enterprise capability; the shared feature index is the public entry until an Enterprise marketing route ships."
+    }
+  ]
+}
