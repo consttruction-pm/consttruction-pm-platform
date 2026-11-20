@@ -256,6 +256,28 @@ class SchedulingJobExecutor:
         with self._lock:
             return len(self._in_flight)
 
+    def summary(self) -> SchedulingExecutionSummary:
+        """Cumulative counters of this worker, for telemetry and delta reads."""
+        with self._lock:
+            counters = self._counters
+        return SchedulingExecutionSummary(
+            claimed=counters.claimed,
+            succeeded=counters.succeeded,
+            failed=counters.failed,
+            retried=counters.retried,
+            cancelled=counters.cancelled,
+            lease_lost=counters.lease_lost,
+            skipped=counters.skipped,
+            idle_polls=counters.idle_polls,
+            stopped=self._stop.is_set(),
+            process_starts=counters.process_starts,
+            inline_fallbacks=counters.inline_fallbacks,
+            cache_hits=counters.cache_hits,
+            cache_misses=counters.cache_misses,
+            slots_acquired_total=counters.slots_acquired_total,
+            peak_slots=counters.peak_slots,
+        )
+
     def run_once(self) -> bool:
         """Claim and execute one queued job. Returns False when none is queued."""
         if self._recover_expired:

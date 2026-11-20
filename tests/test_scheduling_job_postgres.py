@@ -327,3 +327,85 @@ def test_postgres_executor_drains_a_real_queue():
             connection.execute(
                 "DELETE FROM scheduling_jobs WHERE tenant_id=%s", (tenant,)
             )
+
+
+def test_postgres_persists_run_parameters_and_deduplicates_by_identity():
+    from construction_pm.scheduling_job_lifecycle import SchedulingJobError
+
+    tenant = f"p0h-{uuid.uuid4()}"
+    clock = Clock()
+    parameters = (
+        ("activity_count", "1200"),
+        ("project_revision", "4"),
+        ("roles", '["project_admin"]'),
+        ("snapshot_id", "S-PG"),
+    )
+    with _connection() as connection:
+        repository = PostgresSchedulingJobRepository(connection)
+        repository.initialize()
+        service = SchedulingJobService(repository, clock=clock)
+        try:
+            submission = service.submit(_request(tenant), run_parameters=parameters)
+            stored = service.get(
+                tenant_id=tenant,
+                project_id="project-pg",
+                job_id=submission.job.job_id,
+                user_id="alice",
+            )
+            assert stored.run_parameters == parameters
+            assert stored.run_parameter_map()["snapshot_id"] == "S-PG"
+
+            duplicate = service.submit(_request(tenant), run_parameters=parameters)
+            assert duplicate.deduplicated is True
+            assert duplicate.job.job_id == submission.job.job_id
+
+            with pytest.raises(SchedulingJobError) as conflict:
+                service.submit(
+                    _request(tenant),
+                    run_parameters=(("snapshot_id", "S-OTHER"),),
+                )
+            assert str(conflict.value) == "SCHEDULING_JOB_PARAMETER_CONFLICT"
+        finally:
+            connection.execute(
+                "DELETE FROM scheduling_jobs WHERE tenant_id=%s", (tenant,)
+            )
+
+
+def test_postgres_two_connections_recover_one_expired_lease_with_parameters():
+    tenant = f"p0h-{uuid.uuid4()}"
+    clock = Clock()
+    parameters = tuple(sorted((("snapshot_id", "S-PG"), ("project_revision", "4"))))
+    with _connection() as first, _connection() as second:
+        first_repo = PostgresSchedulingJobRepository(first)
+        second_repo = PostgresSchedulingJobRepository(second)
+        first_repo.initialize()
+        try:
+            submission = SchedulingJobService(first_repo, clock=clock).submit(
+                _request(tenant, max_attempts=2), run_parameters=parameters
+            )
+            worker = SchedulingJobService(first_repo, clock=clock, lease_ttl=timedelta(seconds=30))
+            leased = worker.claim(
+                tenant_id=tenant,
+                project_id="project-pg",
+                job_id=submission.job.job_id,
+                owner="worker-a",
+            )
+            assert leased.run_parameters == parameters
+
+            clock.advance(31)
+            recovery = SchedulingJobService(second_repo, clock=clock)
+            recovered = recovery.recover_expired()
+            assert [job.job_id for job in recovered] == [submission.job.job_id]
+            assert recovered[0].state is SchedulingJobState.QUEUED
+            assert recovered[0].run_parameters == parameters
+
+            reclaimed = recovery.claim(
+                tenant_id=tenant,
+                project_id="project-pg",
+                job_id=submission.job.job_id,
+                owner="worker-b",
+            )
+            assert reclaimed.attempts == 2
+            assert reclaimed.run_parameters == parameters
+        finally:
+            first.execute("DELETE FROM scheduling_jobs WHERE tenant_id=%s", (tenant,))

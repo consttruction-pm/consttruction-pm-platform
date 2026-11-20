@@ -1681,3 +1681,137 @@ known infrastructure-only Vercel deployments failed; the PostgreSQL workflow
 runs on `main` pushes, not on pull requests). Post-merge on `main` at
 `4f681cab`: full suite 5,340 passed / 1 skipped / 0 failed and the formerly
 flaky file 10/10 green.
+
+## 21. P0-N production job integration (2026-11-20)
+
+### 21.1 Requirement and audit
+
+The optimized engine existed, was tested and was benchmarked, but no deployed
+route reached it: `POST /api/v1/schedule/query` calls the authoritative provider
+synchronously inside the request, and the durable job lifecycle
+(`SchedulingJobService`, `SchedulingJobExecutor`, `GlobalWorkerScheduler`,
+`SlotAllocationPolicy`, `ScheduleResultCache`) was only used by tests. There was
+no way for a client to submit a run, no worker endpoint, and no persisted run
+input that a restarted worker could resume from.
+
+Audit result (read-only, before any change):
+
+* HTTP seam: dependency-free WSGI (`ProjectLifecycleWsgiApp`) over
+  `ProjectLifecycleHttpRoutes.handle`; every route requires the `cp_session`
+  cookie and derives tenant/project/revision from `open_project`.
+* Job model: lease-based with revision compare-and-set, single-flight key
+  `(tenant, project, dedup_scope, request_fingerprint)` and `stable_job_id`.
+  It had no place to persist the immutable input (snapshot id, project
+  revision, submitter roles), so a worker could start a job but could not
+  rebuild the query.
+* Executor: thread and process modes already existed with the global budget,
+  slot policy and result cache; process settings were already rejected in
+  thread mode.
+
+### 21.2 The change
+
+1. `SchedulingJob.run_parameters` — an immutable, sorted tuple of string pairs
+   persisted with the job. A second submission with the same fingerprint but
+   different parameters is rejected with
+   `SCHEDULING_JOB_PARAMETER_CONFLICT`; the PostgreSQL adapter stores it in a
+   new `run_parameters_json` column with an idempotent `ALTER TABLE ... IF NOT
+   EXISTS` for existing databases.
+2. `SchedulingEngineJobRunner` — one worker over the existing
+   `SchedulingJobExecutor`, process-wide `GlobalExecutionBudget` and P0-N
+   placement. It rebuilds the submitter's `AuthorizationContext` from the
+   persisted roles and runs `AuthoritativeScheduleQueryProvider` with the
+   job's own tenant/project/revision and snapshot id. A job without a stored
+   snapshot fails closed instead of guessing the latest input.
+3. `SchedulingJobAPI` — transport-neutral submit/status/result/cancel plus a
+   token-guarded worker tick. When a snapshot repository is supplied the
+   calculation identity is the snapshot's own identity (a caller cannot claim
+   another identity) and the workload hints are derived from the snapshot; a
+   mismatch is `409`.
+4. HTTP routes: `POST/GET /api/v1/schedule/projects/{project_id}/jobs[...]`,
+   `POST .../cancel`, and machine endpoints `POST /api/v1/schedule/worker/tick`
+   and `GET /api/v1/schedule/worker/status` guarded by `X-Worker-Token`. The
+   worker endpoints authenticate with the token only; user endpoints keep the
+   session cookie and the opened project scope, so an echoed foreign
+   tenant/project/revision is `403 CROSS_SCOPE_ACCESS`.
+5. Composition: `build_project_lifecycle_wsgi_app` accepts
+   `scheduling_job_repository`, an optional pre-built `scheduling_job_runner`,
+   `scheduling_execution_mode` and `scheduling_worker_token` (or
+   `CONSTRUCTION_PM_SCHEDULING_WORKER_TOKEN`). `POST /api/v1/schedule/query` is
+   untouched.
+
+### 21.3 Process-mode safety review
+
+`thread` remains the default. `process` is only accepted when the caller
+supplies a `provider_factory`, because a forked child must build its own
+repositories instead of reusing the parent's database connection; the runner
+refuses `PROCESS_MODE_REQUIRES_PROVIDER_FACTORY`, and composition refuses
+`SCHEDULING_PROCESS_MODE_REQUIRES_RUNNER` rather than composing a process worker
+over the parent-scoped provider. Inside a child the codec uses the reserved
+slot count as `FloatExecutionPolicy(workers=slots-1, admission=...,
+allow_nested_fork=slots>2)`, so placement can change elapsed time but never a
+float value.
+
+Recovery: a tick first calls `recover_expired`, then drains. Without that call a
+lease left by a stopped worker would never be requeued, because the idle loop
+only observes pending work.
+
+### 21.4 Tests
+
+New coverage (all executed, counts in §21.5):
+
+* `tests/scheduling/test_scheduling_job_production_api.py` — submit → worker →
+  status → result against the real provider; published hash equals a direct
+  provider execution; single-flight dedup; parameter conflict; tenant/project
+  isolation; cancellation; snapshot/identity/workload guards; token security;
+  failed calculation recorded with its error and attempt count; two concurrent
+  workers execute a job once; expired-lease recovery; process mode in a real
+  child (`process_starts == 1`, hash equality) with a cache hit on the repeat;
+  process timeout recorded as `SCHEDULING_JOB_TIMEOUT`.
+* `tests/test_scheduling_job_http_routes.py` — the same flow through the HTTP
+  route contract with a real session, plus `CROSS_SCOPE_ACCESS`, missing
+  session, missing/wrong worker token, cancel route, and the unchanged
+  synchronous `POST /api/v1/schedule/query` route.
+* `tests/test_schedule_query_production_composition.py` — the composed WSGI app
+  serves submit → tick → status → result, and refuses process mode without an
+  explicit runner.
+* `tests/test_scheduling_job_postgres.py` — run parameters round-trip,
+  dedup/conflict by identity, and cross-connection lease recovery keeps the
+  parameters.
+
+One defect was found by these tests and fixed: the WSGI adapter's status map had
+no `202 Accepted` (or `405`), so an accepted submission was labelled
+`202 Internal Server Error`. The code was already 202; only the reason phrase
+was wrong.
+
+### 21.5 Execution evidence
+
+Environment: 4 CPUs, CPython 3.12.13, SQLite 3.x, PostgreSQL on
+`127.0.0.1:55432`. Targeted runs on the branch:
+
+* `tests/scheduling/test_scheduling_job_production_api.py` — 14 passed
+* `tests/test_scheduling_job_http_routes.py` — 6 passed
+* `tests/test_schedule_query_production_composition.py` — 8 passed
+* `tests/test_scheduling_job_postgres.py` (real PostgreSQL) — 9 passed
+* `tests/scheduling` + `tests/test_scheduling_job_postgres.py` — 1,663 passed
+  (before the new files were added)
+
+The acceptance path was also exercised outside pytest against the real
+provider: submit returned `QUEUED` with parameters
+`activity_count=3, project_revision=4, relationship_count=0,
+roles=["project_admin"], snapshot_id=S1`; one tick claimed and succeeded the
+job; the stored output hash equalled the direct provider hash; a second submit
+over the same snapshot was served as a new generation after the first became
+terminal.
+
+### 21.6 Limits
+
+The deployed `ProductionRuntime` still reports `SCHEDULE_QUERY_NOT_DEPLOYED`
+from `_calendar_registry_not_wired`, so the runtime cannot yet compose a
+provider that resolves calendars. The job routes are wired at the composition
+seam and proven end-to-end with a real calendar registry; turning them on in
+the deployment runtime requires the calendar source, not a change to this
+integration. No new dependency, storage system or queue was introduced.
+
+### 21.7 Merge record
+
+Pending merge of this branch.

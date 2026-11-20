@@ -48,8 +48,15 @@ SCHEDULING_JOB_SCHEMA_STATEMENTS = (
         revision BIGINT NOT NULL DEFAULT 0,
         created_at TIMESTAMPTZ NOT NULL,
         updated_at TIMESTAMPTZ NOT NULL,
+        run_parameters_json TEXT NOT NULL DEFAULT '{}',
         PRIMARY KEY (tenant_id, project_id, job_id)
     )
+    """,
+    # Existing installations keep their rows; a job without parameters is
+    # explicit and fails closed at execution instead of guessing a snapshot.
+    """
+    ALTER TABLE scheduling_jobs
+        ADD COLUMN IF NOT EXISTS run_parameters_json TEXT NOT NULL DEFAULT '{}'
     """,
     """
     CREATE UNIQUE INDEX IF NOT EXISTS ux_scheduling_jobs_active_single_flight
@@ -90,8 +97,23 @@ _JOB_COLUMNS = (
     "submitted_by, state, attempts, max_attempts, engine_version, "
     "calculation_identity, lease_owner, lease_token, lease_expires_at, "
     "cancel_requested, cancel_requested_by, last_error, revision, "
-    "created_at, updated_at"
+    "created_at, updated_at, run_parameters_json"
 )
+
+
+def _run_parameters(value: object) -> tuple[tuple[str, str], ...]:
+    if value is None:
+        return ()
+    try:
+        decoded = json.loads(str(value))
+    except ValueError as error:
+        raise ValueError("INVALID_JOB_RUN_PARAMETERS") from error
+    if not isinstance(decoded, dict) or any(
+        not isinstance(key, str) or not isinstance(item, str)
+        for key, item in decoded.items()
+    ):
+        raise ValueError("INVALID_JOB_RUN_PARAMETERS")
+    return tuple(sorted(decoded.items()))
 
 
 def _job_from_row(row: tuple[Any, ...]) -> SchedulingJob:
@@ -116,6 +138,7 @@ def _job_from_row(row: tuple[Any, ...]) -> SchedulingJob:
         revision=row[17],
         created_at=row[18],
         updated_at=row[19],
+        run_parameters=_run_parameters(row[20]),
     )
 
 
@@ -163,7 +186,7 @@ class PostgresSchedulingJobRepository:
         result = self._connection.execute(
             f"INSERT INTO scheduling_jobs ({_JOB_COLUMNS}) "
             "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, "
-            "%s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
+            "%s, %s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
             (
                 job.tenant_id,
                 job.project_id,
@@ -185,6 +208,7 @@ class PostgresSchedulingJobRepository:
                 job.revision,
                 job.created_at,
                 job.updated_at,
+                json.dumps(dict(job.run_parameters), sort_keys=True),
             ),
         )
         return result.rowcount == 1

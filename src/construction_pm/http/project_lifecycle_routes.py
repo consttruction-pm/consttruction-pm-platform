@@ -28,6 +28,13 @@ from ..backend_p0.api import BackendP0API
 from ..backend_p0.errors import BackendApplicationError
 from ..backend_p0.workspace_read import WorkspaceControlRoomReadService
 from ..backend_p0.schedule_query import SCHEDULE_QUERY_VERSION, ScheduleQueryAPI
+from ..scheduling_job_api import (
+    DEFAULT_ENGINE_VERSION,
+    SCHEDULING_JOB_CONTRACT,
+    SchedulingJobAPI,
+    SchedulingJobAPIError,
+    SchedulingJobScope,
+)
 from ..scheduling_code_reference_api import build_scheduling_code_reference_payload
 from ..control_intelligence.contracts import ControlScope
 from ..control_intelligence.query import ScheduleQueryKind, ScheduleQueryRequest
@@ -373,6 +380,7 @@ class ProjectLifecycleHttpRoutes:
         backend_p0_api: BackendP0API | None = None,
         workspace_read_v2_service: WorkspaceControlRoomReadService | None = None,
         schedule_query_api: ScheduleQueryAPI | None = None,
+        scheduling_job_api: SchedulingJobAPI | None = None,
         ai_action_runtime: AIActionRuntime | None = None,
         ai_assistant_orchestrator: AIAssistantTurnOrchestrator | None = None,
         form_builder_api: object | None = None,
@@ -436,6 +444,7 @@ class ProjectLifecycleHttpRoutes:
         self._backend_p0_api = backend_p0_api
         self._workspace_read_v2_service = workspace_read_v2_service
         self._schedule_query_api = schedule_query_api
+        self._scheduling_job_api = scheduling_job_api
         self._ai_action_runtime = ai_action_runtime
         self._ai_assistant_orchestrator = ai_assistant_orchestrator
         self._form_builder_routes = (
@@ -455,6 +464,13 @@ class ProjectLifecycleHttpRoutes:
     ) -> tuple[int, dict[str, str], bytes]:
         session_id = (cookies or {}).get(self.SESSION_COOKIE)
         request_headers = headers or {}
+        worker_response = self._handle_scheduling_worker_route(
+            method, path, headers=request_headers, body=body
+        )
+        if worker_response is not None:
+            # The worker endpoints are machine-to-machine and authenticate with
+            # the shared worker token, not with a browser session cookie.
+            return worker_response
         if not session_id:
             return self._error(401, "SESSION_REQUIRED", "error.session.required")
 
@@ -641,6 +657,11 @@ class ProjectLifecycleHttpRoutes:
                 if result.get("contract_version") != "schedule-query-result.v1":
                     return self._error(502, "INVALID_SCHEDULE_QUERY_RESPONSE", "error.schedule_query.invalid_payload")
                 return self._json(200, result)
+            scheduling_job_response = self._handle_scheduling_job_route(
+                method, path, session_id=session_id, now=now, body=body
+            )
+            if scheduling_job_response is not None:
+                return scheduling_job_response
             if method == "POST" and path == "/api/v1/sync/mutations":
                 if self._sync_endpoint_factory is None:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
@@ -7963,6 +7984,156 @@ class ProjectLifecycleHttpRoutes:
             headers=headers,
             query=query,
         )
+
+    def _handle_scheduling_worker_route(
+        self,
+        method: str,
+        path: str,
+        *,
+        headers: Mapping[str, str],
+        body: bytes,
+    ) -> tuple[int, dict[str, str], bytes] | None:
+        """Token-guarded worker control, independent of the session cookie."""
+        if self._scheduling_job_api is None:
+            return None
+        if path not in (
+            "/api/v1/schedule/worker/tick",
+            "/api/v1/schedule/worker/status",
+        ):
+            return None
+        token = headers.get("X-Worker-Token")
+        try:
+            if method == "GET" and path == "/api/v1/schedule/worker/status":
+                return self._json(
+                    200, self._scheduling_job_api.worker_status(token=token)
+                )
+            if method == "POST" and path == "/api/v1/schedule/worker/tick":
+                try:
+                    payload = json.loads(body.decode("utf-8") or "{}")
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    return self._error(
+                        400, "SCHEDULING_WORKER_REQUEST_INVALID", "error.request.invalid"
+                    )
+                if not isinstance(payload, dict):
+                    return self._error(
+                        400, "SCHEDULING_WORKER_REQUEST_INVALID", "error.request.invalid"
+                    )
+                outcome = self._scheduling_job_api.tick(
+                    token=token, timeout=payload.get("timeout")
+                )
+                return self._json(200, outcome)
+            return self._error(405, "METHOD_NOT_ALLOWED", "error.route.not_found")
+        except SchedulingJobAPIError as exc:
+            return self._error(exc.status, exc.code, "error.scheduling_job.rejected")
+
+    def _handle_scheduling_job_route(
+        self,
+        method: str,
+        path: str,
+        *,
+        session_id: str,
+        now: datetime,
+        body: bytes,
+    ) -> tuple[int, dict[str, str], bytes] | None:
+        """Durable scheduling runs, scoped to a project the caller already opened."""
+        if self._scheduling_job_api is None:
+            return None
+        prefix = "/api/v1/schedule/projects/"
+        if not path.startswith(prefix):
+            return None
+        parts = path[len(prefix):].split("/")
+        if len(parts) < 2 or parts[1] != "jobs":
+            return None
+        project_id = parts[0]
+        if not project_id:
+            return self._error(
+                400, "SCHEDULING_JOB_REQUEST_INVALID", "error.request.invalid"
+            )
+        try:
+            context = self._api.open_project(session_id, project_id, now=now).context
+        except ProjectLifecycleError as exc:
+            if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                return self._error(
+                    403,
+                    _stable_error_code(exc, "AUTHORIZATION_DENIED"),
+                    "error.authorization.denied",
+                )
+            raise
+        session = self._api.get_session(session_id, now=now)
+        scope = SchedulingJobScope(
+            tenant_id=context.tenant_id,
+            project_id=context.project_id,
+            project_revision=context.revision,
+            user_id=session.user_id,
+            roles=frozenset(session.roles),
+        )
+        rest = parts[2:]
+        try:
+            if method == "POST" and not rest:
+                return self._submit_scheduling_job(scope, body)
+            if not rest or not rest[0]:
+                return self._error(
+                    400, "SCHEDULING_JOB_REQUEST_INVALID", "error.request.invalid"
+                )
+            job_id = rest[0]
+            if method == "GET" and len(rest) == 1:
+                return self._json(
+                    200, self._scheduling_job_api.status(scope, job_id).as_dict()
+                )
+            if method == "GET" and len(rest) == 2 and rest[1] == "result":
+                return self._json(
+                    200, self._scheduling_job_api.result_payload(scope, job_id)
+                )
+            if method == "POST" and len(rest) == 2 and rest[1] == "cancel":
+                return self._json(
+                    200, self._scheduling_job_api.cancel(scope, job_id).as_dict()
+                )
+            return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+        except SchedulingJobAPIError as exc:
+            return self._error(exc.status, exc.code, "error.scheduling_job.rejected")
+
+    def _submit_scheduling_job(
+        self, scope: SchedulingJobScope, body: bytes
+    ) -> tuple[int, dict[str, str], bytes]:
+        try:
+            payload = json.loads(body.decode("utf-8") or "{}")
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return self._error(
+                400, "SCHEDULING_JOB_REQUEST_INVALID", "error.request.invalid"
+            )
+        if not isinstance(payload, dict):
+            return self._error(
+                400, "SCHEDULING_JOB_REQUEST_INVALID", "error.request.invalid"
+            )
+        version = payload.get("contract_version", SCHEDULING_JOB_CONTRACT)
+        if version != SCHEDULING_JOB_CONTRACT:
+            return self._error(
+                400, "SCHEDULING_JOB_REQUEST_INVALID", "error.request.invalid"
+            )
+        # The scope comes from the opened project. An echoed scope is only
+        # accepted when it agrees, so a client can never target another tenant.
+        echoed_tenant = payload.get("tenant_id")
+        echoed_project = payload.get("project_id")
+        echoed_revision = payload.get("project_revision")
+        if (
+            (echoed_tenant is not None and echoed_tenant != scope.tenant_id)
+            or (echoed_project is not None and echoed_project != scope.project_id)
+            or (
+                echoed_revision is not None
+                and echoed_revision != scope.project_revision
+            )
+        ):
+            return self._error(403, "CROSS_SCOPE_ACCESS", "error.authorization.denied")
+        view = self._scheduling_job_api.submit(
+            scope,
+            snapshot_id=payload.get("snapshot_id"),
+            engine_version=payload.get("engine_version", DEFAULT_ENGINE_VERSION),
+            calculation_identity=payload.get("calculation_identity"),
+            activity_count=payload.get("activity_count"),
+            relationship_count=payload.get("relationship_count"),
+        )
+        # 202 for a new run, 200 when the single-flight key already existed.
+        return self._json(200 if view.deduplicated else 202, view.as_dict())
 
     @staticmethod
     def _json(status: int, payload: object) -> tuple[int, dict[str, str], bytes]:

@@ -454,3 +454,136 @@ def test_production_composition_reads_the_assistant_flag_from_its_environment(
         )
     assert calls == [True]
     conn.close()
+
+
+def _durable_job_fixture(now: datetime):
+    conn = sqlite3.connect(":memory:", check_same_thread=False)
+    snapshot_repo = SQLiteScheduleInputSnapshotRepository(conn)
+    context_repo = SQLiteCalculationContextRepository(conn)
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-PROD",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=9,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=CalendarReference("CAL-1", "1"),
+        activities=(Activity("A", 2), Activity("B", 1)),
+        relationships=(),
+        activity_calendar_assignments=(),
+        project_start=date(2026, 9, 21),
+    )
+    context = CalculationContext(
+        project_id="P-1",
+        project_version=9,
+        calendar_id="CAL-1",
+        calendar_version="1",
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp=now.isoformat(),
+        input_snapshot_id="S-PROD",
+        tenant_id="T-1",
+        actor_id="authoritative-actor",
+    )
+    snapshot_repo.save(build_snapshot(source, context, now))
+    context_repo.save(build_persisted_context(BackendScope("T-1", "P-1", 9), context))
+    registry = CalendarResolverRegistry(
+        day_resolvers={"CAL-1@1": WorkingTimeResolver(WorkingCalendar())}
+    )
+    return snapshot_repo, context_repo, registry
+
+
+def _call(app, method, path, *, body: bytes = b"", cookie: str | None = None, headers=None):
+    environ = {
+        "REQUEST_METHOD": method,
+        "PATH_INFO": path,
+        "CONTENT_LENGTH": str(len(body)),
+        "wsgi.input": BytesIO(body),
+    }
+    if cookie is not None:
+        environ["HTTP_COOKIE"] = f"cp_session={cookie}"
+    for name, value in (headers or {}).items():
+        environ["HTTP_" + name.upper().replace("-", "_")] = value
+    status_line: list[str] = []
+    chunks: list[bytes] = []
+
+    def start_response(status, response_headers):
+        status_line.append(status)
+
+    chunks.extend(app(environ, start_response))
+    return status_line[0], json.loads(b"".join(chunks) or b"{}")
+
+
+def test_production_composition_wires_durable_job_routes_when_a_repository_exists():
+    from construction_pm.scheduling_job_lifecycle import InMemorySchedulingJobRepository
+
+    now = datetime(2026, 9, 30, tzinfo=timezone.utc)
+    snapshot_repo, context_repo, registry = _durable_job_fixture(now)
+    app = build_project_lifecycle_wsgi_app(
+        lifecycle_api=_lifecycle_api(now),
+        snapshot_repository=snapshot_repo,
+        calendar_registry_factory=lambda: registry,
+        calculation_context_repository=context_repo,
+        authorization_policy=default_project_policy(),
+        clock=type("Clock", (), {"now": lambda self: now})(),
+        scheduling_job_repository=InMemorySchedulingJobRepository(),
+        scheduling_worker_token="composition-token",
+    )
+
+    status, view = _call(
+        app,
+        "POST",
+        "/api/v1/schedule/projects/P-1/jobs",
+        body=json.dumps({"snapshot_id": "S-PROD"}).encode(),
+        cookie="s1",
+    )
+    assert status == "202 Accepted"
+    assert view["state"] == "QUEUED"
+    job_id = view["job_id"]
+
+    status, tick = _call(
+        app,
+        "POST",
+        "/api/v1/schedule/worker/tick",
+        body=b"{}",
+        headers={"X-Worker-Token": "composition-token"},
+    )
+    assert status == "200 OK"
+    assert tick["outcome"]["succeeded"] == 1
+
+    status, read = _call(
+        app,
+        "GET",
+        f"/api/v1/schedule/projects/P-1/jobs/{job_id}",
+        cookie="s1",
+    )
+    assert status == "200 OK"
+    assert read["state"] == "SUCCEEDED"
+
+    status, result = _call(
+        app,
+        "GET",
+        f"/api/v1/schedule/projects/P-1/jobs/{job_id}/result",
+        cookie="s1",
+    )
+    assert status == "200 OK"
+    assert result["result"]["payload"]["activity_count"] == 2
+
+
+def test_production_composition_refuses_process_mode_without_an_explicit_runner():
+    from construction_pm.scheduling_job_lifecycle import InMemorySchedulingJobRepository
+
+    now = datetime(2026, 9, 30, tzinfo=timezone.utc)
+    snapshot_repo, context_repo, registry = _durable_job_fixture(now)
+    with pytest.raises(ValueError) as error:
+        build_project_lifecycle_wsgi_app(
+            lifecycle_api=_lifecycle_api(now),
+            snapshot_repository=snapshot_repo,
+            calendar_registry_factory=lambda: registry,
+            calculation_context_repository=context_repo,
+            authorization_policy=default_project_policy(),
+            clock=type("Clock", (), {"now": lambda self: now})(),
+            scheduling_job_repository=InMemorySchedulingJobRepository(),
+            scheduling_execution_mode="process",
+        )
+    assert str(error.value) == "SCHEDULING_PROCESS_MODE_REQUIRES_RUNNER"
