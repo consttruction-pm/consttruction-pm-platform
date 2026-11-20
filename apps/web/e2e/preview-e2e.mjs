@@ -1506,7 +1506,8 @@ async function main() {
           documentDir: document.documentElement.dir,
           launcherDir: root?.dir ?? null,
           launcherLabel: button?.getAttribute("aria-label") ?? "",
-          workspaceHref: document.querySelector("#cubi-assistant-popover a")?.getAttribute("href") ?? "",
+          workspaceHref:
+            document.querySelector("#cubi-assistant-popover .cubi-assistant-workspace-link")?.getAttribute("href") ?? "",
         };
       })()`);
       assert(routeState.rootFound && routeState.mountedOnBody && routeState.visible && routeState.fixed && routeState.avatarLoaded,
