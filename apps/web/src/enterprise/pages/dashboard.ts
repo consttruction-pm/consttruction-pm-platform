@@ -55,6 +55,8 @@ type Layout = {
   updated_at: string;
   visibility: Visibility;
   portlets: { key: PortletKey; size: Size }[];
+  server_id?: string;
+  server_revision?: number;
 };
 
 type DashboardDef = { id: string; name: string; description: string; defaultPortlets: PortletKey[] };
@@ -112,7 +114,7 @@ function build(ctx: PageContext, state: DashboardState, paint: () => void): HTML
 
   const nodes: HTMLElement[] = [];
 
-  const toolbarCard = section("Dashboard controls", "Choose a dashboard, filter the scope and refresh. The layout itself is saved on this device until the server dashboard API is mounted.");
+  const toolbarCard = section("Dashboard controls", "Choose a dashboard, filter the scope and refresh. Layout changes are saved to the server dashboard API and cached on this device.");
   const toolbar = el("div", { class: "cubi-toolbar" });
   const selector = testId(selectControl(DASHBOARDS.map((item) => ({ value: item.id, label: item.name })), dashboard.id, (value) => {
     state.dashboardId = value;
@@ -170,8 +172,11 @@ function dashboardStatus(ctx: PageContext, layout: Layout, paint: () => void): H
   row.append(
     badge(`Layout revision ${layout.revision}`, "info"),
     badge(`Saved ${formatTime(layout.updated_at)}`, "neutral"),
-    badge("Server sync: not connected", "warning"),
-    badge(`Visibility: ${layout.visibility} (local)`, "neutral"),
+    badge(
+      layout.server_id ? `Server sync: saved at revision ${layout.server_revision ?? "—"}` : "Server sync: not confirmed",
+      layout.server_id ? "success" : "warning",
+    ),
+    badge(`Visibility: ${layout.visibility}${layout.server_id ? " · server " + layout.server_id : " (local)"}`, layout.server_id ? "success" : "neutral"),
   );
   const reset = el("button", { class: "cubi-btn cubi-btn-ghost", text: "Reset layout", attrs: { type: "button" } });
   reset.addEventListener("click", () => {
@@ -182,7 +187,7 @@ function dashboardStatus(ctx: PageContext, layout: Layout, paint: () => void): H
     persist(layout, ctx);
     paint();
   });
-  row.append(reset, el("span", { class: "cubi-field-hint", text: "Layouts are device-local. The server dashboard API is registered as a contract; until mounted, sharing is not enforced." }));
+  row.append(reset, el("span", { class: "cubi-field-hint", text: "Layouts are stored with this browser and saved to the dashboard register. The visibility value is metadata; it is not an access-control rule in preview." }));
   return row;
 }
 
@@ -291,7 +296,7 @@ function designerPanel(ctx: PageContext, state: DashboardState, dashboard: Dashb
       persist(layout, ctx);
       paint();
     }),
-    note("Sharing is device-local in this build. The server dashboard route is not mounted, so this setting cannot grant access and is not enforced.", "warning"),
+    note("Visibility is saved with the server dashboard record. In preview it is metadata only: it does not restrict who can read the dashboard.", "warning"),
   );
 
   wrap.append(catalog, el("div", {}, installed, sharing));
@@ -299,9 +304,7 @@ function designerPanel(ctx: PageContext, state: DashboardState, dashboard: Dashb
     actionButton("Save layout", () => {
       layout.revision += 1;
       layout.updated_at = new Date().toISOString();
-      persist(layout, ctx);
-      ctx.toast("Layout saved on this device.", "info");
-      paint();
+      void persist(layout, ctx, true).then(paint);
     }),
     actionButton("Restore defaults", () => {
       layout.portlets = dashboard.defaultPortlets.map((key) => ({ key, size: "standard" }));
@@ -490,10 +493,46 @@ function defaultLayouts(): Record<string, Layout> {
   return result;
 }
 
-function persist(layout: Layout, ctx: PageContext): void {
+function persist(layout: Layout, ctx: PageContext, announce = false): Promise<void> {
   const stored = readLocalJson<Record<string, Layout>>(STORAGE_KEY, {});
   stored[layout.dashboard] = layout;
   if (!writeLocalJson(STORAGE_KEY, stored)) ctx.toast("This browser refused local storage; the layout will not persist.", "error");
+  return syncServer(layout, ctx, announce);
+}
+
+async function syncServer(layout: Layout, ctx: PageContext, announce = false): Promise<void> {
+  const definition = DASHBOARDS.find((item) => item.id === layout.dashboard);
+  const body = {
+    dashboard_key: layout.dashboard,
+    title: definition?.name ?? layout.dashboard,
+    visibility: layout.visibility,
+    portlets: layout.portlets,
+    revision_note: "saved from the Enterprise dashboard designer",
+  };
+  try {
+    if (layout.server_id) {
+      const payload = await api.enterpriseUpdate("dashboards", layout.server_id, {
+        expected_revision: layout.server_revision ?? layout.revision,
+        ...body,
+      });
+      layout.server_revision = payload.record.revision;
+    } else {
+      const payload = await api.enterpriseCreate("dashboards", body, typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `layout-${Date.now()}`);
+      layout.server_id = payload.record.record_id;
+      layout.server_revision = payload.record.revision;
+    }
+    const stored = readLocalJson<Record<string, Layout>>(STORAGE_KEY, {});
+    stored[layout.dashboard] = layout;
+    writeLocalJson(STORAGE_KEY, stored);
+    if (announce) {
+      ctx.toast(`Layout saved on the server (revision ${String(layout.server_revision)}).`, "info");
+    }
+  } catch (error) {
+    // The local layout remains usable; report honestly that the server did not
+    // confirm the save instead of claiming a server write.
+    const detail = error instanceof ApiError ? `${error.code} (HTTP ${error.status})` : String(error);
+    if (announce) ctx.toast(`Layout saved in this browser only; the server did not confirm: ${detail}.`, "error");
+  }
 }
 
 function actionButton(text: string, onClick: () => void): HTMLElement {

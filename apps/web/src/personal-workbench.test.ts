@@ -67,7 +67,7 @@ test("environment links stay inside the two real product entries", () => {
   assert.equal(environmentHref("engineering"), "/app?view=live");
   assert.equal(environmentHref("engineering", "preview-rps-01"), "/app?project=preview-rps-01&view=live");
   assert.equal(environmentHref("engineering", "a b/c"), "/app?project=a%20b%2Fc&view=live");
-  assert.equal(environmentHref("enterprise"), "/enterprise/");
+  assert.equal(environmentHref("enterprise"), "/cubi/enterprise/dashboard");
 });
 
 test("dates and numbers are locale aware", () => {

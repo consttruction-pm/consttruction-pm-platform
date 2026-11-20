@@ -134,6 +134,10 @@ function toast(message: string, kind: ToastKind = "info"): void {
 }
 
 function appHref(id: PageId): string {
+  // The Personal Workbench and the environment selector are the single
+  // signed-in entry owned by the shared application shell. The Enterprise
+  // sidebar links there instead of mounting a second, parallel workbench.
+  if (id === "workbench" || id === "environments") return "/workbench/";
   return pageHref(id);
 }
 
@@ -410,6 +414,12 @@ async function rerender(): Promise<void> {
   }
   if (publicPage) {
     renderPublic();
+    return;
+  }
+  if ((state.page === "workbench" || state.page === "environments") && window.location.pathname !== "/workbench/") {
+    // The Personal Workbench is the single signed-in entry for both
+    // environments. These legacy /cubi paths must not render a parallel copy.
+    window.location.replace("/workbench/");
     return;
   }
   if (!state.session) {

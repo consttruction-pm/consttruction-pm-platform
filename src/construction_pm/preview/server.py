@@ -100,6 +100,17 @@ def _safe_next(raw: object) -> str:
         # The Enterprise Workbench owns its own client router under /cubi/*.
         return value or "/cubi/"
     if (
+        not parsed.scheme
+        and not parsed.netloc
+        and not parsed.fragment
+        and parsed.path in {"/workbench", "/workbench/"}
+        and "\\" not in value
+        and not any(ord(char) < 0x20 for char in value)
+    ):
+        # The Personal Workbench is the single signed-in entry to both
+        # environments; ignore any query it was not asked to carry.
+        return "/workbench/"
+    if (
         parsed.scheme
         or parsed.netloc
         or parsed.fragment
@@ -316,6 +327,10 @@ class PreviewApplication:
                         # failure and causes the same bootstrap error on retry.
                         headers["Set-Cookie"] = _clear_cookie_header()[1]
             elif path == "/app" or path.startswith("/app/") or path == "/app.html":
+                status, headers, body = self._app_shell(environ, session)
+            elif path == "/workbench" or path.startswith("/workbench/"):
+                # The Personal Workbench is the single signed-in entry to both
+                # environments; it is the same application shell as /app.
                 status, headers, body = self._app_shell(environ, session)
             else:
                 status, headers, body = self._static(path, method)

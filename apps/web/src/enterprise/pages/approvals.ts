@@ -1,5 +1,5 @@
 import type { PageContext } from "../app.js";
-import { probe } from "../api.js";
+import { api, probe, type EnterpriseRecord } from "../api.js";
 import { badge, el } from "../ui.js";
 import {
   labelled,
@@ -130,16 +130,36 @@ export function renderApprovals(ctx: PageContext, host: HTMLElement): void {
   testId(states, "approvals-outcomes");
   host.append(states);
 
-  void loadQueue(ctx, queueHost, feedbackHost, submit);
+  void loadQueue(ctx, queueHost, feedbackHost, submit, (id, rev) => {
+    itemId.value = id;
+    revision.value = String(rev);
+  });
 }
 
-async function loadQueue(ctx: PageContext, queueHost: HTMLElement, feedbackHost: HTMLElement, submit: HTMLButtonElement): Promise<void> {
+async function loadQueue(
+  ctx: PageContext,
+  queueHost: HTMLElement,
+  feedbackHost: HTMLElement,
+  submit: HTMLButtonElement,
+  fill: (id: string, revision: number) => void,
+): Promise<void> {
   const [queue, feedback] = await Promise.all([
     probe("/api/enterprise/approvals"),
     probe("/api/enterprise/feedback"),
   ]);
   if (queue.state === "available") {
-    queueHost.replaceChildren(el("p", { class: "cubi-field-hint", text: "The approval service responded. Queue rows are rendered by the approval read model." }));
+    try {
+      const items = (await api.enterpriseList("approvals")).items.filter((item) => !item.deleted_at);
+      if (items.length === 0) {
+        queueHost.replaceChildren(el("p", { class: "cubi-field-hint", text: "The approval service answered with zero items for this tenant." }));
+      } else {
+        queueHost.replaceChildren(approvalTable(ctx, items, fill));
+      }
+      submit.disabled = false;
+    } catch (error) {
+      queueHost.replaceChildren(el("p", { class: "cubi-alert cubi-alert-error", text: String(error) }));
+      submit.disabled = true;
+    }
   } else {
     queueHost.replaceChildren(sourceState(queue, ctx.t, { title: "Approval queue is not connected", source: "Enterprise approval API", detail: "Submit remains disabled until the server route is mounted." }));
     submit.disabled = true;
@@ -150,6 +170,34 @@ async function loadQueue(ctx: PageContext, queueHost: HTMLElement, feedbackHost:
       ? el("p", { class: "cubi-field-hint", text: "The feedback service responded." })
       : sourceState(feedback, ctx.t, { title: "Feedback queue is not connected", source: "Enterprise feedback API" }),
   );
+}
+
+function approvalTable(ctx: PageContext, items: EnterpriseRecord[], fill: (id: string, revision: number) => void): HTMLElement {
+  const wrap = el("div", { class: "cubi-table-wrap" });
+  testId(wrap, "approvals-table");
+  const table = el("table", { class: "cubi-table" });
+  table.append(el("thead", {}, el("tr", {},
+    el("th", { text: "Item" }),
+    el("th", { text: "Status" }),
+    el("th", { text: "Revision" }),
+    el("th", { text: "Project" }),
+    el("th", { text: "" }),
+  )));
+  const body = el("tbody");
+  for (const item of items) {
+    const review = el("button", { class: "cubi-btn cubi-btn-secondary", text: "Review", attrs: { type: "button" } });
+    review.addEventListener("click", () => fill(item.record_id, item.revision));
+    body.append(el("tr", {},
+      el("td", {}, el("strong", { text: String(item.title ?? item.record_id) }), el("div", { class: "cubi-field-hint", text: item.record_id })),
+      el("td", {}, badge(String(item.status ?? "—"), item.status === "approved" ? "success" : item.status === "rejected" ? "danger" : "info")),
+      el("td", { text: String(item.revision) }),
+      el("td", { text: String(item.project_id ?? "—") }),
+      el("td", {}, review),
+    ));
+  }
+  table.append(body);
+  wrap.append(table);
+  return wrap;
 }
 
 function textAreaLocal(): HTMLTextAreaElement {

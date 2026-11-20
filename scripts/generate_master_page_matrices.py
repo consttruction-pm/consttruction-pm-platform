@@ -330,7 +330,7 @@ Field extraction for the other 66 rows is tracked per window in `v26-complete-wi
     ent_md = f"""# CUBI Enterprise — page, field and Help matrix
 
 **Generated from:** `docs/traceability/enterprise-v26.json` and `scripts/generate_master_page_matrices.py`
-**Rows:** {len(ent_rows)} · **Machine-readable twin:** `ENTERPRISE_PAGE_FIELD_HELP_MATRIX.json`
+**Rows:** {len(ent_rows)} · **Machine-readable twin:** `ENTERPRISE_PAGE_FIELD_HELP_MATRIX.generated.json`
 
 ## Page and Help matrix
 
@@ -340,8 +340,11 @@ Field extraction for the other 66 rows is tracked per window in `v26-complete-wi
 
 Only `/enterprise/` (Team & Task Center) currently has a wired form contract: title, description, project scope, priority, due date, status transitions and revision guard, all exercised by `apps/web/src/enterprise-task-center.test.ts` and the enterprise task HTTP tests. For the other fifteen surfaces the required field lists are enumerated in the product order but **not yet audited against code**; each is recorded as `NOT_AUDITED` rather than filled with placeholder rows. Enterprise documents, portal, workflow, approvals and risk registers have no implementation to extract fields from at this SHA.
 """
-    (ENTERPRISE / "ENTERPRISE_PAGE_FIELD_HELP_MATRIX.md").write_text(ent_md, encoding="utf-8")
-    (ENTERPRISE / "ENTERPRISE_PAGE_FIELD_HELP_MATRIX.json").write_text(
+    # The hand-authored delivery matrix is authoritative:
+    # docs/enterprise/ENTERPRISE_PAGE_FIELD_HELP_MATRIX.md. This generator keeps
+    # the traceability twin under a distinct name so it cannot overwrite it.
+    (ENTERPRISE / "ENTERPRISE_TRACEABILITY_MATRIX_GENERATED.md").write_text(ent_md, encoding="utf-8")
+    (ENTERPRISE / "ENTERPRISE_PAGE_FIELD_HELP_MATRIX.generated.json").write_text(
         json.dumps(
             {
                 "contract": "cubi-enterprise-page-field-help-matrix.v1",

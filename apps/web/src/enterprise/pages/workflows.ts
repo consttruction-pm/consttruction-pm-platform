@@ -1,5 +1,5 @@
 import type { PageContext } from "../app.js";
-import { probe } from "../api.js";
+import { ApiError, api, probe } from "../api.js";
 import { badge, el } from "../ui.js";
 import {
   emptyLine,
@@ -58,11 +58,11 @@ function seedDraft(): Draft {
   };
 }
 
-type State = { draft: Draft; error: string | null; savedAt: string | null };
+type State = { draft: Draft; error: string | null; savedAt: string | null; serverId: string | null; serverRevision: number };
 
 export function renderWorkflows(ctx: PageContext, host: HTMLElement): void {
   const stored = readLocalJson<Draft | null>(STORAGE_KEY, null);
-  const state: State = { draft: normalize(stored) ?? seedDraft(), error: null, savedAt: null };
+  const state: State = { draft: normalize(stored) ?? seedDraft(), error: null, savedAt: null, serverId: null, serverRevision: 0 };
   const root = el("div");
   host.append(root);
   const paint = (): void => {
@@ -236,6 +236,38 @@ function build(ctx: PageContext, state: State, paint: () => void): HTMLElement[]
   const publish = el("button", { class: "cubi-btn cubi-btn-primary", text: "Publish version", attrs: { type: "button" } });
   publish.disabled = true;
   publish.title = "Publishing requires the server workflow route.";
+  publish.addEventListener("click", () => {
+    if (validation.length) {
+      ctx.toast("Fix the validation issues before publishing.", "error");
+      return;
+    }
+    publish.disabled = true;
+    const body = {
+      name: state.draft.name,
+      steps: state.draft.steps,
+      transitions: state.draft.transitions,
+    };
+    const ensure = state.serverId
+      ? Promise.resolve({ record: { record_id: state.serverId, revision: state.serverRevision } })
+      : api.enterpriseCreate("workflows", { ...body, status: "draft" }, cryptoKey());
+    void ensure
+      .then((created) => api.publishWorkflow(created.record.record_id, {
+        expected_revision: created.record.revision,
+        ...body,
+      }))
+      .then((published) => {
+        state.serverId = published.record.record_id;
+        state.serverRevision = published.record.revision;
+        state.draft.updated_at = new Date().toISOString();
+        state.savedAt = formatTime(state.draft.updated_at);
+        ctx.toast(`Workflow published as version ${String(published.record.published_version ?? "—")}.`, "info");
+        paint();
+      })
+      .catch((error: unknown) => {
+        publish.disabled = false;
+        ctx.toast(error instanceof ApiError ? `${error.code} (HTTP ${error.status})` : String(error), "error");
+      });
+  });
   nodes.push(pageActions(
     actionButton("Save draft", () => {
       state.draft.revision += 1;
@@ -260,18 +292,45 @@ function build(ctx: PageContext, state: State, paint: () => void): HTMLElement[]
   ));
   nodes.push(note("Validation checks: at least two steps, at least one terminal step, no duplicate transitions, every transition references a step, and every step is reachable from the first step.", "warning"));
 
-  void loadService(ctx, capabilityHost);
+  void loadService(ctx, capabilityHost, publish);
   return nodes;
 }
 
-function loadService(ctx: PageContext, host: HTMLElement): void {
-  void probe("/api/enterprise/workflows").then((state) => {
+function loadService(ctx: PageContext, host: HTMLElement, publish: HTMLButtonElement): void {
+  void probe("/api/enterprise/workflows").then(async (state) => {
     if (state.state === "available") {
-      host.replaceChildren(el("div", { class: "cubi-conn-row" }, el("strong", { text: "Published workflow register" }), badge(`${state.status}`, "success")));
+      let items: { record_id: string; name: string; revision: number; status?: string; published_version?: number }[] = [];
+      try {
+        items = (await api.enterpriseList("workflows")).items.map((item) => ({
+          record_id: item.record_id,
+          name: String(item.name ?? item.record_id),
+          revision: item.revision,
+          status: item.status,
+          published_version: Number(item.published_version ?? 0),
+        }));
+      } catch {
+        items = [];
+      }
+      publish.disabled = false;
+      publish.title = "Publish the validated draft to the server workflow register.";
+      host.replaceChildren(
+        el("div", { class: "cubi-conn-row" }, el("strong", { text: "Published workflow register" }), badge(`${state.status}`, "success")),
+        items.length
+          ? el("div", { class: "cubi-list" }, ...items.map((item) => el("div", { class: "cubi-list-item" },
+              el("span", {}, el("strong", { text: item.name }), el("span", { class: "cubi-field-hint", text: ` ${item.record_id}` })),
+              badge(`v${item.published_version ?? 0} · rev ${item.revision}`, item.status === "published" ? "success" : "neutral"),
+            )))
+          : el("p", { class: "cubi-field-hint", text: "No workflow has been published for this tenant yet." }),
+      );
     } else {
+      publish.disabled = true;
       host.replaceChildren(sourceState(state, ctx.t, { title: "Published workflows", source: "Enterprise workflow service", detail: "Local drafts remain fully editable and validated; only publishing is unavailable." }));
     }
   });
+}
+
+function cryptoKey(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `workflow-${Date.now()}`;
 }
 
 export function validate(draft: Draft): string[] {

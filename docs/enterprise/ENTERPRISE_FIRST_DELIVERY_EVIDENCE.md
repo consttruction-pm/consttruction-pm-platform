@@ -1,97 +1,119 @@
-# CUBI Enterprise & Personal Workbench — First Delivery Evidence
+# CUBI Enterprise & Personal Workbench — Delivery Evidence
 
-Status: **first delivery verified** on the real preview runtime (Python WSGI + SQLite).
-Every page below was reached through the real login path, rendered a real heading,
-survived a browser refresh, and produced no uncaught page error.
+Status: **second delivery verified** on the real preview runtime (Python WSGI +
+SQLite) after merging `main` (PR #2085) and wiring the Enterprise API. Every page
+below was reached through the real login path, rendered a real heading, survived
+a browser refresh and deep link, and produced no uncaught page error.
 
 - Date: 2026-11-20
+- Branch: `feat/cubi-enterprise-workbench` (merge commit `3a405ad` on top of `main` `5bddd3d`)
 - Preview base: `http://127.0.0.1:4180`
-- Entry route: `/cubi/`
+- Canonical signed-in entry: `/workbench/` (Personal Workbench)
+- Enterprise entry: `/cubi/`
 - Login path: `/preview/login?next=/cubi/` → persona **Enterprise administrator** (`enterprise`)
 - Session after login: `GET /api/session` → **200**, `user_id=preview-enterprise`,
   roles `enterprise_admin`, `project_admin`, tenant `cubi-preview-tenant`
-- Browser: headless Chromium via Playwright (`/usr/bin/chromium --no-sandbox`), viewport 1440×1000
+- Browser: headless Chromium via Playwright (`/usr/bin/chromium --no-sandbox`), viewport 1440×1100
 - Machine-readable record: [`artifacts/enterprise-preview/evidence.json`](../../artifacts/enterprise-preview/evidence.json)
+- Page/field/Help matrix: [`ENTERPRISE_PAGE_FIELD_HELP_MATRIX.md`](ENTERPRISE_PAGE_FIELD_HELP_MATRIX.md)
+- API status: [`ENTERPRISE_API_CONTRACT_STATUS.md`](ENTERPRISE_API_CONTRACT_STATUS.md)
 
-## Per-page result
+## What changed since first delivery
 
-| # | Page | Route | Screenshot | HTTP | Access | H1 | Refresh | Browser test | API status |
-|---|------|-------|------------|------|--------|----|---------|--------------|------------|
-| 1 | Homepage | `/cubi/` | [01-home.png](../../artifacts/enterprise-preview/01-home.png) | 200 | signed in | CUBI Platform | 1× h1 | pass, 0 page errors | 2 calls, 0 fail |
-| 2 | Login / Auth (P6 About Security) | `/cubi/login` | [02-login.png](../../artifacts/enterprise-preview/02-login.png) | 200 | signed in | Sign in | 1× h1 | pass, 0 page errors | 2 calls, 0 fail |
-| 3 | Role & Permission Selection | `/cubi/roles` | [03-roles.png](../../artifacts/enterprise-preview/03-roles.png) | 200 | signed in | Role & permission selection | 1× h1 | pass, 0 page errors | 2 calls, 0 fail |
-| 4 | Personal Workbench Dashboard | `/cubi/workbench` | [04-workbench.png](../../artifacts/enterprise-preview/04-workbench.png) | 200 | signed in | Personal workbench | 1× h1 | pass, 0 page errors | 6 calls, 4 honest 404 probes |
-| 5 | Environment Selector | `/cubi/environments` | [05-environments.png](../../artifacts/enterprise-preview/05-environments.png) | 200 | signed in | Choose an environment | 1× h1 | pass, 0 page errors | 2 calls, 0 fail |
-| 6 | Enterprise Dashboard & Portlets | `/cubi/enterprise/dashboard` | [06-dashboard.png](../../artifacts/enterprise-preview/06-dashboard.png) | 200 | signed in | Enterprise dashboard & portlets | 1× h1 | pass, 0 page errors | 8 calls, 5 honest 404 probes |
-| 7 | Portfolio & Executive Center | `/cubi/enterprise/portfolio` | [07-portfolio.png](../../artifacts/enterprise-preview/07-portfolio.png) | 200 | signed in | Portfolio & executive center | 1× h1 | pass, 0 page errors | 6 calls, 4 honest 404 probes |
-| 8 | Enterprise Projects / Project Portal | `/cubi/enterprise/projects` | [08-projects.png](../../artifacts/enterprise-preview/08-projects.png) | 200 | signed in | Enterprise projects | 1× h1 | pass, 0 page errors | 2 calls, 0 fail |
-| 9 | Organization & Access Center | `/cubi/enterprise/access` | [09-access.png](../../artifacts/enterprise-preview/09-access.png) | 200 | signed in | Organization & access center | 1× h1 | pass, 0 page errors | 10 calls, 8 honest 404 probes |
-| 10 | Team & Task Center | `/cubi/enterprise/tasks` | [10-tasks.png](../../artifacts/enterprise-preview/10-tasks.png) | 200 | signed in | Team & task center | 1× h1 | pass, 0 page errors | 3 calls, 1 honest 404 probe |
-| 11 | Workflow Studio | `/cubi/enterprise/workflows` | [11-workflows.png](../../artifacts/enterprise-preview/11-workflows.png) | 200 | signed in | Workflow studio | 1× h1 | pass, 0 page errors | 3 calls, 1 honest 404 probe |
-| 12 | Feedback & Approval Center | `/cubi/enterprise/approvals` | [12-approvals.png](../../artifacts/enterprise-preview/12-approvals.png) | 200 | signed in | Feedback & approval center | 1× h1 | pass, 0 page errors | 4 calls, 2 honest 404 probes |
-| 13 | Resources & Capacity | `/cubi/enterprise/resources` | [13-resources.png](../../artifacts/enterprise-preview/13-resources.png) | 200 | signed in | Resources & capacity | 1× h1 | pass, 0 page errors | 6 calls, 0 fail |
-| 14 | Reports & Operations | `/cubi/enterprise/reports` | [14-reports.png](../../artifacts/enterprise-preview/14-reports.png) | 200 | signed in | Reports & operations | 1× h1 | pass, 0 page errors | 6 calls, 0 fail |
-| 15 | Knowledge & PMBOK Center | `/cubi/enterprise/knowledge` | [15-knowledge.png](../../artifacts/enterprise-preview/15-knowledge.png) | 200 | signed in | Knowledge & PMBOK center | 1× h1 | pass, 0 page errors | 8 calls, 0 fail |
+1. The `main` workbench (PR #2085) is the single signed-in entry. `/cubi/workbench`
+   and `/cubi/environments` redirect to `/workbench/`; the workbench's Enterprise
+   card links to `/cubi/enterprise/dashboard`. No parallel workbench exists.
+2. `/api/enterprise/*` is now mounted on the SQLite preview:
+   - `EnterpriseTaskHttpMiddleware` over a new `SQLiteEnterpriseTaskRepository`
+     (tenant scope, revisions, idempotency, dependency cycle detection, audit);
+   - `EnterpriseWorkbenchHttpMiddleware` over `EnterpriseWorkbenchStore`
+     (13 record kinds, soft delete/restore, approvals decisions, workflow publish,
+     audit, role gates).
+3. Enterprise pages now write through real APIs instead of showing a
+   not-connected state: dashboard layouts, decisions, teams/invitations/grants,
+   tasks, workflows, approvals.
+4. Engineering-derived values are never fabricated. Portlet, portfolio indicator,
+   trend and EVM routes return `503 ENGINEERING_SOURCE_NOT_CONNECTED`, and the
+   client maps that to a dedicated `source_unavailable` state.
 
-All 15 pages returned HTTP 200, kept exactly one `h1` after a full reload, and raised
-zero uncaught page errors.
+## Per-page result (browser pass)
 
-## API capability matrix (same session)
+| # | Page | Route | Screenshot | H1 | Refresh + deep link | Write flow exercised |
+|---|------|-------|------------|----|---------------------|----------------------|
+| 1 | Homepage | `/cubi/` | [01-home.png](../../artifacts/enterprise-preview/01-home.png) | CUBI Platform | pass | — |
+| 2 | Login / Auth | `/cubi/login` | [02-login.png](../../artifacts/enterprise-preview/02-login.png) | Sign in | pass | persona login sets `cp_session` |
+| 3 | Role & Permission | `/cubi/roles` | [03-roles.png](../../artifacts/enterprise-preview/03-roles.png) | Role & permission selection | pass | — (read-only) |
+| 4 | Personal Workbench | `/workbench/` (redirect from `/cubi/workbench`) | [04-workbench.png](../../artifacts/enterprise-preview/04-workbench.png) | Personal Workbench | pass | identity + environment links |
+| 5 | Environment Selector | `/workbench/` (redirect from `/cubi/environments`) | [05-environments.png](../../artifacts/enterprise-preview/05-environments.png) | Personal Workbench | pass | — |
+| 6 | Enterprise Dashboard | `/cubi/enterprise/dashboard` | [06-dashboard.png](../../artifacts/enterprise-preview/06-dashboard.png) | Enterprise dashboard & portlets | pass | Save layout → server revision shown after reload |
+| 7 | Portfolio | `/cubi/enterprise/portfolio` | [07-portfolio.png](../../artifacts/enterprise-preview/07-portfolio.png) | Portfolio & executive center | pass | Record decision → persists after reload |
+| 8 | Projects | `/cubi/enterprise/projects` | [08-projects.png](../../artifacts/enterprise-preview/08-projects.png) | Enterprise projects | pass | — (read-only) |
+| 9 | Organization & Access | `/cubi/enterprise/access` | [09-access.png](../../artifacts/enterprise-preview/09-access.png) | Organization & access center | pass | Create team → visible after reload |
+| 10 | Team & Task Center | `/cubi/enterprise/tasks` | [10-tasks.png](../../artifacts/enterprise-preview/10-tasks.png) | Team & task center | pass | Create task → row appears |
+| 11 | Workflow Studio | `/cubi/enterprise/workflows` | [11-workflows.png](../../artifacts/enterprise-preview/11-workflows.png) | Workflow studio | pass | Publish version → register shows v1 |
+| 12 | Feedback & Approvals | `/cubi/enterprise/approvals` | [12-approvals.png](../../artifacts/enterprise-preview/12-approvals.png) | Feedback & approval center | pass | Review fills id/revision; decision recorded |
+| 13 | Resources & Capacity | `/cubi/enterprise/resources` | [13-resources.png](../../artifacts/enterprise-preview/13-resources.png) | Resources & capacity | pass | — (Engineering read) |
+| 14 | Reports & Operations | `/cubi/enterprise/reports` | [14-reports.png](../../artifacts/enterprise-preview/14-reports.png) | Reports & operations | pass | — (existing runtime) |
+| 15 | Knowledge & PMBOK | `/cubi/enterprise/knowledge` | [15-knowledge.png](../../artifacts/enterprise-preview/15-knowledge.png) | Knowledge & PMBOK center | pass | — (read-only) |
 
-Registered and answering on the preview runtime:
+Browser suite result: **41/41 checks passed** (10 enterprise routes × heading +
+refresh/deep link, 2 canonical-entry redirects, 7 write/refresh flows, 1
+permission check, page-error/console/network hygiene).
 
-| Method | Route | Status |
-|--------|-------|--------|
-| GET | `/api/session` | 200 |
-| GET | `/api/projects` | 200 |
-| GET | `/api/projects/{id}/p6/resources` | 200 |
-| GET | `/api/projects/{id}/p6/resource-capacities` | 200 |
-| GET | `/api/projects/{id}/documents` | 200 |
-| GET | `/api/projects/{id}/risks` | 200 |
-| GET | `/api/projects/{id}/p6/issues` | 200 |
-| GET | `/api/projects/{id}/reports/catalogue` | 200 |
-| GET | `/api/projects/{id}/reports` | 200 |
-| GET | `/api/knowledge/cards` | 200 (empty seed) |
-| GET | `/api/knowledge/coverage` | 200 |
-| GET | `/api/knowledge/search?q=baseline` | 200 (empty result) |
-| GET | `/api/forms/organization/overview` | 200 |
+## API verification (same preview, 33 checks)
 
-Contract defined but **route not registered on this preview**, reported as Unverified
-(CUBI renders a not-connected state, never mock data or fake success):
+`/tmp/live_api_check.py` signs in with a real cookie and asserts:
 
-| Method | Route | Status |
-|--------|-------|--------|
-| GET | `/api/enterprise/tasks` | 404 `ROUTE_NOT_FOUND` |
-| GET | `/api/enterprise/dashboards` | 404 `ROUTE_NOT_FOUND` |
-| GET | `/api/enterprise/organizations` | 404 `ROUTE_NOT_FOUND` |
-| GET | `/api/enterprise/approvals` | 404 `ROUTE_NOT_FOUND` |
-| GET | `/api/enterprise/portfolios` | 404 `ROUTE_NOT_FOUND` |
-| GET | `/api/enterprise/decisions` | 404 `ROUTE_NOT_FOUND` |
-| GET | `/api/enterprise/workflows` | 404 `ROUTE_NOT_FOUND` |
-| GET | `/api/enterprise/feedback` | 404 `ROUTE_NOT_FOUND` |
-| GET | `/api/enterprise/portfolio/indicators` | 404 `ROUTE_NOT_FOUND` |
-| GET | `/api/enterprise/portfolio/trends` | 404 `ROUTE_NOT_FOUND` |
-| GET | `/api/v1/schedule/projects/{id}/jobs/{job_id}` | 404 for unknown id |
+- anonymous `/api/enterprise/teams` → 401 `SESSION_REQUIRED`;
+- non-enterprise role → 403 `ENTERPRISE_ACCESS_DENIED`;
+- team create 201, idempotent replay returns the same record, key reuse → 409;
+- client `tenant_id` → 403 `TENANT_IS_CLIENT_CONTROLLED`;
+- patch → revision 2; stale patch → 409; soft delete hides the record → 404;
+  restore → revision 4 and visible again;
+- task create 201, complete → revision 2, stale patch → 409;
+- approval decision 201, status `approved`, duplicate key → 409
+  `DUPLICATE_DECISION`, stale revision → 409 `STALE_REVISION`;
+- invalid workflow publish → 400 `WORKFLOW_INVALID:step done is unreachable`,
+  valid publish → `published_version 1`, stale republish → 409;
+- dashboard create/update → revisions 1 and 2;
+- audit readable and append-only (POST → 405);
+- portlets/portfolio/EVM → 503 `ENGINEERING_SOURCE_NOT_CONNECTED`.
 
-The console `Failed to load resource: 404` entries in the capture are exactly these
-honest probes. They are not silent failures: each is surfaced in the page as an
-unavailable capability with its route shown.
+Result: **33/33 passed**.
 
-## Behaviour verified beyond screenshots
+## Automated tests added
 
-- **Login path is real.** Pages are only reached after `POST` to `/preview/login`
-  with the `enterprise` persona; the response sets the `cp_session` cookie and
-  redirects to `/cubi/` (303 → `/cubi/`). Unauthenticated requests are not silently
-  rendered as signed-in.
-- **Layout persistence is real.** Dashboard: 6 portlets → add one from the catalog →
-  save → reload → 7 portlets, read back from device-local storage.
-- **RTL and locale switching work.** Setting locale `fa` yields `dir="rtl"`,
-  `lang="fa"`, and a Persian heading; 10 locales are wired with English fallback.
-- **Read-only Engineering projection.** Resources & capacity renders the raw
-  `capacity`/`scope` payload (`max_units`, `unit_basis`, `hours_per_time_period`,
-  `project_revision`) with no aggregation or recalculation.
-- **Reports reuse the existing runtime.** Catalogue and definitions come from the
-  real reporting routes; no parallel queue or worker is created.
+`tests/test_enterprise_workbench_http.py` (19 tests) — real in-memory SQLite store
+behind the WSGI middleware: auth, role gates, CRUD/revisions, soft delete and
+restore, tenant isolation, client tenant rejection, idempotency, validation,
+immutable fields, approval stale/duplicate semantics, workflow graph validation
+and versioning, audit, 503 engineering routes, task-route ownership, seed
+idempotency.
+
+`tests/test_enterprise_task_sqlite_repository.py` (11 tests) — task persistence:
+revision/history, idempotency and key reuse, tenant scoping, personal/project
+filters, stale updates, completion actor, dependency cycles and cross-tenant
+dependencies, metadata validation, pagination cursor.
+
+Both modules are `unittest`-compatible (pytest is not installed in this sandbox)
+and run with:
+
+```bash
+PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_enterprise_workbench_http.py' -v
+PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_enterprise_task_sqlite_repository.py' -v
+```
+
+Web side: `npx tsc -p tsconfig.build.json` passes, `npm test` is 1250 + 16 = 1266
+passing, `npm run build` produces `dist/web/src/enterprise-entry.bundle.js`.
+
+## Localisation pass
+
+`/tmp/locale_check.js` switched the Enterprise UI through all ten locales
+(en, fa, de, zh, ar, fr, ja, ko, ru, tr): **33/33 checks passed**. Each locale keeps
+its translated page title, `lang`, and direction (`fa`, `ar` = RTL, others LTR);
+Persian dates/digits render through `Intl`; deep links keep RTL; switching back to
+English restores LTR. Long-form page copy remains English/Persian with an explicit
+English fallback for the other eight locales (see i18n header).
 
 ## How to reproduce
 
@@ -100,16 +122,25 @@ cd /data/repo
 CUBI_PREVIEW_ALLOW_LAN=1 PYTHONPATH=src python3 -m construction_pm.preview \
   --web-root apps/web --host 0.0.0.0 --port 4180 --reset
 # in another shell:
-python3 /tmp/shoot.py   # writes artifacts/enterprise-preview/*.png and the JSON record
+python3 artifacts/enterprise-preview/verify_api.py
+node artifacts/enterprise-preview/verify_browser.js
+node artifacts/enterprise-preview/verify_locale.js
+node artifacts/enterprise-preview/shoot.js   # refreshes screenshots + evidence.json
 ```
 
-## Honest gaps at first delivery
+## Honest gaps at this delivery
 
-- `/api/enterprise/*` domain routes are defined in the contract document but not yet
-  registered on the SQLite preview; those pages show an explicit unavailable state.
-- The PostgreSQL-backed task/dashboard persistence (advisory locks, triggers) cannot
-  run on the SQLite preview and is therefore **Unverified**, not claimed working.
-- Long-form localization is reviewed for `en` and `fa` only; the other eight locales
-  ship interface strings with English fallback.
-- The Knowledge store seed is empty, so cards list is empty and coverage is zero;
-  the routes and UI are proven, the content is not.
+- Portlet, portfolio indicator/trend and EVM values are not connected; the API
+  returns 503 and the UI says so. No value is derived.
+- Task delete, team assignment and Engineering object references are not
+  implemented; the task API rejects them.
+- Invitation acceptance and dedicated audit/settings pages are not implemented
+  (see the ten initial-set pages in the help matrix).
+- Dashboard visibility is stored as metadata but not enforced in preview.
+- PostgreSQL concurrency (advisory locks, triggers) is **Unverified** here; the
+  SQLite adapter is a preview implementation. Production CSRF is also unverified;
+  the preview relies on `SameSite=Lax` + HttpOnly cookies.
+- Knowledge seed is empty, so cards/search/coverage are legitimately empty.
+- Ten initial-set pages (risks, documents, EPS, Team Member activities,
+  timesheets, notifications, admin settings, Form Builder page, audit page,
+  resource directory) remain MISSING or IN_PROGRESS and are not claimed.

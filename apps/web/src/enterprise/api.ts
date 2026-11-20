@@ -87,6 +87,25 @@ export type DocumentRecord = {
   [key: string]: unknown;
 };
 
+export type EnterpriseRecord = {
+  record_id: string;
+  kind: string;
+  tenant_id: string;
+  revision: number;
+  status?: string;
+  created_at?: string;
+  updated_at?: string | null;
+  created_by_user_id?: string;
+  deleted_at?: string | null;
+  [key: string]: unknown;
+};
+
+export type EnterpriseList = {
+  contract_version: string;
+  items: EnterpriseRecord[];
+  next_cursor: unknown;
+};
+
 export type ReportDefinition = {
   report_id: string;
   name?: string;
@@ -160,7 +179,7 @@ async function request<T>(
  * Report the real availability of a server capability without inventing data.
  * 404/403/401 are meaningful states, not errors to hide.
  */
-export type CapabilityState = "available" | "forbidden" | "unauthenticated" | "unavailable" | "error";
+export type CapabilityState = "available" | "forbidden" | "unauthenticated" | "unavailable" | "source_unavailable" | "error";
 
 export type CapabilityProbe = {
   path: string;
@@ -179,7 +198,8 @@ export async function probe(path: string): Promise<CapabilityProbe> {
         error.status === 401 ? "unauthenticated"
           : error.status === 403 ? "forbidden"
             : error.status === 404 ? "unavailable"
-              : "error";
+              : error.status === 503 ? "source_unavailable"
+                : "error";
       return { path, state, status: error.status, code: error.code };
     }
     return { path, state: "error", status: 0, code: "UNKNOWN" };
@@ -214,6 +234,47 @@ export const api = {
     request<{ task: EnterpriseTask }>(`/api/enterprise/tasks/${encodeURIComponent(taskId)}`, {
       method: "PATCH",
       body: JSON.stringify({ contract_version: "cubi-enterprise-task.v1", ...body }),
+    }),
+
+  enterpriseList: (kind: string, query: Record<string, string> = {}) => {
+    const parameters = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) if (value) parameters.set(key, value);
+    const suffix = parameters.toString() ? `?${parameters.toString()}` : "";
+    return request<EnterpriseList>(`/api/enterprise/${encodeURIComponent(kind)}${suffix}`);
+  },
+  enterpriseCreate: (kind: string, body: Record<string, unknown>, idempotencyKey?: string) =>
+    request<{ record: EnterpriseRecord }>(`/api/enterprise/${encodeURIComponent(kind)}`, {
+      method: "POST",
+      headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {},
+      body: JSON.stringify(body),
+    }),
+  enterpriseUpdate: (kind: string, recordId: string, body: Record<string, unknown>) =>
+    request<{ record: EnterpriseRecord }>(`/api/enterprise/${encodeURIComponent(kind)}/${encodeURIComponent(recordId)}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+  enterpriseDelete: (kind: string, recordId: string, expectedRevision: number) =>
+    request<{ record: EnterpriseRecord }>(`/api/enterprise/${encodeURIComponent(kind)}/${encodeURIComponent(recordId)}`, {
+      method: "DELETE",
+      body: JSON.stringify({ expected_revision: expectedRevision }),
+    }),
+  enterpriseRestore: (kind: string, recordId: string, expectedRevision: number) =>
+    request<{ record: EnterpriseRecord }>(`/api/enterprise/${encodeURIComponent(kind)}/${encodeURIComponent(recordId)}/restore`, {
+      method: "POST",
+      body: JSON.stringify({ expected_revision: expectedRevision }),
+    }),
+  listApprovalDecisions: (approvalId: string) =>
+    request<{ items: Record<string, unknown>[] }>(`/api/enterprise/approvals/${encodeURIComponent(approvalId)}/decisions`),
+  recordApprovalDecision: (approvalId: string, body: Record<string, unknown>, idempotencyKey: string) =>
+    request<{ decision: Record<string, unknown> }>(`/api/enterprise/approvals/${encodeURIComponent(approvalId)}/decisions`, {
+      method: "POST",
+      headers: { "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify(body),
+    }),
+  publishWorkflow: (workflowId: string, body: Record<string, unknown>) =>
+    request<{ record: EnterpriseRecord }>(`/api/enterprise/workflows/${encodeURIComponent(workflowId)}/publish`, {
+      method: "POST",
+      body: JSON.stringify(body),
     }),
 
   listResources: async (projectId: string) => {

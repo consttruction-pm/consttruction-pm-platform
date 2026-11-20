@@ -416,7 +416,11 @@ export function environmentHref(id: EnvironmentId, projectId?: string): string {
       ? `/app?project=${encodeURIComponent(projectId)}&view=live`
       : "/app?view=live";
   }
-  return "/enterprise/";
+  // The Enterprise environment shell is the CUBI Enterprise workbench,
+  // not the legacy task-center route.
+  return projectId
+    ? `/cubi/enterprise/dashboard?project=${encodeURIComponent(projectId)}`
+    : "/cubi/enterprise/dashboard";
 }
 
 async function probeEnterprise(): Promise<boolean | null> {

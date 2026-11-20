@@ -1,5 +1,5 @@
 import type { PageContext } from "../app.js";
-import { probe } from "../api.js";
+import { api, probe } from "../api.js";
 import { pageHref } from "../router.js";
 import { formatDate } from "../session.js";
 import { badge, el } from "../ui.js";
@@ -13,7 +13,9 @@ import {
   sectionBody,
   sourceStamp,
   sourceState,
+  labelled,
   testId,
+  textInput,
 } from "./shared.js";
 
 /**
@@ -159,9 +161,64 @@ async function loadSources(ctx: PageContext, projectId: string, indicatorHost: H
     sourceState(kpi, ctx.t, { title: "KPI source", source: "Enterprise portfolio KPI read model", detail: "Indicators must carry owner, date and revision. Until that route is mounted, the scorecard shows no number." }),
     sourceState(trends, ctx.t, { title: "Trend source", source: "Portfolio trend read model", detail: "A trend is never interpolated or derived from project dates." }),
   );
-  decisionsHost.replaceChildren(
-    sourceState(decisions, ctx.t, { title: "Decision register", source: "Enterprise decision API", detail: "Portfolio decisions are revision-pinned and approved by an authorized role." }),
-  );
+  if (decisions.state === "available") {
+    void api.enterpriseList("decisions", projectId ? { project_id: projectId } : {}).then((payload) => {
+      const table = el("div", { class: "cubi-table-wrap" });
+      const node = el("table", { class: "cubi-table" });
+      node.append(el("thead", {}, el("tr", {},
+        el("th", { text: "Decision" }),
+        el("th", { text: "Status" }),
+        el("th", { text: "Revision" }),
+        el("th", { text: "Project" }),
+      )));
+      const body = el("tbody");
+      if (payload.items.length === 0) {
+        body.append(el("tr", {}, el("td", { class: "cubi-table-empty", text: "No decision is recorded for this scope.", attrs: { colspan: "4" } })));
+      }
+      for (const item of payload.items) {
+        body.append(el("tr", {},
+          el("td", {}, el("strong", { text: String(item.title ?? item.record_id) }), el("div", { class: "cubi-field-hint", text: item.record_id })),
+          el("td", {}, badge(String(item.status ?? "—"), item.status === "approved" ? "success" : "info")),
+          el("td", { text: String(item.revision) }),
+          el("td", { text: String(item.project_id ?? "—") }),
+        ));
+      }
+      node.append(body);
+      table.append(node);
+      decisionsHost.replaceChildren(table, decisionForm(ctx, projectId));
+    }).catch((error: unknown) => {
+      decisionsHost.replaceChildren(el("p", { class: "cubi-alert cubi-alert-error", text: String(error) }));
+    });
+  } else {
+    decisionsHost.replaceChildren(
+      sourceState(decisions, ctx.t, { title: "Decision register", source: "Enterprise decision API", detail: "Portfolio decisions are revision-pinned and approved by an authorized role." }),
+    );
+  }
+}
+
+function decisionForm(ctx: PageContext, projectId: string): HTMLElement {
+  const form = el("div", { class: "cubi-form-grid" });
+  const title = textInput({ placeholder: "Decision title" });
+  const outcome = el("select", { class: "cubi-input" });
+  for (const value of ["pending", "approved", "rejected", "deferred"]) {
+    const option = el("option", { text: value });
+    option.value = value;
+    outcome.append(option);
+  }
+  const submit = el("button", { class: "cubi-btn cubi-btn-primary", text: "Record decision", attrs: { type: "button" } });
+  submit.addEventListener("click", () => {
+    if (!title.value.trim()) return;
+    submit.disabled = true;
+    void api.enterpriseCreate("decisions", {
+      title: title.value.trim(),
+      project_id: projectId || null,
+      status: outcome.value,
+    }, typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `decision-${Date.now()}`)
+      .then(() => { ctx.toast("Decision recorded on the server.", "info"); window.location.reload(); })
+      .catch((error: unknown) => { submit.disabled = false; ctx.toast(String(error), "error"); });
+  });
+  form.append(labelled("Decision", title), labelled("Status", outcome), labelled("", submit));
+  return form;
 }
 
 function scorecardTable(ctx: PageContext, projects: PageContext["projects"]): HTMLElement {

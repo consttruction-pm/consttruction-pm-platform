@@ -1,5 +1,14 @@
 # Enterprise Workbench — Page & Field Help Reference Matrix
 
+This hand-authored matrix is the **authoritative delivery matrix** for the 15
+Enterprise pages. An earlier generated 16-row traceability table
+(`scripts/generate_master_page_matrices.py`, contract
+`cubi-enterprise-page-field-help-matrix.v1`) is preserved as
+`ENTERPRISE_PAGE_FIELD_HELP_MATRIX.generated.json` and
+`ENTERPRISE_TRACEABILITY_MATRIX_GENERATED.md`; it is input material, not the
+delivery status of record, and the generator now writes to those names so it
+cannot overwrite this file.
+
 Scope: the 15 Enterprise Workbench pages served under `/cubi/*` from
 `apps/web/enterprise.html` and `apps/web/src/enterprise/`.
 
@@ -11,11 +20,66 @@ Help baseline: Oracle Primavera P6 EPPM Help Version 26.
 - `HELP_REFERENCE_PENDING` means no official P6 topic could be matched to that
   CUBI-owned field. The TOC remains the fallback; no URL is invented.
 
+Engineering reference: CUBI Engineering owns schedule, activities, CPM, WBS,
+resources, cost, progress and EVM. Engineering Help uses the Oracle P6 client
+help TOC <https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm>; the
+Engineering workspace itself is out of scope for this Enterprise page matrix.
+Every Enterprise field that delegates to Engineering is labelled as a delegated
+read and is never calculated on the Enterprise side.
+
 Legend for **Permission**: `server` means the value is enforced by the server on
 the cited API; the page only explains it. `read` / `write` describe the action
 the control performs; they are never a client-side grant.
 
+## Delivery status (live, 2026-11-20)
+
+Statuses follow the required vocabulary: **MISSING**, **IN_PROGRESS**,
+**WIRED_READ**, **WIRED_WRITE**, **VERIFIED**. `VERIFIED` is used only where all
+functional and Help requirements for the page are complete; a mounted route or a
+green HTTP status alone is not enough.
+
+| # | Page | Route | Status | What is real | What remains |
+|---|------|-------|--------|--------------|--------------|
+| 1 | CUBI Homepage | `/cubi/` | **VERIFIED** | Static product copy, official Help links, locale switching, browser pass | — |
+| 2 | Login / Authentication | `/cubi/login` | **WIRED_WRITE** | Preview persona login issues a real `cp_session`; production form targets `/api/session` | Production credential flow not exercisable in the demo preview |
+| 3 | Role & Permission Selection | `/cubi/roles` | **WIRED_READ** | Session roles/tenant read from the server; tier explained, never asserted | No role-assignment write API |
+| 4 | Personal Workbench Dashboard | `/cubi/workbench` → `/workbench/` | **VERIFIED** | Single canonical entry; redirect verified; enterprise card links to `/cubi/enterprise/dashboard` | — |
+| 5 | Environment Selector | `/cubi/environments` → `/workbench/` | **VERIFIED** | Same canonical entry; no parallel workbench rendered | — |
+| 6 | Enterprise Dashboard & Portlets | `/cubi/enterprise/dashboard` | **WIRED_WRITE** | Layout create/update on `/api/enterprise/dashboards`, revision-checked, server badge after reload | Portlet values (schedule/EVM/capacity) return 503 until Engineering read models connect; visibility is metadata only |
+| 7 | Portfolio & Executive Center | `/cubi/enterprise/portfolio` | **WIRED_WRITE** | Decisions create/list on `/api/enterprise/decisions`; decision form persists after reload | KPI/trend/EVM routes 503 `ENGINEERING_SOURCE_NOT_CONNECTED`; no numbers are derived |
+| 8 | Enterprise Projects / Project Portal | `/cubi/enterprise/projects` | **WIRED_READ** | Projects from `GET /api/projects`; risks/issues/documents read from existing project routes | No Enterprise project write; EPS hierarchy page remains missing |
+| 9 | Organization & Access Center | `/cubi/enterprise/access` | **WIRED_WRITE** | Team, invitation and grant create; soft delete; tenant isolation, IDOR and admin gates covered by backend tests | Invitation acceptance not implemented; demo fixture rows are non-deletable |
+| 10 | Team & Task Center | `/cubi/enterprise/tasks` | **WIRED_WRITE** | Create/complete/PATCH with revision and idempotency; personal and project scope; register shows real rows | No task delete, team assignment or Engineering references by design |
+| 11 | Workflow Studio | `/cubi/enterprise/workflows` | **WIRED_WRITE** | Create draft and publish with server graph validation; `published_version` increments | No workflow approval/scheduling integration |
+| 12 | Feedback & Approval Center | `/cubi/enterprise/approvals` | **WIRED_WRITE** | Queue reads approvals; Review fills the revision; decision accepted once, stale/duplicate 409 shown to the user | Feedback write form is minimal; no reviewer assignment |
+| 13 | Resources & Capacity | `/cubi/enterprise/resources` | **WIRED_READ** | Reads existing resource/capacity routes verbatim; no aggregation | No resource directory or assignment edit |
+| 14 | Reports & Operations | `/cubi/enterprise/reports` | **WIRED_READ** | Existing catalogue/definitions/jobs routes only; no parallel queue or worker | Report authoring/run from Enterprise is not opened |
+| 15 | Knowledge & PMBOK Center | `/cubi/enterprise/knowledge` | **WIRED_READ** | Real knowledge/forms routes | Seed is empty; no knowledge contribution write |
+
+## Initial-set pages not yet delivered (10)
+
+The original 25-page initial set contained ten pages that are **not** among the
+delivered 15. They are listed here with a disposition so that absence is
+explicit, not implied:
+
+| # | Initial page | P6 EPPM V26 family | Status | Reason / next evidence |
+|---|--------------|--------------------|--------|------------------------|
+| 16 | Risk & Issue Management | Risks and issues | **MISSING** | Engineering exposes `/risks` and `/issues` read routes; an Enterprise risk workspace is not built. Next: authorized, revision-pinned read page with no schedule duplication. |
+| 17 | Document & Information Management | Project documents | **MISSING** | `/documents` read exists; no Enterprise document page or lifecycle actions. Next: document list/detail with access rules from the existing service. |
+| 18 | EPS / Project Hierarchy | Projects and EPS | **MISSING** | Projects page lists projects; EPS tree and rollups are not implemented. Next: authorized hierarchy view fed by Engineering project structure. |
+| 19 | Team Member My Activities | Team Member Web | **MISSING** | Requires an Engineering Activity Status contract; Enterprise must not read or write Engineering activity files. Next: versioned cross-environment contract, owned by Engineering. |
+| 20 | Timesheets & Time Reporting | Team Member timesheets | **MISSING** | Engineering-owned time/actuals; no contract exists. Must not be approximated by generic tasks. |
+| 21 | Notifications & Messaging | Workflow notifications | **MISSING** | No notification/messaging contract mounted. Next: reuse verified identity/team messaging contracts. |
+| 22 | Enterprise Administration Settings | Enterprise administration | **IN_PROGRESS** | Access center covers organizations, users, roles, teams, invitations, grants and audit; a dedicated settings surface is absent. |
+| 23 | Form Builder Integration | Administration | **MISSING** | `/api/forms/organization/overview` is mounted and referenced from Knowledge, but there is no Enterprise form-building page. |
+| 24 | Audit & Activity Log | Administration and security | **MISSING** | `GET /api/enterprise/audit` is mounted and append-only; no dedicated audit page, only the access register. |
+| 25 | Resource Directory & Assignments | Resources and resource administration | **IN_PROGRESS** | Capacity read-only view exists; directory, assignment and leveling actions are not built and must not duplicate Engineering. |
+
+Each of the ten remains open work. None is claimed as delivered, and none is
+counted toward the 15 verified pages.
+
 ---
+
 
 ## Page 1 — CUBI Homepage
 

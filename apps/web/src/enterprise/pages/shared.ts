@@ -70,14 +70,14 @@ export function capabilityLabel(probe: CapabilityProbe, t: Translator): string {
   if (probe.state === "available") return t("common.connected");
   if (probe.state === "forbidden") return t("common.forbidden");
   if (probe.state === "unauthenticated") return "Session required";
-  if (probe.state === "unavailable") return t("common.notConnected");
+  if (probe.state === "unavailable" || probe.state === "source_unavailable") return t("common.notConnected");
   return t("common.error");
 }
 
 export function capabilityTone(probe: CapabilityProbe): Tone {
   if (probe.state === "available") return "success";
   if (probe.state === "forbidden") return "warning";
-  if (probe.state === "unavailable") return "neutral";
+  if (probe.state === "unavailable" || probe.state === "source_unavailable") return "neutral";
   return "danger";
 }
 
@@ -90,7 +90,7 @@ export function connectionRow(label: string, probe: CapabilityProbe, t: Translat
     "div",
     { class: "cubi-conn-row" },
     el("span", {}, el("strong", { text: label }), el("span", { class: "path", text: " " + probe.path })),
-    el("span", {}, badge(`${probe.status || "—"}`, probe.state === "available" ? "success" : probe.state === "forbidden" ? "warning" : probe.state === "unavailable" ? "neutral" : "danger"), el("span", { text: " " }), capabilityChip(probe, t)),
+    el("span", {}, badge(`${probe.status || "—"}`, probe.state === "available" ? "success" : probe.state === "forbidden" ? "warning" : probe.state === "unavailable" || probe.state === "source_unavailable" ? "neutral" : "danger"), el("span", { text: " " }), capabilityChip(probe, t)),
   );
 }
 
@@ -120,6 +120,14 @@ export function sourceState(
   }
   if (probe.state === "unauthenticated") {
     return stateBlock("forbidden", options.title, `The server requires a valid session for ${probe.path}.`);
+  }
+  if (probe.state === "source_unavailable") {
+    return stateBlock(
+      "unavailable",
+      options.title,
+      `${t("common.notConnected")} — ${options.source} is mounted but the Engineering source it reports from is not connected (${endpoint}). No value is derived or substituted. ${options.detail ?? ""}`.trim(),
+      options.retry ? [retryButton(options.retry, t)] : [],
+    );
   }
   if (probe.state === "unavailable") {
     return stateBlock(

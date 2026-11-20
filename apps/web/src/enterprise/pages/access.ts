@@ -1,25 +1,28 @@
 import type { PageContext } from "../app.js";
-import { probe, type CapabilityProbe } from "../api.js";
+import { api, probe, type CapabilityProbe, type EnterpriseRecord } from "../api.js";
 import { enterpriseTier } from "../session.js";
 import { badge, el } from "../ui.js";
 import {
   capabilityChip,
   connectionList,
   detailList,
+  labelled,
   note,
   section,
   sectionBody,
+  selectControl,
   sourceState,
   testId,
+  textInput,
 } from "./shared.js";
 
 /**
  * Page 9 — Organization and access center.
  *
  * Access is server-authoritative. This page reads the organization routes and
- * shows their real state. It never edits a grant client-side and never falls back
- * to a local user list. The verification panel documents the isolation tests the
- * server must pass.
+ * shows their real state, and its administration forms submit only the fields
+ * the server accepts. Roles, tenant and audit decisions always come from the
+ * server session; the browser cannot grant itself anything.
  */
 
 const ENTITIES: { key: string; title: string; endpoint: string; description: string }[] = [
@@ -88,59 +91,183 @@ export function renderAccess(ctx: PageContext, host: HTMLElement): void {
   testId(entities, "access-registers");
   host.append(entities);
 
+  host.append(adminSection(ctx));
+
   const isolation = section("Tenant isolation and IDOR verification", "The server must enforce these checks on every request, independent of this UI.");
   const checks = el("div", { class: "cubi-table-wrap" });
   const checkTable = el("table", { class: "cubi-table" });
   checkTable.append(el("thead", {}, el("tr", {}, el("th", { text: "Check" }), el("th", { text: "Request" }), el("th", { text: "Expected" }), el("th", { text: "State" }))));
   const checkBody = el("tbody");
   const rows = [
-    { check: "Cross-tenant read", request: "GET /api/enterprise/teams?tenant_id=other", expected: "403 or tenant-scoped empty set" },
-    { check: "IDOR on grant", request: "PATCH /api/enterprise/grants/{unknown}", expected: "404, never 200" },
-    { check: "Role escalation", request: "PATCH /api/enterprise/users/{self} {role: enterprise_admin}", expected: "403 unless authorized administrator" },
-    { check: "Invitation replay", request: "POST /api/enterprise/invitations/{id}/accept twice", expected: "409 on second use" },
-    { check: "Audit tamper", request: "DELETE /api/enterprise/audit/{id}", expected: "405 or 403; audit is append-only" },
-    { check: "Cookie-only authority", request: "Request with forged header role", expected: "Header ignored; session roles used" },
+    { check: "Cross-tenant read", request: "GET /api/enterprise/teams?tenant_id=other", expected: "Tenant-scoped empty set; query tenant ignored", state: "enforced" },
+    { check: "IDOR on grant", request: "PATCH /api/enterprise/grants/{unknown}", expected: "404, never 200", state: "enforced" },
+    { check: "Role escalation", request: "PATCH /api/enterprise/users/{self} {role: enterprise_admin}", expected: "403 unless authorized administrator", state: "enforced" },
+    { check: "Invitation replay", request: "POST /api/enterprise/invitations/{id}/accept twice", expected: "409 on second use", state: "not implemented" },
+    { check: "Audit tamper", request: "DELETE /api/enterprise/audit/{id}", expected: "405; audit is append-only", state: "enforced" },
+    { check: "Cookie-only authority", request: "Request with forged header role", expected: "Header ignored; session roles used", state: "enforced" },
   ];
   for (const row of rows) {
+    const ok = row.state === "enforced";
     checkBody.append(el("tr", {},
       el("td", {}, el("strong", { text: row.check })),
       el("td", {}, el("code", { class: "cubi-mono", text: row.request })),
       el("td", { text: row.expected }),
-      el("td", {}, badge("pending server route", "warning")),
+      el("td", {}, badge(ok ? "enforced server-side" : "pending server route", ok ? "success" : "warning")),
     ));
   }
   checkTable.append(checkBody);
   checks.append(checkTable);
   testId(checks, "access-isolation");
-  sectionBody(isolation, checks, note("These checks are part of the access contract. They are reported as pending because the organization API is not mounted in this build; the UI does not claim they passed."));
+  sectionBody(isolation, checks, note("The enforced rows are covered by backend tests in tests/test_enterprise_workbench_http.py. Invitation acceptance is not implemented yet and is shown as pending rather than claimed.", "warning"));
   host.append(isolation);
 
   void loadEntities(ctx, connHost, entityHost);
 }
 
 async function loadEntities(ctx: PageContext, connHost: HTMLElement, entityHost: HTMLElement): Promise<void> {
-  const results = await Promise.all(ENTITIES.map(async (entity) => ({ entity, probe: await probe(entity.endpoint) })));
+  const results = await Promise.all(ENTITIES.map(async (entity) => {
+    const state = await probe(entity.endpoint);
+    let items: EnterpriseRecord[] = [];
+    if (state.state === "available") {
+      try {
+        items = (await api.enterpriseList(entity.key)).items;
+      } catch {
+        items = [];
+      }
+    }
+    return { entity, probe: state, items };
+  }));
   connHost.replaceChildren(connectionList(results.map(({ entity, probe: state }) => ({ label: entity.title, probe: state })), ctx.t));
 
   const cards = el("div", { class: "cubi-grid cubi-grid-2" });
-  for (const { entity, probe: state } of results) {
-    cards.append(entityCard(ctx, entity, state));
+  for (const { entity, probe: state, items } of results) {
+    cards.append(entityCard(ctx, entity, state, items, () => loadEntities(ctx, connHost, entityHost)));
   }
   entityHost.replaceChildren(cards);
 }
 
-function entityCard(ctx: PageContext, entity: { key: string; title: string; endpoint: string; description: string }, state: CapabilityProbe): HTMLElement {
+function entityCard(
+  ctx: PageContext,
+  entity: { key: string; title: string; endpoint: string; description: string },
+  state: CapabilityProbe,
+  items: EnterpriseRecord[],
+  reload: () => void,
+): HTMLElement {
   const card = section(entity.title, entity.description);
   const body = el("div", {});
   body.append(
     el("div", { class: "cubi-row" }, badge(`${state.status || "—"}`, state.state === "available" ? "success" : state.state === "forbidden" ? "warning" : "neutral"), capabilityChip(state, ctx.t), el("span", { class: "cubi-field-hint", text: state.path })),
   );
   if (state.state === "available") {
-    body.append(el("p", { class: "cubi-field-hint", text: "The route responded. Table rendering for this register is provided by the organization read model; no local records are shown." }));
+    if (items.length === 0) {
+      body.append(el("p", { class: "cubi-field-hint", text: "The register answered with zero rows for this tenant." }));
+    } else {
+      const wrap = el("div", { class: "cubi-table-wrap" });
+      const table = el("table", { class: "cubi-table" });
+      table.append(el("thead", {}, el("tr", {},
+        el("th", { text: "Record" }),
+        el("th", { text: "Status" }),
+        el("th", { text: "Revision" }),
+        el("th", { text: "" }),
+      )));
+      const rows = el("tbody");
+      for (const item of items.slice(0, 8)) {
+        const label = String(item.name ?? item.title ?? item.display_name ?? item.email ?? item.record_id);
+        const deletable = ["teams", "invitations", "grants", "memberships"].includes(entity.key) && !item.demo;
+        const remove = el("button", { class: "cubi-btn cubi-btn-ghost", text: "Delete", attrs: { type: "button" } });
+        remove.disabled = !deletable;
+        if (deletable) {
+          remove.addEventListener("click", () => {
+            void api.enterpriseDelete(entity.key, item.record_id, item.revision)
+              .then(() => { ctx.toast(`${entity.title} record deleted.`, "info"); reload(); })
+              .catch((error: unknown) => ctx.toast(String(error), "error"));
+          });
+        }
+        rows.append(el("tr", {},
+          el("td", {}, el("strong", { text: label }), el("div", { class: "cubi-field-hint", text: item.record_id }), item.demo ? badge("preview fixture", "neutral") : null),
+          el("td", {}, badge(String(item.status ?? "—"), item.status === "active" ? "success" : "neutral")),
+          el("td", { text: String(item.revision) }),
+          el("td", {}, remove),
+        ));
+      }
+      table.append(rows);
+      wrap.append(table);
+      body.append(wrap);
+    }
   } else {
     body.append(sourceState(state, ctx.t, { title: entity.title, source: entity.title + " read model", detail: "Management actions stay disabled until the server route is mounted." }));
   }
   sectionBody(card, body);
   testId(card, `access-${entity.key}`);
   return card;
+}
+
+function adminSection(ctx: PageContext): HTMLElement {
+  const card = section("Access administration", "Writes are accepted only from an enterprise administrator session. Each write is revision-checked and audited.");
+  const grid = el("div", { class: "cubi-form-grid" });
+
+  const teamName = testId(textInput({ placeholder: "Team name" }), "access-team-name");
+  const createTeam = el("button", { class: "cubi-btn cubi-btn-primary", text: "Create team", attrs: { type: "button" } });
+  createTeam.addEventListener("click", () => {
+    const name = teamName.value.trim();
+    if (!name) return;
+    createTeam.disabled = true;
+    void api.enterpriseCreate("teams", { name }, newKey())
+      .then(() => { ctx.toast("Team created on the server.", "info"); teamName.value = ""; })
+      .catch((error: unknown) => ctx.toast(String(error), "error"))
+      .finally(() => { createTeam.disabled = false; });
+  });
+
+  const email = testId(textInput({ type: "email", placeholder: "person@example.com" }), "access-invite-email");
+  const role = testId(selectControl([
+    { value: "member", label: "Member" },
+    { value: "viewer", label: "Viewer" },
+    { value: "approver", label: "Approver" },
+    { value: "admin", label: "Admin" },
+  ], "member", () => {}), "access-invite-role");
+  const invite = el("button", { class: "cubi-btn cubi-btn-primary", text: "Invite", attrs: { type: "button" } });
+  invite.addEventListener("click", () => {
+    const value = email.value.trim();
+    if (!value) return;
+    invite.disabled = true;
+    void api.enterpriseCreate("invitations", { email: value, role: role.value, status: "pending" }, newKey())
+      .then(() => { ctx.toast("Invitation recorded on the server.", "info"); email.value = ""; })
+      .catch((error: unknown) => ctx.toast(String(error), "error"))
+      .finally(() => { invite.disabled = false; });
+  });
+
+  const subject = testId(textInput({ placeholder: "user or team id" }), "access-grant-subject");
+  const resource = testId(textInput({ placeholder: "project id" }), "access-grant-resource");
+  const grantRole = testId(selectControl([
+    { value: "viewer", label: "Viewer" },
+    { value: "planner", label: "Planner" },
+    { value: "project_manager", label: "Project manager" },
+  ], "viewer", () => {}), "access-grant-role");
+  const grant = el("button", { class: "cubi-btn cubi-btn-primary", text: "Grant access", attrs: { type: "button" } });
+  grant.addEventListener("click", () => {
+    if (!subject.value.trim() || !resource.value.trim()) return;
+    grant.disabled = true;
+    void api.enterpriseCreate("grants", {
+      subject_id: subject.value.trim(),
+      resource_id: resource.value.trim(),
+      role: grantRole.value,
+      resource_type: "project",
+    }, newKey())
+      .then(() => { ctx.toast("Grant recorded on the server.", "info"); })
+      .catch((error: unknown) => ctx.toast(String(error), "error"))
+      .finally(() => { grant.disabled = false; });
+  });
+
+  grid.append(
+    labelled("Team", teamName), labelled("", createTeam),
+    labelled("Invitation email", email), labelled("Invitation role", role), labelled("", invite),
+    labelled("Grant subject", subject), labelled("Grant resource", resource), labelled("Grant role", grantRole), labelled("", grant),
+  );
+  sectionBody(card, grid, note("Deleting a record is a soft delete with a revision check; the audit register keeps the event. Demo fixture rows cannot be deleted.", "warning"));
+  testId(card, "access-admin");
+  return card;
+}
+
+function newKey(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `access-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }

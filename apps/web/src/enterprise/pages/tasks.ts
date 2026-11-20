@@ -153,8 +153,8 @@ async function load(ctx: PageContext, state: TaskState, capabilityHost: HTMLElem
   if (capability.state !== "available") {
     listHost.replaceChildren(sourceState(capability, ctx.t, {
       title: "Task register is not connected",
-      source: "Enterprise Task API v1 (PostgreSQL advisory locks and triggers)",
-      detail: "The SQLite preview does not mount this route. Create and update remain disabled; no task row is simulated.",
+      source: "Enterprise Task API v1 (tenant-scoped, revision-checked)",
+      detail: "The task route did not answer for this session. Create and update stay disabled; no task row is simulated.",
       retry: () => paint(),
     }));
     return;

@@ -143,16 +143,16 @@ async function loadSources(
       { label: "Dashboard API", probe: dashboardsProbe },
       { label: "Organization API", probe: orgsProbe },
     ], ctx.t),
-    note("Routes marked unavailable are registered as contracts only in this build. The workbench keeps their UI visible and never simulates their records.", "warning"),
+    note("Routes marked unavailable did not answer for this session. The workbench keeps their UI visible and never simulates their records.", "warning"),
   );
   setStat(taskStat, ctx, tasksProbe);
   setStat(approvalStat, ctx, approvalsProbe);
 
   if (tasksProbe.state !== "available") {
     tasksHost.replaceChildren(sourceState(tasksProbe, ctx.t, {
-      title: "Task source is not connected",
-      source: "Enterprise Task API v1 (PostgreSQL)",
-      detail: "The task store uses PostgreSQL advisory locks and triggers, so it is not mounted on the SQLite preview. The contract is registered under /api/enterprise/tasks.",
+      title: "Task source did not answer",
+      source: "Enterprise Task API v1 (tenant-scoped, revision-checked)",
+      detail: "The task route did not answer for this session. No task row is simulated; create one in Team & task center once the route responds.",
     }));
     return;
   }
