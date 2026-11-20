@@ -4900,6 +4900,12 @@ async function boot(): Promise<void> {
     return;
   }
 
+  if (window.location.pathname === "/workbench" || window.location.pathname === "/workbench/") {
+    const { mountPersonalWorkbench } = await import("./personal-workbench.js");
+    await mountPersonalWorkbench(container);
+    return;
+  }
+
   if (window.location.pathname === "/" || window.location.pathname === "/index.html") {
     renderLandingPage(container);
     return;
