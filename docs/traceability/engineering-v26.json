@@ -1,0 +1,1141 @@
+{
+  "baseline": "P6 Professional V26 (G57535-02, October 2026, 815 pages)",
+  "rows": [
+    {
+      "id": "ENG-PUB-HOME",
+      "environment": "engineering",
+      "kind": "public_page",
+      "page": "/",
+      "surface": "Home page",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Working with Projects",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/workingwithprojects.htm",
+        "pdfPage": 115
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Public entry to the platform and environment selection.",
+      "evidence": "apps/web/index.html",
+      "status": "PUBLISHED"
+    },
+    {
+      "id": "ENG-PUB-PLATFORM",
+      "environment": "engineering",
+      "kind": "public_page",
+      "page": "/platform/",
+      "surface": "Platform overview",
+      "module": null,
+      "help": null,
+      "helpRationale": "CUBI-owned public content; no P6 Professional Help topic documents this page.",
+      "cubiBehavior": "Two-environment product overview.",
+      "evidence": "apps/web/public/platform/index.html",
+      "status": "CUBI_OWNED"
+    },
+    {
+      "id": "ENG-PUB-FEATURES",
+      "environment": "engineering",
+      "kind": "public_page",
+      "page": "/features/",
+      "surface": "Feature index",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Define Activity Table columns",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/define_activity_table_columns.htm",
+        "pdfPage": 329
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Capability index linking every documented feature page.",
+      "evidence": "apps/web/public/features/index.html",
+      "status": "PUBLISHED"
+    },
+    {
+      "id": "ENG-PUB-FEATURES-SCHEDULING",
+      "environment": "engineering",
+      "kind": "public_page",
+      "page": "/features/scheduling/",
+      "surface": "Scheduling feature page",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Scheduling Projects",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/schedulingprojects.htm",
+        "pdfPage": 287
+      },
+      "helpRationale": null,
+      "cubiBehavior": "CPM scheduling, critical path, float and multiple float paths.",
+      "evidence": "apps/web/public/features/scheduling/index.html",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "ENG-PUB-FEATURES-PROJECT-CONTROLS",
+      "environment": "engineering",
+      "kind": "public_page",
+      "page": "/features/project-controls/",
+      "surface": "Project controls feature page",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Tracking",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/tracking.htm",
+        "pdfPage": 372
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Baselines, variance, progress and data-date control.",
+      "evidence": "apps/web/public/features/project-controls/index.html",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "ENG-PUB-FEATURES-RESOURCES",
+      "environment": "engineering",
+      "kind": "public_page",
+      "page": "/features/resources/",
+      "surface": "Resources feature page",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Resources",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/resources.htm",
+        "pdfPage": 170
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Resource and role registers, assignments and capacity.",
+      "evidence": "apps/web/public/features/resources/index.html",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "ENG-PUB-FEATURES-COST",
+      "environment": "engineering",
+      "kind": "public_page",
+      "page": "/features/cost/",
+      "surface": "Cost feature page",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Expenses",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/expenses.htm",
+        "pdfPage": 250
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Cost accounts, expenses and assignment cost roll-ups.",
+      "evidence": "apps/web/public/features/cost/index.html",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "ENG-PUB-FEATURES-DOCUMENTS",
+      "environment": "engineering",
+      "kind": "public_page",
+      "page": "/features/documents/",
+      "surface": "Documents feature page",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Work Products and Documents",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/work_products_and_documents.htm",
+        "pdfPage": 316
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Work products, document assignment and review.",
+      "evidence": "apps/web/public/features/documents/index.html",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "ENG-PUB-FEATURES-RISKS",
+      "environment": "engineering",
+      "kind": "public_page",
+      "page": "/features/risks/",
+      "surface": "Risks feature page",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Risks (P6 Professional Only)",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/risks.htm",
+        "pdfPage": 310
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Risk register, scoring and activity linkage.",
+      "evidence": "apps/web/public/features/risks/index.html",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "ENG-PUB-FEATURES-REPORTING",
+      "environment": "engineering",
+      "kind": "public_page",
+      "page": "/features/reporting/",
+      "surface": "Reporting feature page",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Print budget reports",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/print_budget_reports.htm",
+        "pdfPage": 266
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Report/print field selection and budget reporting.",
+      "evidence": "apps/web/public/features/reporting/index.html",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "ENG-PUB-FEATURES-AI-ASSISTANT",
+      "environment": "engineering",
+      "kind": "public_page",
+      "page": "/features/ai-assistant/",
+      "surface": "AI assistant feature page",
+      "module": null,
+      "help": null,
+      "helpRationale": "CUBI-owned public content; no P6 Professional Help topic documents this page.",
+      "cubiBehavior": "CUBI-owned assistant surface; it explains project context and never calculates.",
+      "evidence": "apps/web/public/features/ai-assistant/index.html",
+      "status": "CUBI_OWNED"
+    },
+    {
+      "id": "ENG-PUB-SOLUTIONS",
+      "environment": "engineering",
+      "kind": "public_page",
+      "page": "/solutions/",
+      "surface": "Solutions page",
+      "module": null,
+      "help": null,
+      "helpRationale": "CUBI-owned public content; no P6 Professional Help topic documents this page.",
+      "cubiBehavior": "Industry and role solutions.",
+      "evidence": "apps/web/public/solutions/index.html",
+      "status": "CUBI_OWNED"
+    },
+    {
+      "id": "ENG-PUB-INTEGRATIONS",
+      "environment": "engineering",
+      "kind": "public_page",
+      "page": "/integrations/",
+      "surface": "Integrations page",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Importing and exporting data - Future period bucket planning FAQ",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/48617.htm",
+        "pdfPage": 243
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Import/export interchange and API integration.",
+      "evidence": "apps/web/public/integrations/index.html",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "ENG-PUB-PRICING",
+      "environment": "engineering",
+      "kind": "public_page",
+      "page": "/pricing/",
+      "surface": "Pricing page",
+      "module": null,
+      "help": null,
+      "helpRationale": "CUBI-owned public content; no P6 Professional Help topic documents this page.",
+      "cubiBehavior": "Commercial plans and checkout entry.",
+      "evidence": "apps/web/public/pricing/index.html",
+      "status": "CUBI_OWNED"
+    },
+    {
+      "id": "ENG-PUB-RESOURCES",
+      "environment": "engineering",
+      "kind": "public_page",
+      "page": "/resources/",
+      "surface": "Resources page",
+      "module": null,
+      "help": null,
+      "helpRationale": "CUBI-owned public content; no P6 Professional Help topic documents this page.",
+      "cubiBehavior": "Guides, documentation and reference material.",
+      "evidence": "apps/web/public/resources/index.html",
+      "status": "CUBI_OWNED"
+    },
+    {
+      "id": "ENG-PUB-DOCUMENTATION",
+      "environment": "engineering",
+      "kind": "public_page",
+      "page": "/documentation/",
+      "surface": "Documentation page",
+      "module": null,
+      "help": null,
+      "helpRationale": "CUBI-owned public content; no P6 Professional Help topic documents this page.",
+      "cubiBehavior": "Documentation landing.",
+      "evidence": "apps/web/public/documentation/index.html",
+      "status": "CUBI_OWNED"
+    },
+    {
+      "id": "ENG-PUB-HELP",
+      "environment": "engineering",
+      "kind": "public_page",
+      "page": "/help/",
+      "surface": "Help center",
+      "module": null,
+      "help": null,
+      "helpRationale": "CUBI-owned public content; no P6 Professional Help topic documents this page.",
+      "cubiBehavior": "Task-oriented help center.",
+      "evidence": "apps/web/public/help/index.html",
+      "status": "CUBI_OWNED"
+    },
+    {
+      "id": "ENG-PUB-FAQ",
+      "environment": "engineering",
+      "kind": "public_page",
+      "page": "/faq/",
+      "surface": "FAQ page",
+      "module": null,
+      "help": null,
+      "helpRationale": "CUBI-owned public content; no P6 Professional Help topic documents this page.",
+      "cubiBehavior": "Frequently asked questions.",
+      "evidence": "apps/web/public/faq/index.html",
+      "status": "CUBI_OWNED"
+    },
+    {
+      "id": "ENG-PUB-ABOUT",
+      "environment": "engineering",
+      "kind": "public_page",
+      "page": "/about/",
+      "surface": "About page",
+      "module": null,
+      "help": null,
+      "helpRationale": "CUBI-owned public content; no P6 Professional Help topic documents this page.",
+      "cubiBehavior": "Company and product background.",
+      "evidence": "apps/web/public/about/index.html",
+      "status": "CUBI_OWNED"
+    },
+    {
+      "id": "ENG-PUB-SECURITY",
+      "environment": "engineering",
+      "kind": "public_page",
+      "page": "/security/",
+      "surface": "Security page",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Setting up user security (P6 Professional Only)",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/setting_up_user_security.htm",
+        "pdfPage": 479
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Authentication, permissions and audit posture.",
+      "evidence": "apps/web/public/security/index.html",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "ENG-PUB-PAYMENTS",
+      "environment": "engineering",
+      "kind": "public_page",
+      "page": "/payments/",
+      "surface": "Payments page",
+      "module": null,
+      "help": null,
+      "helpRationale": "CUBI-owned public content; no P6 Professional Help topic documents this page.",
+      "cubiBehavior": "Payment processing and invoice information.",
+      "evidence": "apps/web/public/payments/index.html",
+      "status": "CUBI_OWNED"
+    },
+    {
+      "id": "ENG-PUB-CONTACT",
+      "environment": "engineering",
+      "kind": "public_page",
+      "page": "/contact/",
+      "surface": "Contact page",
+      "module": null,
+      "help": null,
+      "helpRationale": "CUBI-owned public content; no P6 Professional Help topic documents this page.",
+      "cubiBehavior": "Sales and support contact.",
+      "evidence": "apps/web/public/contact/index.html",
+      "status": "CUBI_OWNED"
+    },
+    {
+      "id": "ENG-PUB-GET-STARTED",
+      "environment": "engineering",
+      "kind": "public_page",
+      "page": "/get-started/",
+      "surface": "Get started page",
+      "module": null,
+      "help": null,
+      "helpRationale": "CUBI-owned public content; no P6 Professional Help topic documents this page.",
+      "cubiBehavior": "Environment selection and onboarding.",
+      "evidence": "apps/web/public/get-started/index.html",
+      "status": "CUBI_OWNED"
+    },
+    {
+      "id": "ENG-PUB-PRIVACY",
+      "environment": "engineering",
+      "kind": "public_page",
+      "page": "/privacy/",
+      "surface": "Privacy policy",
+      "module": null,
+      "help": null,
+      "helpRationale": "Legal policy page; no product Help topic applies.",
+      "cubiBehavior": "Legal privacy statement.",
+      "evidence": "apps/web/public/privacy/index.html",
+      "status": "LEGAL"
+    },
+    {
+      "id": "ENG-PUB-TERMS",
+      "environment": "engineering",
+      "kind": "public_page",
+      "page": "/terms/",
+      "surface": "Terms of service",
+      "module": null,
+      "help": null,
+      "helpRationale": "Legal policy page; no product Help topic applies.",
+      "cubiBehavior": "Legal terms of service.",
+      "evidence": "apps/web/public/terms/index.html",
+      "status": "LEGAL"
+    },
+    {
+      "id": "ENG-WS-SHELL",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/",
+      "surface": "Workspace shell and main windows",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Using main windows",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/using_main_windows.htm",
+        "pdfPage": 33
+      },
+      "helpRationale": null,
+      "cubiBehavior": "One canonical shell with window tabs, status bar and layout options.",
+      "evidence": "apps/web/src/workspace-desktop-shell.test.ts",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "ENG-WS-MENUS",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/",
+      "surface": "Menu bar and commands",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Working with Toolbars and Menus",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/workingwithtoolbarsandmenus.htm",
+        "pdfPage": 47
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Active-window-aware menu registry with stable command IDs.",
+      "evidence": "apps/web/src/workspace-view.test.ts",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "ENG-WS-TOOLBARS",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/",
+      "surface": "Toolbars",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Customizing Toolbars",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/customizingtoolbars.htm",
+        "pdfPage": 47
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Toolbar families with icons, tooltips and keyboard access.",
+      "evidence": "apps/web/src/workspace-visual-demo.test.ts",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "ENG-WS-SELECTION",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/activities/",
+      "surface": "Multi-selection",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Select multiple items",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/select_multiple_items.htm",
+        "pdfPage": 38
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Pointer and keyboard selection shared by table and Gantt.",
+      "evidence": "apps/web/src/workspace-activity-scope.test.ts",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "ENG-WS-CONTEXT-MENUS",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/",
+      "surface": "Shortcut menus",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Use shortcut menus",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/use_shortcut_menus.htm",
+        "pdfPage": 38
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Record-aware context menus with localized disabled reasons.",
+      "evidence": "apps/web/src/workspace-view.test.ts",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "ENG-WS-LAYOUTS",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/activities/",
+      "surface": "Activity layouts",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Customizing Activity Layouts",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/customizingactivitylayouts.htm",
+        "pdfPage": 324
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Save, open, reset and persisted activity layouts.",
+      "evidence": "apps/web/src/p6-layout-persistence-adapter.test.ts",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "ENG-WS-ACTIVITY-TABLE",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/activities/",
+      "surface": "Activity table",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Define Activity Table columns",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/define_activity_table_columns.htm",
+        "pdfPage": 329
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Configurable columns, widths, alignment and persistence.",
+      "evidence": "apps/web/src/p6-columns-dialog.test.ts",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "ENG-WS-GROUPING",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/activities/",
+      "surface": "Grouping and sorting",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Grouping activities by field",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/grouping_activities_by_field.htm",
+        "pdfPage": 403
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Multi-level grouping, WBS hierarchy bands and saved plans.",
+      "evidence": "apps/web/src/workspace-view.test.ts",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "ENG-WS-FILTERS",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/activities/",
+      "surface": "Filters",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Create a filter",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_filter.htm",
+        "pdfPage": 410
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Compound filters, saved filters and project-wide counts.",
+      "evidence": "apps/web/src/workspace-activity-filters.test.ts",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "ENG-WS-GANTT",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/activities/",
+      "surface": "Gantt chart",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "The Gantt Chart",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/the_gantt_chart.htm",
+        "pdfPage": 332
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Timescale, pan, zoom and synchronized table/Gantt rows.",
+      "evidence": "apps/web/src/workspace-view.test.ts",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "ENG-WS-GANTT-BARS",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/activities/",
+      "surface": "Gantt bar styles",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Change a Gantt Chart bar's style",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/change_a_gantt_chart_bars_style.htm",
+        "pdfPage": 390
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Bar shape, fill, height, labels and persisted style sets.",
+      "evidence": "apps/web/src/workspace-view.test.ts",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "ENG-WS-DATA-DATE",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/activities/",
+      "surface": "Data Date and progress line",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Using the data date",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/using_the_data_date.htm",
+        "pdfPage": 289
+      },
+      "helpRationale": null,
+      "cubiBehavior": "One authoritative data date drives the line, filters and details.",
+      "evidence": "apps/web/src/workspace-view.test.ts",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "ENG-WS-RELATIONSHIPS",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/activities/",
+      "surface": "Relationships",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Linking Activities with Relationships",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/linkingactivitieswithrelationships.htm",
+        "pdfPage": 211
+      },
+      "helpRationale": null,
+      "cubiBehavior": "FS/SS/FF/SF relationships, lag and revision-guarded edits.",
+      "evidence": "apps/web/src/p6-api.test.ts",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "ENG-WS-GANTT-RELATIONSHIPS",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/activities/",
+      "surface": "Relationships in Gantt",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Create relationships in the Gantt Chart",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_relationships_in_the_gantt_chart.htm",
+        "pdfPage": 213
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Drag-to-link with type preview and context editing.",
+      "evidence": "apps/web/src/workspace-view.test.ts",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "ENG-WS-NETWORK",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/activities/",
+      "surface": "Activity Network",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Activity Network",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/activitynetwork.htm",
+        "pdfPage": 343
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Deterministic network layout with selection synchronization.",
+      "evidence": "apps/web/src/workspace-view.test.ts",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "ENG-WS-DETAILS",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/activities/",
+      "surface": "Activity Details",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Customize Activity Details",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/customize_activity_details.htm",
+        "pdfPage": 328
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Desktop detail tabs bound to the selected activity.",
+      "evidence": "apps/web/src/workspace-activity-details.test.ts",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "ENG-WS-USAGE-PROFILE",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/activities/",
+      "surface": "Activity usage profile and spreadsheet",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "The Activity Usage Profile",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/the_activity_usage_profile.htm",
+        "pdfPage": 348
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Time-phased units and cost from stored assignment periods.",
+      "evidence": "apps/web/src/workspace-activity-usage.test.ts",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "ENG-WS-TRACE-LOGIC",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/activities/",
+      "surface": "Trace Logic",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Trace Logic",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/tracelogic.htm",
+        "pdfPage": 347
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Predecessor/successor chain projection and navigation.",
+      "evidence": "apps/web/src/workspace-view.test.ts",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "ENG-WS-WBS",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/wbs/",
+      "surface": "WBS table and chart",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Defining the WBS",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/definingthewbs.htm",
+        "pdfPage": 126
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Persisted WBS hierarchy, details and weighted milestones.",
+      "evidence": "apps/web/src/p6-activity-wbs-grid.test.ts",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "ENG-WS-PROJECTS",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/projects/",
+      "surface": "Projects and EPS",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Managing projects using the EPS",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/managing_projects_using_the_eps.htm",
+        "pdfPage": 189
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Authorized project register, EPS grouping and project details.",
+      "evidence": "apps/web/src/workspace-view.test.ts",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "ENG-WS-RESOURCES",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/resources/",
+      "surface": "Resources",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Resources",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/resources.htm",
+        "pdfPage": 170
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Resource hierarchy, assignments and capacity.",
+      "evidence": "apps/web/src/workspace-assignments.test.ts",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "ENG-WS-ROLES",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/resources/",
+      "surface": "Roles",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Roles",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/roles.htm",
+        "pdfPage": 182
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Role hierarchy, proficiency and effective-dated rates.",
+      "evidence": "apps/web/src/workspace-assignments.test.ts",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "ENG-WS-RESOURCE-USAGE",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/resources/",
+      "surface": "Resource usage profile",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "The Resource Usage Profile",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/the_resource_usage_profile.htm",
+        "pdfPage": 351
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Stored usage profile, limits and overallocation status.",
+      "evidence": "apps/web/src/p6-capacity-panel.test.ts",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "ENG-WS-CALENDARS",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/calendars/",
+      "surface": "Calendars",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Defining Calendars",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/definingcalendars.htm",
+        "pdfPage": 159
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Global, project and resource calendars with exceptions.",
+      "evidence": "apps/web/src/workspace-administration.test.ts",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "ENG-WS-SCHEDULE",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/schedule/",
+      "surface": "Schedule dialog",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Scheduling Projects",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/schedulingprojects.htm",
+        "pdfPage": 287
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Typed schedule options bound to the authoritative snapshot.",
+      "evidence": "apps/web/src/workspace-administration.test.ts",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "ENG-WS-CRITICAL-PATH",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/schedule/",
+      "surface": "Critical path and float",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Define critical activities",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/define_critical_activities.htm",
+        "pdfPage": 290
+      },
+      "helpRationale": null,
+      "cubiBehavior": "CPM dates, float and multiple float paths from the core.",
+      "evidence": "apps/web/src/workspace-view.test.ts",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "ENG-WS-LEVELING",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/schedule/",
+      "surface": "Resource leveling",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Leveling Resources",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/levelingresources.htm",
+        "pdfPage": 298
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Leveling options persist; run behavior is capability-gated.",
+      "evidence": "apps/web/src/workspace-administration.test.ts",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "ENG-WS-BASELINES",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/baselines/",
+      "surface": "Baselines",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Baselines",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/baselines.htm",
+        "pdfPage": 266
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Baseline capture, assignment and variance display.",
+      "evidence": "apps/web/src/workspace-view.test.ts",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "ENG-WS-TRACKING",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/tracking/",
+      "surface": "Tracking",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Tracking",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/tracking.htm",
+        "pdfPage": 372
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Tracking layouts and progress comparison.",
+      "evidence": "apps/web/src/workspace-view.test.ts",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "ENG-WS-REPORTS",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/reports/",
+      "surface": "Reports and printing",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Print budget reports",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/print_budget_reports.htm",
+        "pdfPage": 266
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Report field selection and print-ready output.",
+      "evidence": "apps/web/src/p6-report-print-field-selection.test.ts",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "ENG-WS-EXCHANGE",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/exchange/",
+      "surface": "Import and export",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Importing and exporting data - Future period bucket planning FAQ",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/48617.htm",
+        "pdfPage": 243
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Typed interchange import/export with validation.",
+      "evidence": "apps/web/src/p6-interchange-panel.test.ts",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "ENG-WS-ADMIN",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/admin/",
+      "surface": "Administration",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Administration",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/administration.htm",
+        "pdfPage": 455
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Users, security profiles and administrative dictionaries.",
+      "evidence": "apps/web/src/workspace-administration.test.ts",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "ENG-WS-DOCUMENTS",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/documents/",
+      "surface": "Work products and documents",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Work Products and Documents",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/work_products_and_documents.htm",
+        "pdfPage": 316
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Document assignment and review state.",
+      "evidence": "apps/web/src/workspace-view.test.ts",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "ENG-WS-RISKS",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/risks/",
+      "surface": "Risks",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Risks (P6 Professional Only)",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/risks.htm",
+        "pdfPage": 310
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Risk register with scoring and activity links.",
+      "evidence": "apps/web/src/workspace-view.test.ts",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "ENG-WS-ISSUES",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/issues/",
+      "surface": "Issues",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Issues",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/issues.htm",
+        "pdfPage": 302
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Issue register and responsibility tracking.",
+      "evidence": "apps/web/src/workspace-view.test.ts",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "ENG-WS-EXPENSES",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/expenses/",
+      "surface": "Expenses",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Expenses",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/expenses.htm",
+        "pdfPage": 250
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Activity expenses and cost information.",
+      "evidence": "apps/web/src/workspace-view.test.ts",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "ENG-WS-THRESHOLDS",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/thresholds/",
+      "surface": "Thresholds",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Thresholds",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/thresholds_topic.htm",
+        "pdfPage": 306
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Threshold definitions and generated issues.",
+      "evidence": "apps/web/src/workspace-view.test.ts",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "ENG-WS-PORTFOLIOS",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/portfolios/",
+      "surface": "Portfolios",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Portfolios",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/portfolios.htm",
+        "pdfPage": 119
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Project portfolios and membership.",
+      "evidence": "apps/web/src/workspace-view.test.ts",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "ENG-WS-OBS",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/admin/",
+      "surface": "OBS",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Organizational breakdown structure (OBS) overview",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/organizational_breakdown_structure_(obs)_overview.htm",
+        "pdfPage": 132
+      },
+      "helpRationale": null,
+      "cubiBehavior": "OBS hierarchy and project responsibility.",
+      "evidence": "apps/web/src/workspace-administration.test.ts",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "ENG-WS-UDF",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/activities/",
+      "surface": "User-defined fields",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "User-defined fields",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/user_defined_fields.htm",
+        "pdfPage": 156
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Typed user-defined fields on supported records.",
+      "evidence": "apps/web/src/p6-udf-http.test.ts",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "ENG-WS-STEPS",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/activities/",
+      "surface": "Activity steps",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Activity steps",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/activity_steps.htm",
+        "pdfPage": 256
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Activity steps, weights and templates.",
+      "evidence": "apps/web/src/workspace-activity-steps.test.ts",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "ENG-WS-ACTIVITY-CODES",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/app/activities/",
+      "surface": "Activity codes",
+      "module": null,
+      "help": {
+        "source": "P6 Professional V26 HTML Help",
+        "title": "Activity Codes",
+        "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/activitycodes.htm",
+        "pdfPage": 144
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Global, EPS and project activity codes.",
+      "evidence": "apps/web/src/workspace-view.test.ts",
+      "status": "PARTIAL"
+    }
+  ]
+}
