@@ -37,6 +37,10 @@ from ..application.project_lifecycle_api import ProjectLifecycleAPI
 from ..backend_p0.models import BackendScope
 from ..backend_p0.workspace_read import WorkspaceControlRoomReadService
 from ..backend_p0.workspace_read_provider import PersistedWorkspaceReadProvider
+from ..calendar_exception_repository import PostgresCalendarExceptionRepository
+from ..calendar_master_repository import PostgresCalendarMasterRepository
+from ..calendar_snapshot_repository import PostgresCalendarSnapshotRepository
+from ..calendar_work_hours_repository import PostgresCalendarWorkHourRepository
 from ..http.production_composition import build_project_lifecycle_wsgi_app
 from ..identity_session import (
     IdentityService,
@@ -66,6 +70,7 @@ from ..p6_user_defined_fields_repository import (
     PostgresP6UserDefinedFieldRepository,
 )
 from ..postgres_project_lifecycle import PostgresProjectRepository
+from ..postgres_scheduling_job_lifecycle import PostgresSchedulingJobRepository
 from ..relationship_master_repository import PostgresRelationshipMasterRepository
 from ..schedule_calculation_context_repository import (
     PostgresCalculationContextRepository,
@@ -74,6 +79,7 @@ from ..schedule_input_snapshot_repository import (
     PostgresScheduleInputSnapshotRepository,
 )
 from ..scheduling.calendar_context import CalendarResolverRegistry
+from ..p6_versioned_resource_calendar_resolver import build_calendar_registry_for_scope
 from ..wbs_master_repository import PostgresWBSMasterRepository
 from .production_web import ProductionWebApp, StaticSite
 from .schema import initialize_production_schema
@@ -262,11 +268,32 @@ class PostgresConnectionPool:
                 pass
 
 
-def _calendar_registry_not_wired() -> CalendarResolverRegistry:
-    # Schedule Query is not part of the deployed production surface yet. The
-    # route is wired to the shared evaluator, so an explicit failure is better
-    # than silently evaluating with an empty calendar set.
-    raise ProductionConfigurationError("SCHEDULE_QUERY_NOT_DEPLOYED")
+def _calendar_registry_for_scope_factory(
+    *,
+    master_repository: PostgresCalendarMasterRepository,
+    snapshot_repository: PostgresCalendarSnapshotRepository,
+    exception_repository: PostgresCalendarExceptionRepository,
+    work_hours_repository: PostgresCalendarWorkHourRepository,
+) -> Any:
+    """Return the request-scoped calendar registry factory.
+
+    The returned callable resolves persisted calendars for exactly the
+    snapshot's tenant/project/revision, using the repositories bound to the
+    current request connection. A missing definition, snapshot, work-hour rule
+    or base calendar raises ``P6ResourceCalendarResolutionError`` instead of
+    falling back to a default or the "latest" version.
+    """
+
+    def factory(scope: BackendScope) -> CalendarResolverRegistry:
+        return build_calendar_registry_for_scope(
+            scope=scope,
+            calendar_repository=master_repository,
+            snapshot_repository=snapshot_repository,
+            exception_repository=exception_repository,
+            work_hours_repository=work_hours_repository,
+        )
+
+    return factory
 
 
 class ProductionRuntime:
@@ -333,11 +360,25 @@ class ProductionRuntime:
         calculation_context_repository = PostgresCalculationContextRepository(
             connection
         )
+        calendar_master_repository = PostgresCalendarMasterRepository(connection)
+        calendar_snapshot_repository = PostgresCalendarSnapshotRepository(connection)
+        calendar_exception_repository = PostgresCalendarExceptionRepository(connection)
+        calendar_work_hours_repository = PostgresCalendarWorkHourRepository(connection)
+        calendar_registry_for_scope = _calendar_registry_for_scope_factory(
+            master_repository=calendar_master_repository,
+            snapshot_repository=calendar_snapshot_repository,
+            exception_repository=calendar_exception_repository,
+            work_hours_repository=calendar_work_hours_repository,
+        )
+        # Submission, status, cancellation and result retrieval share the same
+        # durable job lifecycle the standalone worker claims from.
+        scheduling_job_repository = PostgresSchedulingJobRepository(connection)
         self.api_app = build_project_lifecycle_wsgi_app(
             lifecycle_api=lifecycle_api,
             snapshot_repository=snapshot_repository,
-            calendar_registry_factory=_calendar_registry_not_wired,
+            scoped_calendar_registry_factory=calendar_registry_for_scope,
             calculation_context_repository=calculation_context_repository,
+            scheduling_job_repository=scheduling_job_repository,
             authorization_policy=policy,
             activity_master_repository=activity_repository,
             wbs_master_repository=wbs_repository,

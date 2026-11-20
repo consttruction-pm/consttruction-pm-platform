@@ -42,7 +42,12 @@ class AuthoritativeScheduleQueryProvider:
     """
 
     snapshot_repository: ScheduleInputSnapshotRepository
-    calendar_registry_factory: Callable[[], CalendarResolverRegistry]
+    calendar_registry_factory: Callable[[], CalendarResolverRegistry] | None = None
+    # Preferred production seam: the factory receives the snapshot's exact
+    # tenant/project/revision so a registry can be built from that scope only.
+    # The zero-argument factory remains for callers whose registry is already
+    # scope-independent (for example an offline bundle).
+    scoped_calendar_registry_factory: Callable[[BackendScope], CalendarResolverRegistry] | None = None
     calculation_context_repository: CalculationContextRepository | None = None
     leveling_input_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, CalendarResolverRegistry, AuthorizationContext], SchedulerLevelingInput | None] | None = None
     # Supplies the persisted assignment and effective-rate facts needed when the
@@ -53,6 +58,13 @@ class AuthoritativeScheduleQueryProvider:
     # a calculated value; the calculation run identity stays identical for any
     # worker count.
     float_execution: FloatExecutionPolicy | None = None
+
+    def _registry_for(self, scope: BackendScope) -> CalendarResolverRegistry:
+        if self.scoped_calendar_registry_factory is not None:
+            return self.scoped_calendar_registry_factory(scope)
+        if self.calendar_registry_factory is not None:
+            return self.calendar_registry_factory()
+        raise ScheduleEvaluationError("CALENDAR_REGISTRY_FACTORY_REQUIRED")
 
     def execute(
         self,
@@ -102,7 +114,7 @@ class AuthoritativeScheduleQueryProvider:
             )
 
         try:
-            calendar_registry = self.calendar_registry_factory()
+            calendar_registry = self._registry_for(snapshot.scope)
             leveling_input = None
             leveling_requested = _snapshot_requests_resource_leveling(snapshot)
             placement_required = _snapshot_has_resource_dependent_facts(snapshot)
