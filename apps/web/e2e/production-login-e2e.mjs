@@ -30,6 +30,7 @@ mkdirSync(artifactsDir, { recursive: true });
 const EMAIL = process.env.CUBI_E2E_EMAIL ?? "e2e-owner@example.test";
 const PASSWORD = process.env.CUBI_E2E_PASSWORD ?? "correct horse battery staple";
 const PROJECT = process.env.CUBI_E2E_PROJECT ?? "cubi-e2e-project";
+const ENGINEER_EMAIL = process.env.CUBI_E2E_ENGINEER_EMAIL ?? "e2e-engineer@example.test";
 const CHECKS = [];
 const ERRORS = [];
 const SCREENSHOTS = [];
@@ -286,7 +287,13 @@ async function startServer() {
         CUBI_E2E_PROJECT: PROJECT,
         CUBI_E2E_EMAIL: EMAIL,
         CUBI_E2E_PASSWORD: PASSWORD,
-        CUBI_WEB_ROOT: join(repoRoot, "public"),
+        // The assembled Pages artifact lives at <repo>/public, while a normal
+        // checkout keeps the web root in apps/web. Honor an explicit override
+        // and fall back to whichever root actually contains the shell.
+        CUBI_WEB_ROOT: process.env.CUBI_WEB_ROOT
+          ?? (existsSync(join(repoRoot, "public", "index.html"))
+            ? join(repoRoot, "public")
+            : webRoot),
       },
       stdio: ["ignore", "pipe", "pipe"],
     },
@@ -397,6 +404,26 @@ async function main() {
       projects: projects.projects.map((project) => project.project_id),
     });
 
+    // Real write -> commit -> fresh read on the production API.
+    const written = await page.evaluate(`(async () => {
+      const entry = document.cookie.split(";").map((part) => part.trim()).find((part) => part.startsWith("cubi_csrf="));
+      const csrf = entry ? decodeURIComponent(entry.slice("cubi_csrf=".length)) : "";
+      const id = "e2e-persist-" + Date.now();
+      const created = await fetch("/api/projects", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
+        body: JSON.stringify({ project_id: id, name: "E2E Persisted Project" }),
+      });
+      const read = await fetch("/api/projects/" + id, { credentials: "same-origin" });
+      const body = read.ok ? await read.json() : {};
+      return { id, created: created.status, read: read.status, name: body.project?.name || "" };
+    })()`);
+    assert(written.created === 201, `project write must be created, got ${written.created}`);
+    assert(written.read === 200, "the written project reads back");
+    assert(written.name === "E2E Persisted Project", "the persisted value is the written value");
+    check("project write persists and reads back from PostgreSQL", written);
+
     await page.cdp.send("Page.reload", { ignoreCache: true });
     await page.waitFor(
       `location.pathname === "/app" && Boolean(document.querySelector(".cp-workspace"))`,
@@ -405,10 +432,65 @@ async function main() {
     check("refresh keeps the session and the same project", {
       url: await page.evaluate("location.href"),
     });
+    const persisted = await page.evaluate(
+      `fetch("/api/projects/${written.id}", { credentials: "same-origin" }).then(async (r) => ({ status: r.status, body: r.ok ? await r.json() : {} }))`,
+    );
+    assert(persisted.status === 200 && persisted.body.project?.name === "E2E Persisted Project",
+      "the written project survives a full page refresh");
+    check("written project survives refresh (fresh session read)", { id: written.id });
 
     await page.viewport(1366, 768);
     await page.screenshot("production-login-workspace-1366x768.png");
     check("workspace renders at 1366x768", {});
+    await page.viewport(1920, 1080);
+    await page.screenshot("production-login-workspace-1920x1080.png");
+    check("workspace renders at 1920x1080", {});
+    await page.viewport(1366, 768);
+
+    // Environment selection: the signed-in account sees only the environments
+    // the server authorizes, and both environments open the one canonical shell.
+    await page.goto(`${server.baseUrl}/environments/`);
+    await page.waitFor(
+      `location.pathname === "/environments/" && Boolean(document.querySelector("#cp-env-grid")) && !document.querySelector("#cp-env-grid").hidden`,
+      "environment selector",
+    );
+    const environments = await page.evaluate(`(() => {
+      const card = document.querySelector('#cp-env-ent-card');
+      const link = document.querySelector('#cp-env-ent-link');
+      return {
+        engineering: document.querySelector('[data-env="engineering"]')?.getAttribute('data-available'),
+        enterprise: card?.getAttribute('data-available'),
+        enterpriseHref: link?.getAttribute('href') || '',
+        body: document.body.innerText,
+      };
+    })()`);
+    assert(environments.engineering === "true", "Engineering is available to the account");
+    assert(environments.enterprise === "true", "Enterprise is enabled for an enterprise role");
+    assert(environments.enterpriseHref === "/enterprise", "Enterprise link targets its canonical route");
+    assert(environments.body.includes("CUBI ENGINEERING"), "selector labels Engineering");
+    check("environment selector lists authorized environments", environments);
+    await page.screenshot("production-environment-selector-1366x768.png");
+
+    await page.goto(`${server.baseUrl}/enterprise`);
+    await page.waitFor(
+      `location.pathname === "/enterprise" && Boolean(document.querySelector(".ce-shell"))`,
+      "enterprise shell",
+    );
+    const enterprise = await page.evaluate(`(async () => ({
+      tasks: await fetch("/api/enterprise/tasks", { credentials: "same-origin" }).then((r) => r.status),
+      heading: document.querySelector(".ce-shell")?.innerText?.slice(0, 200) || "",
+    }))()`);
+    assert(enterprise.tasks === 200, "the enterprise API is authorized for this role");
+    check("enterprise route opens the canonical shell with a real task read", {
+      heading: enterprise.heading.split("\n")[0],
+    });
+    await page.screenshot("production-enterprise-workspace-1366x768.png");
+
+    await page.goto(`${server.baseUrl}/app?project=${encodeURIComponent(PROJECT)}&view=live`);
+    await page.waitFor(
+      `location.pathname === "/app" && Boolean(document.querySelector(".cp-workspace"))`,
+      "return to engineering workspace",
+    );
 
     const csrf = await page.evaluate(
       `(() => {
@@ -445,6 +527,37 @@ async function main() {
     await page.waitFor(`location.pathname === "/login"`, "signed-out gate redirect");
     check("signed-out /app is gated again", { url: await page.evaluate("location.href") });
     assert((await page.evaluate("location.pathname")) === "/login", "signed-out /app redirects");
+
+    // An engineering-only account never sees Enterprise as available. Signing
+    // in from the plain login page exercises the default environment-selection
+    // route (no explicit next target).
+    await page.goto(`${server.baseUrl}/login?reauth=1`);
+    await page.waitFor(`Boolean(document.querySelector("#cp-login-form"))`, "login form for engineering account");
+    await page.evaluate(`(() => {
+      document.querySelector("#cp-login-email").value = ${JSON.stringify(ENGINEER_EMAIL)};
+      document.querySelector("#cp-login-password").value = ${JSON.stringify(PASSWORD)};
+      document.querySelector("#cp-login-form").requestSubmit();
+    })()`);
+    await page.waitFor(
+      `location.pathname === "/environments/" && Boolean(document.querySelector("#cp-env-grid")) && !document.querySelector("#cp-env-grid").hidden`,
+      "environment selector for engineering account",
+    );
+    const limited = await page.evaluate(`(() => {
+      const card = document.querySelector('#cp-env-ent-card');
+      const link = document.querySelector('#cp-env-ent-link');
+      return {
+        enterprise: card?.getAttribute('data-available'),
+        link: link?.getAttribute('href') || '',
+        disabled: link?.getAttribute('aria-disabled'),
+        body: document.body.innerText,
+      };
+    })()`);
+    assert(limited.enterprise === "false", "Enterprise must not be offered without an enterprise role");
+    assert(limited.link === "", "an unavailable environment must not carry a destination");
+    assert(limited.disabled === "true", "an unavailable environment must be visibly disabled");
+    assert(limited.body.includes("Not enabled for this account"), "the reason is stated truthfully");
+    check("engineering-only account sees only its authorized environment", limited);
+    await page.screenshot("production-environment-selector-limited-1366x768.png");
 
     assert(page.events.failures.length === 0, `no API 5xx responses: ${JSON.stringify(page.events.failures)}`);
     check("no API 5xx during the browser flow", {});

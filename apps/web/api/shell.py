@@ -58,9 +58,34 @@ def _unavailable(start_response):
     return [body]
 
 
+_WORKSPACE_ROUTES = {"app": "/app", "enterprise": "/enterprise"}
+
+
+def _workspace_path(environ) -> str:
+    """Resolve the canonical workspace route the caller actually requested.
+
+    The Vercel rewrite maps ``/app`` and ``/enterprise`` onto this one
+    function. The original route arrives in the ``__path`` query (or, for
+    direct WSGI calls, in ``PATH_INFO``). Both environments share this single
+    shell document and differ only by URL, so the route must never be forced
+    to ``/app``.
+    """
+    from urllib.parse import parse_qs
+
+    rewritten = parse_qs(str(environ.get("QUERY_STRING", "") or "")).get("__path")
+    if rewritten:
+        candidate = rewritten[0].strip("/").lower()
+        if candidate in _WORKSPACE_ROUTES:
+            return _WORKSPACE_ROUTES[candidate]
+    original = str(environ.get("PATH_INFO", "") or "").strip("/").lower()
+    if original in _WORKSPACE_ROUTES:
+        return _WORKSPACE_ROUTES[original]
+    return "/app"
+
+
 def app(environ, start_response):
     scoped = dict(environ)
-    scoped["PATH_INFO"] = "/app"
+    scoped["PATH_INFO"] = _workspace_path(environ)
     if _preview_selected():
         global _preview_app
         try:

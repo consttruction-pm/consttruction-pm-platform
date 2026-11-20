@@ -39,6 +39,8 @@ StartResponse = Callable[[str, list[tuple[str, str]]], None]
 
 LOGIN_PATH = "/login"
 APP_PATH = "/app"
+ENTERPRISE_PATH = "/enterprise"
+WORKSPACE_PATHS = frozenset({APP_PATH, ENTERPRISE_PATH})
 API_PREFIX = "/api/"
 LOGIN_BODY_LIMIT = 8_192
 API_BODY_LIMIT = 1_048_576
@@ -110,6 +112,11 @@ class StaticSite:
             return _file(self.root / "index.html")
         if segments in (["app"], ["app", "index.html"]):
             return _file(self.root / "app.html")
+        # CUBI Enterprise is the same application shell document; the client
+        # chooses the environment surface from the URL. Serving the identical
+        # HTML here keeps one canonical shell instead of a second app.
+        if segments in (["enterprise"], ["enterprise", "index.html"]):
+            return _file(self.root / "app.html")
         if segments[0] == "dist":
             rest = segments[1:]
             if not rest:
@@ -124,7 +131,17 @@ class StaticSite:
         if segments[:2] == ["client-sync", "src"]:
             return _file(self.dist.joinpath("client-sync", "src", *segments[2:]))
         if len(segments) == 1:
-            return _file(self.root / segments[0]) or _file(self.public / segments[0])
+            direct = _file(self.root / segments[0]) or _file(self.public / segments[0])
+            if direct is not None:
+                return direct
+            # Public directories such as /environments/ ship as index.html.
+            # The assembled deployment flattens them into the web root.
+            for directory in (self.root / segments[0], self.public / segments[0]):
+                if directory.is_dir():
+                    index = _file(directory / "index.html")
+                    if index is not None:
+                        return index
+            return None
         if segments[0] == "public":
             return _file(self.public.joinpath(*segments[1:])) if len(segments) > 1 else None
         direct = _file(self.public.joinpath(*segments))
@@ -331,7 +348,7 @@ class ProductionWebApp:
             return self._logout(environ)
         if path.startswith(API_PREFIX):
             return self._api(method, path, environ)
-        if path in {APP_PATH, f"{APP_PATH}/"}:
+        if path in WORKSPACE_PATHS or path.rstrip("/") in WORKSPACE_PATHS:
             return self._app(method, environ)
         if path == LOGIN_PATH:
             return self._login_page(method, environ)
@@ -563,6 +580,8 @@ def _json(
 
 __all__ = [
     "APP_PATH",
+    "ENTERPRISE_PATH",
+    "WORKSPACE_PATHS",
     "LOGIN_PATH",
     "ProductionWebApp",
     "StaticSite",

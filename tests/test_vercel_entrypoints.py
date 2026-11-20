@@ -119,7 +119,10 @@ def test_project_configuration_targets_the_authenticated_runtime():
         assert isinstance(function["includeFiles"], str)
         assert function["includeFiles"].startswith("vercel-runtime/")
     rewrites = {entry["source"]: entry["destination"] for entry in config["rewrites"]}
-    assert rewrites["/app"] == "/api/shell"
+    assert rewrites["/app"] == "/api/shell?__path=app"
+    assert rewrites["/app/"] == "/api/shell?__path=app"
+    assert rewrites["/enterprise"] == "/api/shell?__path=enterprise"
+    assert rewrites["/enterprise/"] == "/api/shell?__path=enterprise"
     assert rewrites["/api/:path*"] == "/api?__path=:path*"
     headers = {
         entry["source"]: {item["key"]: item["value"] for item in entry["headers"]}
@@ -128,3 +131,13 @@ def test_project_configuration_targets_the_authenticated_runtime():
     assert headers["/login"]["Cache-Control"] == "no-store"
     assert headers["/login"]["X-Frame-Options"] == "DENY"
     assert headers["/login.html"]["X-Content-Type-Options"] == "nosniff"
+
+
+def test_shell_resolves_each_workspace_route_without_a_second_shell():
+    shell = _load("cubi_shell_paths", WEB_ROOT / "api" / "shell.py")
+    assert shell._workspace_path({"PATH_INFO": "/api/shell", "QUERY_STRING": "__path=app"}) == "/app"
+    assert shell._workspace_path({"PATH_INFO": "/api/shell", "QUERY_STRING": "__path=enterprise"}) == "/enterprise"
+    assert shell._workspace_path({"PATH_INFO": "/api/shell", "QUERY_STRING": "__path=enterprise/"}) == "/enterprise"
+    assert shell._workspace_path({"PATH_INFO": "/enterprise/", "QUERY_STRING": ""}) == "/enterprise"
+    # An unknown rewrite never turns into an arbitrary route.
+    assert shell._workspace_path({"PATH_INFO": "/api/shell", "QUERY_STRING": "__path=admin"}) == "/app"
