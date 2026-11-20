@@ -10352,3 +10352,20 @@ body.cp-toolbar-dragging .cp-tool-btn { cursor: grabbing; }
  .ce-task-actions button { flex:1; }
  .ce-form-grid { grid-template-columns:1fr; }
 }
+
+/* Multi-language public switcher: a native details menu keeps all ten published
+   locales reachable without JavaScript while the bilingual twin stays visible. */
+.cubi-public-languages{position:relative;flex:0 0 auto;font-size:12px;line-height:1.2}
+.cubi-public-languages>summary{cursor:pointer;list-style:none;color:var(--cubi-deep-navy);font-weight:700;white-space:nowrap;padding:6px 9px;border:1px solid var(--cp-border);border-radius:8px;background:#fff}
+.cubi-public-languages>summary::-webkit-details-marker{display:none}
+.cubi-public-languages[open]>summary{color:var(--cubi-engineering-blue);border-color:var(--cubi-engineering-blue)}
+.cubi-public-languages>nav{position:absolute;z-index:40;inset-inline-end:0;top:calc(100% + 6px);display:flex;flex-direction:column;min-width:160px;padding:6px;background:#fff;border:1px solid var(--cp-border);border-radius:10px;box-shadow:0 12px 30px rgba(8,26,47,.16)}
+.cubi-public-languages>nav a{padding:6px 9px;border-radius:6px;color:var(--cubi-deep-navy);text-decoration:none;white-space:nowrap;font-weight:600}
+.cubi-public-languages>nav a:hover,.cubi-public-languages>nav a:focus-visible{background:#f2f6fa;color:var(--cubi-engineering-blue)}
+[dir="rtl"] .cubi-public-languages>nav{inset-inline-end:auto;inset-inline-start:0}
+
+/* Localized public footer: grouped link columns that wrap on small screens. */
+.cubi-public-footer>nav{display:flex;flex-wrap:wrap;gap:.9rem 2.25rem}
+.cubi-public-footer>nav>div{min-width:140px}
+.cubi-public-footer>nav b{display:block;margin-bottom:.35rem;color:#fff}
+[dir="rtl"] .cubi-public-footer>nav>div{text-align:right}

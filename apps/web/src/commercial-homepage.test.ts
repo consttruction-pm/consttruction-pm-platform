@@ -225,8 +225,8 @@ test("homepage header, dashboard and footer use the canonical logo asset only", 
   assert.doesNotMatch(landing, /cubi-footer-social[^>]*>[\s\S]*?<span[^>]*>CUBI<\/span>/);
 });
 
-test("homepage messaging covers oil and gas, EPC and the nine requested locales without overstating assistant autonomy", () => {
-  for (const locale of ["en", "fa", "de", "fr", "zh", "ja", "ko", "ru", "ar"]) {
+test("homepage messaging covers oil and gas, EPC and the ten locale launch set without overstating assistant autonomy", () => {
+  for (const locale of ["en", "fa", "de", "fr", "zh", "ja", "ko", "ru", "ar", "tr"]) {
     assert.ok(landing.includes("  " + locale + ": {"), "Missing homepage locale copy: " + locale);
   }
   for (const phrase of [
@@ -242,7 +242,7 @@ test("homepage messaging covers oil and gas, EPC and the nine requested locales 
   assert.ok(landing.includes("request your approval before changing project records"));
   // Do not advertise a locale until its translated homepage AND every public
   // marketing route, metadata and reciprocal language links are shipped.
-  assert.ok(landing.includes('Object.freeze(["en", "fa"])'));
+  assert.ok(landing.includes('Object.freeze(["en", "fa", "de", "fr", "ru", "tr", "ja", "ko", "zh", "ar"])'));
 });
 
 

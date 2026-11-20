@@ -14,24 +14,17 @@ const root = process.cwd();
  * The route model of the shipped Pages artifact. A relative link inside a public
  * document that lands outside this set is a dead route, exactly the class of bug
  * a directory URL such as /contact/ creates when a href is written as ./fa/...
+ *
+ * The set is resolved against the documents that actually exist, so a newly
+ * published localized route is covered the moment its document is generated.
  */
-const SHIPPED_ROUTES = new Set([
-  "/",
-  "/fa/",
-  "/platform/",
-  "/solutions/",
-  "/resources/",
-  "/contact/",
-  "/about/",
-  "/fa/about/",
-  "/pricing/",
-  "/fa/pricing/",
-  "/fa/platform/",
-  "/fa/solutions/",
-  "/fa/resources/",
-  "/fa/contact/",
-  "/app/",
-]);
+function shippedRouteExists(route: string): boolean {
+  // The workspace shell is produced by the Pages assembly step, not committed.
+  if (route === "/app/" || route === "/app") return true;
+  if (route === "/") return existsSync(join(root, "index.html"));
+  const segments = route.split("/").filter(Boolean);
+  return existsSync(join(root, "public", ...segments, "index.html"));
+}
 
 const MARKETING_ROUTES = ["platform", "solutions", "resources", "contact", "about", "pricing"] as const;
 
@@ -168,7 +161,7 @@ test("no public document links to a route that is not shipped", () => {
       const resolved = new URL(href, document.from).pathname;
       if (!resolved.endsWith("/")) continue;
       assert.ok(
-        SHIPPED_ROUTES.has(resolved),
+        shippedRouteExists(resolved),
         `${document.file} links "${href}" which resolves to the unshipped route ${resolved}`,
       );
     }

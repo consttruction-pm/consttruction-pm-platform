@@ -167,6 +167,20 @@ const CHROME: Readonly<Record<string, LandingChromeCopy>> = {
     platformBlocks: "Основные компоненты платформы", planning: "Планирование", projectData: "Данные проекта",
     aiLabel: "ИИ", connectedCapabilities: "Связанные возможности платформы",
     copyright: "Все права защищены."
+  },
+  tr: {
+    nav: ["Ana sayfa", "Platform", "Çözümler", "Kaynaklar", "Hakkımızda", "İletişim"],
+    pricing: "Fiyatlandırma", company: "Şirket", about: "Hakkımızda", primaryNavigation: "Ana gezinme", changeLanguage: "Dili değiştir",
+    brandAria: "CUBI Platform ana sayfası", brandAlt: "CUBI Platform — Planla. Yönet. Daha akıllı inşa et.",
+    dashboardAria: "Takvim, ilerleme ve performansı gösteren örnek CUBI proje panosu",
+    dashboardSidebar: ["Genel bakış", "Takvim", "Maliyet kontrolü", "Kaynaklar", "Belgeler"],
+    dashboardTitle: "Proje Kontrol Merkezi", projectLabel: "PROJE",
+    progressTrend: "İlerleme eğilimi", schedule: "Takvim", onTrack: "Plana uygun",
+    aiInsight: "YZ içgörüsü", reviewNextMilestone: "Sonraki kilometre taşını gözden geçir",
+    projectProgress: "Proje ilerlemesi", plan: "Plan", actual: "Gerçekleşen",
+    platformBlocks: "Platform yapı taşları", planning: "Planlama", projectData: "Proje verileri",
+    aiLabel: "YZ", connectedCapabilities: "Bağlı platform yetenekleri",
+    copyright: "Tüm hakları saklıdır."
   }
 };
 

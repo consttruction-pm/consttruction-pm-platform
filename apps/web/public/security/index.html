@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CUBI Security | Identity, Access and Data Boundaries</title>
+<meta name="description" content="How CUBI handles identity, sessions, project membership, data boundaries and the separation between public pages and project data.">
+<link rel="canonical" href="__CUBI_BASE_URL__/security/">
+<link rel="alternate" hreflang="en" href="__CUBI_BASE_URL__/security/">
+<link rel="alternate" hreflang="fa" href="__CUBI_BASE_URL__/fa/security/">
+<link rel="alternate" hreflang="x-default" href="__CUBI_BASE_URL__/security/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="CUBI Platform">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="fa_IR">
+<meta property="og:title" content="CUBI Security | Identity, Access and Data Boundaries">
+<meta property="og:description" content="How CUBI handles identity, sessions, project membership, data boundaries and the separation between public pages and project data.">
+<meta property="og:url" content="__CUBI_BASE_URL__/security/">
+<meta property="og:image" content="__CUBI_BASE_URL__/cubi-platform-logo-primary.svg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="CUBI Security | Identity, Access and Data Boundaries">
+<meta name="twitter:description" content="How CUBI handles identity, sessions, project membership, data boundaries and the separation between public pages and project data.">
+<meta name="twitter:image" content="__CUBI_BASE_URL__/cubi-platform-logo-primary.svg">
+<meta name="robots" content="index,follow">
+<meta name="theme-color" content="#081A2F">
+<link rel="stylesheet" href="../styles.css">
+<link rel="icon" href="../cubi-platform-logo-primary.svg" type="image/svg+xml">
+</head>
+<body class="cubi-public-page">
+<header class="cubi-public-header"><a href="../index.html" aria-label="Home"><img src="../cubi-platform-logo-primary.svg" alt="CUBI Platform" width="132" height="48"></a><nav class="cubi-public-nav" aria-label="Primary navigation"><a href="../">Home</a><a href="../platform/">Platform</a><a href="../features/">Features</a><a href="../solutions/">Solutions</a><a href="../pricing/">Pricing</a><a href="../resources/">Resources</a><a href="../about/">About</a><a href="../contact/">Contact</a></nav><a class="cubi-public-language" hreflang="fa" href="../fa/security/" lang="fa">فارسی</a></header>
+<main>
+<section class="cubi-public-hero"><p class="eyebrow">SECURITY</p><h1>Security stated plainly</h1><p>This page describes what the product actually does today. It is not a certification claim and it does not replace a security review of your own deployment.</p></section>
+<section class="cubi-public-content"><h2>Identity and sessions</h2><p>Access starts with an authenticated account and a server-side session.</p><div class="cubi-public-grid"><article class="cubi-public-card"><h3>Password handling</h3><p>Passwords are stored as salted scrypt hashes, never in plain text.</p></article><article class="cubi-public-card"><h3>Session handling</h3><p>Sessions use HttpOnly cookies with CSRF protection on state-changing requests.</p></article><article class="cubi-public-card"><h3>Sign-in throttling</h3><p>Repeated failed sign-in attempts are rate limited to slow credential guessing.</p></article></div>
+<h2>Data boundaries</h2><p>Project data is separated by tenant and project, and enforced on the server.</p><div class="cubi-public-grid"><article class="cubi-public-card"><h3>Tenant and project scope</h3><p>Every project read and write is scoped to the account's tenant and membership.</p></article><article class="cubi-public-card"><h3>Role-based access</h3><p>Environment and action access follows the roles the server checks, not the buttons the client shows.</p></article><article class="cubi-public-card"><h3>Public and private surfaces</h3><p>Marketing pages are static; project records are only served by the authenticated runtime.</p></article></div>
+<div class="cubi-public-cta"><div><strong>See CUBI on your own project</strong><p>Open the workspace and continue from a connected project view.</p></div><a href="../app/">Open CUBI workspace →</a></div></section>
+</main>
+<footer class="cubi-public-footer"><span>© 2026 CUBI Platform · Plan. Control. Build Smarter.</span><nav aria-label="Primary navigation"><div><b>Product</b><a href="../features/">Features</a> · <a href="../platform/">Platform</a> · <a href="../integrations/">Integrations</a> · <a href="../pricing/">Pricing</a></div><div><b>Learn</b><a href="../documentation/">Documentation</a> · <a href="../help/">Help Center</a> · <a href="../faq/">FAQ</a> · <a href="../resources/">Resources</a></div><div><b>Company</b><a href="../about/">About</a> · <a href="./">Security</a> · <a href="../terms/">Terms</a> · <a href="../privacy/">Privacy</a></div></nav></footer>
+<script type="module" src="../dist/global-assistant-launcher.bundle.js"></script>
+</body></html>

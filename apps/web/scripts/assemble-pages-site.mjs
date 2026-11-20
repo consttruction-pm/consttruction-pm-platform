@@ -149,34 +149,40 @@ writeFileSync(join(output, "sitemap.xml"), [
 ].join("\n"));
 writeFileSync(join(output, ".nojekyll"), "");
 
-// Every marketing route exists in both baseline languages, with hreflang pairs.
-const languageRoutes = [
-  { en: "/", fa: "/fa/" },
-  { en: "/platform/", fa: "/fa/platform/" },
-  { en: "/solutions/", fa: "/fa/solutions/" },
-  { en: "/resources/", fa: "/fa/resources/" },
-  { en: "/contact/", fa: "/fa/contact/" },
-  { en: "/about/", fa: "/fa/about/" },
-  { en: "/pricing/", fa: "/fa/pricing/" },
-];
-const documentForRoute = (route) => join(output, route === "/" ? "index.html" : route.slice(1) + "index.html");
+// The published site is derived from the same content modules that generate the
+// documents, so the sitemap, hreflang graph and validation cannot drift apart.
+const { ROUTE_PATHS, HANDWRITTEN_ROUTES, REQUIRED_INDEXABLE_ROUTE_COUNT } = await import(
+  new URL("../site/routes.mjs", import.meta.url)
+);
+const LOCALE_CODES = ["en", "fa", "de", "fr", "ru", "tr", "ja", "ko", "zh", "ar"];
+const locales = new Map();
+for (const code of LOCALE_CODES) {
+  const module = await import(new URL(`../site/locales/${code}.mjs`, import.meta.url));
+  if (module.default.code !== code) throw new Error("LOCALE_CODE_MISMATCH: " + code);
+  locales.set(code, module.default);
+}
+const published = new Map();
+for (const [code, locale] of locales) {
+  const ids = new Set(locale.pages.map((page) => page.id));
+  if (code === "en" || code === "fa") for (const id of HANDWRITTEN_ROUTES) ids.add(id);
+  published.set(code, ids);
+}
+const documentFor = (code, routePath) => join(output, locales.get(code).prefix + routePath, "index.html");
+const routeUrl = (code, id) => baseUrl + "/" + locales.get(code).prefix + ROUTE_PATHS[id];
 
-// Language-aware sitemap: every URL declares both language alternates.
 const sitemapUrls = [];
-for (const { en, fa } of languageRoutes) {
-  sitemapUrls.push(
-    "  <url>",
-    "    <loc>" + baseUrl + en + "</loc>",
-    '    <xhtml:link rel="alternate" hreflang="en" href="' + baseUrl + en + '"/>',
-    '    <xhtml:link rel="alternate" hreflang="fa" href="' + baseUrl + fa + '"/>',
-    '    <xhtml:link rel="alternate" hreflang="x-default" href="' + baseUrl + en + '"/>',
-    "  </url>",
-    "  <url>",
-    "    <loc>" + baseUrl + fa + "</loc>",
-    '    <xhtml:link rel="alternate" hreflang="en" href="' + baseUrl + en + '"/>',
-    '    <xhtml:link rel="alternate" hreflang="fa" href="' + baseUrl + fa + '"/>',
-    "  </url>",
-  );
+for (const id of Object.keys(ROUTE_PATHS)) {
+  const languages = LOCALE_CODES.filter((code) => published.get(code).has(id));
+  if (!languages.length) continue;
+  for (const code of languages) {
+    sitemapUrls.push(
+      "  <url>",
+      "    <loc>" + routeUrl(code, id) + "</loc>",
+      ...languages.map((alt) => '    <xhtml:link rel="alternate" hreflang="' + locales.get(alt).htmlLang + '" href="' + routeUrl(alt, id) + '"/>'),
+      '    <xhtml:link rel="alternate" hreflang="x-default" href="' + routeUrl("en", id) + '"/>',
+      "  </url>",
+    );
+  }
 }
 writeFileSync(join(output, "sitemap.xml"), [
   '<?xml version="1.0" encoding="UTF-8"?>',
@@ -185,6 +191,38 @@ writeFileSync(join(output, "sitemap.xml"), [
   "</urlset>",
   "",
 ].join("\n"));
+
+// Target contract: at least 25 indexable English routes, each with translated
+// alternates where a locale publishes the same page.
+const englishRoutes = [...published.get("en")];
+assert(
+  englishRoutes.length >= REQUIRED_INDEXABLE_ROUTE_COUNT,
+  "expected at least " + REQUIRED_INDEXABLE_ROUTE_COUNT + " indexable English routes, found " + englishRoutes.length,
+);
+for (const id of englishRoutes) {
+  assert(existsSync(documentFor("en", ROUTE_PATHS[id])), "missing English route " + ROUTE_PATHS[id]);
+}
+for (const code of LOCALE_CODES) {
+  const locale = locales.get(code);
+  for (const id of published.get(code)) {
+    const file = documentFor(code, ROUTE_PATHS[id]);
+    assert(existsSync(file), "missing " + code + " route " + ROUTE_PATHS[id]);
+    const html = readFileSync(file, "utf8");
+    const label = code + ":" + id;
+    assert(html.includes('<html lang="' + locale.htmlLang + '" dir="' + locale.dir + '">'), label + " document language or direction");
+    assert(html.includes('<link rel="canonical" href="' + routeUrl(code, id) + '"'), label + " canonical");
+    for (const alt of LOCALE_CODES.filter((candidate) => published.get(candidate).has(id))) {
+      assert(
+        html.includes('<link rel="alternate" hreflang="' + locales.get(alt).htmlLang + '" href="' + routeUrl(alt, id) + '"'),
+        label + " must declare the " + alt + " alternate",
+      );
+    }
+    assert(html.includes('hreflang="x-default"'), label + " x-default alternate");
+    assert(html.includes('name="robots" content="index'), label + " must be indexable");
+    assert(/global-assistant-launcher\.bundle\.js/.test(html), label + " must mount the shared assistant");
+    if (locale.dir === "rtl") assert(/[\u0600-\u06FF]{4,}/.test(html), label + " must carry real RTL copy");
+  }
+}
 
 for (const file of [
   "index.html", "app/index.html", "styles.css", "dist/web/src/landing-entry.bundle.js",
@@ -227,15 +265,6 @@ for (const [path, title] of expectedTitles) {
   assert(html.includes("<title>" + title + "</title>"), path + " title mismatch");
   assert(html.includes('<link rel="canonical" href="' + baseUrl + route + '/">'), path + " canonical mismatch");
   assert(html.includes('property="og:url" content="' + baseUrl + route + '/">'), path + " social URL mismatch");
-}
-for (const { en, fa } of languageRoutes) {
-  const enDocument = readFileSync(documentForRoute(en), "utf8");
-  const faDocument = readFileSync(documentForRoute(fa), "utf8");
-  assert(enDocument.includes('<link rel="alternate" hreflang="fa" href="' + baseUrl + fa + '"'), en + " must offer " + fa);
-  assert(faDocument.includes('<link rel="alternate" hreflang="en" href="' + baseUrl + en + '"'), fa + " must offer " + en);
-  assert(faDocument.includes('lang="fa"') && faDocument.includes('dir="rtl"'), fa + " must be a Persian RTL document");
-  assert(/[\u0600-\u06FF]/.test(faDocument), fa + " must carry real Persian content");
-  assert(faDocument.includes("global-assistant-launcher.bundle.js"), fa + " must mount the shared assistant entry");
 }
 const finalHome = readFileSync(join(output, "index.html"), "utf8");
 const finalApp = readFileSync(join(output, "app/index.html"), "utf8");

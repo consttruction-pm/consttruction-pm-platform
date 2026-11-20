@@ -8,8 +8,9 @@ import {
 import { getLandingChromeCopy, normalizeLandingLocaleTag } from "./landing-chrome.js";
 import { getWorkspaceLocaleDirection } from "./workspace-localization.js";
 
-const launchLocales = ["en", "fa", "de", "zh-Hans", "zh-Hant", "ar", "fr", "ja", "ko"] as const;
+const launchLocales = ["en", "fa", "de", "zh-Hans", "zh-Hant", "ar", "fr", "ja", "ko", "tr"] as const;
 const allHomepageLocales = [...launchLocales, "ru"];
+const PUBLIC_ROUTES = ["en", "fa", "de", "fr", "ru", "tr", "ja", "ko", "zh", "ar"];
 
 test("homepage marketing copy and all visible dashboard chrome exist for every launch locale", () => {
   const english = getLandingCopyForLocale("en");
@@ -52,13 +53,13 @@ test("Chinese script tags normalize deterministically to separate homepage catal
 test("homepage direction metadata keeps Persian and Arabic RTL and other launch locales LTR", () => {
   assert.equal(getWorkspaceLocaleDirection("fa"), "rtl");
   assert.equal(getWorkspaceLocaleDirection("ar"), "rtl");
-  for (const locale of ["en", "de", "zh-Hans", "zh-Hant", "fr", "ja", "ko"]) {
+  for (const locale of ["en", "de", "zh-Hans", "zh-Hant", "fr", "ja", "ko", "tr"]) {
     assert.equal(getWorkspaceLocaleDirection(locale), "ltr", `${locale} must be LTR`);
   }
 });
 
-test("homepage selector exposes every complete homepage locale without claiming translated subpage routes", () => {
+test("homepage selector exposes every published public locale and routes to it", () => {
   const available = getLandingHomepageLocales(["en", "fa", "de", "zh", "ar", "fr", "ja", "ko", "ru"]);
-  assert.deepEqual(available, allHomepageLocales);
-  assert.deepEqual(getLandingLanguageRoutes(["en", "fa", "de", "zh", "ar", "fr", "ja", "ko", "ru"]), ["en", "fa"]);
+  assert.deepEqual(available, PUBLIC_ROUTES);
+  assert.deepEqual(getLandingLanguageRoutes(["en", "fa", "de", "zh", "ar", "fr", "ja", "ko", "ru"]), PUBLIC_ROUTES);
 });
