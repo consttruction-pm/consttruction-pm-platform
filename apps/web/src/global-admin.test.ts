@@ -226,3 +226,33 @@ test("user rows render the working action buttons for editing", () => {
   }
   assert.ok(html.includes('data-user-id="usr-2"'));
 });
+
+test("editing labels exist in every approved locale", () => {
+  for (const locale of REQUIRED_LOCALES) {
+    const labels = adminLabels(locale);
+    for (const key of ["edit", "save", "cancel", "active", "confirmPassword"] as const) {
+      assert.ok(labels[key].length > 1, `${locale}:${key}`);
+    }
+  }
+  assert.equal(adminLabels("fa").save, "ذخیره");
+  assert.equal(adminLabels("tr-TR").cancel, "İptal");
+});
+
+test("every user row carries a real, prefilled inline editor form", () => {
+  const html = renderUserRows("fa", [USER]);
+  assert.ok(html.includes('data-editor-for="usr-2" hidden'));
+  assert.ok(html.includes('<form class="cp-admin-edit-form" data-user-id="usr-2">'));
+  assert.ok(html.includes('name="display_name"'));
+  assert.ok(html.includes('value="Test &lt;Viewer&gt;"'));
+  assert.ok(html.includes('name="role" value="enterprise_viewer" checked'));
+  assert.ok(!html.includes('name="role" value="global_admin" checked'));
+  assert.ok(html.includes('name="active" checked'));
+  assert.ok(html.includes('name="locked"'));
+  assert.ok(html.includes('name="confirm_password" type="password"'));
+  assert.ok(html.includes('data-admin-action="save-edit" data-user-id="usr-2"'));
+  assert.ok(html.includes('data-admin-action="cancel-edit" data-user-id="usr-2"'));
+  assert.ok(html.includes("ذخیره"));
+  const lockedUser = renderUserRows("en", [{ ...USER, active: false, locked: true }]);
+  assert.ok(lockedUser.includes('name="active" />'));
+  assert.ok(lockedUser.includes('name="locked" checked'));
+});
