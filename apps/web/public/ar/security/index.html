@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CUBI الأمان | الهوية والوصول وحدود البيانات</title>
+<meta name="description" content="كيف يتعامل CUBI مع الهوية والجلسات وعضوية المشروع وحدود البيانات والفصل بين الصفحات العامة وبيانات المشروع.">
+<link rel="canonical" href="__CUBI_BASE_URL__/ar/security/">
+<link rel="alternate" hreflang="en" href="__CUBI_BASE_URL__/security/">
+<link rel="alternate" hreflang="fa" href="__CUBI_BASE_URL__/fa/security/">
+<link rel="alternate" hreflang="de" href="__CUBI_BASE_URL__/de/security/">
+<link rel="alternate" hreflang="zh-CN" href="__CUBI_BASE_URL__/zh/security/">
+<link rel="alternate" hreflang="ar" href="__CUBI_BASE_URL__/ar/security/">
+<link rel="alternate" hreflang="x-default" href="__CUBI_BASE_URL__/security/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="CUBI Platform">
+<meta property="og:locale" content="ar_SA">
+<meta property="og:locale:alternate" content="en_US">
+<meta property="og:locale:alternate" content="fa_IR">
+<meta property="og:locale:alternate" content="de_DE">
+<meta property="og:locale:alternate" content="zh_CN">
+<meta property="og:title" content="CUBI الأمان | الهوية والوصول وحدود البيانات">
+<meta property="og:description" content="كيف يتعامل CUBI مع الهوية والجلسات وعضوية المشروع وحدود البيانات والفصل بين الصفحات العامة وبيانات المشروع.">
+<meta property="og:url" content="__CUBI_BASE_URL__/ar/security/">
+<meta property="og:image" content="__CUBI_BASE_URL__/cubi-platform-logo-primary.svg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="CUBI الأمان | الهوية والوصول وحدود البيانات">
+<meta name="twitter:description" content="كيف يتعامل CUBI مع الهوية والجلسات وعضوية المشروع وحدود البيانات والفصل بين الصفحات العامة وبيانات المشروع.">
+<meta name="twitter:image" content="__CUBI_BASE_URL__/cubi-platform-logo-primary.svg">
+<meta name="robots" content="index,follow">
+<meta name="theme-color" content="#081A2F">
+<link rel="stylesheet" href="../../styles.css">
+<link rel="icon" href="../../cubi-platform-logo-primary.svg" type="image/svg+xml">
+</head>
+<body class="cubi-public-page">
+<header class="cubi-public-header"><a href="../" aria-label="الرئيسية"><img src="../../cubi-platform-logo-primary.svg" alt="CUBI Platform" width="132" height="48"></a><nav class="cubi-public-nav" aria-label="التنقل الرئيسي"><a href="../">الرئيسية</a><a href="../platform/">المنصة</a><a href="../features/">المزايا</a><a href="../solutions/">الحلول</a><a href="../pricing/">الأسعار</a><a href="../resources/">الموارد</a><a href="../about/">من نحن</a><a href="../contact/">اتصل بنا</a></nav><a class="cubi-public-language" hreflang="en" href="../../security/" lang="en">English</a><details class="cubi-public-languages"><summary>اللغات</summary><nav aria-label="اللغات"><a hreflang="fa" href="../../fa/security/" lang="fa">فارسی</a><a hreflang="de" href="../../de/security/" lang="de">Deutsch</a><a hreflang="zh-CN" href="../../zh/security/" lang="zh-CN">简体中文</a></nav></details></header>
+<main>
+<section class="cubi-public-hero"><p class="eyebrow">الأمان</p><h1>أمان يُقال بوضوح</h1><p>تصف هذه الصفحة ما يفعله المنتج فعلاً اليوم. ليست ادعاء شهادة ولا تغني عن مراجعة أمنية لنشرك الخاص.</p></section>
+<section class="cubi-public-content"><h2>الهوية والجلسات</h2><p>يبدأ الوصول بحساب موثق وجلسة على الخادم.</p><div class="cubi-public-grid"><article class="cubi-public-card"><h3>معالجة كلمات المرور</h3><p>تُخزن كلمات المرور كتجزئات scrypt مملحة ولا تُخزن نصًا صريحًا.</p></article><article class="cubi-public-card"><h3>معالجة الجلسات</h3><p>تستخدم الجلسات ملفات تعريف HttpOnly مع حماية CSRF للطلبات المغيّرة للحالة.</p></article><article class="cubi-public-card"><h3>تحديد محاولات الدخول</h3><p>تُحدّ محاولات الدخول الفاشلة المتكررة لإبطاء تخمين البيانات.</p></article></div>
+<h2>حدود البيانات</h2><p>بيانات المشروع مفصولة بالمستأجر والمشروع ويُفرض ذلك على الخادم.</p><div class="cubi-public-grid"><article class="cubi-public-card"><h3>نطاق المستأجر والمشروع</h3><p>كل قراءة وكتابة محددة بمستأجر الحساب وعضويته.</p></article><article class="cubi-public-card"><h3>وصول قائم على الأدوار</h3><p>يتبع وصول البيئة والإجراء الأدوار التي يفحصها الخادم لا الأزرار المعروضة.</p></article><article class="cubi-public-card"><h3>واجهات عامة وخاصة</h3><p>صفحات التسويق ثابتة؛ ولا تقدم سجلات المشروع إلا البيئة الموثقة.</p></article></div>
+<div class="cubi-public-cta"><div><strong>راجع الأمان</strong><p>تفاصيل الهوية والوصول في الوثائق.</p></div><a href="../../app/">الوثائق ←</a></div></section>
+</main>
+<footer class="cubi-public-footer"><span>© 2026 منصة CUBI · خطط. اضبط. ابنِ بذكاء أكبر.</span><nav aria-label="التنقل الرئيسي"><div><b>المنتج</b><a href="../features/">المزايا</a> · <a href="../platform/">المنصة</a> · <a href="../pricing/">الأسعار</a></div><div><b>التعلم</b><a href="../documentation/">التوثيق</a> · <a href="../resources/">الموارد</a></div><div><b>الشركة</b><a href="../about/">من نحن</a> · <a href="../contact/">اتصل بنا</a></div></nav></footer>
+<script type="module" src="../../dist/global-assistant-launcher.bundle.js"></script>
+</body></html>
