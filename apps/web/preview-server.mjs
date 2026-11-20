@@ -54,8 +54,11 @@ export function resolveRequestFile(requestPath) {
     // landing page. It uses absolute asset URLs so it also works at /app/.
     candidate = join(root, "app.html");
   } else if (pathname === "/workbench" || pathname === "/workbench/") {
-    // The personal workbench is a signed-in surface inside the same shell.
+    // The personal workbench is the single signed-in entry to both environments.
     candidate = join(root, "app.html");
+  } else if (pathname === "/cubi" || pathname === "/cubi/" || pathname.startsWith("/cubi/")) {
+    // Enterprise Workbench shell; its client router owns every /cubi/* path.
+    candidate = join(root, "enterprise.html");
   } else if (pathname.startsWith("/dist/")) {
     const rest = pathname.slice("/dist/".length);
     candidate = rest.startsWith("web/") || rest.startsWith("client-sync/")

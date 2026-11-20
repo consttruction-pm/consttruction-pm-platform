@@ -1,0 +1,264 @@
+{
+  "generated_at": "2026-11-20T22:02:30.850Z",
+  "branch": "feat/cubi-enterprise-workbench",
+  "merge_commit": "3a405ad",
+  "base_commit": "5bddd3d",
+  "preview_base": "http://127.0.0.1:4180",
+  "canonical_entry": "/workbench/",
+  "enterprise_entry": "/cubi/",
+  "browser": "headless Chromium via Playwright",
+  "viewport": "1440x1000",
+  "pages": [
+    {
+      "n": 1,
+      "name": "Homepage",
+      "route": "/cubi/",
+      "screenshot": "01-home.png",
+      "http": 200,
+      "final_url": "http://127.0.0.1:4180/cubi/",
+      "h1_count": 1,
+      "h1": "CUBI Platform",
+      "page_errors": [],
+      "console_errors": [],
+      "http_4xx_5xx": []
+    },
+    {
+      "n": 2,
+      "name": "Login / Auth",
+      "route": "/cubi/login",
+      "screenshot": "02-login.png",
+      "http": 200,
+      "final_url": "http://127.0.0.1:4180/cubi/login",
+      "h1_count": 1,
+      "h1": "Sign in",
+      "page_errors": [],
+      "console_errors": [],
+      "http_4xx_5xx": []
+    },
+    {
+      "n": 3,
+      "name": "Role & Permission Selection",
+      "route": "/cubi/roles",
+      "screenshot": "03-roles.png",
+      "http": 200,
+      "final_url": "http://127.0.0.1:4180/cubi/roles",
+      "h1_count": 1,
+      "h1": "Role & permission selection",
+      "page_errors": [],
+      "console_errors": [],
+      "http_4xx_5xx": []
+    },
+    {
+      "n": 4,
+      "name": "Personal Workbench Dashboard",
+      "route": "/workbench/",
+      "screenshot": "04-workbench.png",
+      "http": 200,
+      "final_url": "http://127.0.0.1:4180/workbench/",
+      "h1_count": 1,
+      "h1": "Personal Workbench",
+      "page_errors": [],
+      "console_errors": [],
+      "http_4xx_5xx": []
+    },
+    {
+      "n": 5,
+      "name": "Environment Selector",
+      "route": "/cubi/environments",
+      "screenshot": "05-environments.png",
+      "http": 200,
+      "final_url": "http://127.0.0.1:4180/workbench/",
+      "h1_count": 1,
+      "h1": "Personal Workbench",
+      "page_errors": [],
+      "console_errors": [],
+      "http_4xx_5xx": []
+    },
+    {
+      "n": 6,
+      "name": "Enterprise Dashboard & Portlets",
+      "route": "/cubi/enterprise/dashboard",
+      "screenshot": "06-dashboard.png",
+      "http": 200,
+      "final_url": "http://127.0.0.1:4180/cubi/enterprise/dashboard",
+      "h1_count": 1,
+      "h1": "Enterprise dashboard & portlets",
+      "page_errors": [],
+      "console_errors": [],
+      "http_4xx_5xx": [
+        {
+          "url": "http://127.0.0.1:4180/api/enterprise/portlets/schedule-health?project_id=preview-rps-01",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4180/api/enterprise/portlets/evm-summary?project_id=preview-rps-01",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4180/api/enterprise/portlets/resource-capacity?project_id=preview-rps-01",
+          "status": 503
+        }
+      ]
+    },
+    {
+      "n": 7,
+      "name": "Portfolio & Executive Center",
+      "route": "/cubi/enterprise/portfolio",
+      "screenshot": "07-portfolio.png",
+      "http": 200,
+      "final_url": "http://127.0.0.1:4180/cubi/enterprise/portfolio",
+      "h1_count": 1,
+      "h1": "Portfolio & executive center",
+      "page_errors": [],
+      "console_errors": [],
+      "http_4xx_5xx": [
+        {
+          "url": "http://127.0.0.1:4180/api/enterprise/portfolio/indicators?project_id=preview-rps-01",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4180/api/enterprise/portfolio/trends?project_id=preview-rps-01",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4180/api/enterprise/evm/capability",
+          "status": 503
+        }
+      ]
+    },
+    {
+      "n": 8,
+      "name": "Enterprise Projects / Project Portal",
+      "route": "/cubi/enterprise/projects",
+      "screenshot": "08-projects.png",
+      "http": 200,
+      "final_url": "http://127.0.0.1:4180/cubi/enterprise/projects",
+      "h1_count": 1,
+      "h1": "Enterprise projects",
+      "page_errors": [],
+      "console_errors": [],
+      "http_4xx_5xx": []
+    },
+    {
+      "n": 9,
+      "name": "Organization & Access Center",
+      "route": "/cubi/enterprise/access",
+      "screenshot": "09-access.png",
+      "http": 200,
+      "final_url": "http://127.0.0.1:4180/cubi/enterprise/access",
+      "h1_count": 1,
+      "h1": "Organization & access center",
+      "page_errors": [],
+      "console_errors": [],
+      "http_4xx_5xx": []
+    },
+    {
+      "n": 10,
+      "name": "Team & Task Center",
+      "route": "/cubi/enterprise/tasks",
+      "screenshot": "10-tasks.png",
+      "http": 200,
+      "final_url": "http://127.0.0.1:4180/cubi/enterprise/tasks",
+      "h1_count": 1,
+      "h1": "Team & task center",
+      "page_errors": [],
+      "console_errors": [],
+      "http_4xx_5xx": []
+    },
+    {
+      "n": 11,
+      "name": "Workflow Studio",
+      "route": "/cubi/enterprise/workflows",
+      "screenshot": "11-workflows.png",
+      "http": 200,
+      "final_url": "http://127.0.0.1:4180/cubi/enterprise/workflows",
+      "h1_count": 1,
+      "h1": "Workflow studio",
+      "page_errors": [],
+      "console_errors": [],
+      "http_4xx_5xx": []
+    },
+    {
+      "n": 12,
+      "name": "Feedback & Approval Center",
+      "route": "/cubi/enterprise/approvals",
+      "screenshot": "12-approvals.png",
+      "http": 200,
+      "final_url": "http://127.0.0.1:4180/cubi/enterprise/approvals",
+      "h1_count": 1,
+      "h1": "Feedback & approval center",
+      "page_errors": [],
+      "console_errors": [],
+      "http_4xx_5xx": []
+    },
+    {
+      "n": 13,
+      "name": "Resources & Capacity",
+      "route": "/cubi/enterprise/resources",
+      "screenshot": "13-resources.png",
+      "http": 200,
+      "final_url": "http://127.0.0.1:4180/cubi/enterprise/resources",
+      "h1_count": 1,
+      "h1": "Resources & capacity",
+      "page_errors": [],
+      "console_errors": [],
+      "http_4xx_5xx": []
+    },
+    {
+      "n": 14,
+      "name": "Reports & Operations",
+      "route": "/cubi/enterprise/reports",
+      "screenshot": "14-reports.png",
+      "http": 200,
+      "final_url": "http://127.0.0.1:4180/cubi/enterprise/reports",
+      "h1_count": 1,
+      "h1": "Reports & operations",
+      "page_errors": [],
+      "console_errors": [],
+      "http_4xx_5xx": []
+    },
+    {
+      "n": 15,
+      "name": "Knowledge & PMBOK Center",
+      "route": "/cubi/enterprise/knowledge",
+      "screenshot": "15-knowledge.png",
+      "http": 200,
+      "final_url": "http://127.0.0.1:4180/cubi/enterprise/knowledge",
+      "h1_count": 1,
+      "h1": "Knowledge & PMBOK center",
+      "page_errors": [],
+      "console_errors": [],
+      "http_4xx_5xx": []
+    }
+  ],
+  "verification": {
+    "browser_checks": {
+      "total": 41,
+      "passed": 41
+    },
+    "api_checks": {
+      "total": 33,
+      "passed": 33
+    },
+    "locale_checks": {
+      "total": 33,
+      "passed": 33
+    },
+    "backend_unit_tests": {
+      "workbench_http": 19,
+      "task_sqlite_repository": 11
+    },
+    "web_unit_tests": {
+      "enterprise_suite": 1250,
+      "preview_suite": 16
+    }
+  },
+  "documented_gaps": [
+    "portlet/portfolio-indicator/trend/EVM routes return 503 ENGINEERING_SOURCE_NOT_CONNECTED",
+    "task delete, team assignment and Engineering references not implemented",
+    "invitation acceptance not implemented",
+    "dashboard visibility stored as metadata, not enforced",
+    "PostgreSQL concurrency and production CSRF unverified in preview",
+    "ten initial-set pages remain MISSING or IN_PROGRESS"
+  ]
+}

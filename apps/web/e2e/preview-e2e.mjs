@@ -2092,10 +2092,24 @@ async function main() {
       'form[action="/preview/login"]',
       "login page",
     );
-    const personaCount = await page.count(
-      'form[action="/preview/login"] button[name="role"]',
+    const personaRoles = await page.evaluate(
+      `Array.from(document.querySelectorAll('form[action="/preview/login"] button[name="role"]')).map((button) => button.value).sort()`,
     );
-    assert(personaCount === 4, "four demo personas must be offered");
+    const expectedPersonaRoles = [
+      "admin",
+      "enterprise",
+      "newcomer",
+      "planner",
+      "viewer",
+    ];
+    assert(
+      JSON.stringify(personaRoles) === JSON.stringify(expectedPersonaRoles),
+      "the login page must offer exactly the demo personas " +
+        JSON.stringify(expectedPersonaRoles) +
+        ", got " +
+        JSON.stringify(personaRoles),
+    );
+    const personaCount = personaRoles.length;
     assert(
       (await page.text(".eyebrow"))?.includes("local full-stack preview"),
       "login page must declare local preview",

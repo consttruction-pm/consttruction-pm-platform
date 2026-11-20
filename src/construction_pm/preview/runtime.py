@@ -59,6 +59,15 @@ from construction_pm.backend_p0.workspace_read_provider import (
     PersistedWorkspaceReadProvider,
     WorkspaceScheduleFactsProvider,
 )
+from construction_pm.enterprise_task_application import EnterpriseTaskApplicationService
+from construction_pm.enterprise_task_http import EnterpriseTaskHttpMiddleware
+from construction_pm.enterprise_task_sqlite_repository import (
+    SQLiteEnterpriseTaskRepository,
+)
+from construction_pm.enterprise_workbench_http import (
+    EnterpriseWorkbenchHttpMiddleware,
+    EnterpriseWorkbenchStore,
+)
 from construction_pm.calendar_exception_kernel import (
     CalendarExceptionKernelError,
     persisted_exception_to_kernel,
@@ -348,6 +357,7 @@ from .fixtures import (
 )
 from .storage import (
     DEMO_PROJECT_MEMBER_USER_IDS,
+    DEMO_USERS,
     PREVIEW_SEED_VERSION,
     PREVIEW_TENANT_ID,
     PreviewDatabaseError,
@@ -2073,6 +2083,35 @@ def open_preview_runtime(
         knowledge_database=knowledge_database,
         knowledge_plan_port=knowledge_plan_port,
     )
+    # Enterprise Task API v1: the same authenticated application service and
+    # HTTP middleware used by the production runtime, backed here by a SQLite
+    # adapter so the preview exercises real reads and writes instead of
+    # reporting the route as missing.
+    task_repository = SQLiteEnterpriseTaskRepository(connection)
+    task_repository.initialize()
+    app = EnterpriseTaskHttpMiddleware(
+        app,
+        EnterpriseTaskApplicationService(
+            task_repository,
+            lifecycle_api,
+            clock=PreviewClock().now,
+        ),
+    )
+    enterprise_store = EnterpriseWorkbenchStore(connection)
+    enterprise_store.initialize()
+    enterprise_store.seed_preview_fixtures(
+        PREVIEW_TENANT_ID,
+        [
+            {
+                "user_id": user.user_id,
+                "display_name": user.label_en,
+                "email": None,
+                "roles": sorted(user.roles),
+            }
+            for user in DEMO_USERS
+        ],
+    )
+    app = EnterpriseWorkbenchHttpMiddleware(app, lifecycle_api, enterprise_store)
     return PreviewRuntime(
         database=database,
         web_root=None if web_root is None else Path(web_root).expanduser().resolve(),

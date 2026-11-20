@@ -74,6 +74,15 @@ DEMO_USERS: tuple[DemoUser, ...] = (
         "admin",
         frozenset({"project_admin"}),
     ),
+    # Enterprise tier persona. The enterprise_admin role is separate from the
+    # project role, exactly as the production Enterprise contract defines it.
+    DemoUser(
+        "preview-enterprise",
+        "Enterprise administrator",
+        "مدیر سازمانی",
+        "enterprise",
+        frozenset({"project_admin", "enterprise_admin"}),
+    ),
     # A real account with no project membership. It exercises the first-run
     # creation path against the same authorization policy and project store;
     # it is never added to the seeded fixtures or to other users' projects.
