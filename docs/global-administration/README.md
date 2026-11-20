@@ -56,7 +56,9 @@ it requires password reauthentication. An administrator cannot demote or disable
 Additive only, on the existing identity model:
 
 - `identity_users` gains `locked_at`, `expires_at`, `must_change_password`, `last_login_at`,
-  `is_test_user`, `locale`, `updated_at` (`ADD COLUMN IF NOT EXISTS`).
+  `is_test_user`, `locale`, `updated_at`, `role_keys_json` (`ADD COLUMN IF NOT EXISTS`).
+  `role_keys_json` only disambiguates catalogue labels (seven roles share four tokens); the
+  permission tokens in `roles_json` remain the sole authority.
 - New table `global_admin_audit`.
 - No second user store, no second auth system, no parallel schema.
 
@@ -65,12 +67,26 @@ Additive only, on the existing identity model:
 | Check | Result |
 | --- | --- |
 | `pytest tests/test_global_administration.py` (no DSN) | 5 passed, 1 skipped |
-| same, with a real PostgreSQL 14 DSN | 6 passed — full flow: create → login → lock → disable → expire → reset → revoke → audit → non-admin denied → reauth enforced |
-| `npm test` (web) | 1200 passed, 0 failed |
+| same, with a real PostgreSQL 14 DSN | 6 passed — create → login → lock → disable → expire → reset → revoke → audit → non-admin denied → reauth enforced |
+| `pytest tests/test_global_administration_http.py` with PostgreSQL | 1 passed — real `ProductionWebApp`: login cookie, CSRF missing → 403, create/edit/role change/test account, reauth required and wrong password → 403, non-admin → 403, reset/revoke → old sessions 401, audit rows, expired login → 401 |
+| `npm test` (web) | 1206 passed, 0 failed |
 | `npx tsc --noEmit` | clean |
 | `npm run build` | bundle built |
+| Local provisioning | `scripts/provision_workspace.py user --tenant platform-owner --roles global_admin --password-stdin` → login verified with `global_admin` |
 
-Remaining: the production deployment still needs a Global Admin account provisioned with
-`scripts/provision_workspace.py user --roles global_admin` (owner action, requires the production
-DSN). The UI currently renders the dashboard, summary and recent audit actions; the user editor
-form is the next increment.
+## Production provisioning blocker
+
+A production Global Admin cannot be created from this sandbox: no production PostgreSQL DSN,
+deployment credentials, or owner password is available, and none is allowed in code, logs or
+commits. The supported path is a single owner-run command with the production DSN supplied in the
+environment:
+
+```sh
+CONSTRUCTION_PM_DATABASE_URL="postgresql://…" \
+  python scripts/provision_workspace.py user --tenant platform-owner \
+  --email <owner-email> --roles global_admin --password-stdin
+```
+
+The password is read from stdin, hashed with scrypt, and never echoed. The same command was run
+against the local PostgreSQL 14 instance and the resulting account logged in with the
+`global_admin` role.
