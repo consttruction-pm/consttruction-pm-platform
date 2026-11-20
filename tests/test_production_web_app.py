@@ -452,3 +452,32 @@ def test_client_ip_prefers_the_platform_single_value_header():
     assert _client_ip(environ) == "203.0.113.5"
     assert _client_ip({"HTTP_X_FORWARDED_FOR": "198.51.100.9, 203.0.113.5"}) == "198.51.100.9"
     assert _client_ip({"REMOTE_ADDR": "203.0.113.7"}) == "203.0.113.7"
+
+
+def test_enterprise_workspace_is_gated_like_app(app):
+    status, headers, _ = call(app, "GET", "/enterprise", query="project=alpha&view=live")
+    assert status == 302
+    location = headers["location"][0]
+    assert location.startswith("/login?next=/enterprise")
+    assert "project%3Dalpha" in location
+    status, headers, _ = call(app, "GET", "/enterprise/")
+    assert status == 302
+    assert headers["location"][0].startswith("/login?next=/enterprise/")
+
+
+def test_enterprise_workspace_serves_the_single_canonical_shell(app):
+    cookie, _ = login(app)
+    for path in ("/enterprise", "/enterprise/"):
+        status, headers, body = call(app, "GET", path, cookie=cookie)
+        assert status == 200, (path, body)
+        assert headers["content-type"] == ["text/html; charset=utf-8"]
+        assert headers["cache-control"] == ["no-store"]
+        # The same app.html document serves both environments; the route
+        # selects the surface in the client, never a second shell.
+        assert b"CUBI Workspace" in body
+
+
+def test_static_site_maps_enterprise_to_the_canonical_shell(site_root: Path):
+    site = StaticSite(site_root)
+    assert site.resolve("/enterprise") == (site_root / "app.html").resolve()
+    assert site.resolve("/enterprise/") == (site_root / "app.html").resolve()

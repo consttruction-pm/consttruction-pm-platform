@@ -15,23 +15,23 @@
   "rewrites": [
     {
       "source": "/app",
-      "destination": "/api/shell"
+      "destination": "/api/shell?__path=app"
     },
     {
       "source": "/app/",
-      "destination": "/api/shell"
+      "destination": "/api/shell?__path=app"
     },
     {
       "source": "/enterprise",
-      "destination": "/api/shell"
+      "destination": "/api/shell?__path=enterprise"
     },
     {
       "source": "/enterprise/",
-      "destination": "/api/shell"
+      "destination": "/api/shell?__path=enterprise"
     },
     {
       "source": "/app.html",
-      "destination": "/api/shell"
+      "destination": "/api/shell?__path=app"
     },
     {
       "source": "/login",

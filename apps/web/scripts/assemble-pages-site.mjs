@@ -129,6 +129,9 @@ for (const file of listHtml(output)) {
 writeFileSync(join(output, "robots.txt"), [
   "User-agent: *",
   "Allow: /",
+  // Session-gated surfaces are real routes but must never be indexed.
+  "Disallow: /environments",
+  "Disallow: /login",
   "Sitemap: " + baseUrl + "/sitemap.xml",
   "",
 ].join("\n"));
@@ -189,6 +192,7 @@ for (const file of [
   "platform/index.html", "solutions/index.html", "resources/index.html", "contact/index.html", "about/index.html",
   "fa/index.html", "fa/platform/index.html", "fa/solutions/index.html", "fa/resources/index.html", "fa/contact/index.html", "fa/about/index.html",
   "pricing/index.html", "fa/pricing/index.html",
+  "environments/index.html",
   "robots.txt", "sitemap.xml", ".nojekyll",
 ]) assert(existsSync(join(output, file)), "missing " + file);
 assert(!existsSync(join(output, "app.html")), "the preview-only app.html must not be shipped");
@@ -251,6 +255,9 @@ if (workspaceUrl) {
   assert(!finalApp.includes("application/ld+json"), "workspace must not carry marketing structured data");
 }
 assert(!readFileSync(join(output, "robots.txt"), "utf8").includes("/app"), "robots must not list workspace");
+assert(!readFileSync(join(output, "sitemap.xml"), "utf8").includes("/environments"), "sitemap must not list the environment selector");
+assert(readFileSync(join(output, "robots.txt"), "utf8").includes("Disallow: /environments"), "environment selector must be disallowed");
+assert(readFileSync(join(output, "environments/index.html"), "utf8").includes('name="robots" content="noindex'), "environment selector must be noindex");
 assert(!readFileSync(join(output, "sitemap.xml"), "utf8").includes("/app"), "sitemap must not list workspace");
 assert(!listHtml(output).some((file) => readFileSync(file, "utf8").includes("__CUBI_BASE_URL__")), "unresolved base URL placeholder");
 assert(existsSync(join(output, "cubi-platform-logo-primary.svg")), "primary logo missing");

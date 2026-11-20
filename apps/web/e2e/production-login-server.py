@@ -26,7 +26,12 @@ REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "src"))
 sys.path.insert(0, str(REPO))
 
-from wsgiref.simple_server import WSGIRequestHandler, make_server  # noqa: E402
+from socketserver import ThreadingMixIn  # noqa: E402
+from wsgiref.simple_server import (  # noqa: E402
+    WSGIRequestHandler,
+    WSGIServer,
+    make_server,
+)
 
 from construction_pm.backend_p0.models import BackendScope  # noqa: E402
 from construction_pm.deployment.production_runtime import (  # noqa: E402
@@ -45,6 +50,8 @@ PASSWORD = os.environ.get("CUBI_E2E_PASSWORD", "correct horse battery staple")
 TENANT = os.environ.get("CUBI_E2E_TENANT", "cubi-e2e-tenant")
 PROJECT = os.environ.get("CUBI_E2E_PROJECT", "cubi-e2e-project")
 USER_ID = "e2e-owner"
+ENGINEER_EMAIL = os.environ.get("CUBI_E2E_ENGINEER_EMAIL", "e2e-engineer@example.test")
+ENGINEER_USER_ID = "e2e-engineer"
 SECRET = "cubi-local-e2e-session-secret-0123456789"
 
 
@@ -53,16 +60,43 @@ class QuietHandler(WSGIRequestHandler):
         pass
 
 
+class ThreadingWSGIServer(ThreadingMixIn, WSGIServer):
+    """Serve concurrent browser requests exactly as a real WSGI host does.
+
+    The base wsgiref server handles one request at a time, so a browser that
+    keeps a connection open (or a page navigating while a fetch is in flight)
+    can stall the next document. Production hosts are concurrent; the harness
+    must be too, or navigation checks measure the harness and not the app.
+    """
+
+    daemon_threads = True
+
+
 def seed(runtime: ProductionRuntime) -> None:
     connection = runtime.pool.acquire()
     try:
+        # The harness deliberately submits a wrong password; previous runs must
+        # not leave the shared database throttled and make the run unrepeatable.
+        connection.execute("DELETE FROM identity_login_attempts")
         PostgresIdentityStore(connection).upsert_user(
             IdentityUser(
                 user_id=USER_ID,
                 tenant_id=TENANT,
                 email=EMAIL,
                 display_name="E2E Owner",
-                roles=frozenset({"project_admin"}),
+                roles=frozenset({"project_admin", "enterprise_admin"}),
+                password_hash=hash_password(PASSWORD),
+            )
+        )
+        # A second real identity with only an engineering role proves the
+        # environment selector hides Enterprise from accounts without it.
+        PostgresIdentityStore(connection).upsert_user(
+            IdentityUser(
+                user_id=ENGINEER_USER_ID,
+                tenant_id=TENANT,
+                email=ENGINEER_EMAIL,
+                display_name="E2E Engineer",
+                roles=frozenset({"planner"}),
                 password_hash=hash_password(PASSWORD),
             )
         )
@@ -102,7 +136,10 @@ def main() -> None:
     runtime._initialize()
     seed(runtime)
 
-    server = make_server("127.0.0.1", port, runtime, handler_class=QuietHandler)
+    server = make_server(
+        "127.0.0.1", port, runtime, handler_class=QuietHandler,
+        server_class=ThreadingWSGIServer,
+    )
     bound = server.server_address[1]
     print(f"CUBI_E2E_READY {bound}", flush=True)
     try:

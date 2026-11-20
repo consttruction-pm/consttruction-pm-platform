@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="description" content="Choose an authorized CUBI environment.">
+<meta name="theme-color" content="#081A2F">
+<title>CUBI | Choose your environment</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="icon" href="../cubi-platform-logo-primary.svg" type="image/svg+xml">
+<style>
+  .cp-env-page { min-height: 100vh; padding: 32px 16px 64px; background: radial-gradient(1100px 620px at 10% -10%, #123a63 0%, transparent 60%), #081a2f; color: #f4f7fb; }
+  .cp-env-wrap { max-width: 1040px; margin: 0 auto; }
+  .cp-env-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 40px; }
+  .cp-env-brand { display: flex; align-items: center; gap: 12px; color: inherit; text-decoration: none; }
+  .cp-env-brand img { width: 40px; height: 40px; }
+  .cp-env-brand strong { font-size: 20px; }
+  .cp-env-brand span { display: block; font-size: 12px; color: #9fb3c8; }
+  .cp-env-tools { display: flex; align-items: center; gap: 10px; }
+  .cp-env-tools button, .cp-env-tools a { font: inherit; font-size: 13px; color: #dbe7f3; background: transparent; border: 1px solid #33506e; border-radius: 999px; padding: 6px 14px; cursor: pointer; text-decoration: none; }
+  .cp-env-tools button:hover, .cp-env-tools a:hover { border-color: #6f93b8; }
+  .cp-env-head h1 { margin: 0 0 8px; font-size: clamp(24px, 3vw, 34px); }
+  .cp-env-head p { margin: 0 0 6px; color: #b9c9da; max-width: 720px; }
+  .cp-env-meta { font-size: 13px; color: #8ea3b8; margin-top: 10px; }
+  .cp-env-meta code { color: #d6e4f2; }
+  .cp-env-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; margin-top: 28px; }
+  .cp-env-card { background: #0f2740; border: 1px solid #24415f; border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 12px; }
+  .cp-env-card[data-available="false"] { opacity: .72; }
+  .cp-env-card h2 { margin: 0; font-size: 19px; }
+  .cp-env-eyebrow { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: #7fb4e6; margin: 0; }
+  .cp-env-card p { margin: 0; color: #b9c9da; font-size: 14px; line-height: 1.6; }
+  .cp-env-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #8fd3a8; }
+  .cp-env-status.is-off { color: #f0b6a2; }
+  .cp-env-cta { margin-top: auto; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 16px; border-radius: 9px; background: #1f6feb; color: #fff; text-decoration: none; font-weight: 600; }
+  .cp-env-cta[aria-disabled="true"] { background: #2b3d50; color: #93a6b9; cursor: not-allowed; }
+  .cp-env-note { margin-top: 28px; font-size: 13px; color: #8ea3b8; max-width: 760px; line-height: 1.6; }
+  .cp-env-error { margin-top: 20px; padding: 12px 14px; border-radius: 10px; background: #3b1d1d; color: #ffd9d0; font-size: 14px; }
+  .cp-env-error[hidden] { display: none; }
+</style>
+</head>
+<body class="cubi-public-page">
+<main class="cp-env-page">
+  <div class="cp-env-wrap">
+    <div class="cp-env-top">
+      <a class="cp-env-brand" href="../index.html" aria-label="CUBI Platform home">
+        <img src="../cubi-platform-logo-primary.svg" alt="" width="40" height="40">
+        <span><strong>CUBI</strong><span data-i18n="brandSub">Construction project control</span></span>
+      </a>
+      <div class="cp-env-tools">
+        <button type="button" id="cp-env-locale" aria-label="Change language">فارسی</button>
+        <a href="../index.html" data-i18n="home">Home</a>
+        <button type="button" id="cp-env-signout" data-i18n="signOut">Sign out</button>
+      </div>
+    </div>
+
+    <div class="cp-env-head">
+      <p class="cp-env-eyebrow" data-i18n="eyebrow">CUBI WORKSPACES</p>
+      <h1 data-i18n="title">Choose your environment</h1>
+      <p data-i18n="lead">Open the environment your organization has authorized for your account. The server enforces access to every project and record.</p>
+      <p class="cp-env-meta" id="cp-env-meta" hidden></p>
+    </div>
+
+    <p class="cp-env-error" id="cp-env-error" role="alert" hidden></p>
+
+    <div class="cp-env-grid" id="cp-env-grid" hidden>
+      <section class="cp-env-card" data-env="engineering" data-available="true">
+        <p class="cp-env-eyebrow" data-i18n="engEyebrow">CUBI ENGINEERING</p>
+        <h2 data-i18n="engTitle">Engineering workspace</h2>
+        <p data-i18n="engBody">Planning, scheduling, project controls and the project data you are a member of.</p>
+        <p class="cp-env-status" id="cp-env-eng-status" data-i18n="engReady">Authorized for this account</p>
+        <a class="cp-env-cta" id="cp-env-eng-link" href="/app?view=live" data-i18n="engCta">Open Engineering</a>
+      </section>
+
+      <section class="cp-env-card" data-env="enterprise" data-available="false" id="cp-env-ent-card">
+        <p class="cp-env-eyebrow" data-i18n="entEyebrow">CUBI ENTERPRISE</p>
+        <h2 data-i18n="entTitle">Enterprise workspace</h2>
+        <p data-i18n="entBody">Organizational task coordination across your authorized projects and teams.</p>
+        <p class="cp-env-status is-off" id="cp-env-ent-status" data-i18n="entUnavailable">Not enabled for this account</p>
+        <a class="cp-env-cta" id="cp-env-ent-link" aria-disabled="true" data-i18n="entCta">Open Enterprise</a>
+      </section>
+    </div>
+
+    <p class="cp-env-note" data-i18n="note">Engineering is the canonical project workspace. Enterprise is available only to accounts with an enterprise role granted by an administrator.</p>
+  </div>
+</main>
+<script type="module" src="../dist/web/src/global-assistant-launcher.bundle.js"></script>
+<script>
+(function () {
+  "use strict";
+  var COPY = {
+    en: {
+      brandSub: "Construction project control",
+      home: "Home", signOut: "Sign out",
+      eyebrow: "CUBI WORKSPACES",
+      title: "Choose your environment",
+      lead: "Open the environment your organization has authorized for your account. The server enforces access to every project and record.",
+      engEyebrow: "CUBI ENGINEERING", engTitle: "Engineering workspace",
+      engBody: "Planning, scheduling, project controls and the project data you are a member of.",
+      engReady: "Authorized for this account", engCta: "Open Engineering",
+      entEyebrow: "CUBI ENTERPRISE", entTitle: "Enterprise workspace",
+      entBody: "Organizational task coordination across your authorized projects and teams.",
+      entUnavailable: "Not enabled for this account", entReady: "Authorized for this account",
+      entCta: "Open Enterprise",
+      note: "Engineering is the canonical project workspace. Enterprise is available only to accounts with an enterprise role granted by an administrator.",
+      projects: "projects available", noProjects: "No projects are assigned to this account yet.",
+      signedInAs: "Signed in as", session: "This environment step uses your live session. Sign in again if it has expired.",
+      error: "This account session could not be loaded. Please sign in again.",
+      locale: "فارسی",
+    },
+    fa: {
+      brandSub: "کنترل پروژه ساخت",
+      home: "خانه", signOut: "خروج",
+      eyebrow: "محیط‌های کوبی",
+      title: "محیط خود را انتخاب کنید",
+      lead: "محیطی را باز کنید که سازمان شما برای این حساب مجاز کرده است. دسترسی به هر پروژه و رکورد در سمت سرور کنترل می‌شود.",
+      engEyebrow: "کوبی مهندسی", engTitle: "محیط مهندسی",
+      engBody: "برنامه‌ریزی، زمان‌بندی، کنترل پروژه و داده‌های پروژه‌هایی که عضو آن هستید.",
+      engReady: "برای این حساب مجاز است", engCta: "ورود به محیط مهندسی",
+      entEyebrow: "کوبی سازمانی", entTitle: "محیط سازمانی",
+      entBody: "هماهنگی وظایف سازمانی در پروژه‌ها و تیم‌های مجاز.",
+      entUnavailable: "برای این حساب فعال نیست", entReady: "برای این حساب مجاز است",
+      entCta: "ورود به محیط سازمانی",
+      note: "محیط مهندسی، محیط کاری اصلی پروژه است. محیط سازمانی فقط برای حساب‌هایی فعال است که نقش سازمانی آن‌ها توسط مدیر اعطا شده باشد.",
+      projects: "پروژه در دسترس", noProjects: "هنوز پروژه‌ای به این حساب اختصاص داده نشده است.",
+      signedInAs: "ورود به‌عنوان", session: "این مرحله از نشست فعال شما استفاده می‌کند. اگر نشست پایان یافته، دوباره وارد شوید.",
+      error: "نشست این حساب بارگذاری نشد. لطفاً دوباره وارد شوید.",
+      locale: "English",
+    },
+  };
+  var ENTERPRISE_ROLES = ["enterprise_viewer", "enterprise_user", "enterprise_admin"];
+  var params = new URLSearchParams(window.location.search);
+  var locale = params.get("lang") === "fa" ? "fa"
+    : params.get("lang") === "en" ? "en"
+    : ((navigator.language || "").toLowerCase().indexOf("fa") === 0 ? "fa" : "en");
+  var meta = document.getElementById("cp-env-meta");
+  var errorBox = document.getElementById("cp-env-error");
+  var grid = document.getElementById("cp-env-grid");
+  var entCard = document.getElementById("cp-env-ent-card");
+  var entStatus = document.getElementById("cp-env-ent-status");
+  var entLink = document.getElementById("cp-env-ent-link");
+  var engStatus = document.getElementById("cp-env-eng-status");
+
+  function applyLocale() {
+    var copy = COPY[locale];
+    document.documentElement.lang = locale;
+    document.documentElement.dir = locale === "fa" ? "rtl" : "ltr";
+    document.title = "CUBI — " + copy.title;
+    var nodes = document.querySelectorAll("[data-i18n]");
+    for (var i = 0; i < nodes.length; i += 1) {
+      var key = nodes[i].getAttribute("data-i18n");
+      if (key && copy[key]) nodes[i].textContent = copy[key];
+    }
+    document.getElementById("cp-env-locale").textContent = copy.locale;
+  }
+
+  function readCookie(name) {
+    var parts = document.cookie ? document.cookie.split("; ") : [];
+    for (var i = 0; i < parts.length; i += 1) {
+      if (parts[i].indexOf(name + "=") === 0) return decodeURIComponent(parts[i].slice(name.length + 1));
+    }
+    return "";
+  }
+
+  function signOut() {
+    fetch("/api/session", {
+      method: "DELETE",
+      credentials: "same-origin",
+      headers: { "X-CSRF-Token": readCookie("cubi_csrf") },
+    }).finally(function () { window.location.assign("/login?reauth=1"); });
+  }
+
+  function showError(text) {
+    errorBox.textContent = text;
+    errorBox.hidden = false;
+  }
+
+  async function load() {
+    var copy = COPY[locale];
+    var response;
+    try {
+      response = await fetch("/api/session", { credentials: "same-origin", headers: { "Accept": "application/json" } });
+    } catch (error) {
+      showError(copy.error);
+      return;
+    }
+    if (response.status === 401) {
+      window.location.replace("/login?next=" + encodeURIComponent("/environments/"));
+      return;
+    }
+    if (!response.ok) { showError(copy.error); return; }
+    var session = await response.json();
+    var roles = Array.isArray(session.roles) ? session.roles : [];
+    var enterprise = roles.some(function (role) { return ENTERPRISE_ROLES.indexOf(role) !== -1; });
+
+    var projects = [];
+    try {
+      var projectResponse = await fetch("/api/projects", { credentials: "same-origin", headers: { "Accept": "application/json" } });
+      if (projectResponse.ok) {
+        var payload = await projectResponse.json();
+        projects = Array.isArray(payload.projects) ? payload.projects : [];
+      }
+    } catch (error) { projects = []; }
+
+    meta.hidden = false;
+    meta.textContent = copy.signedInAs + " " + (session.user_id || "") + " · " + (session.tenant_id || "");
+    engStatus.textContent = projects.length
+      ? projects.length + " " + copy.projects
+      : copy.noProjects;
+
+    entCard.setAttribute("data-available", enterprise ? "true" : "false");
+    if (enterprise) {
+      entStatus.className = "cp-env-status";
+      entStatus.textContent = copy.entReady;
+      entLink.removeAttribute("aria-disabled");
+      entLink.setAttribute("href", "/enterprise");
+    } else {
+      entStatus.className = "cp-env-status is-off";
+      entStatus.textContent = copy.entUnavailable;
+      entLink.setAttribute("aria-disabled", "true");
+      entLink.removeAttribute("href");
+    }
+    grid.hidden = false;
+  }
+
+  document.getElementById("cp-env-locale").addEventListener("click", function () {
+    locale = locale === "fa" ? "en" : "fa";
+    applyLocale();
+    if (!grid.hidden) load();
+  });
+  document.getElementById("cp-env-signout").addEventListener("click", signOut);
+  applyLocale();
+  load();
+})();
+</script>
+</body>
+</html>
