@@ -93,6 +93,36 @@ test("localized subpages carry translated copy rather than the English route", (
   }
 });
 
+test("every locale publishes all 25 approved routes with its own headline", () => {
+  for (const locale of LOCALES) {
+    if (locale.code === "en") continue;
+    for (const route of ENGLISH_ROUTES) {
+      const file = pageFile(locale.prefix, route);
+      assert.ok(existsSync(file), `${locale.code} is missing /${route}`);
+      const html = readFileSync(file, "utf8");
+      const englishHtml = readFileSync(pageFile("", route), "utf8");
+      assert.ok(html.includes(`<html lang="${locale.lang}" dir="${locale.dir}">`), `${locale.code} /${route} lang/dir`);
+      assert.ok(
+        html.includes(`<link rel="canonical" href="__CUBI_BASE_URL__/${locale.prefix}${route}"`),
+        `${locale.code} /${route} canonical`,
+      );
+      const h1 = html.match(/<h1>([^<]+)<\/h1>/)?.[1];
+      const englishH1 = englishHtml.match(/<h1>([^<]+)<\/h1>/)?.[1];
+      if (route === "") {
+        // Homepages render their headline from the landing bundle, so the
+        // localized <title> is the stable proof that copy is not reused.
+        const title = html.match(/<title>([^<]+)<\/title>/)?.[1];
+        const englishTitle = englishHtml.match(/<title>([^<]+)<\/title>/)?.[1];
+        assert.ok(title, `${locale.code} homepage must have a title`);
+        assert.notEqual(title, englishTitle, `${locale.code} homepage must not reuse the English title`);
+        continue;
+      }
+      assert.ok(h1, `${locale.code} /${route} must have a headline`);
+      assert.notEqual(h1, englishH1, `${locale.code} /${route} must not reuse the English headline`);
+    }
+  }
+});
+
 test("Turkish is a first-class locale with the tr-TR language tag", () => {
   const features = readFileSync(pageFile("tr/", "features/"), "utf8");
   assert.ok(features.includes('<html lang="tr-TR" dir="ltr">'));
