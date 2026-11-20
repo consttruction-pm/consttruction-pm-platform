@@ -7,11 +7,27 @@
 <link rel="canonical" href="__CUBI_BASE_URL__/security/">
 <link rel="alternate" hreflang="en" href="__CUBI_BASE_URL__/security/">
 <link rel="alternate" hreflang="fa" href="__CUBI_BASE_URL__/fa/security/">
+<link rel="alternate" hreflang="de" href="__CUBI_BASE_URL__/de/security/">
+<link rel="alternate" hreflang="fr" href="__CUBI_BASE_URL__/fr/security/">
+<link rel="alternate" hreflang="ru" href="__CUBI_BASE_URL__/ru/security/">
+<link rel="alternate" hreflang="tr-TR" href="__CUBI_BASE_URL__/tr/security/">
+<link rel="alternate" hreflang="ja" href="__CUBI_BASE_URL__/ja/security/">
+<link rel="alternate" hreflang="ko" href="__CUBI_BASE_URL__/ko/security/">
+<link rel="alternate" hreflang="zh-CN" href="__CUBI_BASE_URL__/zh/security/">
+<link rel="alternate" hreflang="ar" href="__CUBI_BASE_URL__/ar/security/">
 <link rel="alternate" hreflang="x-default" href="__CUBI_BASE_URL__/security/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="CUBI Platform">
 <meta property="og:locale" content="en_US">
 <meta property="og:locale:alternate" content="fa_IR">
+<meta property="og:locale:alternate" content="de_DE">
+<meta property="og:locale:alternate" content="fr_FR">
+<meta property="og:locale:alternate" content="ru_RU">
+<meta property="og:locale:alternate" content="tr_TR">
+<meta property="og:locale:alternate" content="ja_JP">
+<meta property="og:locale:alternate" content="ko_KR">
+<meta property="og:locale:alternate" content="zh_CN">
+<meta property="og:locale:alternate" content="ar_SA">
 <meta property="og:title" content="CUBI Security | Identity, Access and Data Boundaries">
 <meta property="og:description" content="How CUBI handles identity, sessions, project membership, data boundaries and the separation between public pages and project data.">
 <meta property="og:url" content="__CUBI_BASE_URL__/security/">
@@ -26,7 +42,7 @@
 <link rel="icon" href="../cubi-platform-logo-primary.svg" type="image/svg+xml">
 </head>
 <body class="cubi-public-page">
-<header class="cubi-public-header"><a href="../index.html" aria-label="Home"><img src="../cubi-platform-logo-primary.svg" alt="CUBI Platform" width="132" height="48"></a><nav class="cubi-public-nav" aria-label="Primary navigation"><a href="../">Home</a><a href="../platform/">Platform</a><a href="../features/">Features</a><a href="../solutions/">Solutions</a><a href="../pricing/">Pricing</a><a href="../resources/">Resources</a><a href="../about/">About</a><a href="../contact/">Contact</a></nav><a class="cubi-public-language" hreflang="fa" href="../fa/security/" lang="fa">فارسی</a></header>
+<header class="cubi-public-header"><a href="../index.html" aria-label="Home"><img src="../cubi-platform-logo-primary.svg" alt="CUBI Platform" width="132" height="48"></a><nav class="cubi-public-nav" aria-label="Primary navigation"><a href="../">Home</a><a href="../platform/">Platform</a><a href="../features/">Features</a><a href="../solutions/">Solutions</a><a href="../pricing/">Pricing</a><a href="../resources/">Resources</a><a href="../about/">About</a><a href="../contact/">Contact</a></nav><a class="cubi-public-language" hreflang="fa" href="../fa/security/" lang="fa">فارسی</a><details class="cubi-public-languages"><summary>All languages</summary><nav aria-label="All languages"><a hreflang="de" href="../de/security/" lang="de">Deutsch</a><a hreflang="fr" href="../fr/security/" lang="fr">Français</a><a hreflang="ru" href="../ru/security/" lang="ru">Русский</a><a hreflang="tr-TR" href="../tr/security/" lang="tr-TR">Türkçe</a><a hreflang="ja" href="../ja/security/" lang="ja">日本語</a><a hreflang="ko" href="../ko/security/" lang="ko">한국어</a><a hreflang="zh-CN" href="../zh/security/" lang="zh-CN">简体中文</a><a hreflang="ar" href="../ar/security/" lang="ar">العربية</a></nav></details></header>
 <main>
 <section class="cubi-public-hero"><p class="eyebrow">SECURITY</p><h1>Security stated plainly</h1><p>This page describes what the product actually does today. It is not a certification claim and it does not replace a security review of your own deployment.</p></section>
 <section class="cubi-public-content"><h2>Identity and sessions</h2><p>Access starts with an authenticated account and a server-side session.</p><div class="cubi-public-grid"><article class="cubi-public-card"><h3>Password handling</h3><p>Passwords are stored as salted scrypt hashes, never in plain text.</p></article><article class="cubi-public-card"><h3>Session handling</h3><p>Sessions use HttpOnly cookies with CSRF protection on state-changing requests.</p></article><article class="cubi-public-card"><h3>Sign-in throttling</h3><p>Repeated failed sign-in attempts are rate limited to slow credential guessing.</p></article></div>
