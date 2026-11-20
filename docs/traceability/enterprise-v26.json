@@ -1,0 +1,293 @@
+{
+  "baseline": "P6 EPPM V26 (G48897-01, May 2026)",
+  "rows": [
+    {
+      "id": "ENT-HOME",
+      "environment": "enterprise",
+      "kind": "workspace_page",
+      "page": "/environments/",
+      "surface": "Environment selection and Enterprise entry",
+      "module": "team-task",
+      "help": {
+        "source": "P6 EPPM V26 HTML Help",
+        "title": "Working with P6",
+        "url": "https://docs.oracle.com/cd/G48897_01/p6help/en/6660.htm",
+        "pdfPage": null
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Signed-in environment choice; Enterprise never reuses Engineering calculations.",
+      "evidence": "apps/web/src/enterprise-task-center.ts",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "ENT-DASHBOARDS",
+      "environment": "enterprise",
+      "kind": "workspace_page",
+      "page": "/enterprise/",
+      "surface": "Dashboards",
+      "module": "portfolio-executive",
+      "help": {
+        "source": "P6 EPPM V26 HTML Help",
+        "title": "About Dashboards",
+        "url": "https://docs.oracle.com/cd/G48897_01/p6help/en/6608.htm",
+        "pdfPage": null
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Role-based dashboards and configurable portlets.",
+      "evidence": "src/construction_pm/enterprise_dashboard_application.py",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "ENT-PORTFOLIO",
+      "environment": "enterprise",
+      "kind": "workspace_page",
+      "page": "/enterprise/portfolio/",
+      "surface": "Portfolio and executive center",
+      "module": "portfolio-executive",
+      "help": {
+        "source": "P6 EPPM V26 HTML Help",
+        "title": "About Portfolio Views",
+        "url": "https://docs.oracle.com/cd/G48897_01/p6help/en/14087.htm",
+        "pdfPage": null
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Authorized project list, health and KPIs.",
+      "evidence": "src/construction_pm/enterprise_dashboard.py",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "ENT-PROJECTS",
+      "environment": "enterprise",
+      "kind": "workspace_page",
+      "page": "/enterprise/projects/",
+      "surface": "Project context and EPS",
+      "module": "project-portal",
+      "help": {
+        "source": "P6 EPPM V26 HTML Help",
+        "title": "About the Enterprise Project Structure (EPS)",
+        "url": "https://docs.oracle.com/cd/G48897_01/p6help/en/6621.htm",
+        "pdfPage": null
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Project selection constrained by read authorization.",
+      "evidence": "src/construction_pm/enterprise_task_application.py",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "ENT-TEAM-TASKS",
+      "environment": "enterprise",
+      "kind": "workspace_page",
+      "page": "/enterprise/tasks/",
+      "surface": "Team and task center",
+      "module": "team-task",
+      "help": {
+        "source": "P6 EPPM V26 HTML Help",
+        "title": "About P6 Team Member Status Updates",
+        "url": "https://docs.oracle.com/cd/G48897_01/p6help/en/50904.htm",
+        "pdfPage": null
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Personal/project tasks with status, priority and due date.",
+      "evidence": "apps/web/src/enterprise-task-center.test.ts",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "ENT-FEEDBACK-APPROVAL",
+      "environment": "enterprise",
+      "kind": "workspace_page",
+      "page": "/enterprise/approvals/",
+      "surface": "Feedback and approval center",
+      "module": "feedback-approval",
+      "help": {
+        "source": "P6 EPPM V26 HTML Help",
+        "title": "Reviewing Team Member Status Updates",
+        "url": "https://docs.oracle.com/cd/G48897_01/p6help/en/51331.htm",
+        "pdfPage": null
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Proposed vs approved records with decision history.",
+      "evidence": "src/construction_pm/enterprise_task.py",
+      "status": "PLANNED"
+    },
+    {
+      "id": "ENT-OPERATIONS",
+      "environment": "enterprise",
+      "kind": "workspace_page",
+      "page": "/enterprise/operations/",
+      "surface": "Operations and job center",
+      "module": "operations-job",
+      "help": {
+        "source": "P6 EPPM V26 HTML Help",
+        "title": "About Project Scheduled Services",
+        "url": "https://docs.oracle.com/cd/G48897_01/p6help/en/46217.htm",
+        "pdfPage": null
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Job status, failures and controlled retry.",
+      "evidence": "src/construction_pm/enterprise_dashboard_repository.py",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "ENT-WORKFLOW",
+      "environment": "enterprise",
+      "kind": "workspace_page",
+      "page": "/enterprise/workflows/",
+      "surface": "Workflow studio",
+      "module": "workflow",
+      "help": {
+        "source": "P6 EPPM V26 HTML Help",
+        "title": "Configuring P6 Team Member Status Update Reviews",
+        "url": "https://docs.oracle.com/cd/G48897_01/p6help/en/50915.htm",
+        "pdfPage": null
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Configurable stages, transitions and deadlines.",
+      "evidence": "src/construction_pm/enterprise_organization_access.py",
+      "status": "PLANNED"
+    },
+    {
+      "id": "ENT-ORG-ACCESS",
+      "environment": "enterprise",
+      "kind": "workspace_page",
+      "page": "/enterprise/organization/",
+      "surface": "Organization and access center",
+      "module": "organization-access",
+      "help": {
+        "source": "P6 EPPM V26 HTML Help",
+        "title": "About Users",
+        "url": "https://docs.oracle.com/cd/G48897_01/p6help/en/43794.htm",
+        "pdfPage": null
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Members, roles, teams and server-side authorization.",
+      "evidence": "src/construction_pm/enterprise_identity.py",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "ENT-PORTAL",
+      "environment": "enterprise",
+      "kind": "workspace_page",
+      "page": "/enterprise/portal/",
+      "surface": "Project portal",
+      "module": "project-portal",
+      "help": {
+        "source": "P6 EPPM V26 HTML Help",
+        "title": "Publishing P6 Data",
+        "url": "https://docs.oracle.com/cd/G48897_01/p6help/en/48619.htm",
+        "pdfPage": null
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Approved status and documents with revocable access.",
+      "evidence": "src/construction_pm/enterprise_organization_access_repository.py",
+      "status": "PLANNED"
+    },
+    {
+      "id": "ENT-INTEGRATION",
+      "environment": "enterprise",
+      "kind": "workspace_page",
+      "page": "/enterprise/integrations/",
+      "surface": "Integration hub",
+      "module": "integration-hub",
+      "help": {
+        "source": "P6 EPPM V26 HTML Help",
+        "title": "About Importing and Exporting Data",
+        "url": "https://docs.oracle.com/cd/G48897_01/p6help/en/6604.htm",
+        "pdfPage": null
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Versioned APIs, webhooks and controlled import/export.",
+      "evidence": "apps/web/src/p6-interchange-api.ts",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "ENT-RESOURCES",
+      "environment": "enterprise",
+      "kind": "workspace_page",
+      "page": "/enterprise/resources/",
+      "surface": "Resource capacity",
+      "module": "organization-access",
+      "help": {
+        "source": "P6 EPPM V26 HTML Help",
+        "title": "Analyzing Role Allocation (Capacity Planning)",
+        "url": "https://docs.oracle.com/cd/G48897_01/p6help/en/7855.htm",
+        "pdfPage": null
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Role and resource capacity read models.",
+      "evidence": "src/construction_pm/enterprise_dashboard_application.py",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "ENT-REPORTS",
+      "environment": "enterprise",
+      "kind": "workspace_page",
+      "page": "/enterprise/reports/",
+      "surface": "Enterprise reporting",
+      "module": "portfolio-executive",
+      "help": {
+        "source": "P6 EPPM V26 HTML Help",
+        "title": "Configuring Report Settings",
+        "url": "https://docs.oracle.com/cd/G48897_01/p6help/en/78291.htm",
+        "pdfPage": null
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Organization-level performance reporting.",
+      "evidence": "src/construction_pm/enterprise_dashboard_application.py",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "ENT-ADMIN",
+      "environment": "enterprise",
+      "kind": "workspace_page",
+      "page": "/enterprise/admin/",
+      "surface": "Enterprise administration",
+      "module": "organization-access",
+      "help": {
+        "source": "P6 EPPM V26 HTML Help",
+        "title": "About Administration",
+        "url": "https://docs.oracle.com/cd/G48897_01/p6help/en/6590.htm",
+        "pdfPage": null
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Security profiles, preferences and audit.",
+      "evidence": "src/construction_pm/enterprise_identity.py",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "ENT-DOCUMENTS",
+      "environment": "enterprise",
+      "kind": "workspace_page",
+      "page": "/enterprise/documents/",
+      "surface": "Documents and reviews",
+      "module": "project-portal",
+      "help": {
+        "source": "P6 EPPM V26 HTML Help",
+        "title": "About Documents",
+        "url": "https://docs.oracle.com/cd/G48897_01/p6help/en/6620.htm",
+        "pdfPage": null
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Document repository and review participation.",
+      "evidence": "src/construction_pm/enterprise_organization_access_repository.py",
+      "status": "PLANNED"
+    },
+    {
+      "id": "ENT-RISKS-ISSUES",
+      "environment": "enterprise",
+      "kind": "workspace_page",
+      "page": "/enterprise/risks/",
+      "surface": "Risks and issues",
+      "module": "project-portal",
+      "help": {
+        "source": "P6 EPPM V26 HTML Help",
+        "title": "About Risks",
+        "url": "https://docs.oracle.com/cd/G48897_01/p6help/en/6628.htm",
+        "pdfPage": null
+      },
+      "helpRationale": null,
+      "cubiBehavior": "Authorized risk/issue references without duplicating Engineering data.",
+      "evidence": "src/construction_pm/enterprise_task.py",
+      "status": "PLANNED"
+    }
+  ]
+}
