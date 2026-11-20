@@ -4,6 +4,11 @@ import {
   getWorkspaceNavigationLabel,
 } from "./workspace-navigation.js";
 import { getAvailableWorkspaceLocales, translateWorkspaceText } from "./workspace-localization.js";
+import {
+  resolveContextualHelp,
+  type HelpResolutionLevel,
+  type OfficialHelpTopic,
+} from "./help-registry.js";
 
 /**
  * A deterministic, testable contract for the operational help the global
@@ -38,8 +43,23 @@ export type AssistantGuideQuery = {
   state: AssistantGuideState;
   menu?: WorkspaceMenuKey;
   locale: WorkspaceLocale;
+  /** The live pathname, used to resolve the contextual Help topic. */
+  pathname?: string;
   /** The reference code the failure page already shows to the user. */
   reference?: string | null;
+};
+
+/**
+ * The contextual Help pointer attached to every guide. `topic` is the official
+ * Help entry recorded for this surface; it is null when the registry records no
+ * topic, and `reason` then carries the recorded explanation verbatim.
+ */
+export type AssistantHelpLink = {
+  level: HelpResolutionLevel;
+  surface: string | null;
+  topic: OfficialHelpTopic | null;
+  reason: string | null;
+  feature: { id: string; status: string; route: string } | null;
 };
 
 export type AssistantGuideAction = {
@@ -57,6 +77,7 @@ export type AssistantGuide = {
   steps: readonly string[];
   commonError: string | null;
   action: AssistantGuideAction | null;
+  help: AssistantHelpLink;
 };
 
 type Copy = { en: string; fa: string };
@@ -770,6 +791,38 @@ const MENU_GUIDES: Record<WorkspaceMenuKey, GuideShape> = {
   },
 };
 
+const PUBLIC_PAGE_PATH: Record<AssistantPageKey, string> = {
+  home: "/",
+  platform: "/platform/",
+  solutions: "/solutions/",
+  resources: "/resources/",
+  contact: "/contact/",
+  login: "/login/",
+  workspace: "/app/",
+  unknown: "/",
+};
+
+/** Resolve the contextual Help pointer from the registries, never from copy. */
+function helpFor(query: AssistantGuideQuery): AssistantHelpLink {
+  const resolved = resolveContextualHelp(
+    query.pathname ?? PUBLIC_PAGE_PATH[query.page],
+    { menu: query.menu ?? null },
+  );
+  return {
+    level: resolved.level,
+    surface: resolved.surface,
+    topic: resolved.topic,
+    reason: resolved.reason,
+    feature: resolved.feature
+      ? {
+          id: resolved.feature.id,
+          status: resolved.feature.status,
+          route: resolved.feature.route,
+        }
+      : null,
+  };
+}
+
 /** Locale-aware text with the same fallback contract as the rest of the UI. */
 function localized(locale: WorkspaceLocale, key: string, value: Copy): string {
   const base = locale.split("-")[0] as "en" | "fa";
@@ -803,6 +856,7 @@ function shapeToGuide(
     commonError: shape.commonError
       ? localized(query.locale, `${keyPrefix}.error`, shape.commonError)
       : null,
+    help: helpFor(query),
     action: action
       ? {
           label: localized(query.locale, `${keyPrefix}.action`, action.label),
@@ -938,6 +992,7 @@ export function resolveAssistantGuide(query: AssistantGuideQuery): AssistantGuid
       ],
       commonError: null,
       action: null,
+      help: helpFor(query),
     };
   }
 
@@ -1023,5 +1078,12 @@ export function readAssistantGuideQuery(
     state = page === "workspace" ? "unknown" : "visitor";
   }
 
-  return { page, state, menu, locale, reference };
+  return {
+    page,
+    state,
+    menu,
+    locale,
+    pathname: doc.location?.pathname ?? "",
+    reference,
+  };
 }

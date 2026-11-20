@@ -23,6 +23,7 @@ immediate parent.
 | 7 | #2076 | `feat/cubi-r2-global-admin` | `feat/cubi-r0-baseline-help-reference` | `73f15ac`, `192036c`, `ad47fc9`, `f4ade7c` | 15 |
 | 8 | #2077 | `feat/cubi-r3-ten-locales` | `feat/cubi-r2-global-admin` | `8302980`, `5e48f8d`, `f515e99` | 40 |
 | 9 | #2078 | `feat/cubi-r4-public-pages` | `feat/cubi-r3-ten-locales` | `3d519c5`, `1074889`, `e5ec850`, `e0c84cc`, `8cc98bf`, `84dc26f`, `5ba3487`, `2b2f2ac` | 128 |
+| 10 | #2079 | `feat/cubi-r5-contextual-help` | `feat/cubi-r4-public-pages` | `93369b8` | 11 |
 
 Each PR previously targeted `main` while containing all of its ancestors. That is
 what produced the appearance of duplicate commits and one ambiguous giant diff.
@@ -39,6 +40,11 @@ R4 (#2078) adds no route: it fills the seventeen routes that every non-Persian
 locale previously redirected to English, so the published inventory stays at 25
 documents per locale and the route matrix does not change.
 
+R5 (#2079) adds no page either: it compiles the existing Help and feature
+traceability into browser-safe registries and makes the contextual assistant cite
+only what those registries record, so every locale answers with the same four
+resolution levels.
+
 ## Validation per increment
 
 | PR | Validation run on its own head |
@@ -52,6 +58,7 @@ documents per locale and the route matrix does not change.
 | #2076 | `pytest tests/test_global_administration*.py` with PostgreSQL (8 passed), `npm test` (1206 passed), `npm run typecheck`, `npm run build` |
 | #2077 | `npm test` (1208 passed), `npm run typecheck`, `npm run build` on `5e48f8d`: ten-locale catalogs, full shared-sentence coverage, ten-locale Intl date/number/collation tags; German 25-route publication on `f515e99` |
 | #2078 | `npm test` (1209 passed), `npm run typecheck`, `npm run build` on `2b2f2ac`: all ten locales publish the 25 approved routes, localized headlines, canonical and hreflang alternates, no dangling internal link |
+| #2079 | `npm test` (1221 src + 15 preview passed), `npm run typecheck`, `npm run build` on `93369b8`: registry parity against both traceability sources and the capability contract, direct/parent/inherited/internal-docs resolution, ten-locale labels |
 
 CI for #2076 on the final head `ad47fc9`: `typecheck (apps/web)` pass, `web` pass,
 `postgres` pass, `Vercel – cubi-web-preview` pass.
