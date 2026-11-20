@@ -19,8 +19,9 @@ from .global_administration import (
     GlobalAdministrationService,
     role_catalog_payload,
 )
+from .identity_session import SESSION_COOKIE_NAME
 
-SESSION_COOKIE = "cubi_session"
+SESSION_COOKIE = SESSION_COOKIE_NAME
 BODY_LIMIT = 64 * 1024
 
 _STATUS = {

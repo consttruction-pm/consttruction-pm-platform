@@ -3,16 +3,21 @@ import test from "node:test";
 
 import {
   ADMIN_CONTRACT_VERSION,
+  ADMIN_ROLE_KEYS,
   GlobalAdminClient,
   adminLabels,
   adminLocales,
+  buildCreateUserInput,
+  buildUserPatch,
   dashboardSummary,
   isGlobalAdmin,
+  renderCreateUserForm,
   renderUserRows,
   roleLabel,
   sectionLabel,
   type AdminDashboard,
   type AdminUser,
+  type CreateUserForm,
 } from "./global-admin.js";
 
 const REQUIRED_LOCALES = ["fa", "en", "de", "zh", "ar", "fr", "ja", "ko", "ru", "tr"];
@@ -148,4 +153,76 @@ test("errors surface the server code, not a generic failure", async () => {
     assert.equal(result.status, 403);
     assert.equal(result.code, "GLOBAL_ADMIN_REQUIRED");
   }
+});
+
+const FORM: CreateUserForm = {
+  email: "  Planner@CubiSite.Test ",
+  displayName: "  Hadi Planner  ",
+  tenantId: "Test-Alpha",
+  locale: "tr-TR",
+  roles: ["engineering_planner"],
+  isTestUser: true,
+  expiresAt: "2026-12-01T10:00",
+  reason: "  onboarding  ",
+};
+
+test("create-user input is normalised and carries the test expiry", () => {
+  const input = buildCreateUserInput(FORM);
+  assert.equal(input.email, "planner@cubisite.test");
+  assert.equal(input.display_name, "Hadi Planner");
+  assert.equal(input.tenant_id, "test-alpha");
+  assert.equal(input.locale, "tr-TR");
+  assert.deepEqual(input.roles, ["engineering_planner"]);
+  assert.equal(input.is_test_user, true);
+  assert.equal(input.expires_at, new Date("2026-12-01T10:00").toISOString());
+  assert.equal(input.reason, "onboarding");
+});
+
+test("non-test users never carry an expiry", () => {
+  const input = buildCreateUserInput({ ...FORM, tenantId: "org-acme", isTestUser: false, expiresAt: "" });
+  assert.equal(input.is_test_user, false);
+  assert.equal(input.expires_at, null);
+});
+
+test("create-user validation rejects bad input with stable codes", () => {
+  const cases: [Partial<CreateUserForm>, string][] = [
+    [{ email: "not-an-email" }, "EMAIL_INVALID"],
+    [{ displayName: "   " }, "DISPLAY_NAME_INVALID"],
+    [{ tenantId: "-bad" }, "TENANT_INVALID"],
+    [{ roles: [] }, "ROLES_REQUIRED"],
+    [{ locale: "english" }, "LOCALE_INVALID"],
+    [{ tenantId: "org-acme", isTestUser: true, expiresAt: "" }, "TEST_USER_REQUIRES_TEST_TENANT"],
+    [{ expiresAt: "" }, "TEST_USER_REQUIRES_EXPIRY"],
+  ];
+  for (const [override, code] of cases) {
+    assert.throws(() => buildCreateUserInput({ ...FORM, ...override }), new RegExp(code));
+  }
+});
+
+test("an editor patch only sends the changed fields", () => {
+  assert.deepEqual(buildUserPatch({ roles: ["global_admin"], confirmPassword: "secret" }), {
+    roles: ["global_admin"],
+    confirm_password: "secret",
+  });
+  assert.deepEqual(buildUserPatch({ locked: true }), { locked: true });
+  assert.throws(() => buildUserPatch({}), /NO_UPDATES/);
+  assert.throws(() => buildUserPatch({ roles: [] }), /ROLES_REQUIRED/);
+  assert.throws(() => buildUserPatch({ locale: "nope" }), /LOCALE_INVALID/);
+  assert.throws(() => buildUserPatch({ displayName: " " }), /DISPLAY_NAME_INVALID/);
+});
+
+test("the create form offers every role and the active locale", () => {
+  const html = renderCreateUserForm("tr");
+  for (const role of ADMIN_ROLE_KEYS) assert.ok(html.includes(`value="${role}"`), role);
+  assert.ok(html.includes('value="tr"'));
+  assert.ok(html.includes("data-admin-action=\"create-user\""));
+  assert.ok(html.includes("Genel Yönetici"));
+});
+
+test("user rows render the working action buttons for editing", () => {
+  const html = renderUserRows("en", [USER, { ...USER, user_id: "usr-3", locked: true, active: false }]);
+  for (const action of ["edit-roles", "lock", "unlock", "disable", "enable", "reset-password", "revoke-sessions"]) {
+    assert.ok(html.includes(`data-admin-action="${action}"`), action);
+  }
+  assert.ok(html.includes('data-user-id="usr-2"'));
 });

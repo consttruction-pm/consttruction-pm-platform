@@ -154,6 +154,7 @@ class ManagedUser:
     locale: str
     created_at: datetime | None
     last_login_at: datetime | None
+    role_keys: tuple[str, ...] = ()
     session_count: int = 0
 
     def as_dict(self) -> dict[str, Any]:
@@ -163,7 +164,9 @@ class ManagedUser:
             "email": self.email,
             "display_name": self.display_name,
             "roles": sorted(self.roles),
-            "role_keys": sorted(key for key, role in ROLE_BY_KEY.items() if role.token in self.roles),
+            "role_keys": sorted(self.role_keys) if self.role_keys else sorted(
+                key for key, role in ROLE_BY_KEY.items() if role.token in self.roles
+            ),
             "active": self.active,
             "locked": self.locked_at is not None,
             "expires_at": _iso(self.expires_at),
@@ -189,6 +192,10 @@ class PostgresGlobalAdministrationStore:
             "ALTER TABLE identity_users ADD COLUMN IF NOT EXISTS locale TEXT NOT NULL DEFAULT 'en'",
             "ALTER TABLE identity_users ADD COLUMN IF NOT EXISTS updated_at "
             "TIMESTAMPTZ NOT NULL DEFAULT now()",
+            # Catalogue labels chosen in the admin UI. Permission tokens remain
+            # authoritative; this column only disambiguates roles that share a token.
+            "ALTER TABLE identity_users ADD COLUMN IF NOT EXISTS role_keys_json "
+            "TEXT NOT NULL DEFAULT '[]'",
             """
             CREATE TABLE IF NOT EXISTS global_admin_audit (
                 audit_id BIGSERIAL PRIMARY KEY,
@@ -214,7 +221,7 @@ class PostgresGlobalAdministrationStore:
         row = self.connection.execute(
             "SELECT user_id, tenant_id, email, display_name, roles_json, active, "
             "locked_at, expires_at, must_change_password, is_test_user, locale, "
-            "created_at, last_login_at, "
+            "created_at, last_login_at, role_keys_json, "
             "(SELECT count(*) FROM identity_sessions s WHERE s.user_id=u.user_id "
             " AND s.revoked_at IS NULL AND s.expires_at > now()) "
             "FROM identity_users u WHERE user_id=%s",
@@ -246,7 +253,7 @@ class PostgresGlobalAdministrationStore:
         rows = self.connection.execute(
             "SELECT user_id, tenant_id, email, display_name, roles_json, active, "
             "locked_at, expires_at, must_change_password, is_test_user, locale, "
-            "created_at, last_login_at, "
+            "created_at, last_login_at, role_keys_json, "
             "(SELECT count(*) FROM identity_sessions s WHERE s.user_id=u.user_id "
             " AND s.revoked_at IS NULL AND s.expires_at > now()) "
             f"FROM identity_users u WHERE {clause} ORDER BY created_at DESC, user_id "
@@ -348,12 +355,13 @@ class PostgresGlobalAdministrationStore:
         expires_at: datetime | None,
         is_test_user: bool,
         locale: str,
+        role_keys: tuple[str, ...] = (),
     ) -> None:
         self.connection.execute(
             "INSERT INTO identity_users (user_id, tenant_id, email, display_name, "
             "roles_json, password_hash, active, must_change_password, expires_at, "
-            "is_test_user, locale) "
-            "VALUES (%s, %s, %s, %s, %s, %s, TRUE, %s, %s, %s, %s)",
+            "is_test_user, locale, role_keys_json) "
+            "VALUES (%s, %s, %s, %s, %s, %s, TRUE, %s, %s, %s, %s, %s)",
             (
                 user_id,
                 tenant_id,
@@ -365,6 +373,7 @@ class PostgresGlobalAdministrationStore:
                 expires_at,
                 is_test_user,
                 locale,
+                json.dumps(sorted(role_keys), separators=(",", ":")),
             ),
         )
 
@@ -378,6 +387,7 @@ class PostgresGlobalAdministrationStore:
             "expires_at",
             "must_change_password",
             "locale",
+            "role_keys_json",
         }
         assignments = [f"{name}=%s" for name in fields if name in allowed]
         values = [value for name, value in fields.items() if name in allowed]
@@ -444,7 +454,8 @@ class PostgresGlobalAdministrationStore:
             locale=str(row[10] or "en"),
             created_at=row[11],
             last_login_at=row[12],
-            session_count=int(row[13] or 0),
+            role_keys=tuple(json.loads(row[13] or "[]")),
+            session_count=int(row[14] or 0),
         )
 
 
@@ -523,6 +534,7 @@ class GlobalAdministrationService:
         display = self._display(payload.get("display_name"))
         role_keys = payload.get("roles") or ["engineering_viewer"]
         tokens = tokens_for(role_keys)
+        chosen_keys = tuple(sorted({str(key) for key in role_keys}))
         is_test = bool(payload.get("is_test_user")) or tenant.startswith(TEST_TENANT_PREFIX)
         locale = self._locale(payload.get("locale", "en"))
         expires = _parse(payload.get("expires_at")) if payload.get("expires_at") else None
@@ -545,6 +557,7 @@ class GlobalAdministrationService:
             expires_at=expires,
             is_test_user=is_test,
             locale=locale,
+            role_keys=chosen_keys,
         )
         self._store.audit(
             actor,
@@ -590,6 +603,9 @@ class GlobalAdministrationService:
                     raise GlobalAdministrationError("CANNOT_DEMOTE_SELF")
                 self._reauth(actor, str(payload.get("confirm_password") or ""))
             fields["roles_json"] = json.dumps(sorted(tokens), separators=(",", ":"))
+            fields["role_keys_json"] = json.dumps(
+                sorted({str(key) for key in payload.get("roles")}), separators=(",", ":")
+            )
         if not fields:
             raise GlobalAdministrationError("NO_UPDATES")
         self._store.update(user_id, fields)

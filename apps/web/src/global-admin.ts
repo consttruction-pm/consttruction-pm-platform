@@ -402,6 +402,20 @@ export function adminLocales(): AdminLocale[] {
   return Object.keys(LABELS) as AdminLocale[];
 }
 
+export const ADMIN_ROLE_KEYS: readonly AdminRoleKey[] = [
+  "global_admin",
+  "organization_admin",
+  "enterprise_admin",
+  "enterprise_user",
+  "enterprise_viewer",
+  "engineering_admin",
+  "engineering_planner",
+  "engineering_user",
+  "engineering_viewer",
+  "guest",
+  "test_user",
+];
+
 export function roleLabel(locale: string, role: AdminRoleKey): string {
   const labels = adminLabels(locale);
   return labels.roles[role] ?? labels.roles.guest;
@@ -523,29 +537,149 @@ export function dashboardSummary(locale: string, dashboard: AdminDashboard): { l
   ];
 }
 
+export type CreateUserForm = {
+  email: string;
+  displayName: string;
+  tenantId: string;
+  locale: string;
+  roles: AdminRoleKey[];
+  isTestUser: boolean;
+  expiresAt: string;
+  reason: string;
+};
+
+const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+/** Validate and shape the create-user request. Throws a stable code on bad input. */
+export function buildCreateUserInput(form: CreateUserForm): Record<string, unknown> {
+  const email = form.email.trim().toLowerCase();
+  if (!EMAIL_PATTERN.test(email)) throw new Error("EMAIL_INVALID");
+  const display = form.displayName.trim();
+  if (!display) throw new Error("DISPLAY_NAME_INVALID");
+  const tenant = form.tenantId.trim().toLowerCase();
+  if (!/^[a-z0-9][a-z0-9-]{1,62}$/.test(tenant)) throw new Error("TENANT_INVALID");
+  if (!form.roles.length) throw new Error("ROLES_REQUIRED");
+  if (!/^[a-z]{2}(-[A-Z]{2})?$/.test(form.locale)) throw new Error("LOCALE_INVALID");
+  const isTest = form.isTestUser || tenant.startsWith("test-");
+  if (isTest && !tenant.startsWith("test-")) throw new Error("TEST_USER_REQUIRES_TEST_TENANT");
+  if (isTest && !form.expiresAt) throw new Error("TEST_USER_REQUIRES_EXPIRY");
+  return {
+    email,
+    display_name: display,
+    tenant_id: tenant,
+    locale: form.locale,
+    roles: [...form.roles],
+    is_test_user: isTest,
+    expires_at: isTest ? new Date(form.expiresAt).toISOString() : null,
+    reason: form.reason.trim(),
+  };
+}
+
+/** The patch for the editor: only fields the administrator actually changed. */
+export function buildUserPatch(input: {
+  displayName?: string;
+  locale?: string;
+  roles?: AdminRoleKey[];
+  active?: boolean;
+  locked?: boolean;
+  confirmPassword?: string;
+  reason?: string;
+}): Record<string, unknown> {
+  const patch: Record<string, unknown> = {};
+  if (input.displayName !== undefined) {
+    const display = input.displayName.trim();
+    if (!display) throw new Error("DISPLAY_NAME_INVALID");
+    patch.display_name = display;
+  }
+  if (input.locale !== undefined) {
+    if (!/^[a-z]{2}(-[A-Z]{2})?$/.test(input.locale)) throw new Error("LOCALE_INVALID");
+    patch.locale = input.locale;
+  }
+  if (input.roles !== undefined) {
+    if (!input.roles.length) throw new Error("ROLES_REQUIRED");
+    patch.roles = [...input.roles];
+  }
+  if (input.active !== undefined) patch.active = input.active;
+  if (input.locked !== undefined) patch.locked = input.locked;
+  if (input.confirmPassword) patch.confirm_password = input.confirmPassword;
+  if (input.reason) patch.reason = input.reason.trim();
+  if (!Object.keys(patch).length) throw new Error("NO_UPDATES");
+  return patch;
+}
+
 export function renderUserRows(locale: string, users: readonly AdminUser[]): string {
   const labels = adminLabels(locale);
   if (!users.length) return `<p class="cp-admin-empty">${escapeHtml(labels.search)}: 0</p>`;
   return `<table class="cp-admin-table"><thead><tr>
-    <th>${escapeHtml(labels.sections.users)}</th><th>${escapeHtml(labels.sections.roles)}</th><th>Status</th><th>Sessions</th>
+    <th>${escapeHtml(labels.sections.users)}</th><th>${escapeHtml(labels.sections.roles)}</th><th>Status</th><th>Sessions</th><th>Actions</th>
   </tr></thead><tbody>${users
     .map((user) => {
       const roles = user.role_keys.map((role) => escapeHtml(roleLabel(locale, role))).join(", ");
       const status = user.locked ? "locked" : user.active ? "active" : "disabled";
+      const lockAction = user.locked
+        ? `<button type="button" data-admin-action="unlock" data-user-id="${escapeHtml(user.user_id)}">${escapeHtml(labels.unlock)}</button>`
+        : `<button type="button" data-admin-action="lock" data-user-id="${escapeHtml(user.user_id)}">${escapeHtml(labels.lock)}</button>`;
+      const activeAction = user.active
+        ? `<button type="button" data-admin-action="disable" data-user-id="${escapeHtml(user.user_id)}">${escapeHtml(labels.disable)}</button>`
+        : `<button type="button" data-admin-action="enable" data-user-id="${escapeHtml(user.user_id)}">${escapeHtml(labels.enable)}</button>`;
       return `<tr data-user="${escapeHtml(user.user_id)}">
         <td><strong>${escapeHtml(user.display_name)}</strong><br /><span>${escapeHtml(user.email)}</span><br /><span>${escapeHtml(user.tenant_id)}</span></td>
         <td>${roles}${user.is_test_user ? " · test" : ""}</td>
         <td>${escapeHtml(status)}</td>
         <td>${user.sessions}</td>
+        <td class="cp-admin-actions">
+          <button type="button" data-admin-action="edit-roles" data-user-id="${escapeHtml(user.user_id)}">${escapeHtml(labels.sections.roles)}</button>
+          ${lockAction}${activeAction}
+          <button type="button" data-admin-action="reset-password" data-user-id="${escapeHtml(user.user_id)}">${escapeHtml(labels.resetPassword)}</button>
+          <button type="button" data-admin-action="revoke-sessions" data-user-id="${escapeHtml(user.user_id)}">${escapeHtml(labels.revokeSessions)}</button>
+        </td>
       </tr>`;
     })
     .join("")}</tbody></table>`;
 }
 
+export function renderCreateUserForm(locale: string): string {
+  const labels = adminLabels(locale);
+  const options = ADMIN_ROLE_KEYS.map(
+    (role) => `<option value="${escapeHtml(role)}">${escapeHtml(roleLabel(locale, role))}</option>`,
+  ).join("");
+  return `<section class="cp-admin-create" aria-label="${escapeHtml(labels.createUser)}">
+    <h2>${escapeHtml(labels.createUser)}</h2>
+    <label>Email<input name="email" type="email" autocomplete="off" required /></label>
+    <label>${escapeHtml(labels.sections.users)}<input name="display_name" autocomplete="off" required /></label>
+    <label>Tenant<input name="tenant_id" autocomplete="off" required /></label>
+    <label>Locale<input name="locale" value="${escapeHtml(locale)}" required /></label>
+    <label>${escapeHtml(labels.sections.roles)}<select name="role" multiple size="6">${options}</select></label>
+    <label><input name="is_test_user" type="checkbox" /> ${escapeHtml(labels.testUser)}</label>
+    <label>Expires<input name="expires_at" type="datetime-local" /></label>
+    <label>Reason<input name="reason" autocomplete="off" /></label>
+    <button type="button" data-admin-action="create-user">${escapeHtml(labels.createUser)}</button>
+  </section>`;
+}
+
+function readForm(root: HTMLElement): CreateUserForm {
+  const field = (name: string): HTMLInputElement | null =>
+    root.querySelector<HTMLInputElement>(`[name="${name}"]`);
+  const select = root.querySelector<HTMLSelectElement>('select[name="role"]');
+  return {
+    email: field("email")?.value ?? "",
+    displayName: field("display_name")?.value ?? "",
+    tenantId: field("tenant_id")?.value ?? "",
+    locale: field("locale")?.value ?? "en",
+    roles: select ? ([...select.selectedOptions].map((option) => option.value) as AdminRoleKey[]) : [],
+    isTestUser: Boolean(field("is_test_user")?.checked),
+    expiresAt: field("expires_at")?.value ?? "",
+    reason: field("reason")?.value ?? "",
+  };
+}
+
 export async function mountGlobalAdmin(container: HTMLElement, locale: string, client: GlobalAdminClient): Promise<void> {
   const labels = adminLabels(locale);
   const direction = locale.startsWith("ar") || locale.startsWith("fa") ? "rtl" : "ltr";
-  container.innerHTML = `<main class="cp-admin" dir="${direction}"><h1>${escapeHtml(labels.title)}</h1><p>Loading…</p></main>`;
+  const paint = (message: string): void => {
+    container.innerHTML = message;
+  };
+  paint(`<main class="cp-admin" dir="${direction}"><h1>${escapeHtml(labels.title)}</h1><p>Loading…</p></main>`);
   const dashboard = await client.dashboard();
   if (!dashboard.ok) {
     const message =
@@ -554,24 +688,67 @@ export async function mountGlobalAdmin(container: HTMLElement, locale: string, c
         : dashboard.status === 403
           ? labels.forbidden
           : dashboard.code;
-    container.innerHTML = `<main class="cp-admin" dir="${direction}"><h1>${escapeHtml(labels.title)}</h1><p role="alert">${escapeHtml(message)}</p></main>`;
+    paint(`<main class="cp-admin" dir="${direction}"><h1>${escapeHtml(labels.title)}</h1><p role="alert">${escapeHtml(message)}</p></main>`);
     return;
   }
   const summary = dashboardSummary(locale, dashboard.data)
     .map((item) => `<li><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.value)}</strong></li>`)
     .join("");
-  const actions = dashboard.data.recent_actions
-    .map(
-      (entry) =>
-        `<tr><td>${escapeHtml(entry.action)}</td><td>${escapeHtml(entry.target_user_id ?? "")}</td><td>${escapeHtml(entry.occurred_at ?? "")}</td></tr>`,
-    )
-    .join("");
-  container.innerHTML = `<main class="cp-admin" dir="${direction}">
+  const users = await client.users();
+  const userTable = users.ok ? renderUserRows(locale, users.data.users) : `<p role="alert">${escapeHtml(users.code)}</p>`;
+  paint(`<main class="cp-admin" dir="${direction}">
     <header><h1>${escapeHtml(labels.title)}</h1><p>${escapeHtml(dashboard.data.viewer.user_id)}</p></header>
     <section aria-label="${escapeHtml(labels.sections.dashboard)}"><ul class="cp-admin-summary">${summary}</ul></section>
-    <section aria-label="${escapeHtml(labels.sections.audit)}">
-      <h2>${escapeHtml(labels.sections.audit)}</h2>
-      <table class="cp-admin-table"><thead><tr><th>Action</th><th>Target</th><th>When</th></tr></thead><tbody>${actions}</tbody></table>
-    </section>
-  </main>`;
+    ${renderCreateUserForm(locale)}
+    <section aria-label="${escapeHtml(labels.sections.users)}"><h2>${escapeHtml(labels.sections.users)}</h2>${userTable}</section>
+    <output role="status" aria-live="polite" class="cp-admin-status"></output>
+  </main>`);
+
+  const status = container.querySelector<HTMLOutputElement>(".cp-admin-status");
+  const say = (text: string): void => {
+    if (status) status.textContent = text;
+  };
+
+  container.addEventListener("click", async (event) => {
+    const button = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>("[data-admin-action]");
+    if (!button) return;
+    const action = button.dataset.adminAction;
+    const userId = button.dataset.userId ?? "";
+    try {
+      if (action === "create-user") {
+        const result = await client.createUser(buildCreateUserInput(readForm(container)));
+        say(result.ok ? `${labels.temporaryPassword}: ${result.data.temporary_password}` : result.code);
+      } else if (action === "lock" || action === "unlock") {
+        const result = await client.updateUser(userId, buildUserPatch({ locked: action === "lock" }));
+        say(result.ok ? "OK" : result.code);
+      } else if (action === "disable" || action === "enable") {
+        const result = await client.updateUser(userId, buildUserPatch({ active: action === "enable" }));
+        say(result.ok ? "OK" : result.code);
+      } else if (action === "edit-roles") {
+        const answer = window.prompt(`${labels.sections.roles}: ${ADMIN_ROLE_KEYS.join(", ")}`, "engineering_viewer");
+        if (!answer) return;
+        const roles = answer.split(",").map((value) => value.trim()).filter(Boolean) as AdminRoleKey[];
+        const confirmPassword = window.prompt(`${labels.resetPassword}?`) ?? undefined;
+        const result = await client.updateUser(userId, buildUserPatch({ roles, confirmPassword }));
+        say(result.ok ? "OK" : result.code);
+      } else if (action === "reset-password") {
+        const confirmPassword = window.prompt(labels.resetPassword) ?? "";
+        const result = await client.resetPassword(userId, confirmPassword);
+        say(result.ok ? `${labels.temporaryPassword}: ${result.data.temporary_password}` : result.code);
+      } else if (action === "revoke-sessions") {
+        const confirmPassword = window.prompt(labels.revokeSessions) ?? "";
+        const result = await client.revokeSessions(userId, confirmPassword);
+        say(result.ok ? "OK" : result.code);
+      }
+      if (action !== "create-user") {
+        const refreshed = await client.users();
+        if (refreshed.ok) {
+          const section = container.querySelector<HTMLElement>('section[aria-label="' + labels.sections.users + '"]');
+          if (section) section.innerHTML = `<h2>${escapeHtml(labels.sections.users)}</h2>${renderUserRows(locale, refreshed.data.users)}`;
+        }
+      }
+    } catch (error) {
+      say(error instanceof Error ? error.message : String(error));
+    }
+  });
 }
