@@ -1,0 +1,8 @@
+.....................................                                    [100%]
+=============================== warnings summary ===============================
+tests/test_scheduling_job_postgres.py:25
+  /data/work/repo/tests/test_scheduling_job_postgres.py:25: PytestUnknownMarkWarning: Unknown pytest.mark.postgres - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    pytestmark = pytest.mark.postgres
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+37 passed, 1 warning in 1.73s

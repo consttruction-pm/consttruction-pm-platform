@@ -141,6 +141,11 @@ class SchedulingJob:
     cancel_requested_by: str | None = None
     last_error: str | None = None
     revision: int = 0
+    # Immutable run parameters are part of the submission identity: the worker
+    # needs the exact snapshot revision a caller asked for, and it must survive
+    # a worker restart. Stored as ordered string pairs so the job stays
+    # hashable and the persistence adapters need no nested-JSON contract.
+    run_parameters: tuple[tuple[str, str], ...] = ()
 
     @property
     def is_terminal(self) -> bool:
@@ -190,6 +195,21 @@ class SchedulingJob:
             _require_aware("lease_expires_at", self.lease_expires_at)
         elif self.lease_owner or self.lease_token or self.lease_expires_at:
             raise SchedulingJobError("LEASE_PRESENT_ON_NON_LEASED_JOB")
+        if not isinstance(self.run_parameters, tuple):
+            raise SchedulingJobError("INVALID_JOB_RUN_PARAMETERS")
+        seen: set[str] = set()
+        for item in self.run_parameters:
+            if not isinstance(item, tuple) or len(item) != 2:
+                raise SchedulingJobError("INVALID_JOB_RUN_PARAMETERS")
+            name, value = item
+            if not isinstance(name, str) or not name.strip() or not isinstance(value, str):
+                raise SchedulingJobError("INVALID_JOB_RUN_PARAMETERS")
+            if name in seen:
+                raise SchedulingJobError("DUPLICATE_JOB_RUN_PARAMETER")
+            seen.add(name)
+
+    def run_parameter_map(self) -> dict[str, str]:
+        return dict(self.run_parameters)
 
 
 @dataclass(frozen=True)
@@ -461,7 +481,17 @@ class SchedulingJobService:
 
     # -- submission -------------------------------------------------------
 
-    def submit(self, request: SchedulingJobRequest) -> SchedulingJobSubmission:
+    def submit(
+        self,
+        request: SchedulingJobRequest,
+        *,
+        run_parameters: tuple[tuple[str, str], ...] = (),
+    ) -> SchedulingJobSubmission:
+        if not isinstance(run_parameters, tuple):
+            raise SchedulingJobError("INVALID_JOB_RUN_PARAMETERS")
+        # Canonical order keeps the persisted form and every in-flight compare
+        # independent of the caller's argument order.
+        run_parameters = tuple(sorted(run_parameters))
         scope = self._authorization.dedup_scope(
             tenant_id=request.tenant_id,
             project_id=request.project_id,
@@ -484,6 +514,11 @@ class SchedulingJobService:
                 # De-duplication must never expose another caller's run. The
                 # scope is part of the key, so this is a defensive check.
                 raise SchedulingJobError("SCHEDULING_JOB_NOT_VISIBLE")
+            if active.run_parameters != run_parameters:
+                # The fingerprint promises one immutable input identity. A
+                # different parameter set under the same fingerprint would run
+                # a different calculation than the caller asked for.
+                raise SchedulingJobError("SCHEDULING_JOB_PARAMETER_CONFLICT")
             return SchedulingJobSubmission(active, deduplicated=True)
 
         now = self._clock()
@@ -504,6 +539,7 @@ class SchedulingJobService:
                 calculation_identity=request.calculation_identity,
                 created_at=now,
                 updated_at=now,
+                run_parameters=run_parameters,
             )
             if self._repository.create(job):
                 return SchedulingJobSubmission(job, deduplicated=False)

@@ -106,6 +106,12 @@ from construction_pm.scheduling.calendar_context import CalendarResolverRegistry
 from construction_pm.scheduling.calculation_context import CalculationContext
 from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
 from construction_pm.scheduling.leveling_cost_recalculation import LevelingCostInputs
+from construction_pm.scheduling_job_api import SchedulingJobAPI
+from construction_pm.scheduling_job_lifecycle import (
+    SchedulingJobRepository,
+    SchedulingJobService,
+)
+from construction_pm.scheduling_job_runner import SchedulingEngineJobRunner
 
 
 def build_project_lifecycle_wsgi_app(
@@ -164,6 +170,10 @@ def build_project_lifecycle_wsgi_app(
     exchange_api: ExchangeAPI | None = None,
     backup_api: BackupAPI | None = None,
     clock: Clock | None = None,
+    scheduling_job_repository: SchedulingJobRepository | None = None,
+    scheduling_job_runner: SchedulingEngineJobRunner | None = None,
+    scheduling_execution_mode: str = "thread",
+    scheduling_worker_token: str | None = None,
     ai_action_runtime: AIActionRuntime | None = None,
     ai_action_permission_adapter: AIToolPermissionAdapter | None = None,
     ai_action_transaction_manager: AIActionTransactionManager | None = None,
@@ -248,6 +258,36 @@ def build_project_lifecycle_wsgi_app(
             authorization_policy=authorization_policy,
         )
     )
+    scheduling_job_api: SchedulingJobAPI | None = None
+    if scheduling_job_runner is not None:
+        scheduling_job_api = SchedulingJobAPI(
+            scheduling_job_runner.service,
+            runner=scheduling_job_runner,
+            worker_token=scheduling_worker_token
+            or resolved_environment.get("CONSTRUCTION_PM_SCHEDULING_WORKER_TOKEN"),
+            snapshot_repository=snapshot_repository,
+        )
+    elif scheduling_job_repository is not None:
+        scheduling_job_service = SchedulingJobService(scheduling_job_repository)
+        if scheduling_execution_mode not in ("thread", "process"):
+            raise ValueError("SCHEDULING_EXECUTION_MODE_INVALID")
+        if scheduling_execution_mode == "process":
+            # Process workers must build their own repositories in the child;
+            # the provider above holds the parent's connection, so composing
+            # process mode here would fork a live database handle.
+            raise ValueError("SCHEDULING_PROCESS_MODE_REQUIRES_RUNNER")
+        scheduling_job_runner = SchedulingEngineJobRunner(
+            scheduling_job_service,
+            provider=provider,
+            execution_mode=scheduling_execution_mode,
+        )
+        scheduling_job_api = SchedulingJobAPI(
+            scheduling_job_service,
+            runner=scheduling_job_runner,
+            worker_token=scheduling_worker_token
+            or resolved_environment.get("CONSTRUCTION_PM_SCHEDULING_WORKER_TOKEN"),
+            snapshot_repository=snapshot_repository,
+        )
     if tracking_read_api is None and activity_master_repository is not None:
         # Tracking reads the published schedule FACT projection and persisted
         # assignment facts; it never re-runs CPM or money calculations.
@@ -422,6 +462,7 @@ def build_project_lifecycle_wsgi_app(
         p6_resource_rate_write_api=p6_resource_rate_write_api,
         backend_p0_api=backend_p0_api,
         schedule_query_api=schedule_query_api,
+        scheduling_job_api=scheduling_job_api,
         ai_action_runtime=ai_action_runtime,
         ai_assistant_orchestrator=ai_assistant_orchestrator,
         form_builder_api=form_builder_api,
