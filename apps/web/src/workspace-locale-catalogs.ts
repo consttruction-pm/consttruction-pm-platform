@@ -11,6 +11,11 @@
  */
 import { TURKISH_CATALOG, TURKISH_COLUMNS } from "./workspace-turkish-catalog.js";
 import { TURKISH_UI } from "./workspace-turkish-ui.js";
+import { RUSSIAN_UI } from "./workspace-russian-ui.js";
+import { FRENCH_UI } from "./workspace-french-ui.js";
+import { JAPANESE_UI } from "./workspace-japanese-ui.js";
+import { KOREAN_UI } from "./workspace-korean-ui.js";
+import { ARABIC_UI } from "./workspace-arabic-ui.js";
 
 export type InterfaceCatalog = Readonly<Record<string, string>>;
 
@@ -1183,11 +1188,11 @@ const COLUMN_CATALOGS: Readonly<Record<string, InterfaceCatalog>> = {
 };
 
 export const INTERFACE_CATALOGS: Readonly<Record<string, InterfaceCatalog>> = {
-  ru: { ...RU, ...COLUMN_CATALOGS.ru },
-  fr: { ...FR, ...COLUMN_CATALOGS.fr },
-  ja: { ...JA, ...COLUMN_CATALOGS.ja },
-  ko: { ...KO, ...COLUMN_CATALOGS.ko },
-  ar: { ...AR, ...COLUMN_CATALOGS.ar },
+  ru: { ...RU, ...COLUMN_CATALOGS.ru, ...RUSSIAN_UI },
+  fr: { ...FR, ...COLUMN_CATALOGS.fr, ...FRENCH_UI },
+  ja: { ...JA, ...COLUMN_CATALOGS.ja, ...JAPANESE_UI },
+  ko: { ...KO, ...COLUMN_CATALOGS.ko, ...KOREAN_UI },
+  ar: { ...AR, ...COLUMN_CATALOGS.ar, ...ARABIC_UI },
   tr: { ...TURKISH_CATALOG, ...TURKISH_COLUMNS, ...TURKISH_UI },
 };
 

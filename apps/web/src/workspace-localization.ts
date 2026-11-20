@@ -108,6 +108,26 @@ export function getWorkspaceLocaleDisplayName(locale: WorkspaceLocale): string {
   return localeDefinitions.get(locale)?.displayName ?? locale;
 }
 
+/**
+ * BCP-47 tag used for Intl date, number and collation formatting. Every
+ * approved locale gets its own conventions instead of silently rendering with
+ * an English tag.
+ */
+export function getWorkspaceIntlLocale(locale: WorkspaceLocale): string {
+  switch (locale.split("-")[0].toLowerCase()) {
+    case "fa": return "fa-IR";
+    case "de": return "de-DE";
+    case "zh": return "zh-CN";
+    case "ar": return "ar-SA";
+    case "fr": return "fr-FR";
+    case "ja": return "ja-JP";
+    case "ko": return "ko-KR";
+    case "ru": return "ru-RU";
+    case "tr": return "tr-TR";
+    default: return "en-GB";
+  }
+}
+
 export function getAvailableWorkspaceLocales(): readonly WorkspaceLocale[] {
   return [...localeDefinitions.keys()];
 }

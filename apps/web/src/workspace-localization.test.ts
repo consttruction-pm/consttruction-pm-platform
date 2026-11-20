@@ -191,15 +191,67 @@ test("verified locale resources can translate the shared UI labels", async () =>
   assert.equal(translateWorkspaceText("fr", "ui.Project", "Project"), "Projet");
 });
 
-test("Turkish translates every shared workspace sentence, not only the command surface", async () => {
+test("Every non-German, non-Chinese workspace locale translates every shared sentence, not only the command surface", async () => {
   const { translateWorkspaceUiText } = await import("./workspace-localization.js");
   const { UI_TRANSLATIONS } = await import("./workspace-ui-translations.js");
-  const identical = new Set(["OK", "WBS", "EPS", "OBS", "Normal", "CUBI Modern 3D"]);
-  const missing: string[] = [];
-  for (const english of Object.keys(UI_TRANSLATIONS)) {
-    const translated = translateWorkspaceUiText("tr", english, "persian-fallback");
-    if (translated === "persian-fallback") missing.push(english);
-    else if (translated === english && !identical.has(english)) missing.push(english);
+  // Words that are spelled the same in the target language as in English are not
+  // translation gaps, so they are allowed per locale instead of globally.
+  const sharedIdentical = ["OK", "WBS", "EPS", "OBS", "Normal", "CUBI Modern 3D"];
+  const identical: Record<string, Set<string>> = {
+    tr: new Set(sharedIdentical),
+    ru: new Set(sharedIdentical),
+    ja: new Set([...sharedIdentical, "What-If"]),
+    ko: new Set(sharedIdentical),
+    ar: new Set(sharedIdentical),
+    fr: new Set([
+      ...sharedIdentical,
+      "Administration",
+      "Budget",
+      "Codes",
+      "Date",
+      "Dates",
+      "Direction",
+      "Document",
+      "Documents",
+      "Inspections",
+      "Jalali",
+      "Notes",
+      "Parent",
+      "Type",
+      "Description",
+    ]),
+  };
+  for (const locale of ["tr", "ru", "fr", "ja", "ko", "ar"]) {
+    const missing: string[] = [];
+    for (const english of Object.keys(UI_TRANSLATIONS)) {
+      const translated = translateWorkspaceUiText(locale, english, "persian-fallback");
+      if (translated === "persian-fallback") missing.push(english);
+      else if (translated === english && !identical[locale].has(english)) missing.push(english);
+    }
+    assert.deepEqual(missing, [], `${locale} still falls back for: ${missing.slice(0, 10).join(" | ")}`);
   }
-  assert.deepEqual(missing, [], `Turkish still falls back for: ${missing.slice(0, 10).join(" | ")}`);
+});
+
+test("every approved locale formats dates, numbers and sorting with its own conventions", async () => {
+  const { getWorkspaceIntlLocale } = await import("./workspace-localization.js");
+  const expected: Record<string, string> = {
+    fa: "fa-IR",
+    en: "en-GB",
+    de: "de-DE",
+    zh: "zh-CN",
+    ar: "ar-SA",
+    fr: "fr-FR",
+    ja: "ja-JP",
+    ko: "ko-KR",
+    ru: "ru-RU",
+    tr: "tr-TR",
+  };
+  for (const [locale, tag] of Object.entries(expected)) {
+    assert.equal(getWorkspaceIntlLocale(locale), tag, locale);
+    const number = new Intl.NumberFormat(getWorkspaceIntlLocale(locale)).format(1234.5);
+    assert.ok(number.length >= 4, `${locale} number formatting`);
+    const collator = new Intl.Collator(getWorkspaceIntlLocale(locale));
+    const sorted = ["ç", "c", "a"].sort(collator.compare);
+    assert.equal(sorted.length, 3, `${locale} collation`);
+  }
 });
