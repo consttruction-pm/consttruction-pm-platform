@@ -1,5 +1,4 @@
-// French public site copy. Published routes: home, platform, features,
-// solutions, pricing, resources, documentation, contact.
+// French public site copy. Publishes all 25 approved routes.
 export default {
   code: "fr",
   htmlLang: "fr",

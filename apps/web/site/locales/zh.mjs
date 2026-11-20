@@ -1,4 +1,4 @@
-// Chinese (Simplified) public site copy. Published routes: home, platform,
+// Chinese (Simplified) public site copy. Publishes all 25 approved routes.
 // features, solutions, pricing, resources, documentation, contact.
 export default {
   code: "zh",

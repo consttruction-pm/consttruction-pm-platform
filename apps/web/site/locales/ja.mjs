@@ -1,5 +1,4 @@
-// Japanese public site copy. Published routes: home, platform, features,
-// solutions, pricing, resources, documentation, contact.
+// Japanese public site copy. Publishes all 25 approved routes.
 export default {
   code: "ja",
   htmlLang: "ja",

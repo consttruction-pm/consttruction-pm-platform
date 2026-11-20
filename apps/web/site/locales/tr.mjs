@@ -1,5 +1,4 @@
-// Turkish public site copy. Published routes: home, platform, features,
-// solutions, pricing, resources, documentation, contact.
+// Turkish public site copy. Publishes all 25 approved routes.
 export default {
   code: "tr",
   htmlLang: "tr-TR",

@@ -1,5 +1,4 @@
-// Arabic public site copy. Published routes: home, platform, features,
-// solutions, pricing, resources, documentation, contact. The page is RTL.
+// Arabic public site copy. Publishes all 25 approved routes.
 export default {
   code: "ar",
   htmlLang: "ar",
