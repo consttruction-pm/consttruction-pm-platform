@@ -78,7 +78,7 @@ def test_list_returns_stored_steps_in_sequence_order() -> None:
     first = result["steps"][0]
     assert first["weight"] == "25"
     assert first["udf_values"] == {"crew": "C-01"}
-    assert "percent_complete" not in first
+    assert first["percent_complete"] is None
 
 
 def test_empty_collection_is_an_explicit_empty_list() -> None:

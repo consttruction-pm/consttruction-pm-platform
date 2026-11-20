@@ -1,0 +1,90 @@
+{
+  "contract": "cubi-workspace-shell-v26.v1",
+  "baseUrl": "http://127.0.0.1:4195",
+  "gitHead": "f349d474cbfc46b3fa113388b393d0e752b67510",
+  "testedCodeSha": "f349d474cbfc46b3fa113388b393d0e752b67510",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-18T13:08:23.510Z",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "an unauthenticated deep link redirects to login and paints no shell",
+      "status": "pass",
+      "durationMs": 898,
+      "path": "/preview/login",
+      "search": "?next=%2Fapp%3Fview%3Dlive",
+      "personas": 4
+    },
+    {
+      "id": "02",
+      "name": "the login POST returns to the normalized view and mounts one shell",
+      "status": "pass",
+      "durationMs": 2795,
+      "path": "/app",
+      "search": "?view=live&project=preview-rps-01",
+      "shells": 1,
+      "rows": 14
+    },
+    {
+      "id": "03",
+      "name": "an authenticated direct link reuses the session and mounts one shell",
+      "status": "pass",
+      "durationMs": 2076,
+      "path": "/app",
+      "search": "?view=live&project=preview-rps-01",
+      "shells": 1,
+      "rows": 14
+    },
+    {
+      "id": "04",
+      "name": "a full reload keeps the session, project and single shell",
+      "status": "pass",
+      "durationMs": 2320,
+      "path": "/app",
+      "shells": 1,
+      "rows": 14
+    },
+    {
+      "id": "05",
+      "name": "a bare /app link normalizes to the live view and keeps one shell",
+      "status": "pass",
+      "durationMs": 1969,
+      "path": "/app",
+      "search": "?view=live&project=preview-rps-01",
+      "shells": 1
+    },
+    {
+      "id": "06",
+      "name": "a viewer session still gets exactly one shell",
+      "status": "pass",
+      "durationMs": 1949,
+      "path": "/app",
+      "shells": 1,
+      "rows": 14
+    },
+    {
+      "id": "07",
+      "name": "logout returns to login and a later deep link paints no shell",
+      "status": "pass",
+      "durationMs": 621,
+      "path": "/preview/login",
+      "shells": 0,
+      "personas": 4
+    }
+  ],
+  "screenshots": [
+    "01-deep-link-login.png",
+    "02-login-one-shell.png",
+    "03-authenticated-direct-link.png",
+    "04-reload-one-shell.png",
+    "05-bare-app-link.png",
+    "06-viewer-one-shell.png",
+    "07-logout-closed-shell.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "passed": 7,
+  "failed": 0,
+  "finishedAt": "2026-11-18T13:08:36.241Z"
+}

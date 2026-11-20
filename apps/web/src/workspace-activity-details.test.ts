@@ -43,6 +43,10 @@ test("activity details renders an explicit placeholder when nothing is selected"
   assert.match(html, /cp-detail-selected">—<\/span>/);
   assert.match(html, /data-details-prev="" disabled/);
   assert.match(html, /data-details-next="" disabled/);
+  assert.match(html, /data-details-empty-state/);
+  assert.match(html, /No activity is selected\. Select a row in the Activity Table or Gantt/);
+  // The banner is a selection state, not a persistent field annotation.
+  assert.doesNotMatch(render("act-2"), /data-details-empty-state/);
 });
 
 test("activity details renders the sixteen required Version 26 tabs in order plus the CUBI calendar tab", () => {
@@ -420,8 +424,8 @@ test("Steps render stored child records for the activity and omit completion col
         status: "loaded",
         errorCode: null,
         records: [
-          { stepId: "STEP-1", activityId: "act-1", sequence: 1, description: "Strip topsoil", weight: "25", startDate: null, finishDate: null, udfValues: { crew: "civil" } },
-          { stepId: "STEP-2", activityId: "act-2", sequence: 1, description: "Other activity step", weight: null, startDate: null, finishDate: null, udfValues: {} },
+          { stepId: "STEP-1", activityId: "act-1", sequence: 1, description: "Strip topsoil", weight: "25", percentComplete: "40", startDate: null, finishDate: null, udfValues: { crew: "civil" } },
+          { stepId: "STEP-2", activityId: "act-2", sequence: 1, description: "Other activity step", weight: null, percentComplete: null, startDate: null, finishDate: null, udfValues: {} },
         ],
       },
     },
@@ -430,7 +434,7 @@ test("Steps render stored child records for the activity and omit completion col
   assert.match(html, /crew=civil/);
   assert.match(html, /data-details-refresh="steps"/);
   assert.doesNotMatch(html, /Other activity step/);
-  assert.doesNotMatch(html, /Step % Complete/);
+  assert.match(html, /Step % Complete/);
 });
 
 test("Issues are filtered by the stored activity reference and Update History renders revision events", () => {

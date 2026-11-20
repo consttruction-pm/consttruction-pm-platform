@@ -1,0 +1,241 @@
+{
+  "contract": "cubi-activity-filters-v26.v3",
+  "baseUrl": "http://127.0.0.1:4198",
+  "gitHead": "b3df87eb6c517ea9f7e837d31832848e5edcbab6",
+  "testedCodeSha": "b3df87eb6c517ea9f7e837d31832848e5edcbab6",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-18T18:30:49.000Z",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "the manager and editor expose the version 26 surfaces",
+      "status": "pass",
+      "at": "2026-11-18T18:30:53.613Z",
+      "rows": 2,
+      "actions": [
+        "apply",
+        "delete",
+        "cut",
+        "copy",
+        "duplicate",
+        "paste",
+        "make-global",
+        "copy-as-layout"
+      ],
+      "groups": [
+        "default",
+        "global",
+        "layout",
+        "user"
+      ]
+    },
+    {
+      "id": "02",
+      "name": "the editor validates typed and relative dates before Apply",
+      "status": "pass",
+      "at": "2026-11-18T18:30:54.527Z",
+      "matched": 9,
+      "total": 14,
+      "text": "9 of 14 activities match."
+    },
+    {
+      "id": "03",
+      "name": "Add and the High value column save a compound lookahead filter",
+      "status": "pass",
+      "at": "2026-11-18T18:30:58.277Z",
+      "matched": 6,
+      "rows": 6
+    },
+    {
+      "id": "04",
+      "name": "the saved filter and its result survive a full reload",
+      "status": "pass",
+      "at": "2026-11-18T18:31:01.544Z",
+      "rows": 6,
+      "saved": [
+        "in progress",
+        "not started",
+        "completed",
+        "critical",
+        "non critical",
+        "negative float",
+        "milestone",
+        "six-week lookahead"
+      ]
+    },
+    {
+      "id": "05",
+      "name": "Any selected filter highlights instead of removing rows",
+      "status": "pass",
+      "at": "2026-11-18T18:31:03.946Z",
+      "rows": 14,
+      "matched": 7
+    },
+    {
+      "id": "06",
+      "name": "All Activities clears the filter and the highlight",
+      "status": "pass",
+      "at": "2026-11-18T18:31:05.916Z",
+      "rows": 14
+    },
+    {
+      "id": "07",
+      "name": "criterion rows renumber when moved and deleted",
+      "status": "pass",
+      "at": "2026-11-18T18:31:07.578Z",
+      "rows": 3,
+      "saved": 8
+    },
+    {
+      "id": "08",
+      "name": "the editor renders in a Persian RTL cell without overflow",
+      "status": "pass",
+      "at": "2026-11-18T18:31:11.098Z",
+      "dir": "rtl",
+      "matched": 7,
+      "overflow": 0
+    },
+    {
+      "id": "09",
+      "name": "the dialog fits a 1920x1080 cell",
+      "status": "pass",
+      "at": "2026-11-18T18:31:13.986Z",
+      "rows": 2,
+      "overflow": 0
+    },
+    {
+      "id": "10",
+      "name": "list parameters use a typed picker and the saved choice reloads",
+      "status": "pass",
+      "at": "2026-11-18T18:31:21.554Z",
+      "matched": 1,
+      "rows": 1,
+      "saved": 9
+    },
+    {
+      "id": "11",
+      "name": "Optimize removes duplicate and implied criteria without changing matches",
+      "status": "pass",
+      "at": "2026-11-18T18:31:24.607Z",
+      "before": 1,
+      "after": 1,
+      "optimizeStatus": "Removed 1 redundant criteria.",
+      "clean": "No redundant criteria found."
+    },
+    {
+      "id": "12",
+      "name": "Duplicate stores a second filter and keeps the original",
+      "status": "pass",
+      "at": "2026-11-18T18:31:28.887Z",
+      "before": 9,
+      "after": 10,
+      "checked": [
+        "custom:six-week-lookahead-copy"
+      ]
+    },
+    {
+      "id": "13",
+      "name": "Cut moves a saved filter to the clipboard and Paste restores it",
+      "status": "pass",
+      "at": "2026-11-18T18:31:36.624Z",
+      "before": 10,
+      "cut": 9,
+      "pasted": 10,
+      "reloaded": 10
+    },
+    {
+      "id": "14",
+      "name": "Clear empties the filter definition without touching the applied filter",
+      "status": "pass",
+      "at": "2026-11-18T18:31:39.749Z",
+      "overflow": 0,
+      "rows": 6
+    }
+  ],
+  "screenshots": [
+    "01-filters-dialog-en-1366.png",
+    "02-filter-preview-en-1366.png",
+    "03-saved-lookahead-en-1366.png",
+    "04-filter-after-reload-en-1366.png",
+    "05-highlight-critical-in-progress-en-1366.png",
+    "06-filters-dialog-fa-rtl-1280.png",
+    "07-filters-dialog-en-1920.png",
+    "08-filter-choice-picker-en-1366.png",
+    "09-filter-choice-reload-en-1366.png",
+    "10-filter-optimize-en-1366.png",
+    "11-filter-duplicate-en-1366.png",
+    "12-filter-cut-paste-en-1366.png",
+    "13-filter-clear-fa-rtl-1280.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "consoleErrorLog": [],
+  "apiFailures": [],
+  "layoutWrites": [
+    {
+      "requestId": "4708.113",
+      "at": 79261.301245,
+      "url": "http://127.0.0.1:4198/api/projects/preview-rps-01/p6/layouts/project/activity",
+      "revision": 2,
+      "httpStatus": 200,
+      "finishedAt": 79261.345374,
+      "status": "finished"
+    },
+    {
+      "requestId": "4708.239",
+      "at": 79268.138217,
+      "url": "http://127.0.0.1:4198/api/projects/preview-rps-01/p6/layouts/project/activity",
+      "revision": 3,
+      "httpStatus": 200,
+      "finishedAt": 79268.291907,
+      "status": "finished"
+    },
+    {
+      "requestId": "4708.268",
+      "at": 79270.318974,
+      "url": "http://127.0.0.1:4198/api/projects/preview-rps-01/p6/layouts/project/activity",
+      "revision": 4,
+      "httpStatus": 200,
+      "finishedAt": 79270.356193,
+      "status": "finished"
+    },
+    {
+      "requestId": "4708.315",
+      "at": 79282.919187,
+      "url": "http://127.0.0.1:4198/api/projects/preview-rps-01/p6/layouts/project/activity",
+      "revision": 5,
+      "httpStatus": 200,
+      "finishedAt": 79282.94005,
+      "status": "finished"
+    },
+    {
+      "requestId": "4708.441",
+      "at": 79290.980168,
+      "url": "http://127.0.0.1:4198/api/projects/preview-rps-01/p6/layouts/project/activity",
+      "revision": 6,
+      "httpStatus": 200,
+      "finishedAt": 79291.06671,
+      "status": "finished"
+    },
+    {
+      "requestId": "4708.567",
+      "at": 79296.375613,
+      "url": "http://127.0.0.1:4198/api/projects/preview-rps-01/p6/layouts/project/activity",
+      "revision": 7,
+      "httpStatus": 200,
+      "finishedAt": 79296.390658,
+      "status": "finished"
+    },
+    {
+      "requestId": "4708.596",
+      "at": 79297.553925,
+      "url": "http://127.0.0.1:4198/api/projects/preview-rps-01/p6/layouts/project/activity",
+      "revision": 8,
+      "httpStatus": 200,
+      "finishedAt": 79297.688399,
+      "status": "finished"
+    }
+  ],
+  "passed": 14,
+  "failed": 0
+}

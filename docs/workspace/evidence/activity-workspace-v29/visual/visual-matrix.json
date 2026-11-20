@@ -1,0 +1,781 @@
+{
+  "contract": "cubi-visual-matrix-v29.v1",
+  "url": "http://127.0.0.1:4197",
+  "testedCodeSha": "4779f7b4e559244cc5c31d129ddcb1406b8d7123",
+  "capturedAt": "2026-11-18T22:01:14.948Z",
+  "cells": [
+    {
+      "locale": "en",
+      "width": 1280,
+      "height": 720,
+      "theme": "classic",
+      "dir": "ltr",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "rgb(0, 0, 0)"
+      },
+      "header": {
+        "backgroundColor": "rgb(240, 240, 240)",
+        "color": "rgb(17, 17, 17)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true
+    },
+    {
+      "locale": "en",
+      "width": 1280,
+      "height": 720,
+      "theme": "modern",
+      "dir": "ltr",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "rgb(23, 32, 51)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(36, 53, 79)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true
+    },
+    {
+      "locale": "en",
+      "width": 1280,
+      "height": 720,
+      "theme": "graphite",
+      "dir": "ltr",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(26, 39, 54)",
+        "color": "rgb(237, 244, 251)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(237, 244, 251)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true,
+      "contrast": 13.65
+    },
+    {
+      "locale": "en",
+      "width": 1280,
+      "height": 720,
+      "theme": "arctic",
+      "dir": "ltr",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "rgb(23, 52, 67)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(26, 59, 74)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true
+    },
+    {
+      "locale": "en",
+      "width": 1280,
+      "height": 720,
+      "theme": "copper",
+      "dir": "ltr",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "rgb(57, 42, 32)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(69, 49, 38)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true
+    },
+    {
+      "locale": "en",
+      "width": 1280,
+      "height": 720,
+      "theme": "midnight",
+      "dir": "ltr",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(16, 36, 58)",
+        "color": "rgb(234, 244, 255)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(234, 244, 255)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true,
+      "contrast": 14.14
+    },
+    {
+      "locale": "en",
+      "width": 1366,
+      "height": 768,
+      "theme": "classic",
+      "dir": "ltr",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "rgb(0, 0, 0)"
+      },
+      "header": {
+        "backgroundColor": "rgb(240, 240, 240)",
+        "color": "rgb(17, 17, 17)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true
+    },
+    {
+      "locale": "en",
+      "width": 1366,
+      "height": 768,
+      "theme": "modern",
+      "dir": "ltr",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "rgb(23, 32, 51)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(36, 53, 79)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true
+    },
+    {
+      "locale": "en",
+      "width": 1366,
+      "height": 768,
+      "theme": "graphite",
+      "dir": "ltr",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(26, 39, 54)",
+        "color": "rgb(237, 244, 251)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(237, 244, 251)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true,
+      "contrast": 13.65
+    },
+    {
+      "locale": "en",
+      "width": 1366,
+      "height": 768,
+      "theme": "arctic",
+      "dir": "ltr",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "rgb(23, 52, 67)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(26, 59, 74)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true
+    },
+    {
+      "locale": "en",
+      "width": 1366,
+      "height": 768,
+      "theme": "copper",
+      "dir": "ltr",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "rgb(57, 42, 32)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(69, 49, 38)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true
+    },
+    {
+      "locale": "en",
+      "width": 1366,
+      "height": 768,
+      "theme": "midnight",
+      "dir": "ltr",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(16, 36, 58)",
+        "color": "rgb(234, 244, 255)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(234, 244, 255)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true,
+      "contrast": 14.14
+    },
+    {
+      "locale": "en",
+      "width": 1920,
+      "height": 1080,
+      "theme": "classic",
+      "dir": "ltr",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "rgb(0, 0, 0)"
+      },
+      "header": {
+        "backgroundColor": "rgb(240, 240, 240)",
+        "color": "rgb(17, 17, 17)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true
+    },
+    {
+      "locale": "en",
+      "width": 1920,
+      "height": 1080,
+      "theme": "modern",
+      "dir": "ltr",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "rgb(23, 32, 51)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(36, 53, 79)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true
+    },
+    {
+      "locale": "en",
+      "width": 1920,
+      "height": 1080,
+      "theme": "graphite",
+      "dir": "ltr",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(26, 39, 54)",
+        "color": "rgb(237, 244, 251)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(237, 244, 251)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true,
+      "contrast": 13.65
+    },
+    {
+      "locale": "en",
+      "width": 1920,
+      "height": 1080,
+      "theme": "arctic",
+      "dir": "ltr",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "rgb(23, 52, 67)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(26, 59, 74)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true
+    },
+    {
+      "locale": "en",
+      "width": 1920,
+      "height": 1080,
+      "theme": "copper",
+      "dir": "ltr",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "rgb(57, 42, 32)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(69, 49, 38)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true
+    },
+    {
+      "locale": "en",
+      "width": 1920,
+      "height": 1080,
+      "theme": "midnight",
+      "dir": "ltr",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(16, 36, 58)",
+        "color": "rgb(234, 244, 255)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(234, 244, 255)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true,
+      "contrast": 14.14
+    },
+    {
+      "locale": "fa",
+      "width": 1280,
+      "height": 720,
+      "theme": "classic",
+      "dir": "rtl",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "rgb(0, 0, 0)"
+      },
+      "header": {
+        "backgroundColor": "rgb(240, 240, 240)",
+        "color": "rgb(17, 17, 17)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true
+    },
+    {
+      "locale": "fa",
+      "width": 1280,
+      "height": 720,
+      "theme": "modern",
+      "dir": "rtl",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "rgb(23, 32, 51)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(36, 53, 79)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true
+    },
+    {
+      "locale": "fa",
+      "width": 1280,
+      "height": 720,
+      "theme": "graphite",
+      "dir": "rtl",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(26, 39, 54)",
+        "color": "rgb(237, 244, 251)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(237, 244, 251)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true,
+      "contrast": 13.65
+    },
+    {
+      "locale": "fa",
+      "width": 1280,
+      "height": 720,
+      "theme": "arctic",
+      "dir": "rtl",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "rgb(23, 52, 67)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(26, 59, 74)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true
+    },
+    {
+      "locale": "fa",
+      "width": 1280,
+      "height": 720,
+      "theme": "copper",
+      "dir": "rtl",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "rgb(57, 42, 32)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(69, 49, 38)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true
+    },
+    {
+      "locale": "fa",
+      "width": 1280,
+      "height": 720,
+      "theme": "midnight",
+      "dir": "rtl",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(16, 36, 58)",
+        "color": "rgb(234, 244, 255)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(234, 244, 255)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true,
+      "contrast": 14.14
+    },
+    {
+      "locale": "fa",
+      "width": 1366,
+      "height": 768,
+      "theme": "classic",
+      "dir": "rtl",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "rgb(0, 0, 0)"
+      },
+      "header": {
+        "backgroundColor": "rgb(240, 240, 240)",
+        "color": "rgb(17, 17, 17)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true
+    },
+    {
+      "locale": "fa",
+      "width": 1366,
+      "height": 768,
+      "theme": "modern",
+      "dir": "rtl",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "rgb(23, 32, 51)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(36, 53, 79)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true
+    },
+    {
+      "locale": "fa",
+      "width": 1366,
+      "height": 768,
+      "theme": "graphite",
+      "dir": "rtl",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(26, 39, 54)",
+        "color": "rgb(237, 244, 251)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(237, 244, 251)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true,
+      "contrast": 13.65
+    },
+    {
+      "locale": "fa",
+      "width": 1366,
+      "height": 768,
+      "theme": "arctic",
+      "dir": "rtl",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "rgb(23, 52, 67)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(26, 59, 74)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true
+    },
+    {
+      "locale": "fa",
+      "width": 1366,
+      "height": 768,
+      "theme": "copper",
+      "dir": "rtl",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "rgb(57, 42, 32)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(69, 49, 38)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true
+    },
+    {
+      "locale": "fa",
+      "width": 1366,
+      "height": 768,
+      "theme": "midnight",
+      "dir": "rtl",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(16, 36, 58)",
+        "color": "rgb(234, 244, 255)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(234, 244, 255)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true,
+      "contrast": 14.14
+    },
+    {
+      "locale": "fa",
+      "width": 1920,
+      "height": 1080,
+      "theme": "classic",
+      "dir": "rtl",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "rgb(0, 0, 0)"
+      },
+      "header": {
+        "backgroundColor": "rgb(240, 240, 240)",
+        "color": "rgb(17, 17, 17)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true
+    },
+    {
+      "locale": "fa",
+      "width": 1920,
+      "height": 1080,
+      "theme": "modern",
+      "dir": "rtl",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "rgb(23, 32, 51)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(36, 53, 79)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true
+    },
+    {
+      "locale": "fa",
+      "width": 1920,
+      "height": 1080,
+      "theme": "graphite",
+      "dir": "rtl",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(26, 39, 54)",
+        "color": "rgb(237, 244, 251)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(237, 244, 251)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true,
+      "contrast": 13.65
+    },
+    {
+      "locale": "fa",
+      "width": 1920,
+      "height": 1080,
+      "theme": "arctic",
+      "dir": "rtl",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "rgb(23, 52, 67)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(26, 59, 74)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true
+    },
+    {
+      "locale": "fa",
+      "width": 1920,
+      "height": 1080,
+      "theme": "copper",
+      "dir": "rtl",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "rgb(57, 42, 32)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(69, 49, 38)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true
+    },
+    {
+      "locale": "fa",
+      "width": 1920,
+      "height": 1080,
+      "theme": "midnight",
+      "dir": "rtl",
+      "overflow": 0,
+      "row": {
+        "backgroundColor": "rgb(16, 36, 58)",
+        "color": "rgb(234, 244, 255)"
+      },
+      "header": {
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "color": "rgb(234, 244, 255)"
+      },
+      "toolbar": true,
+      "details": true,
+      "gantt": true,
+      "menu": true,
+      "contrast": 14.14
+    }
+  ],
+  "screenshots": [
+    "theme-classic-en-1280x720.png",
+    "theme-modern-en-1280x720.png",
+    "theme-graphite-en-1280x720.png",
+    "theme-arctic-en-1280x720.png",
+    "theme-copper-en-1280x720.png",
+    "theme-midnight-en-1280x720.png",
+    "theme-classic-en-1366x768.png",
+    "theme-modern-en-1366x768.png",
+    "theme-graphite-en-1366x768.png",
+    "theme-arctic-en-1366x768.png",
+    "theme-copper-en-1366x768.png",
+    "theme-midnight-en-1366x768.png",
+    "theme-classic-en-1920x1080.png",
+    "theme-modern-en-1920x1080.png",
+    "theme-graphite-en-1920x1080.png",
+    "theme-arctic-en-1920x1080.png",
+    "theme-copper-en-1920x1080.png",
+    "theme-midnight-en-1920x1080.png",
+    "theme-classic-fa-1280x720.png",
+    "theme-modern-fa-1280x720.png",
+    "theme-graphite-fa-1280x720.png",
+    "theme-arctic-fa-1280x720.png",
+    "theme-copper-fa-1280x720.png",
+    "theme-midnight-fa-1280x720.png",
+    "theme-classic-fa-1366x768.png",
+    "theme-modern-fa-1366x768.png",
+    "theme-graphite-fa-1366x768.png",
+    "theme-arctic-fa-1366x768.png",
+    "theme-copper-fa-1366x768.png",
+    "theme-midnight-fa-1366x768.png",
+    "theme-classic-fa-1920x1080.png",
+    "theme-modern-fa-1920x1080.png",
+    "theme-graphite-fa-1920x1080.png",
+    "theme-arctic-fa-1920x1080.png",
+    "theme-copper-fa-1920x1080.png",
+    "theme-midnight-fa-1920x1080.png"
+  ],
+  "exceptions": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-18T22:01:50.131Z"
+}

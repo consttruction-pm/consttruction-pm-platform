@@ -1,0 +1,252 @@
+{
+  "contract": "cubi-activity-edit-v30.v1",
+  "url": "http://127.0.0.1:4300",
+  "projectId": "preview-rps-01",
+  "testedCodeSha": "894d435678796b00113d0a79855c2d4fd3314183",
+  "runId": "MWNO846G",
+  "startedAt": "2026-11-19T14:54:16.361Z",
+  "steps": [
+    {
+      "feature": "delete",
+      "action": "leaf-activity",
+      "status": "pass"
+    },
+    {
+      "feature": "delete",
+      "action": "linked-activity-refused",
+      "status": "pass"
+    },
+    {
+      "feature": "delete",
+      "action": "stale-revision",
+      "status": "pass",
+      "statusCode": 409
+    },
+    {
+      "feature": "dissolve",
+      "action": "join-predecessor-successor",
+      "status": "pass",
+      "type": "SF"
+    },
+    {
+      "feature": "clipboard",
+      "action": "copy-paste",
+      "status": "pass",
+      "pasted": "V30CLIPMWNO846G-C1"
+    },
+    {
+      "feature": "clipboard",
+      "action": "cut-paste",
+      "status": "pass",
+      "moved": "V30CLIPMWNO846G-C1-C1"
+    },
+    {
+      "feature": "replace",
+      "action": "activity-name",
+      "status": "pass",
+      "preview": "1 activity name(s) will change."
+    },
+    {
+      "feature": "fill-down",
+      "action": "two-selected-rows",
+      "status": "pass",
+      "name": "V30 edit V30FILLMWNO846G"
+    },
+    {
+      "feature": "spell-check",
+      "action": "save-correction",
+      "status": "pass",
+      "name": "Misspelled word MWNO846G"
+    },
+    {
+      "feature": "cleanup",
+      "action": "delete-fixtures",
+      "status": "pass"
+    }
+  ],
+  "dialogs": [
+    {
+      "type": "confirm",
+      "message": "Delete activity V30DELMWNO846G?"
+    },
+    {
+      "type": "confirm",
+      "message": "Delete activity A130?"
+    },
+    {
+      "type": "alert",
+      "message": "Delete activity failed: ACTIVITY_HAS_RELATIONSHIPS"
+    },
+    {
+      "type": "confirm",
+      "message": "Dissolve activity V30MIDMWNO846G and join its predecessors to its successors?"
+    },
+    {
+      "type": "confirm",
+      "message": "Fill Down will copy \"V30 edit V30FILLMWNO846G\" to 1 selected activity name(s)."
+    }
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities",
+      "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"activity_id\":\"V30DELMWNO846G\",\"name\":\"V30 edit V30DELMWNO846G\",\"duration_value\":2,\"duration_unit\":\"working-day\",\"wbs_id\":\"WBS-RPS-PM\",\"activity_type\":\"Task Dependent\",\"status\":\"Not Started\",\"status_code\":\"Planned\",\"percent_complete_type\":\"DURATION\",\"duration_type\":\"Fixed Duration & Units\",\"leveling_priority\":\"Normal\"}"
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities/V30DELMWNO846G",
+      "postData": "{\"expected_revision\":1}"
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities/A130",
+      "postData": "{\"expected_revision\":1}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities",
+      "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"activity_id\":\"V30STALEMWNO846G\",\"name\":\"V30 edit V30STALEMWNO846G\",\"duration_value\":2,\"duration_unit\":\"working-day\",\"wbs_id\":\"WBS-RPS-PM\",\"activity_type\":\"Task Dependent\",\"status\":\"Not Started\",\"status_code\":\"Planned\",\"percent_complete_type\":\"DURATION\",\"duration_type\":\"Fixed Duration & Units\",\"leveling_priority\":\"Normal\"}"
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities/V30STALEMWNO846G",
+      "postData": "{\"expected_revision\":1}"
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities/V30STALEMWNO846G",
+      "postData": "{\"expected_revision\":2}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities",
+      "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"activity_id\":\"V30PREMWNO846G\",\"name\":\"V30 edit V30PREMWNO846G\",\"duration_value\":2,\"duration_unit\":\"working-day\",\"wbs_id\":\"WBS-RPS-PM\",\"activity_type\":\"Task Dependent\",\"status\":\"Not Started\",\"status_code\":\"Planned\",\"percent_complete_type\":\"DURATION\",\"duration_type\":\"Fixed Duration & Units\",\"leveling_priority\":\"Normal\"}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities",
+      "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"activity_id\":\"V30MIDMWNO846G\",\"name\":\"V30 edit V30MIDMWNO846G\",\"duration_value\":2,\"duration_unit\":\"working-day\",\"wbs_id\":\"WBS-RPS-PM\",\"activity_type\":\"Task Dependent\",\"status\":\"Not Started\",\"status_code\":\"Planned\",\"percent_complete_type\":\"DURATION\",\"duration_type\":\"Fixed Duration & Units\",\"leveling_priority\":\"Normal\"}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities",
+      "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"activity_id\":\"V30SUCMWNO846G\",\"name\":\"V30 edit V30SUCMWNO846G\",\"duration_value\":2,\"duration_unit\":\"working-day\",\"wbs_id\":\"WBS-RPS-PM\",\"activity_type\":\"Task Dependent\",\"status\":\"Not Started\",\"status_code\":\"Planned\",\"percent_complete_type\":\"DURATION\",\"duration_type\":\"Fixed Duration & Units\",\"leveling_priority\":\"Normal\"}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/relationships",
+      "postData": "{\"relationship_id\":\"V30R1MWNO846G\",\"predecessor_id\":\"V30PREMWNO846G\",\"successor_id\":\"V30MIDMWNO846G\",\"relationship_type\":\"SF\",\"lag_value\":0,\"lag_unit\":\"working-day\"}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/relationships",
+      "postData": "{\"relationship_id\":\"V30R2MWNO846G\",\"predecessor_id\":\"V30MIDMWNO846G\",\"successor_id\":\"V30SUCMWNO846G\",\"relationship_type\":\"FF\",\"lag_value\":0,\"lag_unit\":\"working-day\"}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities/V30MIDMWNO846G/dissolve",
+      "postData": "{\"expected_revision\":1}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities",
+      "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"activity_id\":\"V30CLIPMWNO846G\",\"name\":\"V30 edit V30CLIPMWNO846G\",\"duration_value\":2,\"duration_unit\":\"working-day\",\"wbs_id\":\"WBS-RPS-PM\",\"activity_type\":\"Task Dependent\",\"status\":\"Not Started\",\"status_code\":\"Planned\",\"percent_complete_type\":\"DURATION\",\"duration_type\":\"Fixed Duration & Units\",\"leveling_priority\":\"Normal\"}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities/",
+      "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"activity_id\":\"V30CLIPMWNO846G-C1\",\"name\":\"V30 edit V30CLIPMWNO846G\",\"duration_value\":\"2\",\"duration_unit\":\"working-day\",\"wbs_id\":\"WBS-RPS-PM\",\"activity_type\":\"Task Dependent\",\"status\":\"Not Started\",\"status_code\":\"Planned\",\"percent_complete_type\":\"DURATION\",\"duration_type\":\"Fixed Duration & Units\",\"cost_account_id\":null,\"leveling_priority\":\"Normal\"}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities/",
+      "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"activity_id\":\"V30CLIPMWNO846G-C1-C1\",\"name\":\"V30 edit V30CLIPMWNO846G\",\"duration_value\":\"2\",\"duration_unit\":\"working-day\",\"wbs_id\":\"WBS-RPS-PM\",\"activity_type\":\"Task Dependent\",\"status\":\"Not Started\",\"status_code\":\"Planned\",\"percent_complete_type\":\"DURATION\",\"duration_type\":\"Fixed Duration & Units\",\"cost_account_id\":null,\"leveling_priority\":\"Normal\"}"
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities/V30CLIPMWNO846G-C1",
+      "postData": "{\"expected_revision\":1}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities",
+      "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"activity_id\":\"V30REPMWNO846G\",\"name\":\"V30 edit V30REPMWNO846G\",\"duration_value\":2,\"duration_unit\":\"working-day\",\"wbs_id\":\"WBS-RPS-PM\",\"activity_type\":\"Task Dependent\",\"status\":\"Not Started\",\"status_code\":\"Planned\",\"percent_complete_type\":\"DURATION\",\"duration_type\":\"Fixed Duration & Units\",\"leveling_priority\":\"Normal\"}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities",
+      "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"activity_id\":\"V30FILLMWNO846G\",\"name\":\"V30 edit V30FILLMWNO846G\",\"duration_value\":2,\"duration_unit\":\"working-day\",\"wbs_id\":\"WBS-RPS-PM\",\"activity_type\":\"Task Dependent\",\"status\":\"Not Started\",\"status_code\":\"Planned\",\"percent_complete_type\":\"DURATION\",\"duration_type\":\"Fixed Duration & Units\",\"leveling_priority\":\"Normal\"}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities",
+      "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"activity_id\":\"V30FILDMWNO846G\",\"name\":\"V30 edit V30FILDMWNO846G\",\"duration_value\":2,\"duration_unit\":\"working-day\",\"wbs_id\":\"WBS-RPS-PM\",\"activity_type\":\"Task Dependent\",\"status\":\"Not Started\",\"status_code\":\"Planned\",\"percent_complete_type\":\"DURATION\",\"duration_type\":\"Fixed Duration & Units\",\"leveling_priority\":\"Normal\"}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities",
+      "postData": "{\"contract_version\":\"p6-activity-master-api.v1\",\"activity_id\":\"V30SPLMWNO846G\",\"name\":\"V30 edit V30SPLMWNO846G\",\"duration_value\":2,\"duration_unit\":\"working-day\",\"wbs_id\":\"WBS-RPS-PM\",\"activity_type\":\"Task Dependent\",\"status\":\"Not Started\",\"status_code\":\"Planned\",\"percent_complete_type\":\"DURATION\",\"duration_type\":\"Fixed Duration & Units\",\"leveling_priority\":\"Normal\"}"
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/relationships/REL-DISSOLVE-6DA8A13DCD644D27",
+      "postData": "{\"expected_revision\":1}"
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities/V30PREMWNO846G",
+      "postData": "{\"expected_revision\":1}"
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities/V30SUCMWNO846G",
+      "postData": "{\"expected_revision\":1}"
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities/V30CLIPMWNO846G",
+      "postData": "{\"expected_revision\":1}"
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities/V30CLIPMWNO846G-C1-C1",
+      "postData": "{\"expected_revision\":1}"
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities/V30REPMWNO846G",
+      "postData": "{\"expected_revision\":3}"
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities/V30FILLMWNO846G",
+      "postData": "{\"expected_revision\":1}"
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities/V30FILDMWNO846G",
+      "postData": "{\"expected_revision\":2}"
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4300/api/projects/preview-rps-01/p6/activities/V30SPLMWNO846G",
+      "postData": "{\"expected_revision\":3}"
+    }
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "screenshots": [
+    "screenshots/01-delete-selected-en-1366.png",
+    "screenshots/02-delete-complete-en-1366.png",
+    "screenshots/03-dissolve-ready-en-1366.png",
+    "screenshots/04-dissolve-complete-en-1366.png",
+    "screenshots/05-paste-en-1366.png",
+    "screenshots/06-cut-paste-en-1366.png"
+  ],
+  "createdActivityIds": [],
+  "createdRelationshipIds": [
+    "REL-DISSOLVE-6DA8A13DCD644D27"
+  ],
+  "finishedAt": "2026-11-19T14:55:29.425Z",
+  "result": "pass"
+}

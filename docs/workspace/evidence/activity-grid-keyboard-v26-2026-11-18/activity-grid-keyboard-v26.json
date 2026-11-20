@@ -1,0 +1,104 @@
+{
+  "contract": "cubi-activity-grid-keyboard-v26.v1",
+  "baseUrl": "http://127.0.0.1:4193",
+  "gitHead": "f96478fedc0c507147719dde2647ca14c19aa0eb",
+  "testedCodeSha": "f96478fedc0c507147719dde2647ca14c19aa0eb",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-18T06:53:00.891Z",
+  "expected": {
+    "total": 14
+  },
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "A click selects one row, focuses it and moves the single tab stop",
+      "status": "pass",
+      "at": "2026-11-18T06:53:05.940Z",
+      "anchor": "A100",
+      "second": "A100",
+      "tabStops": [
+        "A100"
+      ]
+    },
+    {
+      "id": "02",
+      "name": "ArrowDown and ArrowUp walk the displayed order and keep selection, focus and tab stop together",
+      "status": "pass",
+      "at": "2026-11-18T06:53:07.598Z",
+      "startIndex": 2,
+      "downIndex": 3,
+      "upIndex": 2,
+      "rows": 21
+    },
+    {
+      "id": "03",
+      "name": "Shift+Arrow extends from the anchor while Ctrl+Arrow only moves focus",
+      "status": "pass",
+      "at": "2026-11-18T06:53:09.171Z",
+      "shifted": 2,
+      "counter": 2,
+      "ctrlFocus": 4
+    },
+    {
+      "id": "04",
+      "name": "Home, End and PageDown land on the computed row and select only activity targets",
+      "status": "pass",
+      "at": "2026-11-18T06:53:12.155Z",
+      "end": 20,
+      "home": 0,
+      "pageDown": 12,
+      "pageUp": 2
+    },
+    {
+      "id": "05",
+      "name": "Collapsed branches leave the arrow sequence entirely",
+      "status": "pass",
+      "at": "2026-11-18T06:53:14.729Z",
+      "band": "WBS-RPS-PM",
+      "remainingRows": 11,
+      "remainingBands": 7,
+      "from": 3,
+      "to": 4
+    },
+    {
+      "id": "06",
+      "name": "Enter on the focused row selects it and the details pane follows",
+      "status": "pass",
+      "at": "2026-11-18T06:53:16.135Z",
+      "activity": "A110",
+      "details": true
+    },
+    {
+      "id": "07",
+      "name": "Persian RTL keeps the same vertical order",
+      "status": "pass",
+      "at": "2026-11-18T06:53:19.965Z",
+      "from": 2,
+      "down": 3,
+      "up": 2
+    },
+    {
+      "id": "08",
+      "name": "Grid navigation never touches schedule input",
+      "status": "pass",
+      "at": "2026-11-18T06:53:19.990Z",
+      "activities": 14,
+      "writes": 0
+    }
+  ],
+  "screenshots": [
+    "01-click-focus.png",
+    "02-arrow-walk.png",
+    "03-shift-range.png",
+    "04-home-end-page.png",
+    "05-collapsed-sequence.png",
+    "07-rtl-navigation.png"
+  ],
+  "scheduleMutations": [],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-18T06:53:19.990Z",
+  "passed": 8,
+  "failed": 0
+}

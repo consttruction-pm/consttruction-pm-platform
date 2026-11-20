@@ -197,7 +197,12 @@ export function readProjectWorkspaceWindows(
       parsed.filter((value): value is string => typeof value === "string").slice(0, MAX_OPEN_WINDOWS),
     );
     if (!stored.length) return fallbackWindows;
-    return normalizeOpenWindows(stored);
+    const normalized = normalizeOpenWindows(stored);
+    // A keyboard or drag reorder writes the shared order as well as the set.
+    // Applying it here keeps the per-project restore consistent with the
+    // reorder the user just saw, instead of reverting on reload.
+    const savedOrder = readWorkspaceWindowOrder(storage);
+    return savedOrder.length ? applyWorkspaceWindowOrder(normalized, savedOrder) : normalized;
   } catch {
     return fallbackWindows;
   }

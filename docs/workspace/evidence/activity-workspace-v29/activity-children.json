@@ -1,0 +1,195 @@
+{
+  "contract": "cubi-activity-children-v29.v1",
+  "url": "http://127.0.0.1:4197",
+  "testedCodeSha": "4779f7b4e559244cc5c31d129ddcb1406b8d7123",
+  "capturedAt": "2026-11-18T21:59:20.340Z",
+  "steps": [
+    {
+      "feature": "codes",
+      "action": "assign",
+      "status": "pass"
+    },
+    {
+      "feature": "codes",
+      "action": "reload",
+      "status": "pass"
+    },
+    {
+      "feature": "codes",
+      "action": "remove",
+      "status": "pass"
+    },
+    {
+      "feature": "notebook",
+      "action": "add+sanitise",
+      "status": "pass"
+    },
+    {
+      "feature": "notebook",
+      "action": "reload",
+      "status": "pass"
+    },
+    {
+      "feature": "notebook",
+      "action": "modify",
+      "status": "pass"
+    },
+    {
+      "feature": "notebook",
+      "action": "delete",
+      "status": "pass"
+    },
+    {
+      "feature": "steps",
+      "action": "add",
+      "status": "pass"
+    },
+    {
+      "feature": "steps",
+      "action": "reload",
+      "status": "pass",
+      "percentComplete": "10"
+    },
+    {
+      "feature": "steps",
+      "action": "modify",
+      "status": "pass",
+      "percentComplete": "60"
+    },
+    {
+      "feature": "steps",
+      "action": "move",
+      "status": "pass"
+    },
+    {
+      "feature": "steps",
+      "action": "delete",
+      "status": "pass"
+    },
+    {
+      "feature": "wps-docs",
+      "action": "link",
+      "status": "pass",
+      "documentId": "DOC-V29-1795036342914"
+    },
+    {
+      "feature": "wps-docs",
+      "action": "reload",
+      "status": "pass"
+    },
+    {
+      "feature": "wps-docs",
+      "action": "unlink",
+      "status": "pass"
+    },
+    {
+      "feature": "alt-sequences",
+      "action": "Alt+F,N",
+      "status": "pass"
+    }
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/open",
+      "postData": null
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/documents",
+      "postData": "{\"document_id\":\"DOC-V29-1795039164122\",\"resource_type\":\"drawing\",\"title\":\"V29 acceptance drawing\",\"status\":\"draft\",\"storage_ref\":\"object://documents/DOC-V29-1795039164122/rev-1\",\"content_hash\":\"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"linked_entity_refs\":[],\"idempotency_key\":\"v29-DOC-V29-1795039164122\"}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A130/codes",
+      "postData": "{\"code_type\":\"AREA\",\"code_value\":\"ZONE-E2E\",\"description\":\"V29 acceptance\"}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/open",
+      "postData": null
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A130/codes/26918e1c-6226-4a11-8161-0a6e142b9fde",
+      "postData": "{}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A130/notebook",
+      "postData": "{\"topic_name\":\"V29 Topic\",\"description\":\"<p>Scope <b>agreed</b></p><script>alert(1)</script>\"}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/open",
+      "postData": null
+    },
+    {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A130/notebook/e9889512-f88d-47dc-bfe7-a41c72a3a084",
+      "postData": "{\"topic_name\":\"V29 Topic edited\",\"description\":\"<p>Scope <b>agreed</b></p>alert(1)\",\"expected_record_revision\":1}"
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A130/notebook/e9889512-f88d-47dc-bfe7-a41c72a3a084",
+      "postData": "{\"expected_record_revision\":2}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A130/steps",
+      "postData": "{\"description\":\"V29 step\",\"weight\":\"15\",\"percent_complete\":\"10\",\"sequence\":null}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/open",
+      "postData": null
+    },
+    {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A130/steps/STEP-cd1bdc3c-3b30-4516-9060-ef1fc4a26414",
+      "postData": "{\"description\":\"V29 step\",\"weight\":\"15\",\"percent_complete\":\"60\",\"sequence\":7}"
+    },
+    {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A130/steps/STEP-cd1bdc3c-3b30-4516-9060-ef1fc4a26414",
+      "postData": "{\"description\":null,\"weight\":null,\"percent_complete\":null,\"sequence\":6}"
+    },
+    {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A130/steps/STEP-A130-03",
+      "postData": "{\"description\":null,\"weight\":null,\"percent_complete\":null,\"sequence\":7}"
+    },
+    {
+      "method": "DELETE",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/p6/activities/A130/steps/STEP-cd1bdc3c-3b30-4516-9060-ef1fc4a26414",
+      "postData": "{}"
+    },
+    {
+      "method": "PUT",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/documents/DOC-V29-1795036342914",
+      "postData": "{\"contract_version\":\"1.0\",\"document_id\":\"DOC-V29-1795036342914\",\"resource_type\":\"drawing\",\"title\":\"V29 acceptance drawing\",\"status\":\"draft\",\"storage_ref\":\"object://documents/DOC-V29-1795036342914/rev-1\",\"content_hash\":\"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"linked_entity_refs\":[\"A130\"],\"expected_revision\":5}"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/open",
+      "postData": null
+    },
+    {
+      "method": "PUT",
+      "url": "http://127.0.0.1:4197/api/projects/preview-rps-01/documents/DOC-V29-1795036342914",
+      "postData": "{\"contract_version\":\"1.0\",\"document_id\":\"DOC-V29-1795036342914\",\"resource_type\":\"drawing\",\"title\":\"V29 acceptance drawing\",\"status\":\"draft\",\"storage_ref\":\"object://documents/DOC-V29-1795036342914/rev-1\",\"content_hash\":\"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"linked_entity_refs\":[],\"expected_revision\":6}"
+    }
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "screenshots": [
+    "01-codes-assigned-en-1366.png",
+    "02-notebook-topic-en-1366.png",
+    "03-step-added-en-1366.png",
+    "04-document-linked-en-1366.png",
+    "05-alt-sequence-en-1366.png"
+  ],
+  "createdDocumentId": "DOC-V29-1795039164122",
+  "finishedAt": "2026-11-18T21:59:56.750Z"
+}

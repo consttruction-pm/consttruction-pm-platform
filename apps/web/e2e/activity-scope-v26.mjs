@@ -1088,7 +1088,7 @@ async function main() {
 
   log(`\nScenarios: ${scenarios.filter((entry) => entry.status === "pass").length} passed, ${scenarios.filter((entry) => entry.status === "fail").length} failed`);
   log(`Evidence: ${join(evidenceDir, "activity-scope-v26.json")}`);
-  await chrome.close?.();
+  await chrome.stop?.();
 }
 
 main().catch((error) => {

@@ -562,9 +562,11 @@ test("full rerenders do not accumulate delegated workspace listeners", () => {
   renderMainWorkspace(container as unknown as HTMLElement, base);
   renderMainWorkspace(container as unknown as HTMLElement, { ...base, locale: "fa", direction: "rtl" });
 
+  // The attachment dialog adds one delegated click surface; rerenders must
+  // register the same set instead of accumulating it.
   assert.deepEqual(registrations, [
     "click", "click", "contextmenu", "pointerdown", "keydown",
-    "scroll", "focusout", "toggle", "pointerdown", "input", "submit", "click", "contextmenu", "dblclick", "keydown", "change",
+    "scroll", "focusout", "toggle", "pointerdown", "input", "click", "submit", "click", "contextmenu", "dblclick", "keydown", "change",
   ]);
 });
 
@@ -2215,8 +2217,8 @@ test("the right rail leads with one Add command menu and never repeats left navi
   assert.match(rail, /data-rail-action="details"/);
   assert.match(rail, /data-rail-action="notebook"/);
   assert.match(rail, /data-rail-action="comments"/);
-  // All eighteen Version 26 families are registered on the right rail.
-  assert.equal((rail.match(/data-tool-family="/g) ?? []).length, 18);
+  // All Version 26 families are registered on the right rail.
+  assert.equal((rail.match(/data-tool-family="/g) ?? []).length, 21);
   assert.match(rail, /data-tool-family="project-tools"/);
   assert.match(rail, /data-tool-family="schedule"/);
   // No write capability means every command stays visible but disabled with a

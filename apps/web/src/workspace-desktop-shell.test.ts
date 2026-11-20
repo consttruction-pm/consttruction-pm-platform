@@ -1,11 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  ALT_SEQUENCE_TIMEOUT_MS,
+  ALT_SEQUENCES,
   WINDOW_TITLES,
+  advanceAltSequence,
   getDesktopMenus,
   getDesktopShortcuts,
   getDesktopToolbar,
   getDesktopToolbarGroups,
+  matchAltSequence,
   matchDesktopShortcut,
   renderDesktopShell,
   shortcutUnavailableReason,
@@ -429,11 +433,12 @@ test("toolbar commands are real and track layout history and selection", () => {
   const toolbar = getDesktopToolbar(shellState());
   assert.ok(toolbar.length >= 8);
   assert.ok(toolbar.every((item) => item.command || item.window || item.fullscreen || item.disabledReason));
-  // Clipboard and baseline families have no service yet; they say so instead
-  // of rendering an enabled button that would do nothing.
-  for (const id of ["toolbar.cut", "toolbar.copy", "toolbar.paste", "toolbar.baseline"]) {
-    assert.ok(toolbar.find((item) => item.id === id)?.disabledReason, `${id} must explain its missing service`);
-  }
+  // The clipboard needs a selection and, for Paste, a copied source; both
+  // states are explicit instead of a permanently disabled button.
+  assert.equal(toolbar.find((item) => item.id === "toolbar.cut")?.command, "edit.cut");
+  assert.equal(toolbar.find((item) => item.id === "toolbar.copy")?.command, "edit.copy");
+  assert.ok(toolbar.find((item) => item.id === "toolbar.paste")?.disabledReason, "Paste without a clipboard must explain itself");
+  assert.ok(toolbar.find((item) => item.id === "toolbar.baseline")?.disabledReason, "the baseline family has no service yet");
   assert.ok(toolbar.filter((item) => !item.disabledReason).length > 8);
   const group = toolbar.find((item) => item.id === "toolbar.group-wbs");
   assert.equal(group?.active, true);
@@ -531,7 +536,7 @@ test("the shortcut matcher honours every modifier and the availability gate", ()
   assert.equal(match({ key: "n", ctrlKey: true }), "shortcut.new");
   assert.equal(match({ key: "n" }), undefined, "an unmodified letter is typing, not a command");
   assert.equal(match({ key: "n", ctrlKey: true, shiftKey: true }), undefined);
-  assert.equal(match({ key: "F9", shiftKey: true }), "shortcut.schedule-options");
+  assert.equal(match({ key: "F9", shiftKey: true }), "shortcut.leveling");
   assert.equal(match({ key: "1", altKey: true }), "shortcut.window.schedule");
   assert.equal(match({ key: "NumpadAdd", code: "NumpadAdd", ctrlKey: true }), "shortcut.expand-all");
 
@@ -541,10 +546,14 @@ test("the shortcut matcher honours every modifier and the availability gate", ()
   const reason = shortcutUnavailableReason(expand, { ...capable, groupByWbs: false });
   assert.ok(reason?.en && reason.fa, "an unavailable shortcut must explain itself");
   const cut = getDesktopShortcuts().find((item) => item.id === "shortcut.cut");
-  assert.ok(cut && shortcutUnavailableReason(cut, capable)?.en);
+  assert.ok(cut && shortcutUnavailableReason(cut, capable) === null);
+  assert.ok(shortcutUnavailableReason(cut!, { ...capable, hasSelectedActivity: false })?.en);
+  const paste = getDesktopShortcuts().find((item) => item.id === "shortcut.paste");
+  assert.ok(paste && shortcutUnavailableReason(paste, capable)?.en, "Paste needs a copied source");
+  assert.equal(shortcutUnavailableReason(paste!, { ...capable, hasActivityClipboard: true }), null);
 });
 
-test("documented but unserviced shortcuts never dispatch a command", () => {
+test("unserviced shortcuts never dispatch while serviced ones do", () => {
   const recorded = recordHost();
   const dispatched: string[] = [];
   renderDesktopShell(recorded.host, shellState(), {
@@ -559,9 +568,9 @@ test("documented but unserviced shortcuts never dispatch a command", () => {
   press({ key: "F7", target: null, preventDefault: () => {} });
   press({ key: "F10", target: null, preventDefault: () => {} });
   press({ key: "x", ctrlKey: true, target: null, preventDefault: () => {} });
-  assert.deepEqual(dispatched, []);
+  assert.deepEqual(dispatched, ["dialog.spell-check", "edit.cut"]);
   press({ key: "F5", target: null, preventDefault: () => {} });
-  assert.deepEqual(dispatched, ["workspace.refresh"]);
+  assert.deepEqual(dispatched, ["dialog.spell-check", "edit.cut", "workspace.refresh"]);
 });
 
 test("typing in a field swallows every shell shortcut", () => {
@@ -743,10 +752,15 @@ test("Edit menu exposes Select All, Link/Unlink and honest long-tail entries", (
   assert.equal(item("edit.select-all")?.disabledReason, undefined);
   assert.equal(item("edit.link")?.command, "edit.link");
   assert.equal(item("edit.unlink")?.command, "edit.unlink");
-  // Fill Down and Dissolve have no safe write contract yet, so they must state
-  // the CUBI equivalent instead of pretending a button is enough.
-  assert.match(item("edit.fill-down")?.disabledReason?.en ?? "", /Activity Details/);
-  assert.match(item("edit.dissolve")?.disabledReason?.en ?? "", /server contract/);
+  assert.equal(item("edit.delete")?.command, "edit.delete");
+  assert.equal(item("edit.delete")?.shortcut, "Del");
+  assert.equal(item("edit.delete")?.disabledReason, undefined);
+  assert.equal(item("edit.dissolve")?.command, "edit.dissolve");
+  // Fill Down copies the first selected name down the selection; Dissolve needs
+  // both a predecessor and a successor, so it states that precondition.
+  assert.equal(item("edit.fill-down")?.command, "edit.fill-down");
+  assert.equal(item("edit.fill-down")?.disabledReason, undefined);
+  assert.match(item("edit.dissolve")?.disabledReason?.en ?? "", /predecessor and a successor/);
   assert.match(
     getDesktopMenus(shellState()).find((menu) => menu.id === "project")?.items
       .find((entry) => entry.id === "project.additional-activities")?.disabledReason?.en ?? "",
@@ -775,13 +789,15 @@ test("the edit and display families own Select All, Link/Unlink and Collapse To 
   assert.equal(byId.get("toolbar.link")?.command, "edit.link");
   assert.equal(byId.get("toolbar.unlink")?.command, "edit.unlink");
   assert.equal(byId.get("toolbar.collapse-to")?.command, "view.collapse-to");
-  assert.ok(byId.get("toolbar.fill-down")?.disabledReason);
+  assert.equal(byId.get("toolbar.fill-down")?.command, "edit.fill-down");
+  assert.equal(byId.get("toolbar.dissolve")?.command, "edit.dissolve");
   assert.ok(byId.get("toolbar.dissolve")?.disabledReason);
-  for (const command of ["edit.select-all", "edit.link", "edit.unlink", "view.collapse-to"]) {
+  for (const command of ["edit.select-all", "edit.link", "edit.unlink", "edit.fill-down", "view.collapse-to"]) {
     assert.equal(toolbar.filter((item) => item.command === command).length, 1, `${command} must appear once`);
   }
   const noPair = getDesktopToolbar(shellState({ hasMultiSelection: false }));
   assert.match(noPair.find((item) => item.id === "toolbar.unlink")?.disabledReason?.en ?? "", /at least two activities/i);
+  assert.match(noPair.find((item) => item.id === "toolbar.fill-down")?.disabledReason?.en ?? "", /at least two activities/i);
   const noRows = getDesktopToolbar(shellState({ hasActivities: false }));
   assert.match(noRows.find((item) => item.id === "toolbar.select-all")?.disabledReason?.en ?? "", /Load activities/i);
 });
@@ -798,4 +814,35 @@ test("Ctrl+A selects all visible activities through the shortcut catalogue", () 
     /Load activities/i,
   );
   assert.equal(shortcutUnavailableReason(shortcut, shellState().capabilities), null);
+});
+
+test("the recorded two-step Alt sequences are unique and either run or explain themselves", () => {
+  assert.equal(new Set(ALT_SEQUENCES.map((item) => `${item.first}${item.second}`)).size, ALT_SEQUENCES.length);
+  for (const binding of ALT_SEQUENCES) {
+    assert.match(binding.keys, /^Alt\+[A-Z], [A-Z]$/);
+    assert.ok(binding.label.en && binding.label.fa);
+    assert.ok(binding.command || binding.window || binding.unavailable, `${binding.id} must act or state why not`);
+  }
+  assert.equal(matchAltSequence("f", "n")?.window, "project");
+  assert.equal(matchAltSequence("p", "a")?.window, "schedule");
+  assert.equal(matchAltSequence("e", "t")?.unavailable?.en.length !== 0, true);
+  assert.equal(matchAltSequence("v", "o")?.unavailable?.en.length !== 0, true);
+  assert.equal(matchAltSequence("x", "q"), null);
+});
+
+test("the Alt dispatcher waits, times out, cancels on Escape and ignores typing", () => {
+  assert.deepEqual(advanceAltSequence(null, { key: "f", altKey: true }, 1000), { status: "pending", first: "f" });
+  assert.equal(advanceAltSequence(null, { key: "f" }, 1000).status, "none", "unmodified letters are typing");
+  assert.deepEqual(
+    advanceAltSequence({ first: "f", at: 1000 }, { key: "n" }, 1500),
+    { status: "matched", binding: matchAltSequence("f", "n") },
+  );
+  assert.deepEqual(advanceAltSequence({ first: "f", at: 1000 }, { key: "n" }, 1000 + ALT_SEQUENCE_TIMEOUT_MS + 1), { status: "expired" });
+  assert.deepEqual(advanceAltSequence({ first: "h", at: 1000 }, { key: "Escape" }, 1100), { status: "none" });
+});
+
+test("Alt+H then L opens shortcuts; Alt+H then O reports unavailable online help", () => {
+  assert.equal(matchAltSequence("h", "l")?.command, "help.shortcuts");
+  assert.equal(matchAltSequence("h", "a")?.command, "help.about");
+  assert.ok(matchAltSequence("h", "o")?.unavailable?.en);
 });

@@ -1,3 +1,4 @@
+import json
 from dataclasses import replace
 from datetime import date
 from decimal import Decimal
@@ -498,3 +499,109 @@ def test_activity_master_migrates_an_existing_table_with_a_null_cost_account():
     restored = repo.get(scope(), "A-LEGACY")
     assert restored is not None
     assert restored.cost_account_id is None
+
+
+def _renumber_reference_fixture(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        "CREATE TABLE relationship_master (tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, "
+        "project_revision INTEGER NOT NULL, relationship_id TEXT NOT NULL, predecessor_id TEXT NOT NULL, "
+        "successor_id TEXT NOT NULL, relationship_type TEXT NOT NULL, lag_value TEXT NOT NULL, "
+        "lag_unit TEXT NOT NULL, record_revision INTEGER NOT NULL, "
+        "PRIMARY KEY (tenant_id, project_id, relationship_id))"
+    )
+    connection.execute(
+        "CREATE TABLE p6_activity_code_assignment (tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, "
+        "project_revision INTEGER NOT NULL, assignment_id TEXT NOT NULL, activity_id TEXT NOT NULL, "
+        "code_type TEXT NOT NULL, code_value TEXT NOT NULL, description TEXT, record_revision INTEGER NOT NULL, "
+        "created_at TEXT NOT NULL, updated_at TEXT NOT NULL, "
+        "PRIMARY KEY (tenant_id, project_id, assignment_id))"
+    )
+    connection.execute(
+        "CREATE TABLE p6_activity_step (tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, "
+        "project_revision INTEGER NOT NULL, step_id TEXT NOT NULL, activity_id TEXT NOT NULL, "
+        "sequence INTEGER NOT NULL, description TEXT NOT NULL, weight REAL NOT NULL, "
+        "percent_complete REAL NOT NULL, record_revision INTEGER NOT NULL, "
+        "PRIMARY KEY (tenant_id, project_id, step_id))"
+    )
+    connection.execute(
+        "CREATE TABLE p6_expense (tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, "
+        "project_revision INTEGER NOT NULL, expense_id TEXT NOT NULL, name TEXT NOT NULL, "
+        "category TEXT NOT NULL, activity_id TEXT, wbs_id TEXT, expense_date TEXT, planned_cost TEXT, "
+        "actual_cost TEXT, remaining_cost TEXT, currency TEXT, note TEXT, "
+        "PRIMARY KEY (tenant_id, project_id, expense_id))"
+    )
+    connection.execute(
+        "CREATE TABLE project_documents (tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, "
+        "document_id TEXT NOT NULL, document_json TEXT NOT NULL, revision INTEGER NOT NULL DEFAULT 1, "
+        "PRIMARY KEY (tenant_id, project_id, document_id))"
+    )
+    connection.execute(
+        "INSERT INTO relationship_master VALUES "
+        "('T-1','P-1',7,'R-1','A-1','A-2','FS','0','working-day',1)"
+    )
+    connection.execute(
+        "INSERT INTO p6_activity_code_assignment VALUES "
+        "('T-1','P-1',7,'CODE-1','A-1','AREA','CIVIL',NULL,1,'2026-01-01','2026-01-01')"
+    )
+    connection.execute(
+        "INSERT INTO p6_activity_step VALUES "
+        "('T-1','P-1',7,'STEP-1','A-1',1,'Pour',1,0,1)"
+    )
+    connection.execute(
+        "INSERT INTO p6_expense VALUES "
+        "('T-1','P-1',7,'EXP-1','Formwork','labor','A-1',NULL,NULL,'100','0','100','USD',NULL)"
+    )
+    connection.execute(
+        "INSERT INTO project_documents VALUES ('T-1','P-1','DOC-1',?,1)",
+        (json.dumps({"document_id": "DOC-1", "linked_entity_refs": ["A-1", "W-1"]}),),
+    )
+
+
+def test_activity_master_renumber_moves_every_reference_and_can_reuse_ids():
+    connection = sqlite3.connect(":memory:")
+    repo = SQLiteActivityMasterRepository(connection)
+    repo.save(replace(activity(), name="Foundation activity"))
+    repo.save(replace(activity(), activity_id="A-2", name="Second activity"))
+    _renumber_reference_fixture(connection)
+
+    result = repo.renumber(scope(), (("A-1", "A-20", 1), ("A-2", "A-1", 1)))
+
+    assert result["renumbered"] == 2
+    assert result["references_updated"] >= 5
+    assert repo.get(scope(), "A-2") is None
+    assert repo.get(scope(), "A-20").name == "Foundation activity"
+    # The ID vacated by the first activity is now owned by the second one.
+    assert repo.get(scope(), "A-1").name == "Second activity"
+    assert connection.execute(
+        "SELECT predecessor_id, successor_id FROM relationship_master WHERE relationship_id='R-1'"
+    ).fetchone() == ("A-20", "A-1")
+    assert connection.execute(
+        "SELECT activity_id FROM p6_activity_code_assignment WHERE assignment_id='CODE-1'"
+    ).fetchone()[0] == "A-20"
+    assert connection.execute(
+        "SELECT activity_id FROM p6_activity_step WHERE step_id='STEP-1'"
+    ).fetchone()[0] == "A-20"
+    assert connection.execute(
+        "SELECT activity_id FROM p6_expense WHERE expense_id='EXP-1'"
+    ).fetchone()[0] == "A-20"
+    document = json.loads(
+        connection.execute(
+            "SELECT document_json FROM project_documents WHERE document_id='DOC-1'"
+        ).fetchone()[0]
+    )
+    assert document["linked_entity_refs"] == ["A-20", "W-1"]
+
+
+def test_activity_master_renumber_rejects_collisions_and_stale_revisions():
+    connection = sqlite3.connect(":memory:")
+    repo = SQLiteActivityMasterRepository(connection)
+    repo.save(activity())
+    repo.save(replace(activity(), activity_id="A-2", name="Second activity"))
+
+    with pytest.raises(ActivityPersistenceError, match="RENUMBER_TARGET_EXISTS"):
+        repo.renumber(scope(), (("A-1", "A-2", 1),))
+    with pytest.raises(ActivityPersistenceError, match="REVISION_CONFLICT"):
+        repo.renumber(scope(), (("A-1", "A-10", 9),))
+
+    assert repo.get(scope(), "A-1") is not None
+    assert repo.get(scope(), "A-10") is None

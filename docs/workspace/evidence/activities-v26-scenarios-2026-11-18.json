@@ -1,0 +1,679 @@
+{
+  "contract": "cubi-activities-v26-scenarios.v1",
+  "baseUrl": "http://127.0.0.1:4195",
+  "gitHead": "f349d474cbfc46b3fa113388b393d0e752b67510",
+  "capturedAt": "2026-11-18T13:09:06.230Z",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "بازکردن پنجره Activities",
+      "status": "pass",
+      "at": "2026-11-18T13:09:12.173Z",
+      "rowIds": [
+        "A100",
+        "A110",
+        "A210",
+        "A120",
+        "A130",
+        "A140",
+        "A145",
+        "A160",
+        "A150",
+        "A155",
+        "A180",
+        "A170",
+        "A190",
+        "A200"
+      ],
+      "bands": 7,
+      "tabs": [
+        "general",
+        "status",
+        "resources",
+        "predecessors",
+        "successors",
+        "relationships",
+        "codes",
+        "notebook",
+        "steps",
+        "wps-docs",
+        "expenses",
+        "issues",
+        "risks",
+        "summary",
+        "udfs",
+        "update-history",
+        "calendar"
+      ],
+      "bars": 17
+    },
+    {
+      "id": "02",
+      "name": "انتخاب فعالیت و بررسی هماهنگی جدول، Gantt و Details",
+      "status": "pass",
+      "at": "2026-11-18T13:09:13.330Z",
+      "selectedRow": "A130",
+      "selectedGantt": "A130",
+      "detailsText": "A130"
+    },
+    {
+      "id": "03",
+      "name": "باز و بسته کردن Activity Details",
+      "status": "pass",
+      "at": "2026-11-18T13:09:16.607Z",
+      "before": true,
+      "closed": false,
+      "reopened": true
+    },
+    {
+      "id": "04",
+      "name": "تغییر ارتفاع و عرض نواحی",
+      "status": "pass",
+      "at": "2026-11-18T13:09:18.213Z",
+      "before": {
+        "table": "50.00%",
+        "details": "70.00%"
+      },
+      "after": {
+        "table": "60.23%",
+        "details": "75.56%"
+      },
+      "drag": {
+        "table": {
+          "x": 766,
+          "y": 337.8125
+        },
+        "details": {
+          "x": 644,
+          "y": 532.6875
+        }
+      }
+    },
+    {
+      "id": "05",
+      "name": "Refresh و بررسی پایداری Layout",
+      "status": "pass",
+      "at": "2026-11-18T13:09:20.931Z",
+      "table": "60.23%",
+      "details": "75.56%",
+      "selected": null
+    },
+    {
+      "id": "06",
+      "name": "تغییر عرض ستون‌ها و جابه‌جایی ستون‌ها",
+      "status": "pass",
+      "at": "2026-11-18T13:09:27.566Z",
+      "moved": {
+        "id": "activity.planned_duration",
+        "title": "Original Duration (Planned Duration)\n      Activity\n      ◌"
+      },
+      "before": [
+        "Activity Name",
+        "Original Duration",
+        "Remaining Duration",
+        "Schedule % Complete"
+      ],
+      "after": [
+        "Original Duration",
+        "Activity Name",
+        "Remaining Duration",
+        "Schedule % Complete"
+      ],
+      "width": 210,
+      "persisted": [
+        "Original Duration",
+        "Activity Name",
+        "Remaining Duration",
+        "Schedule % Complete"
+      ]
+    },
+    {
+      "id": "07",
+      "name": "اعمال فیلتر و ترکیب چند فیلتر",
+      "status": "pass",
+      "at": "2026-11-18T13:09:33.192Z",
+      "inProgress": [
+        "A130"
+      ],
+      "critical": [
+        "A210",
+        "A130",
+        "A160",
+        "A150",
+        "A180",
+        "A190",
+        "A200"
+      ],
+      "combined": [
+        "A210",
+        "A130",
+        "A160",
+        "A150",
+        "A180",
+        "A190",
+        "A200"
+      ],
+      "label": "Filter activities: In Progress + Critical",
+      "activeFilterId": "builtin:in-progress,builtin:critical"
+    },
+    {
+      "id": "08",
+      "name": "ایجاد و ویرایش فیلتر",
+      "status": "pass",
+      "at": "2026-11-18T13:09:38.782Z",
+      "created": [
+        "A130",
+        "A140",
+        "A145",
+        "A160"
+      ],
+      "edited": [
+        "A140",
+        "A145",
+        "A160"
+      ],
+      "loadedName": "Civil open"
+    },
+    {
+      "id": "09",
+      "name": "Group و Sort",
+      "status": "pass",
+      "at": "2026-11-18T13:09:43.179Z",
+      "group": "wbs",
+      "statusField": "activity.name",
+      "bands": 2,
+      "rows": 3
+    },
+    {
+      "id": "10",
+      "name": "بازکردن تمام ۱۶ تب Activity Details",
+      "status": "pass",
+      "at": "2026-11-18T13:09:50.553Z",
+      "tabs": [
+        "general",
+        "status",
+        "resources",
+        "predecessors",
+        "successors",
+        "relationships",
+        "codes",
+        "notebook",
+        "steps",
+        "wps-docs",
+        "expenses",
+        "issues",
+        "risks",
+        "summary",
+        "udfs",
+        "update-history",
+        "calendar"
+      ],
+      "officialCount": 16,
+      "rendered": [
+        {
+          "id": "general",
+          "text": "Activity IDA100 Activity TypeTask Dependent Duration TypeFixed Duration & Units Cost AccountNot available % Complete TypeDuration Leveling PriorityNormal Activity CalendarNot avail"
+        },
+        {
+          "id": "status",
+          "text": "Duration Original or Planned1 ActualNot available Remaining0 At CompleteNot available Total Float12 Free Float1 Status StartedYes Actual Start2026-09-21 FinishedYes Actual Finish20"
+        },
+        {
+          "id": "resources",
+          "text": "ResourceRoleUnits/TimeBudgeted UnitsActual UnitsRemaining UnitsCostNo resource assignments are stored for this activity. Resource IDRole IDBudgeted unitsPlanned costCurrencyNote Ad"
+        },
+        {
+          "id": "predecessors",
+          "text": "Project ID WBS Activity ID Activity Name Relationship Type Lag Activity Status Primary Resource Action No relationships are loaded for this activity. AssignRemove"
+        },
+        {
+          "id": "successors",
+          "text": "Project ID WBS Activity ID Activity Name Relationship Type Lag Activity Status Primary Resource Action No relationships are loaded for this activity. AssignRemove"
+        },
+        {
+          "id": "relationships",
+          "text": "Predecessors Project ID WBS Activity ID Activity Name Relationship Type Lag Activity Status Primary Resource Action No relationships are loaded for this activity. AssignRemove Succ"
+        },
+        {
+          "id": "codes",
+          "text": "Activity IDA100 WBS code1 — Project management Project codepreview-rps-01 Activity CodeCode ValueDescriptionNo activity code assignments are returned by the project read model. Ass"
+        },
+        {
+          "id": "notebook",
+          "text": "Notebook TopicDescriptionNo browser-local notes have been recorded for this activity. ModifyCopyPrintAddDelete These notes are stored in this browser only. They are not project dat"
+        },
+        {
+          "id": "steps",
+          "text": "SequenceStep NameStep WeightStartFinishStep UDFsNo steps are stored for this activity. AddAdd from templateDeleteModifyReload Steps are read from the project service in stored sequ"
+        },
+        {
+          "id": "wps-docs",
+          "text": "TitleStatus CodeTypeRevisionNo project document is linked to this activity. Project documents are managed on the Documents page. Uploading, downloading and verifying file bytes hap"
+        },
+        {
+          "id": "expenses",
+          "text": "Expense ItemCost AccountExpense CategoryAccrual TypeBudgeted or Planned CostActual CostRemaining CostAt Completion CostVendorAuto Compute ActualsNo expense records are stored for t"
+        },
+        {
+          "id": "issues",
+          "text": "Issue IDTitleCategorySeverityStatusReported byUpdatedNo issue records are linked to this activity. TitleDescriptionIssue typecostschedulequalitysafetyscoperesourceotherStatusopenin"
+        },
+        {
+          "id": "risks",
+          "text": "Risk records in this workspace do not store an activity reference, so the project risk register is shown without claiming that any risk is linked to this activity. Risk IDRisk Name"
+        },
+        {
+          "id": "summary",
+          "text": "Display Units Display Cost Display Dates ValueBudgeted or PlannedActualRemaining% CompleteAt CompletionComplete VarianceLabor——————Nonlabor——————Material——————Duration———100—— Valu"
+        },
+        {
+          "id": "udfs",
+          "text": "User Defined FieldData TypeValueNo activity user-defined fields are defined by the project registry. Customize User Defined FieldsReload Field names and data types come from the pr"
+        },
+        {
+          "id": "update-history",
+          "text": "RecordedActorRecord revisionChangesSequence reviewNo progress update history is stored for this activity. Reload History events are append-only records written by the authoritative"
+        },
+        {
+          "id": "calendar",
+          "text": "Activity calendarNot available Project calendarGregorian display Data date2026-10-12 Calendar is a CUBI addition. It follows the sixteen Version 26 activity-details tabs and does n"
+        }
+      ]
+    },
+    {
+      "id": "11",
+      "name": "راست‌کلیک در تمام نواحی",
+      "status": "pass",
+      "at": "2026-11-18T13:09:58.033Z",
+      "areas": [
+        {
+          "label": "activity row",
+          "opened": true,
+          "menu": {
+            "hidden": false,
+            "width": 244,
+            "height": 474,
+            "items": [
+              "details",
+              "cut",
+              "copy",
+              "paste",
+              "fill-down",
+              "add",
+              "delete",
+              "dissolve",
+              "renumber",
+              "export-excel",
+              "assign",
+              "link",
+              "columns",
+              "line-numbers",
+              "font-row",
+              "filters",
+              "group-sort",
+              "expand-all",
+              "collapse-all",
+              "collapse-to"
+            ],
+            "visible": true
+          }
+        },
+        {
+          "label": "gantt row",
+          "opened": true,
+          "menu": {
+            "hidden": false,
+            "width": 244,
+            "height": 283,
+            "items": [
+              "details",
+              "add",
+              "link",
+              "bars",
+              "font-row",
+              "filters",
+              "group-sort",
+              "relationships",
+              "expand-all",
+              "collapse-all",
+              "collapse-to"
+            ],
+            "visible": true
+          }
+        },
+        {
+          "label": "wbs band",
+          "opened": true,
+          "menu": {
+            "hidden": false,
+            "width": 244,
+            "height": 159,
+            "items": [
+              "collapse-wbs",
+              "collapse-to",
+              "wbs-add-activity",
+              "wbs-details",
+              "group-wbs",
+              "layout-options"
+            ],
+            "visible": true
+          }
+        },
+        {
+          "label": "empty grid area",
+          "opened": true,
+          "menu": {
+            "hidden": false,
+            "width": 244,
+            "height": 342,
+            "items": [
+              "add",
+              "paste",
+              "columns",
+              "line-numbers",
+              "font-row",
+              "filters",
+              "group-sort",
+              "expand-all",
+              "collapse-all",
+              "collapse-to",
+              "layout-options",
+              "reset-table-split",
+              "reset-details-split",
+              "reset-column-widths"
+            ],
+            "visible": true
+          }
+        },
+        {
+          "label": "details pane",
+          "opened": true,
+          "menu": {
+            "hidden": false,
+            "width": 244,
+            "height": 28,
+            "items": [
+              "customize-details"
+            ],
+            "visible": true
+          }
+        }
+      ],
+      "tableItems": 20,
+      "gridMenu": true,
+      "detailsVisible": true,
+      "detailsItems": [
+        "customize-details"
+      ]
+    },
+    {
+      "id": "12",
+      "name": "آزمون میانبرهای تأییدشده",
+      "status": "pass",
+      "at": "2026-11-18T13:10:02.565Z",
+      "focusInside": true,
+      "shortcutsOpen": true,
+      "shortcutRows": [
+        "New projectCtrl+N",
+        "Open projectCtrl+O",
+        "Close windowCtrl+W",
+        "PrintCtrl+P",
+        "Save layoutCtrl+S",
+        "Refresh project dataF5",
+        "Keyboard shortcutsF1",
+        "About CUBI WorkspaceShift+F12",
+        "ProjectsAlt+1",
+        "ActivitiesAlt+2",
+        "Undo layout changeCtrl+Z",
+        "Redo layout changeCtrl+Y Unavailable — No layout change to reapply",
+        "CutCtrl+X Unavailable — The activity clipboard is not connected to this workspace yet",
+        "CopyCtrl+C Unavailable — The activity clipboard is not connected to this workspace yet",
+        "PasteCtrl+V Unavailable — The activity clipboard is not connected to this workspace yet",
+        "Delete activityDel Unavailable — Deleting activities is not available in this workspace yet",
+        "Insert activityIns",
+        "Find activitiesCtrl+F",
+        "Select all visible activitiesCtrl+A",
+        "Find nextF3 Unavailable — Find Next needs a result set from the current filter",
+        "Schedule activitiesF9",
+        "Schedule optionsShift+F9",
+        "Level resourcesF7 Unavailable — Resource leveling is not available in this workspace yet",
+        "Commit changesF10 Unavailable — There is no staged edit to commit",
+        "Expand all WBS bandsCtrl+Num +",
+        "Collapse all WBS bandsCtrl+Num -"
+      ],
+      "focusedFilter": true,
+      "expandedBands": 7,
+      "collapsedBefore": 0,
+      "collapsedAfter": 6,
+      "expandedAfter": 0
+    },
+    {
+      "id": "13",
+      "name": "نمایش و مخفی‌سازی Data Date Line و Progress Line",
+      "status": "pass",
+      "at": "2026-11-18T13:10:06.205Z",
+      "dataDate": {
+        "disabled": false,
+        "note": "The line marks the project Data Date (2026-10-12) on the chart. A thickness above 1 is painted as a solid line; dashed and dotted lines stay 1 pixel wide.",
+        "checked": true
+      },
+      "shown": 1,
+      "hidden": 0,
+      "points": {
+        "tag": "path",
+        "count": 14,
+        "measured": "14",
+        "stroke": "rgb(192, 57, 43)",
+        "color": "#c0392b",
+        "width": "3px"
+      }
+    },
+    {
+      "id": "14",
+      "name": "بررسی هر چهار نوع رابطه FS/SS/FF/SF",
+      "status": "pass",
+      "at": "2026-11-18T13:10:11.121Z",
+      "before": {
+        "FS": 13,
+        "SS": 1
+      },
+      "after": {
+        "FF": 1,
+        "SF": 1,
+        "FS": 13,
+        "SS": 1
+      },
+      "restored": {
+        "FS": 13,
+        "SS": 1
+      },
+      "created": [
+        {
+          "id": "REL-E2E-FF-1",
+          "status": 200,
+          "body": "{\"contract_version\":\"p6-relationship-api.v1\",\"kind\":\"p6_relationship\",\"scope\":{\"tenant_id\":\"cubi-preview-tenant\",\"project_id\":\"preview-rps-01\",\"project_revision\":7},\"relationship\":{\"relationship_id\":\"REL-E2E-FF-1\",\"predecessor_id\":\"A140\",\"successor_id\":\"A170\",\"relationship_type\":\"FF\",\"lag_value\":\"0\",\"lag_unit\":\"working-day\",\"record_revision\":1}}"
+        },
+        {
+          "id": "REL-E2E-SF-1",
+          "status": 200,
+          "body": "{\"contract_version\":\"p6-relationship-api.v1\",\"kind\":\"p6_relationship\",\"scope\":{\"tenant_id\":\"cubi-preview-tenant\",\"project_id\":\"preview-rps-01\",\"project_revision\":7},\"relationship\":{\"relationship_id\":\"REL-E2E-SF-1\",\"predecessor_id\":\"A100\",\"successor_id\":\"A210\",\"relationship_type\":\"SF\",\"lag_value\":\"0\",\"lag_unit\":\"working-day\",\"record_revision\":1}}"
+        }
+      ],
+      "removed": [
+        {
+          "id": "REL-E2E-FF-1",
+          "status": 200,
+          "body": "{\"contract_version\":\"p6-relationship-api.v1\",\"kind\":\"p6_relationship_delete\",\"scope\":{\"tenant_id\":\"cubi-preview-tenant\",\"project_id\":\"preview-rps-01\",\"project_revision\":7},\"relationship_id\":\"REL-E2E-FF-1\",\"deleted\":true}"
+        },
+        {
+          "id": "REL-E2E-SF-1",
+          "status": 200,
+          "body": "{\"contract_version\":\"p6-relationship-api.v1\",\"kind\":\"p6_relationship_delete\",\"scope\":{\"tenant_id\":\"cubi-preview-tenant\",\"project_id\":\"preview-rps-01\",\"project_revision\":7},\"relationship_id\":\"REL-E2E-SF-1\",\"deleted\":true}"
+        }
+      ]
+    },
+    {
+      "id": "15",
+      "name": "Zoom و Scroll در Gantt",
+      "status": "pass",
+      "at": "2026-11-18T13:10:14.650Z",
+      "before": "month",
+      "zoomedIn": "week",
+      "zoomedOut": "month",
+      "ticks": [
+        4,
+        11,
+        4
+      ],
+      "scrolled": {
+        "className": "cp-gantt-chart",
+        "before": 0,
+        "after": 240,
+        "max": 333
+      }
+    },
+    {
+      "id": "16",
+      "name": "تغییر اندازه Splitterها در چند اندازه صفحه",
+      "status": "pass",
+      "at": "2026-11-18T13:10:21.528Z",
+      "results": [
+        {
+          "width": 1024,
+          "height": 768,
+          "before": {
+            "table": "60.23%",
+            "details": "75.56%"
+          },
+          "after": {
+            "table": "52.96%",
+            "details": "72.92%"
+          },
+          "overflow": {
+            "tableRight": 544,
+            "ganttRight": 984,
+            "viewport": 1024,
+            "fits": true
+          }
+        },
+        {
+          "width": 1280,
+          "height": 720,
+          "before": {
+            "table": "52.96%",
+            "details": "72.92%"
+          },
+          "after": {
+            "table": "47.26%",
+            "details": "70.04%"
+          },
+          "overflow": {
+            "tableRight": 611,
+            "ganttRight": 1240,
+            "viewport": 1280,
+            "fits": true
+          }
+        },
+        {
+          "width": 1440,
+          "height": 900,
+          "before": {
+            "table": "47.26%",
+            "details": "70.04%"
+          },
+          "after": {
+            "table": "42.23%",
+            "details": "67.90%"
+          },
+          "overflow": {
+            "tableRight": 619,
+            "ganttRight": 1400,
+            "viewport": 1440,
+            "fits": true
+          }
+        },
+        {
+          "width": 1920,
+          "height": 1080,
+          "before": {
+            "table": "42.23%",
+            "details": "67.90%"
+          },
+          "after": {
+            "table": "38.52%",
+            "details": "66.20%"
+          },
+          "overflow": {
+            "tableRight": 754,
+            "ganttRight": 1880,
+            "viewport": 1920,
+            "fits": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "17",
+      "name": "بررسی حالت RTL و LTR",
+      "status": "pass",
+      "at": "2026-11-18T13:10:24.129Z",
+      "rtl": {
+        "dir": "rtl",
+        "lang": "fa",
+        "table": "rtl"
+      },
+      "ltr": {
+        "dir": "ltr",
+        "lang": "en"
+      }
+    },
+    {
+      "id": "18",
+      "name": "بررسی عدم وجود خطای Console و Runtime",
+      "status": "pass",
+      "at": "2026-11-18T13:10:26.853Z",
+      "exceptions": 0,
+      "consoleErrors": 0,
+      "apiFailures": 0,
+      "final": {
+        "rows": 14,
+        "filter": "Filter activities: All Activities",
+        "dataDateLines": 1
+      }
+    }
+  ],
+  "screenshots": [
+    "activities-v26/01-activities-window-en-1280.png",
+    "activities-v26/02-activity-selected-sync-en-1280.png",
+    "activities-v26/03-details-closed-en-1280.png",
+    "activities-v26/04-details-open-en-1280.png",
+    "activities-v26/05-panes-resized-en-1280.png",
+    "activities-v26/06-layout-after-reload-en-1280.png",
+    "activities-v26/07-columns-dialog-en-1280.png",
+    "activities-v26/08-columns-applied-reloaded-en-1280.png",
+    "activities-v26/09-filters-combined-en-1280.png",
+    "activities-v26/10-filter-editor-en-1280.png",
+    "activities-v26/11-filter-edited-en-1280.png",
+    "activities-v26/12-group-sort-multilevel-en-1280.png",
+    "activities-v26/13-details-general-en-1280.png",
+    "activities-v26/14-details-status-en-1280.png",
+    "activities-v26/15-details-resources-en-1280.png",
+    "activities-v26/16-details-steps-en-1280.png",
+    "activities-v26/17-context-menu-table-en-1280.png",
+    "activities-v26/18-context-menu-gantt-en-1280.png",
+    "activities-v26/19-shortcuts-dialog-en-1280.png",
+    "activities-v26/20-data-date-disabled-en-1280.png",
+    "activities-v26/21-progress-line-shown-en-1280.png",
+    "activities-v26/22-relationships-four-types-en-1280.png",
+    "activities-v26/23-gantt-zoom-scroll-en-1280.png",
+    "activities-v26/24-splitters-1440x900-en.png",
+    "activities-v26/24-splitters-1920x1080-en.png",
+    "activities-v26/25-rtl-fa-1280.png",
+    "activities-v26/26-ltr-en-1280.png",
+    "activities-v26/27-final-state-en-1280.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-18T13:10:26.853Z"
+}

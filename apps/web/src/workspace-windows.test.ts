@@ -125,6 +125,13 @@ test("each project tab keeps its own open window set", () => {
   assert.deepEqual(readProjectWorkspaceWindows("p2", storage), ["project", "wbs"]);
 });
 
+test("a project restore keeps the latest reordered tab order", () => {
+  const storage = memoryStorage();
+  rememberProjectWorkspaceWindows("p1", ["schedule", "reports"], storage);
+  rememberWorkspaceWindowOrder(["reports", "schedule"], storage);
+  assert.deepEqual(readProjectWorkspaceWindows("p1", storage), ["reports", "schedule"]);
+});
+
 test("a project with no stored set falls back to the shared window preference", () => {
   const storage = memoryStorage({
     [WORKSPACE_WINDOWS_STORAGE_KEY]: JSON.stringify(["schedule", "issues"]),

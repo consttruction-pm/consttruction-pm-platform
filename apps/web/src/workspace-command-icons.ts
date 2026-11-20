@@ -58,6 +58,10 @@ const MENU_ITEM_ICONS: Readonly<Record<string, WorkspaceIconName>> = {
   "edit.paste": "paste",
   "edit.delete": "delete",
   "edit.find": "find",
+  "edit.replace": "find",
+  "dialog.replace": "find",
+  "edit.spell-check": "find",
+  "dialog.spell-check": "find",
   "edit.group-wbs": "group",
   "edit.sort-toggle": "sort",
   "edit.select-all": "check",
@@ -65,6 +69,7 @@ const MENU_ITEM_ICONS: Readonly<Record<string, WorkspaceIconName>> = {
   "edit.unlink": "unlink",
   "edit.fill-down": "fill",
   "edit.dissolve": "dissolve",
+  "edit.renumber": "renumber",
   // View
   "view.fields": "columns",
   "view.filters": "filter",

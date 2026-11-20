@@ -30,7 +30,7 @@ lists its tabs; `Customize Activity Details` is the documented add/remove/reorde
 
 | # | CUBI tab | Version 26 Help topic (title — URL) | Guide page | CUBI surface |
 | --- | --- | --- | --- | --- |
-| 1 | General | General tab - Activity Details — `general_tab_-_activity_details.htm` | 111, 114 | read; editable general fields submit through the activity master |
+| 1 | General | General tab - Activity Details — `general_tab_-_activity_details.htm` | 111, 114 | read; revision-guarded edit of name, activity type, duration type, percent-complete type and cost account through the activity master (`workspace-activity-general.ts`, evidence `docs/workspace/evidence/activity-general-edit-v26-2026-11-18/`) |
 | 2 | Status | Status tab - Activity Details — `status_tab_-_activity_details.htm` | 115, 116 | read; dates/percent complete through the activity master |
 | 3 | Resources | Resources tab - Activity Details — `resources_tab_-_activity_details.htm` | 117 | read + write (`/p6/resource-assignments`) |
 | 4 | Predecessors | Predecessors tab - Activity Details — `predecessors_tab_-_activity_details.htm` | 123 | read; edits through the relationship routes |
@@ -65,6 +65,10 @@ Parity statement, stated precisely:
 Browser proof: `activity-details-v26.mjs` renders all seventeen tabs in contract order with
 Calendar last, every data tab settles into idle/loading/loaded/empty/error/unauthorized
 states, three write paths round-trip, and removing a tab in Customize survives a reload.
+The same suite now proves the ARIA tablist keyboard model — ArrowLeft/ArrowRight, Home and
+End move focus, `aria-selected` and the visible panel together, wrapping at both ends, and
+follow the rendered text direction in Persian RTL
+(`docs/workspace/evidence/activity-details-tabs-v26-2026-11-18/`).
 `context-menus-v26.mjs` opens the same Customize dialog from the details context menu and
 checks the full V26 control set (Available/Display columns, add, add-all, remove,
 remove-all, up, down, default, apply, cancel) in English and Persian RTL.
@@ -146,10 +150,18 @@ the scrollable viewport, not exposing a product defect.
 6. **Notebook** defers to the browser-local comments rail; it does not write P6 notebook
    topics.
 7. **Risks** is a project register read surface; there is no per-activity risk foreign key.
-8. **Toolbars.** Tooltips are native `title` attributes rather than the Version 26 hint
+8. **General tab edit scope.** The editor writes name, activity type, duration type,
+   percent-complete type and cost account. Calendar, responsible manager, primary
+   resource and description are displayed read-only because the Activity Master
+   update contract does not accept them; they stay **VERIFY / blocked on contract**.
+   The saved record repaints the details pane immediately, while the Activity Grid
+   shows the new values only after its next project read (there is no grid-refresh
+   callback in the current shell). Changing activity or duration type is not followed
+   by an automatic schedule run; dates and float change only when the schedule is run.
+9. **Toolbars.** Tooltips are native `title` attributes rather than the Version 26 hint
    window; toolbar visibility persists per user in localStorage rather than inside a saved
    layout. Both are recorded in the WS-003 matrix row.
-9. **Activity delete/cut/copy/paste/fill-down/renumber/dissolve** remain disabled with a
+10. **Activity delete/cut/copy/paste/fill-down/renumber/dissolve** remain disabled with a
    localized reason in the runtime that does not expose those routes; the menus show the
    V26 commands but do not invent effects.
 
@@ -170,3 +182,24 @@ node e2e/activity-details-v26.mjs
 
 Each suite writes its own bundle under `docs/workspace/evidence/<suite>-2026-11-15/`; the
 run summary and counts are recorded in `summary.md` and `evidence.json` in this directory.
+
+## 10. 2026-11-18 increments (PR #2048)
+
+- **General tab edit path.** `workspace-activity-general.ts` loads the Activity Master
+  record, PATCHes only changed fields with `expected_revision`, and surfaces
+  `REVISION_CONFLICT`. Browser proof (EN 1366, FA RTL 1280/1920, reload persistence,
+  restore): `docs/workspace/evidence/activity-general-edit-v26-2026-11-18/`.
+- **Activity Details keyboard model.** ArrowLeft/ArrowRight, Home and End move focus,
+  `aria-selected` and the visible panel together, wrap at both ends and follow RTL.
+  Regenerated proof: `docs/workspace/evidence/activity-details-tabs-v26-2026-11-18/`.
+- **Acceptance matrix.** The 18-column matrix with per-item status, classification,
+  owner and blocker is `docs/workspace/evidence/activity-workspace-v26-2026-11-18/acceptance-matrix.md`.
+- **Not re-run on this head.** The remaining November-15 suites (`activity-columns`,
+  `activity-filters`, `activity-group-sort`, `gantt-*`, `context-menus`,
+  `activity-grid-keyboard`, `activity-wbs-*`, `activity-relationships`, `activity-udp-values`
+  and the other Activity suites) have not been executed against this branch. Their items
+  stay `پیاده‌سازی‌شده ولی آزمون‌نشده` in the matrix and must not be read as accepted.
+- **Open blockers.** Grid repaint after a Details edit (owned shell files), the
+  `activity.percent_complete_type` cell (owned read provider) and activity-code assignment
+  (no HTTP route) are recorded as `BLOCKED` with owners in the matrix.
+

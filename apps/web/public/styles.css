@@ -5443,7 +5443,10 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
   flex: 1 0 auto;
   width: 100%;
   min-width: 900px;
-  min-height: 540px;
+  /* Keep the approved 540px working floor whenever the host has room, but
+     never exceed the host height: at 1280x720 the preview banner and chrome
+     leave 521px, and a hard 540px floor created a 19px workspace scroller. */
+  min-height: min(540px, 100%);
   height: 100%;
   padding: 0;
   background: #fff;
@@ -10351,4 +10354,248 @@ body.cp-toolbar-dragging .cp-tool-btn { cursor: grabbing; }
  .ce-task-actions { width:100%; }
  .ce-task-actions button { flex:1; }
  .ce-form-grid { grid-template-columns:1fr; }
+}
+
+/* V28: the layout's persisted table background is a light colour. Dark skins
+   must keep the activity rows on their own surface so the theme's light text
+   stays readable; band and summary rows keep their intentional colours. */
+html[data-cubi-theme="graphite"] .cp-p6 #cp-activity-grid tbody tr:not([data-activity-kind="summary"]):not(.cp-p6-tree-band) td,
+html[data-cubi-theme="midnight"] .cp-p6 #cp-activity-grid tbody tr:not([data-activity-kind="summary"]):not(.cp-p6-tree-band) td {
+  background: var(--skin-surface);
+  color: var(--skin-grid-text);
+}
+html[data-cubi-theme="graphite"] .cp-p6 #cp-activity-grid tbody tr:not([data-activity-kind="summary"]):not(.cp-p6-tree-band):nth-child(even) td,
+html[data-cubi-theme="midnight"] .cp-p6 #cp-activity-grid tbody tr:not([data-activity-kind="summary"]):not(.cp-p6-tree-band):nth-child(even) td {
+  background: color-mix(in srgb, var(--skin-surface) 92%, #ffffff 8%);
+}
+html[data-cubi-theme="graphite"] .cp-p6 #cp-activity-grid tbody tr:not([data-activity-kind="summary"]):not(.cp-p6-tree-band):hover td,
+html[data-cubi-theme="midnight"] .cp-p6 #cp-activity-grid tbody tr:not([data-activity-kind="summary"]):not(.cp-p6-tree-band):hover td {
+  background: color-mix(in srgb, var(--skin-surface) 82%, var(--skin-accent) 18%);
+}
+html[data-cubi-theme="graphite"] .cp-p6 #cp-activity-grid tbody tr.is-selected:not([data-activity-kind="summary"]):not(.cp-p6-tree-band) td,
+html[data-cubi-theme="midnight"] .cp-p6 #cp-activity-grid tbody tr.is-selected:not([data-activity-kind="summary"]):not(.cp-p6-tree-band) td {
+  background: color-mix(in srgb, var(--skin-surface) 70%, var(--skin-accent) 30%);
+  color: var(--skin-selected-text);
+}
+html[data-cubi-theme="graphite"] .cp-p6 #cp-activity-grid tbody tr.is-filter-match:not([data-activity-kind="summary"]):not(.cp-p6-tree-band) td,
+html[data-cubi-theme="midnight"] .cp-p6 #cp-activity-grid tbody tr.is-filter-match:not([data-activity-kind="summary"]):not(.cp-p6-tree-band) td {
+  background: var(--skin-filter-match);
+  color: var(--skin-text);
+}
+
+/* Two-step Alt accelerator: a small, theme-neutral transcript hint. */
+.cp-alt-sequence {
+  position: fixed;
+  inset-inline-start: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 60;
+  padding: 6px 14px;
+  border-radius: 6px;
+  background: var(--skin-surface, #ffffff);
+  color: var(--skin-text, #1f2933);
+  border: 1px solid var(--skin-border, #c7ccd1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+.cp-alt-sequence[hidden] { display: none; }
+
+/* V30 — Gantt curtain, text and notebook attachments. Curtains paint in the
+   real Gantt body layer from persisted date ranges; text and notebook marks
+   anchor to the rendered bar of their activity. */
+.cp-p6 .cp-gantt-curtains {
+  position: absolute;
+  inset-block: 0;
+  inset-inline: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.cp-p6 .cp-gantt-curtain {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  box-sizing: border-box;
+  border-inline: 1px solid var(--cp-curtain-color, #64748b);
+  background: color-mix(in srgb, var(--cp-curtain-color, #64748b) 20%, transparent);
+}
+.cp-p6 .cp-gantt-curtain-label {
+  position: absolute;
+  top: 0;
+  inset-inline-start: 0;
+  max-width: 100%;
+  padding: 0 5px;
+  overflow: hidden;
+  border-end-end-radius: 3px;
+  background: var(--cp-curtain-color, #64748b);
+  color: #ffffff;
+  font-size: 9px;
+  line-height: 14px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.cp-p6 .cp-gantt-attachments {
+  position: absolute;
+  inset-block: 0;
+  inset-inline: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+.cp-p6 .cp-gantt-bar-attachment {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 150px;
+  height: 14px;
+  padding: 0 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--cp-attachment-color, #0f766e);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .25);
+  color: #ffffff;
+  font-size: 9px;
+  line-height: 14px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.cp-p6 .cp-gantt-bar-attachment.is-notebook {
+  background: color-mix(in srgb, var(--cp-attachment-color, #0f766e) 72%, #000000 28%);
+  border-radius: 1px 5px 5px 1px;
+}
+.cp-p6 .cp-gantt-attachments-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 21px;
+  min-height: 21px;
+  padding: 0 7px;
+  border: 1px solid #bcc9d8;
+  border-radius: 2px;
+  background: #ffffff;
+  color: #2b3a4d;
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+.cp-p6 .cp-gantt-attachments-open [data-gantt-attachments-count] {
+  min-width: 16px;
+  padding: 0 3px;
+  border-radius: 8px;
+  background: #dce7f3;
+  color: #0f4f92;
+  font-size: 9px;
+  line-height: 13px;
+  text-align: center;
+}
+.cp-p6 .cp-gantt-attachments-open:focus-visible { outline: 2px solid #1769aa; outline-offset: 1px; }
+.cp-gantt-attachments-dialog {
+  width: min(720px, calc(100vw - 32px));
+  max-height: 84vh;
+  overflow: auto;
+  padding: 16px 18px;
+  border: 1px solid var(--cubi-neutral-border, #c8d1dc);
+  border-radius: 8px;
+  color: var(--skin-text, #14283f);
+  background: var(--skin-surface, #ffffff);
+  box-shadow: 0 24px 60px rgba(8, 26, 47, .28);
+}
+.cp-gantt-attachments-dialog::backdrop { background: rgba(8, 26, 47, .38); }
+.cp-gantt-attachments-dialog > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.cp-gantt-attachments-dialog > header h2 { margin: 0; font-size: 16px; }
+.cp-gantt-attachments-dialog [data-gantt-attachments-close] {
+  min-width: 26px;
+  min-height: 26px;
+  border: 1px solid var(--cubi-neutral-border, #c8d1dc);
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+.cp-gantt-attachments-dialog .cp-detail-table td,
+.cp-gantt-attachments-dialog .cp-detail-table th { font-size: 12px; }
+.cp-gantt-attachments-dialog [data-gantt-attachment-toggle],
+.cp-gantt-attachments-dialog [data-gantt-attachment-edit],
+.cp-gantt-attachments-dialog [data-gantt-attachment-delete] {
+  min-height: 24px;
+  padding: 2px 8px;
+  border: 1px solid #c3ccd8;
+  border-radius: 3px;
+  background: #ffffff;
+  color: #26384d;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.cp-gantt-attachments-dialog [data-gantt-attachment-delete] { border-color: #d5b3ae; color: #8a2b20; }
+.cp-gantt-attachments-dialog [data-gantt-attachment-message] { min-height: 16px; margin: 4px 0; font-size: 11.5px; }
+.cp-gantt-attachments-dialog [data-gantt-attachment-message][data-state="error"] { color: #8a2b20; }
+.cp-gantt-attachments-dialog [data-gantt-attachment-message][data-state="ok"] { color: #1d6b45; }
+@media (max-width: 640px) {
+  .cp-gantt-attachments-dialog { width: calc(100vw - 16px); padding: 12px; }
+  .cp-p6 .cp-gantt-toolbar { overflow-x: auto; padding-inline: 4px; }
+}
+
+/* V30 — Edit > Replace dialog. */
+.cp-activity-bulk-dialog {
+  width: min(460px, calc(100vw - 32px));
+  max-height: 88vh;
+  overflow: auto;
+}
+.cp-activity-bulk-dialog form { display: flex; flex-direction: column; gap: 8px; }
+.cp-activity-bulk-dialog [data-activity-replace-status] { min-height: 16px; }
+.cp-activity-bulk-dialog [data-activity-replace-status][data-state="error"] { color: #8a2b20; }
+.cp-activity-bulk-dialog .cp-detail-form-actions { justify-content: flex-end; }
+.cp-activity-spell-dialog { width: min(620px, calc(100vw - 32px)); }
+.cp-activity-spell-list { display: grid; gap: 6px; max-height: 50vh; overflow: auto; padding-block: 4px; }
+.cp-activity-spell-list input { font: inherit; }
+@media (max-width: 520px) {
+  .cp-activity-bulk-dialog { width: calc(100vw - 16px); padding: 12px; }
+}
+
+/* V31 — Copy Activity Options, Renumber Activity IDs and column Fill Down. */
+.cp-activity-copy-dialog,
+.cp-activity-renumber-dialog,
+.cp-activity-fill-dialog {
+  width: min(680px, calc(100vw - 32px));
+  max-height: 88vh;
+  overflow: auto;
+}
+.cp-activity-copy-dialog form,
+.cp-activity-renumber-dialog form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cp-activity-copy-dialog .cp-detail-form-actions,
+.cp-activity-renumber-dialog .cp-detail-form-actions,
+.cp-activity-fill-dialog .cp-detail-form-actions { justify-content: flex-end; }
+.cp-activity-copy-dialog .cp-detail-check-nested { margin-inline-start: 24px; }
+.cp-activity-copy-dialog .cp-detail-check[hidden] { display: none; }
+.cp-activity-renumber-dialog [data-renumber-field][hidden] { display: none; }
+.cp-activity-renumber-dialog [data-renumber-preview] input { width: 100%; font: inherit; }
+.cp-activity-renumber-dialog tr[data-conflict="true"] td { color: #8a2b20; }
+.cp-activity-renumber-dialog [data-renumber-status][data-state="error"] { color: #8a2b20; }
+.cp-activity-fill-dialog .cp-fill-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid #d8e0e8;
+  border-radius: 4px;
+  background: #f7f9fc;
+}
+.cp-activity-fill-dialog [data-fill-status][data-state="error"] { color: #8a2b20; }
+.cp-gantt-attachment-bulk { display: flex; gap: 8px; margin-block: 4px 8px; }
+@media (max-width: 520px) {
+  .cp-activity-copy-dialog,
+  .cp-activity-renumber-dialog,
+  .cp-activity-fill-dialog { width: calc(100vw - 16px); padding: 12px; }
 }

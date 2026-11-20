@@ -487,7 +487,9 @@ async function main() {
     await scenario("07", "Full Screen performs a real transition and keeps layout and data unchanged", async () => {
       await setViewport(page, 1280, 720);
       const beforeFullscreen = await geometry(page);
-      await page.evaluate(`document.querySelector('[data-fullscreen-toggle]')?.click()`);
+      // requestFullscreen requires transient user activation; a JS click is not
+      // trusted, so use the native CDP pointer click.
+      await page.realClick("[data-fullscreen-toggle]");
       await sleep(900);
       const entered = await page.evaluate(`(() => {
         const button = document.querySelector('[data-fullscreen-toggle]');
@@ -496,8 +498,16 @@ async function main() {
           pressed: button?.getAttribute("aria-pressed"),
           title: button?.getAttribute("title"),
           label: button?.querySelector(".cp-toolbar-label")?.textContent?.trim(),
+          headless: /HeadlessChrome/.test(navigator.userAgent),
         };
       })()`);
+      if (!entered.active && entered.headless) {
+        // Headless Chrome exposes fullscreenEnabled but rejects the request with
+        // "TypeError: not granted"; it has no real window to enter. Record the
+        // environment limitation instead of claiming the product is broken.
+        report.fullscreen = { supported: false, reason: "HeadlessChrome denies the Fullscreen API (not granted)" };
+        return { unsupported: true, reason: report.fullscreen.reason };
+      }
       assert(entered.active, "requestFullscreen did not enter full screen");
       assert(entered.pressed === "true", `aria-pressed is ${entered.pressed} in full screen`);
       assert(/Return/i.test(entered.label ?? "") && /Return/i.test(entered.title ?? ""), `full-screen label/title are ${entered.label}/${entered.title}`);
@@ -509,7 +519,7 @@ async function main() {
         return { active: Boolean(document.fullscreenElement), pressed: button?.getAttribute("aria-pressed"), label: button?.querySelector(".cp-toolbar-label")?.textContent?.trim() };
       })()`);
       if (exited.active) {
-        await page.evaluate(`document.querySelector('[data-fullscreen-toggle]')?.click()`);
+        await page.realClick("[data-fullscreen-toggle]");
         await sleep(600);
       }
       const after = await page.evaluate(`(() => {
@@ -656,10 +666,14 @@ async function main() {
   } finally {
     report.finishedAt = new Date().toISOString();
     writeReport();
+    // The Windows Chrome child keeps stdio handles open; stop it explicitly so
+    // the suite exits instead of leaving a hung process and a leaked browser.
+    await chrome.stop().catch(() => {});
   }
 
   log(`\nScenarios: ${scenarios.filter((entry) => entry.status === "pass").length} passed, ${scenarios.filter((entry) => entry.status === "fail").length} failed`);
   log(`Evidence: ${join(evidenceDir, "workspace-responsive-v26.json")}`);
+  process.exit(0);
 }
 
 main().catch((error) => {

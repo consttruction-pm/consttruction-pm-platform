@@ -182,7 +182,15 @@ from construction_pm.activity_progress_history import (
     SQLiteActivityProgressHistoryRepository,
 )
 from construction_pm.p6_activity_progress_api import P6ActivityProgressAPI
-from construction_pm.p6_activity_step_api import P6ActivityStepReadAPI
+from construction_pm.p6_activity_step_api import P6ActivityStepReadAPI, P6ActivityStepWriteAPI
+from construction_pm.p6_activity_children import (
+    P6ActivityChildrenAPI,
+    SQLiteActivityChildrenRepository,
+)
+from construction_pm.p6_gantt_attachment import (
+    P6GanttAttachmentAPI,
+    SQLiteGanttAttachmentRepository,
+)
 from construction_pm.p6_activity_step_repository import (
     P6ActivityStep,
     P6ActivityStepApplicationService,
@@ -453,6 +461,8 @@ class PreviewRepositories:
     issues: SQLiteP6IssueRepository
     activity_steps: SQLiteP6ActivityStepRepository
     activity_step_service: P6ActivityStepApplicationService
+    activity_children: SQLiteActivityChildrenRepository
+    gantt_attachments: SQLiteGanttAttachmentRepository
     documents: SQLiteDocumentStore
     document_content: SQLiteDocumentContentRepository
     document_ocr: SQLiteDocumentOcrRepository
@@ -548,6 +558,8 @@ class PreviewRepositories:
         activity_step_service = P6ActivityStepApplicationService(
             activity_steps, transaction_manager
         )
+        activity_children = SQLiteActivityChildrenRepository(connection)
+        gantt_attachments = SQLiteGanttAttachmentRepository(connection)
         documents = SQLiteDocumentStore(connection)
         documents.initialize()
         document_content = SQLiteDocumentContentRepository(connection)
@@ -627,6 +639,8 @@ class PreviewRepositories:
             issues=issues,
             activity_steps=activity_steps,
             activity_step_service=activity_step_service,
+            activity_children=activity_children,
+            gantt_attachments=gantt_attachments,
             documents=documents,
             document_content=document_content,
             document_ocr=document_ocr,
@@ -1897,6 +1911,9 @@ def open_preview_runtime(
         workspace_read_v2_service=workspace_v2_service,
         relationship_master_repository=repositories.relationships,
         constraint_master_repository=repositories.constraints,
+        activity_children_repository=repositories.activity_children,
+        activity_step_repository=repositories.activity_steps,
+        document_store=repositories.documents,
         checkout_lease=checkout_lease,
         schedule_snapshot_publication_api=snapshot_api,
         backend_p0_api=backend_api,
@@ -1982,6 +1999,18 @@ def open_preview_runtime(
         p6_issue_api=issue_api,
         p6_activity_step_api=P6ActivityStepReadAPI(
             repositories.activity_step_service,
+            policy,
+        ),
+        p6_activity_step_write_api=P6ActivityStepWriteAPI(
+            repositories.activity_step_service,
+            policy,
+        ),
+        p6_activity_children_api=P6ActivityChildrenAPI(
+            repositories.activity_children,
+            policy,
+        ),
+        p6_gantt_attachment_api=P6GanttAttachmentAPI(
+            repositories.gantt_attachments,
             policy,
         ),
         document_api=DocumentAPI(

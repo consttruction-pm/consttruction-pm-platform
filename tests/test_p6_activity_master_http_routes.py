@@ -1186,3 +1186,80 @@ def test_checkout_holder_blocks_activity_and_wbs_writes_with_409(tmp_path):
     )
     assert status == "409 Conflict"
     assert body["code"] == "PROJECT_CHECKED_OUT_BY_OTHER"
+
+
+def test_activity_renumber_route_moves_ids_and_enforces_revision(tmp_path):
+    db_path = str(tmp_path / "cubi-activity-renumber.sqlite")
+    app, _repository, _connection = _app(db_path=db_path)
+    status, _wbs = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/wbs",
+        {
+            "contract_version": P6_WBS_MASTER_API_VERSION,
+            "wbs_id": "W-ROOT",
+            "parent_kind": "project",
+            "parent_wbs_id": None,
+            "code": "1",
+            "name": "Project Root",
+            "sequence_number": 0,
+        },
+    )
+    assert status == "201 Created"
+    path = "/api/projects/p1/p6/activities"
+    for activity_id, name in (("A-1", "First"), ("A-2", "Second")):
+        status, _body = _request(
+            app,
+            "POST",
+            path,
+            {
+                "contract_version": "p6-activity-master-api.v1",
+                "activity_id": activity_id,
+                "name": name,
+                "duration_value": "2",
+                "duration_unit": "working-day",
+                "wbs_id": "W-ROOT",
+            },
+        )
+        assert status == "201 Created"
+
+    status, renamed = _request(
+        app,
+        "POST",
+        path + "/renumber",
+        {
+            "contract_version": "p6-activity-master-api.v1",
+            "entries": [
+                {"activity_id": "A-1", "new_activity_id": "A-10", "expected_revision": 1},
+                {"activity_id": "A-2", "new_activity_id": "A-1", "expected_revision": 1},
+            ],
+            "renumber_baselines": False,
+        },
+    )
+    assert status == "200 OK"
+    assert renamed["renumbered"] == 2
+    assert [item["new_activity_id"] for item in renamed["mappings"]] == ["A-10", "A-1"]
+
+    status, listed = _request(app, "GET", path)
+    assert status == "200 OK"
+    assert {item["activity"]["activity_id"]: item["activity"]["name"] for item in listed["activities"]} == {
+        "A-1": "Second",
+        "A-10": "First",
+    }
+
+    # The old identity is gone; a stale renumber can no longer reach it.
+    status, _missing = _request(app, "GET", path + "/A-2")
+    assert status == "404 Not Found"
+    status, conflict = _request(
+        app,
+        "POST",
+        path + "/renumber",
+        {
+            "contract_version": "p6-activity-master-api.v1",
+            "entries": [
+                {"activity_id": "A-10", "new_activity_id": "A-30", "expected_revision": 4},
+            ],
+        },
+    )
+    assert status == "409 Conflict"
+    assert conflict["code"] == "REVISION_CONFLICT"

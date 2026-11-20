@@ -7,12 +7,14 @@ activity steps and period actuals remain dependent records and are not replaced
 by this master store.
 """
 
+import json
 import math
 import sqlite3
 from dataclasses import dataclass, replace
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Protocol
+from uuid import uuid4
 
 from .backend_p0.models import BackendScope, MAX_SAFE_REVISION
 from .wbs_master_repository import PostgresWBSMasterRepository, SQLiteWBSMasterRepository
@@ -167,6 +169,14 @@ class ActivityMasterRepository(Protocol):
     def save(self, activity: ActivityMaster, expected_revision: int | None = None) -> ActivityMaster: ...
     def get(self, scope: BackendScope, activity_id: str) -> ActivityMaster | None: ...
     def list(self, scope: BackendScope) -> tuple[ActivityMaster, ...]: ...
+    def delete(self, scope: BackendScope, activity_id: str, *, expected_revision: int) -> bool: ...
+    def renumber(
+        self,
+        scope: BackendScope,
+        entries: tuple[tuple[str, str, int], ...],
+        *,
+        include_baselines: bool = True,
+    ) -> dict[str, object]: ...
 
 
 def _decode_actual_start(value: object) -> date | datetime | None:
@@ -314,6 +324,86 @@ def _from_row(scope: BackendScope, row: tuple[object, ...]) -> ActivityMaster:
         return result
     except (TypeError, ValueError, ArithmeticError) as exc:
         raise ActivityPersistenceError("INVALID_STORED_ACTIVITY") from exc
+
+
+_RENUMBER_COLUMNS = (
+    "tenant_id,project_id,project_revision,activity_id,duration_value,duration_unit,"
+    "actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,"
+    "percent_complete_type,record_revision,expected_finish,planned_finish,"
+    "leveling_priority,original_duration,name,activity_type,status,status_code,"
+    "short_name,duration_type,cost_account_id"
+)
+_RENUMBER_COLUMN_NAMES = tuple(_RENUMBER_COLUMNS.split(","))
+# The activity ID value is written at this index of a renumber row.
+_RENUMBER_ID_INDEX = _RENUMBER_COLUMN_NAMES.index("activity_id")
+
+
+def _validated_renumber_entries(
+    entries: object,
+) -> tuple[tuple[str, str, int], ...]:
+    if not isinstance(entries, (list, tuple)) or not entries:
+        raise ActivityPersistenceError("INVALID_RENUMBER_ENTRIES")
+    normalized: list[tuple[str, str, int]] = []
+    old_ids: set[str] = set()
+    new_ids: set[str] = set()
+    for entry in entries:
+        if not isinstance(entry, (list, tuple)) or len(entry) != 3:
+            raise ActivityPersistenceError("INVALID_RENUMBER_ENTRIES")
+        old_id, new_id, expected_revision = entry
+        if not isinstance(old_id, str) or not old_id.strip():
+            raise ActivityPersistenceError("INVALID_ACTIVITY_ID")
+        if not isinstance(new_id, str) or not new_id.strip() or len(new_id) > 80:
+            raise ActivityPersistenceError("INVALID_NEW_ACTIVITY_ID")
+        if old_id == new_id:
+            raise ActivityPersistenceError("INVALID_RENUMBER_ENTRIES")
+        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+            raise ActivityPersistenceError("INVALID_EXPECTED_REVISION")
+        if old_id in old_ids or new_id in new_ids:
+            raise ActivityPersistenceError("INVALID_RENUMBER_ENTRIES")
+        old_ids.add(old_id)
+        new_ids.add(new_id)
+        normalized.append((old_id, new_id, expected_revision))
+    return tuple(normalized)
+
+
+def _renumber_collision(
+    existing_ids: set[str],
+    selected_ids: set[str],
+    new_ids: set[str],
+) -> None:
+    # A selected activity may take an ID another selected activity is leaving;
+    # the two-phase move makes that safe. It may never take an ID owned by an
+    # activity outside the renumber set.
+    for new_id in new_ids:
+        if new_id in existing_ids and new_id not in selected_ids:
+            raise ActivityPersistenceError("RENUMBER_TARGET_EXISTS")
+
+
+def _replace_document_activity_refs(value: object, old_id: str, new_id: str) -> bool:
+    """Rewrite activity references inside one stored document JSON value.
+
+    Document records keep their links in `linked_entity_refs`; a few payloads
+    also carry explicit activity/predecessor/successor ids. Only exact identity
+    values are replaced so free text is never rewritten.
+    """
+    changed = False
+    if isinstance(value, dict):
+        for key, item in list(value.items()):
+            if key == "linked_entity_refs" and isinstance(item, list):
+                next_items = [new_id if entry == old_id else entry for entry in item]
+                if next_items != item:
+                    value[key] = next_items
+                    changed = True
+            elif key in {"activity_id", "predecessor_id", "successor_id"} and item == old_id:
+                value[key] = new_id
+                changed = True
+            elif isinstance(item, (dict, list)):
+                changed = _replace_document_activity_refs(item, old_id, new_id) or changed
+    elif isinstance(value, list):
+        for item in value:
+            if isinstance(item, (dict, list)):
+                changed = _replace_document_activity_refs(item, old_id, new_id) or changed
+    return changed
 
 
 class SQLiteActivityMasterRepository:
@@ -538,6 +628,200 @@ class SQLiteActivityMasterRepository:
             self._validate_wbs_assignment(scope, item.wbs_id, require_assignment=False)
         return result
 
+    def delete(self, scope: BackendScope, activity_id: str, *, expected_revision: int) -> bool:
+        """Remove one activity row and its WBS link.
+
+        Child records, relationships, assignments and document links are checked
+        by the application boundary before this call; the repository only owns
+        the activity row so a stale revision can never delete the wrong record.
+        """
+        scope.validate()
+        if not isinstance(activity_id, str) or not activity_id.strip():
+            raise ActivityPersistenceError("INVALID_ACTIVITY_ID")
+        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+            raise ActivityPersistenceError("INVALID_EXPECTED_REVISION")
+        row = self.connection.execute(
+            "SELECT record_revision,project_revision FROM activity_master "
+            "WHERE tenant_id=? AND project_id=? AND activity_id=?",
+            (scope.tenant_id, scope.project_id, activity_id),
+        ).fetchone()
+        if row is None:
+            raise ActivityPersistenceError("ACTIVITY_NOT_FOUND")
+        if int(row[1]) != scope.project_revision or int(row[0]) != expected_revision:
+            raise ActivityPersistenceError("REVISION_CONFLICT")
+        self.connection.execute(
+            "DELETE FROM activity_wbs_assignment WHERE tenant_id=? AND project_id=? AND activity_id=?",
+            (scope.tenant_id, scope.project_id, activity_id),
+        )
+        cursor = self.connection.execute(
+            "DELETE FROM activity_master WHERE tenant_id=? AND project_id=? "
+            "AND project_revision=? AND activity_id=? AND record_revision=?",
+            (scope.tenant_id, scope.project_id, scope.project_revision, activity_id, expected_revision),
+        )
+        if cursor.rowcount != 1:
+            self.connection.rollback()
+            raise ActivityPersistenceError("REVISION_CONFLICT")
+        self.connection.commit()
+        return True
+
+    def _renumber_reference_tables(self, *, include_baselines: bool) -> tuple[str, ...]:
+        names: list[str] = []
+        for (name,) in self.connection.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        ).fetchall():
+            if not name or name == "activity_master":
+                continue
+            if not include_baselines and name == "p6_baseline_activity":
+                continue
+            columns = {
+                row[1]
+                for row in self.connection.execute(f'PRAGMA table_info("{name}")').fetchall()
+            }
+            if {"activity_id", "tenant_id", "project_id"} <= columns:
+                names.append(str(name))
+        return tuple(names)
+
+    def _move_activity_row(
+        self,
+        scope: BackendScope,
+        source_id: str,
+        target_id: str,
+        *,
+        include_baselines: bool,
+    ) -> int:
+        """Copy one activity to a new identity, repoint every reference, then remove the source.
+
+        Copying before deleting keeps foreign keys satisfied in either direction,
+        so a renumber never leaves a window where a child row has no parent.
+        """
+        row = self.connection.execute(
+            f"SELECT {_RENUMBER_COLUMNS} FROM activity_master "
+            "WHERE tenant_id=? AND project_id=? AND project_revision=? AND activity_id=?",
+            (scope.tenant_id, scope.project_id, scope.project_revision, source_id),
+        ).fetchone()
+        if row is None:
+            raise ActivityPersistenceError("ACTIVITY_NOT_FOUND")
+        values = list(row)
+        values[_RENUMBER_ID_INDEX] = target_id
+        placeholders = ",".join("?" for _ in _RENUMBER_COLUMN_NAMES)
+        self.connection.execute(
+            f"INSERT INTO activity_master ({_RENUMBER_COLUMNS}) VALUES ({placeholders})",
+            tuple(values),
+        )
+        updated = 0
+        for table in self._renumber_reference_tables(include_baselines=include_baselines):
+            cursor = self.connection.execute(
+                f'UPDATE "{table}" SET activity_id=? '
+                "WHERE tenant_id=? AND project_id=? AND activity_id=?",
+                (target_id, scope.tenant_id, scope.project_id, source_id),
+            )
+            updated += max(0, cursor.rowcount)
+        has_relationships = self.connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='relationship_master'"
+        ).fetchone() is not None
+        if has_relationships:
+            for column in ("predecessor_id", "successor_id"):
+                cursor = self.connection.execute(
+                    f"UPDATE relationship_master SET {column}=? "
+                    "WHERE tenant_id=? AND project_id=? AND "
+                    f"{column}=?",
+                    (target_id, scope.tenant_id, scope.project_id, source_id),
+                )
+                updated += max(0, cursor.rowcount)
+        # Document links live inside the stored JSON payload, not in a column.
+        has_documents = self.connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='project_documents'"
+        ).fetchone() is not None
+        document_rows = (
+            self.connection.execute(
+                "SELECT document_id,document_json FROM project_documents "
+                "WHERE tenant_id=? AND project_id=?",
+                (scope.tenant_id, scope.project_id),
+            ).fetchall()
+            if has_documents
+            else ()
+        )
+        for document_id, raw in document_rows:
+            try:
+                document = json.loads(raw)
+            except (TypeError, ValueError):
+                continue
+            if _replace_document_activity_refs(document, source_id, target_id):
+                self.connection.execute(
+                    "UPDATE project_documents SET document_json=? "
+                    "WHERE tenant_id=? AND project_id=? AND document_id=?",
+                    (json.dumps(document, ensure_ascii=False, sort_keys=True), scope.tenant_id, scope.project_id, document_id),
+                )
+                updated += 1
+        cursor = self.connection.execute(
+            "DELETE FROM activity_master "
+            "WHERE tenant_id=? AND project_id=? AND project_revision=? AND activity_id=?",
+            (scope.tenant_id, scope.project_id, scope.project_revision, source_id),
+        )
+        if cursor.rowcount != 1:
+            raise ActivityPersistenceError("REVISION_CONFLICT")
+        return updated
+
+    def renumber(
+        self,
+        scope: BackendScope,
+        entries: tuple[tuple[str, str, int], ...],
+        *,
+        include_baselines: bool = True,
+    ) -> dict[str, object]:
+        """Renumber activity IDs and keep every dependent reference intact.
+
+        P6 Professional renumbers from the largest ID down so a selected ID can
+        be reused by another selected activity. CUBI stages each move through a
+        unique temporary identity, which gives the same result for any mapping
+        (including swaps) while every reference stays inside one transaction.
+        """
+        scope.validate()
+        normalized = _validated_renumber_entries(entries)
+        was_in_transaction = self.connection.in_transaction
+        if not was_in_transaction:
+            self.connection.execute("BEGIN IMMEDIATE")
+        try:
+            rows = {
+                str(row[0]): int(row[1])
+                for row in self.connection.execute(
+                    "SELECT activity_id,record_revision FROM activity_master "
+                    "WHERE tenant_id=? AND project_id=? AND project_revision=?",
+                    (scope.tenant_id, scope.project_id, scope.project_revision),
+                ).fetchall()
+            }
+            selected = {old_id for old_id, _new_id, _revision in normalized}
+            for old_id, new_id, expected_revision in normalized:
+                if old_id not in rows:
+                    raise ActivityPersistenceError("ACTIVITY_NOT_FOUND")
+                if rows[old_id] != expected_revision:
+                    raise ActivityPersistenceError("REVISION_CONFLICT")
+            _renumber_collision(set(rows), selected, {new_id for _old, new_id, _rev in normalized})
+            references_updated = 0
+            for old_id, new_id, _expected_revision in normalized:
+                temporary = f"__CUBI_RENUMBER_{uuid4().hex.upper()}__"
+                references_updated += self._move_activity_row(
+                    scope, old_id, temporary, include_baselines=include_baselines
+                )
+                references_updated += self._move_activity_row(
+                    scope, temporary, new_id, include_baselines=include_baselines
+                )
+            if not was_in_transaction:
+                self.connection.commit()
+            return {
+                "mappings": [
+                    {"activity_id": old_id, "new_activity_id": new_id, "record_revision": revision}
+                    for old_id, new_id, revision in normalized
+                ],
+                "renumbered": len(normalized),
+                "references_updated": references_updated,
+                "baselines_renumbered": include_baselines,
+            }
+        except Exception:
+            if not was_in_transaction and self.connection.in_transaction:
+                self.connection.rollback()
+            raise
+
 
 class PostgresActivityMasterRepository:
     def __init__(self, connection: object) -> None:
@@ -700,3 +984,168 @@ class PostgresActivityMasterRepository:
         for item in result:
             self._validate_wbs_assignment(scope, item.wbs_id, require_assignment=False)
         return result
+
+    def delete(self, scope: BackendScope, activity_id: str, *, expected_revision: int) -> bool:
+        scope.validate()
+        if not isinstance(activity_id, str) or not activity_id.strip():
+            raise ActivityPersistenceError("INVALID_ACTIVITY_ID")
+        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+            raise ActivityPersistenceError("INVALID_EXPECTED_REVISION")
+        row = self.connection.execute(
+            "SELECT record_revision,project_revision FROM activity_master "
+            "WHERE tenant_id=%s AND project_id=%s AND activity_id=%s",
+            (scope.tenant_id, scope.project_id, activity_id),
+        ).fetchone()
+        if row is None:
+            raise ActivityPersistenceError("ACTIVITY_NOT_FOUND")
+        if int(row[1]) != scope.project_revision or int(row[0]) != expected_revision:
+            raise ActivityPersistenceError("REVISION_CONFLICT")
+        self.connection.execute(
+            "DELETE FROM activity_wbs_assignment WHERE tenant_id=%s AND project_id=%s AND activity_id=%s",
+            (scope.tenant_id, scope.project_id, activity_id),
+        )
+        cursor = self.connection.execute(
+            "DELETE FROM activity_master WHERE tenant_id=%s AND project_id=%s "
+            "AND project_revision=%s AND activity_id=%s AND record_revision=%s",
+            (scope.tenant_id, scope.project_id, scope.project_revision, activity_id, expected_revision),
+        )
+        if getattr(cursor, "rowcount", 1) != 1:
+            self.connection.rollback()
+            raise ActivityPersistenceError("REVISION_CONFLICT")
+        return True
+
+    def _renumber_reference_tables(self, *, include_baselines: bool) -> tuple[str, ...]:
+        candidates = [
+            str(row[0])
+            for row in self.connection.execute(
+                "SELECT table_name FROM information_schema.columns "
+                "WHERE table_schema=current_schema() AND column_name='activity_id' "
+                "AND table_name<>'activity_master'"
+            ).fetchall()
+        ]
+        names: list[str] = []
+        for name in candidates:
+            if not include_baselines and name == "p6_baseline_activity":
+                continue
+            columns = {
+                str(row[0])
+                for row in self.connection.execute(
+                    "SELECT column_name FROM information_schema.columns "
+                    "WHERE table_schema=current_schema() AND table_name=%s "
+                    "AND column_name IN ('tenant_id','project_id')",
+                    (name,),
+                ).fetchall()
+            }
+            if {"tenant_id", "project_id"} <= columns:
+                names.append(name)
+        return tuple(names)
+
+    def _move_activity_row(
+        self,
+        scope: BackendScope,
+        source_id: str,
+        target_id: str,
+        *,
+        include_baselines: bool,
+    ) -> int:
+        row = self.connection.execute(
+            f"SELECT {_RENUMBER_COLUMNS} FROM activity_master "
+            "WHERE tenant_id=%s AND project_id=%s AND project_revision=%s AND activity_id=%s",
+            (scope.tenant_id, scope.project_id, scope.project_revision, source_id),
+        ).fetchone()
+        if row is None:
+            raise ActivityPersistenceError("ACTIVITY_NOT_FOUND")
+        values = list(row)
+        values[_RENUMBER_ID_INDEX] = target_id
+        placeholders = ",".join("%s" for _ in _RENUMBER_COLUMN_NAMES)
+        self.connection.execute(
+            f"INSERT INTO activity_master ({_RENUMBER_COLUMNS}) VALUES ({placeholders})",
+            tuple(values),
+        )
+        updated = 0
+        for table in self._renumber_reference_tables(include_baselines=include_baselines):
+            cursor = self.connection.execute(
+                f'UPDATE "{table}" SET activity_id=%s '
+                "WHERE tenant_id=%s AND project_id=%s AND activity_id=%s",
+                (target_id, scope.tenant_id, scope.project_id, source_id),
+            )
+            updated += max(0, getattr(cursor, "rowcount", 0) or 0)
+        for column in ("predecessor_id", "successor_id"):
+            cursor = self.connection.execute(
+                f"UPDATE relationship_master SET {column}=%s "
+                "WHERE tenant_id=%s AND project_id=%s AND "
+                f"{column}=%s",
+                (target_id, scope.tenant_id, scope.project_id, source_id),
+            )
+            updated += max(0, getattr(cursor, "rowcount", 0) or 0)
+        try:
+            document_rows = self.connection.execute(
+                "SELECT document_id,document_json FROM project_documents "
+                "WHERE tenant_id=%s AND project_id=%s",
+                (scope.tenant_id, scope.project_id),
+            ).fetchall()
+        except Exception:
+            document_rows = ()
+        for document_id, raw in document_rows:
+            try:
+                document = json.loads(raw)
+            except (TypeError, ValueError):
+                continue
+            if _replace_document_activity_refs(document, source_id, target_id):
+                self.connection.execute(
+                    "UPDATE project_documents SET document_json=%s "
+                    "WHERE tenant_id=%s AND project_id=%s AND document_id=%s",
+                    (json.dumps(document, ensure_ascii=False, sort_keys=True), scope.tenant_id, scope.project_id, document_id),
+                )
+                updated += 1
+        cursor = self.connection.execute(
+            "DELETE FROM activity_master "
+            "WHERE tenant_id=%s AND project_id=%s AND project_revision=%s AND activity_id=%s",
+            (scope.tenant_id, scope.project_id, scope.project_revision, source_id),
+        )
+        if getattr(cursor, "rowcount", 1) != 1:
+            raise ActivityPersistenceError("REVISION_CONFLICT")
+        return updated
+
+    def renumber(
+        self,
+        scope: BackendScope,
+        entries: tuple[tuple[str, str, int], ...],
+        *,
+        include_baselines: bool = True,
+    ) -> dict[str, object]:
+        scope.validate()
+        normalized = _validated_renumber_entries(entries)
+        rows = {
+            str(row[0]): int(row[1])
+            for row in self.connection.execute(
+                "SELECT activity_id,record_revision FROM activity_master "
+                "WHERE tenant_id=%s AND project_id=%s AND project_revision=%s",
+                (scope.tenant_id, scope.project_id, scope.project_revision),
+            ).fetchall()
+        }
+        selected = {old_id for old_id, _new_id, _revision in normalized}
+        for old_id, _new_id, expected_revision in normalized:
+            if old_id not in rows:
+                raise ActivityPersistenceError("ACTIVITY_NOT_FOUND")
+            if rows[old_id] != expected_revision:
+                raise ActivityPersistenceError("REVISION_CONFLICT")
+        _renumber_collision(set(rows), selected, {new_id for _old, new_id, _rev in normalized})
+        references_updated = 0
+        for old_id, new_id, _expected_revision in normalized:
+            temporary = f"__CUBI_RENUMBER_{uuid4().hex.upper()}__"
+            references_updated += self._move_activity_row(
+                scope, old_id, temporary, include_baselines=include_baselines
+            )
+            references_updated += self._move_activity_row(
+                scope, temporary, new_id, include_baselines=include_baselines
+            )
+        return {
+            "mappings": [
+                {"activity_id": old_id, "new_activity_id": new_id, "record_revision": revision}
+                for old_id, new_id, revision in normalized
+            ],
+            "renumbered": len(normalized),
+            "references_updated": references_updated,
+            "baselines_renumbered": include_baselines,
+        }

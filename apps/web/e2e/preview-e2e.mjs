@@ -1186,6 +1186,11 @@ async function launchChrome() {
       "--disable-extensions",
       "--disable-gpu",
       "--disable-features=Translate,MediaRouter",
+      // The workspace falls back to navigator.language before any stored
+      // preference exists. Pinning the browser language keeps English
+      // assertions deterministic on machines whose OS locale is Persian; the
+      // RTL scenarios still opt into fa through localStorage explicitly.
+      `--lang=${process.env.CUBI_CHROME_LANG || "en-US"}`,
       "--window-size=1440,900",
       "--hide-scrollbars",
       ...(process.env.CUBI_CHROME_NO_SANDBOX === "1" ? ["--no-sandbox", "--disable-setuid-sandbox"] : []),
@@ -1193,6 +1198,21 @@ async function launchChrome() {
     ],
     { stdio: ["ignore", "pipe", "pipe"], detached: process.platform !== "win32" },
   );
+  // Browser suites must not hang the test process when a caller forgets to
+  // stop the browser (or throws before it can). Terminate the whole tree on
+  // exit; this is a no-op once Chrome has already closed itself.
+  process.on("exit", () => {
+    if (!child.pid || child.exitCode !== null || child.signalCode !== null) return;
+    if (process.platform === "win32") {
+      spawnSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore" });
+    } else {
+      try {
+        process.kill(-child.pid, "SIGKILL");
+      } catch {
+        // The group may already be gone.
+      }
+    }
+  });
   let stderr = "";
   child.stderr.on("data", (chunk) => {
     stderr += chunk.toString();

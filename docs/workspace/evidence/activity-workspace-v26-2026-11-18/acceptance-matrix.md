@@ -1,0 +1,151 @@
+# Activity Workspace — Version 26 Acceptance Matrix
+
+Scope: Issue #2047, CUBI Engineering Activities workspace.
+Code under test: branch `feat/2047-activity-workspace-v26`, head `f96478f` plus the
+final evidence run (see §5–§6).
+Reference: Oracle Primavera P6 Professional Version 26 HTML Help
+(`https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm`).
+The approximately 815-page supplied PDF is **MISSING / VERIFY** in this environment.
+
+Status vocabulary (exactly as required by the execution instruction):
+`مطابق و تأییدشده` · `پیاده‌سازی‌شده ولی آزمون‌نشده` · `ناقص` · `غایب` ·
+`محدودیت مستند و مشخص` · `VERIFY` · `BLOCKED`
+
+"Verified today" means the browser suite was run on 2026-11-18 against this branch and the
+report is in `docs/workspace/evidence/` for that date. Older suites are named but were not
+re-run on the current head; they are therefore not marked as accepted.
+
+## 1. Activity Details tabs
+
+| # | Feature / Control | Official V26 Source | Navigation Path | Available Options | Default State | Visibility Conditions | Expected Behavior | Data Source | Permission | Validation | Error Behavior | Persistence | Test Coverage | Evidence Reference | Status | Blocker / Missing Dependency | Next Action | Owner |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | Activity Details — General (read) | general_tab_-_activity_details.htm | Activities › select row › Details › General | 6 activity types, 4 duration types, 4 percent-complete types shown; ID, cost account, leveling priority | First tab | Activity selected, Details pane visible | Shows stored Activity Master values; unknown values read "Not available" | `GET /p6/activities/{id}`; workspace read model cells | project.read | none | none | read-only | `activity-details-v26.mjs`, `activity-general-edit-v26.mjs` (today) | `evidence/activity-details-tabs-v26-2026-11-18/`, `evidence/activity-general-edit-v26-2026-11-18/` | مطابق و تأییدشده | — | — | Hasan |
+| 2 | Activity Details — General (edit) | general_tab_-_activity_details.htm; customize_activity_column_titles.htm | Details › General › Load editable fields | Name, activity type, duration type, percent-complete type, leveling priority (Top/High/Normal/Low/Lowest), cost account | Loaded from record | `canWrite` and transport available | Loads record, PATCHes only changed fields with `expected_revision`; surfaces `REVISION_CONFLICT` | `PATCH /p6/activities/{id}` | project.write | name 1–180; enum membership | inline code, revision shown | yes, verified by reload | `workspace-activity-general.test.ts` (9), `activity-general-edit-v26.mjs` (today, EN + FA RTL 1280/1920) | `evidence/activity-general-edit-v26-2026-11-18/` | مطابق و تأییدشده | Grid repaint on next project read only (no refresh callback in owned files) | Add refresh callback after handoff | Hasan / #1716, #1983 |
+| 3 | Activity Details — Status | status_tab_-_activity_details.htm | Details › Status | read durations/status/units + constraint add/remove | Read | Activity selected | Shows stored values; constraint form writes through constraint API | activity master cells; `/p6/constraints` | project.write for constraints | date required | inline code | constraint write via API (suite not re-run today) | `activity-details-v26.mjs` (read state today) | `evidence/activity-details-tabs-v26-2026-11-18/` | پیاده‌سازی‌شده ولی آزمون‌نشده | Constraint write path not re-run on current head | Re-run constraint scenario | Hasan |
+| 4 | Activity Details — Resources | resources_tab_-_activity_details.htm | Details › Resources | assignment rows + add-assignment form | empty/loaded | `canWrite` for form | Reads `/p6/resource-assignments`; creates one assignment and reloads authoritative list | assignment service | project.write | resource id required | inline code | verified today (row reloaded) | `activity-details-v26.mjs` write `resources` | `evidence/activity-details-tabs-v26-2026-11-18/` | مطابق و تأییدشده | Existing-assignment edit/remove not offered | Confirm with contract owner | Hasan |
+| 5 | Activity Details — Predecessors | predecessors_tab_-_activity_details.htm | Details › Predecessors | relationship rows + Go To | Read | Activity selected | Shows stored predecessors, type, lag; add/remove is in the Logic panel, not duplicated here | workspace relationships | project.read | — | — | read-only | today (tab state) | `evidence/activity-details-tabs-v26-2026-11-18/` | ناقص | Tab has no Add/Remove; relationship edits live in the Logic panel | Decide canonical single editor with owner | Hasan / #2009 |
+| 6 | Activity Details — Successors | successors_tab_-_activity_details.htm | Details › Successors | relationship rows + Go To | Read | Activity selected | Same as Predecessors | workspace relationships | project.read | — | — | read-only | today (tab state) | same | ناقص | same | same | Hasan / #2009 |
+| 7 | Activity Details — Relationships | relationships_tab_-_activity_details.htm | Details › Relationships | predecessor + successor sections, Gantt dates | Read | Activity selected | Read-only composition; FS/SS/FF/SF and signed lag rendered as stored | workspace relationships | project.read | — | — | read-only | today (tab state) | same | ناقص | No edit affordance on the tab | Handoff decision | Hasan |
+| 8 | Activity Details — Codes | codes_tab_-_activity_details.htm | Details › Codes | ID/WBS + empty assignment list | Empty | Activity selected | States that no assignment is returned; never invents codes | — | project.read | — | — | none | today (tab state) | same | BLOCKED | API / CONTRACT MISSING: code definitions exist, no assignment HTTP route | Request assignment endpoint | Platform |
+| 9 | Activity Details — Notebook | notebook_tab_-_activity_details.htm | Details › Notebook | browser-local notes from Comments rail | Empty | Activity selected | Clearly labels notes as browser-local, not P6 notebook records | localStorage | local | — | — | local only | today (tab state) | same | محدودیت مستند و مشخص | CONTRACT MISSING: no persisted notebook topic service | Add contract when authorized | Platform |
+| 10 | Activity Details — Steps | steps_tab_-_activity_details.htm | Details › Steps | stored steps (sequence, name, weight, dates, UDFs) | Loaded/empty | Activity selected | Reads `/p6/activities/{id}/steps`; no completion column invented | step read API | project.read | — | — | read-only | today (A130 seeded steps in suite) | same | محدودیت مستند و مشخص | API MISSING: no step write route | Request step write contract | Platform |
+| 11 | Activity Details — WPs & Docs | 19419.htm | Details › WPs & Docs | linked project documents + details | Loaded/empty | Activity selected | Lists documents whose linked ref matches the activity; upload/download stay on Documents page | document service | project.read | — | — | read-only | today (tab state) | same | محدودیت مستند و مشخص | No per-activity assignment write route | Keep single document authority | Platform |
+| 12 | Activity Details — Expenses | expenses_tab_-_activity_details.htm | Details › Expenses | expense rows + add form | empty/loaded | `canWrite` for form | Reads cost service by activity; creates expense and reloads | cost service | project.write | name/category/currency required | inline code | verified today | `activity-details-v26.mjs` write `expenses` | same | مطابق و تأییدشده | Edit/remove not offered | Confirm with contract owner | Hasan |
+| 13 | Activity Details — Issues | issues.htm (CUBI extension) | Details › Issues | issue rows + add form | empty/loaded | `canWrite` for form | Creates linked issue; reloads authoritative list; labelled CUBI extension | issue service | project.write | title/type/status/priority/owner required | inline code | verified today | `activity-details-v26.mjs` write `issues` | same | مطابق و تأییدشده | Not an Oracle-native tab | Keep label | Hasan |
+| 14 | Activity Details — Risks | 48816.htm | Details › Risks | project risk rows | Loaded/empty | Activity selected | Project-register read surface; no per-activity FK is fabricated | risk service | project.read | — | — | read-only | today (tab state) | same | محدودیت مستند و مشخص | No activity-risk relationship in the model | Document as product limitation | Hasan |
+| 15 | Activity Details — Summary | activity_details.htm (parent topic) | Details › Summary | units/cost/dates views | Dates view | Activity selected | Values only from authoritative cells; missing values stay empty | workspace read model | project.read | — | — | read-only | today (tab state) | same | پیاده‌سازی‌شده ولی آزمون‌نشده | Roll-up numeric parity not re-audited | Re-run summary assertions | Hasan |
+| 16 | Activity Details — UDFs | activity_details.htm (parent topic) | Details › UDFs | typed editors per registry | Loaded/empty | `writable` fields only | Writes typed values through UDF API | field registry + UDF API | project.write | type/unit rules | inline code | API persisted (suite not re-run today) | earlier `activity-udf-values-v26.mjs` | — | پیاده‌سازی‌شده ولی آزمون‌نشده | Not re-run on current head | Re-run UDF suite | Hasan |
+| 17 | Activity Details — Update History | 103015.htm | Details › Update History | revision events, before/after | Loaded/empty | Activity selected | Reads progress history; never fabricates events | `/progress-history` | project.read | — | — | read-only | today (read state) | same | مطابق و تأییدشده | — | — | Hasan |
+| 18 | Activity Details — Calendar (CUBI) | calendars.htm | Details › Calendar (CUBI) | selected/inherited calendar | Loaded/empty | Activity selected | Read-only; scheduling semantics stay in the engine | calendar service | project.read | — | — | read-only | today (tab state) | same | پیاده‌سازی‌شده ولی آزمون‌نشده | Inherited-resolution assertions not re-run | Re-run calendar suite | Hasan |
+| 19 | Details tab keyboard model | use_shortcut_menus.htm; accessibility | Details tablist | ArrowLeft/Right, Home, End | Active tab only in tab order | Tabs rendered | Focus, selection and panel move together; direction follows RTL | ARIA tablist | — | — | — | not persisted | `activity-details-v26.mjs` keyboard block (today, EN + FA) | `evidence/activity-details-tabs-v26-2026-11-18/details-tabs-keyboard-fa-1366.png` | مطابق و تأییدشده | — | — | Hasan |
+| 20 | Customize Activity Details | customize_activity_details.htm | Details › Customize Tabs | available/displayed lists, add/remove/all/up/down/default/apply/cancel | All 17 | Details visible | Display set applies and survives reload | localStorage | — | at least one tab | — | per-browser | `activity-details-v26.mjs` customize block (today) | same | مطابق و تأییدشده | — | — | Hasan |
+| 21 | Loading / empty / error / unauthorized states | — | Each data tab | labelled states | idle | transport errors | Unauthorized copy names the permission problem; raw codes not leaked | tab reads | project.read | — | localized | — | `activity-details-v26.mjs` (today) | same | مطابق و تأییدشده | — | — | Hasan |
+| 21a | No activity selected (activity mode) | activity_details.htm | Activities › empty project or cleared selection | tab surfaces | — | No row selected | Currently renders tab fields as "Not available"; an explicit empty state is not proven | workspace state | — | — | — | — | not covered | — | VERIFY | The rendered state is truthful but has no dedicated empty-state copy or test | Add empty-state copy + assertion in the details suite | Hasan |
+
+## 2. Activity Table, columns, sort, group, filters
+
+| # | Feature / Control | Official V26 Source | Navigation Path | Available Options | Default State | Visibility Conditions | Expected Behavior | Data Source | Permission | Validation | Error Behavior | Persistence | Test Coverage | Evidence Reference | Status | Blocker / Missing Dependency | Next Action | Owner |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 22 | Activity Table required field inventory | activitytable.htm | Activities › grid | ID, name, WBS, type, status, durations, dates, float, critical, percent, calendar, constraints, resources, relationships, baseline, codes, UDFs | Layout columns | Activities window | Each cell comes from the read model or reads "—"; no client calculation | workspace read model | project.read | — | — | layout persisted | field aliases in `workspace_read_provider.py`; suites not re-run today | — | VERIFY | Calendar, codes, UDF and baseline cells not re-audited on this head; several need contracts | Field-by-field re-audit | Hasan |
+| 23 | Columns dialog | define_activity_table_columns.htm; customize_activity_column_titles.htm | Layout › Columns | available/displayed, add/all/remove/all, up/down, default, apply, cancel, width/alignment/title | Saved layout | Activities window | Changes the actual table and persists per layout | `/p6/layouts/project/activity` | project.write | layout revision | conflict surfaced | yes (layout revisions) | earlier `activity-columns-v26.mjs` (11 scenarios) | Nov-15 evidence | پیاده‌سازی‌شده ولی آزمون‌نشده | Not re-run on current head | Re-run columns suite | Hasan |
+| 24 | Sorting | sort_activities.htm | Layout › Sort | field, ascending/descending, multi-level | Layout sort | Activities window | Reorders displayed rows stably; interacts with filters | layout | project.write | revision | conflict surfaced | yes | earlier `activity-group-sort-v26.mjs` | Nov-15 evidence | پیاده‌سازی‌شده ولی آزمون‌نشده | Not re-run | Re-run group-sort suite | Hasan |
+| 25 | Grouping / WBS path | group_activities_by_field.htm; group_activities_by_wbs_path.htm | Layout › Group and Sort | group field(s), WBS path, expand/collapse, bands | Layout group | Activities window | Groups rows, bands expand/collapse and persist | layout | project.write | revision | conflict surfaced | yes | earlier `activity-group-sort-v26.mjs`, `activity-wbs-band-v26.mjs` | Nov-15 evidence | پیاده‌سازی‌شده ولی آزمون‌نشده | Not re-run | Re-run suites | Hasan |
+| 26 | WBS indentation coherence | group_activities_by_wbs_path.htm | Activities › WBS bands/rows | indentation, expand/collapse | Expanded | WBS group active | Rows, Gantt and selection stay aligned in every column | workspace state | project.read | — | — | persisted collapse | earlier `activity-wbs-collapse-v26.mjs` (19 checks) | Nov-15 evidence | پیاده‌سازی‌شده ولی آزمون‌نشده | Not re-run | Re-run WBS suite | Hasan |
+| 27 | Filters / advanced criteria | filter_a_layout.htm; create_a_filter.htm; apply_a_filter.htm; filtering_data.htm | Layout › Filters | categories, All/Any, rows, operators, typed values, replace/highlight, preview, apply, reset | No filter | Activities window | Filters the actual rows; Replace vs Highlight; preview count | layout + filter contract | project.write | value typing | inline code | saved filter | earlier `activity-filters-v26.mjs` (14 scenarios) | Nov-15 evidence | پیاده‌سازی‌شده ولی آزمون‌نشده | Not re-run | Re-run filter suite | Hasan |
+
+## 3. Gantt, menus, context menus, keyboard, layout
+
+| # | Feature / Control | Official V26 Source | Navigation Path | Available Options | Default State | Visibility Conditions | Expected Behavior | Data Source | Permission | Validation | Error Behavior | Persistence | Test Coverage | Evidence Reference | Status | Blocker / Missing Dependency | Next Action | Owner |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 28 | Gantt bars, milestones, summary, baseline, critical | ganttchart.htm; the_gantt_chart.htm | Activities › Gantt | bar types, colors, patterns | Layout bars | Gantt visible | Bars/milestones render stored facts only; no browser-derived dates | schedule facts | project.read | — | — | layout | earlier `gantt-bar-styles-v26.mjs` | Nov-15 evidence | پیاده‌سازی‌شده ولی آزمون‌نشده | Not re-run | Re-run Gantt suites | Hasan |
+| 29 | Data date, progress line, overlays | applying_a_progress_line_to_the_gantt_chart.htm | Gantt › overlays | data date line, progress line, baseline | On | Gantt visible | Overlays read the published snapshot | schedule snapshot | project.read | — | — | layout | earlier `activity-gantt-overlays-v26.mjs` | Nov-15 evidence | پیاده‌سازی‌شده ولی آزمون‌نشده | Not re-run | Re-run overlay suite | Hasan |
+| 30 | Timescale, zoom, best fit | change_a_layout_s_timescale_format_50.htm | Gantt › timescale / zoom | day/week/month/quarter/year; zoom; fit | Quarter | Gantt visible | Changes the visible scale without altering schedule facts | layout | project.write | revision | conflict | yes | earlier `gantt-options-v26.mjs`, `gantt-fit-v26.mjs` | Nov-15 evidence | پیاده‌سازی‌شده ولی آزمون‌نشده | Not re-run | Re-run suites | Hasan |
+| 31 | Relationship arrows and drag editing | create_relationships_in_the_gantt_chart.htm | Gantt bars › links | FS/SS/FF/SF, signed lag, delete | On | Editable | Drag writes through the relationship API; arrows match stored links | relationship contract | project.write | type/lag | surfaced | yes | earlier `activity-relationships-v26.mjs` (11 scenarios) | Nov-15 evidence | پیاده‌سازی‌شده ولی آزمون‌نشده | Not re-run | Re-run relationship suite | Hasan |
+| 32 | Grid ↔ Gantt scroll/selection sync | the_gantt_chart.htm | Activities split | selection, vertical scroll, WBS collapse | Synced | Both panes visible | Selection, scroll and rows stay aligned | workspace state | project.read | — | — | prefs | earlier `gantt-scroll-sync-v26.mjs` | Nov-15 evidence | پیاده‌سازی‌شده ولی آزمون‌نشده | Not re-run | Re-run sync suite | Hasan |
+| 33 | Table / WBS / Gantt / Details context menus | use_shortcut_menus.htm | Right-click surfaces | per-surface command lists | — | Surface present | Commands route to real actions or a localized disabled reason | command registry | role | — | — | — | earlier `context-menus-v26.mjs` (92 checks) | Nov-15 evidence | پیاده‌سازی‌شده ولی آزمون‌نشده | Not re-run | Re-run context suite | Hasan |
+| 34 | Grid keyboard and roving focus | use_shortcut_menus.htm | Activities grid | arrows, Home/End, Enter, Shift+F10 | First cell | Grid focused | Focus and selection follow the grid model | workspace state | — | — | — | — | earlier `activity-grid-keyboard-v26.mjs` | Nov-15 evidence | پیاده‌سازی‌شده ولی آزمون‌نشده | Not re-run | Re-run keyboard suite | Hasan |
+| 35 | Details keyboard tab model | accessibility | Details › tabs | ArrowLeft/Right, Home, End | Active tab | Tabs rendered | Focus/selection/panel move together; RTL aware | ARIA tablist | — | — | — | — | verified today (EN + FA) | `evidence/activity-details-tabs-v26-2026-11-18/` | مطابق و تأییدشده | — | — | Hasan |
+| 36 | Details pane show/hide and layout modes | using_main_windows.htm | View › Details / layout selector | details, usage, trace logic, hidden | Details | Activities window | Correct pane switching without changing the default split | workspace shell | — | — | — | local prefs | not re-audited today | — | VERIFY | Shell files owned by #1716/#1983 | Re-audit after handoff | Hasan |
+| 37 | Default Activity/Gantt split | layout toolbar | Activities split | approved default geometry | Preserved | Activities window | No 53.5% import; approved proportions kept | CSS shell | — | — | — | — | earlier suites | Nov-15 evidence | پیاده‌سازی‌شده ولی آزمون‌نشده | Geometry change not approved | Re-check with shell owner | Hasan |
+| 38 | Menu bar, toolbars, layout bar | menu_bar.htm; layout_toolbar.htm | Global shell | menus, toolbar families, rails | Visible | Workspace | Commands enabled only when they can act | command registry | role | — | — | — | earlier `toolbars-v26.mjs` | Nov-15 evidence | پیاده‌سازی‌شده ولی آزمون‌نشده | Not re-run | Re-run toolbar suite | Hasan |
+| 39 | Localization EN + FA RTL | — | Global | 9 locales | EN | All | Functional RTL layout, not only labels | i18n | — | — | — | preference | verified today for Details + General editor (FA, 1280/1920) | `evidence/activity-general-edit-v26-2026-11-18/` | مطابق و تأییدشده | Workspace-wide RTL capture is wider than this increment | Extend in next pass | Hasan |
+| 40 | Grid refresh after a Details edit | define_activity_table_columns.htm | Details › Save | — | — | After save | Details repaints immediately; grid updates on next project read | activity master | project.write | revision | code shown | server yes; grid delayed | today | `evidence/activity-general-edit-v26-2026-11-18/` | BLOCKED | OWNERSHIP / HANDOFF REQUIRED: `main.ts`, `workspace-view.ts` owned by #1716/#1711/#1983 | Add refresh callback after handoff | Hasan / owners |
+| 41 | Percent-complete type in the table | activitytable.htm | Activities › grid | DURATION/UNITS/PHYSICAL/SCOPE | — | Column added | Cell shows the stored value | read model | project.read | — | — | — | editor verified today | — | BLOCKED | OWNERSHIP: `workspace_read_provider.py` owned by #1983 | Add `activity.percent_complete_type` after handoff | Hasan / #1983 |
+| 42 | Activity code assignment | codes_tab_-_activity_details.htm | Details › Codes | code value per activity | — | — | Assign/remove codes | assignment repository exists | project.write | — | — | — | none | — | BLOCKED | API / CONTRACT MISSING: no HTTP route for assignments | Request endpoint | Platform |
+| 43 | Supplied 815-page PDF | — | — | — | — | — | Page references re-keyed | — | — | — | — | — | — | — | VERIFY | MISSING / VERIFY: file not available in this environment | Supply the PDF | Owner |
+
+## 4. Classification summary
+
+| Category | Items |
+|---|---|
+| UI MISSING | None found in the Activity Details scope; relationship add/remove on tabs is intentionally not duplicated (Logic panel is the editor). |
+| API / CONTRACT MISSING | Activity code assignments (#42), persisted Notebook (#9), step writes (#10), per-activity document assignment (#11). |
+| PERMISSION RESTRICTED | Read-only users see disabled writers with a reason; server re-authorizes every request. |
+| SERVICE NOT CONNECTED | None known for the verified scope. |
+| PRODUCT LIMITATION | Risks are a project register (#14); Notebook is browser-local (#9). |
+| OWNERSHIP / HANDOFF REQUIRED | 1280×720 workspace floor (#37/R1), grid refresh (#40), percent-complete-type cell (#41). |
+| EVIDENCE MISSING | Only the supplied PDF (#43) and the re-fetch of Help topic URLs (host 403) remain unavailable. |
+
+## 5. Re-verification 2026-11-18 at head `f96478f`
+
+A fresh local preview database was created per suite. The browser language is
+pinned to `en-US`; RTL scenarios opt in through localStorage. Evidence for every
+row below was produced in this run, not carried over from November 15.
+
+| ID | Item | New status | Test / evidence |
+|---|---|---|---|
+| 21a | No activity selected (activity mode) | مطابق و تأییدشده | `activity-details-v26` `emptyState`; banner `data-details-empty-state`, `details-empty-selection-en-1366.png` |
+| 23 | Columns dialog | مطابق و تأییدشده | `activity-columns-v26`, 11 scenarios; `activity-columns-v26-2026-11-18/` |
+| 24 | Sorting | مطابق و تأییدشده | `activity-group-sort-v26`, 9 scenarios |
+| 25 | Grouping / WBS path | مطابق و تأییدشده | `activity-group-sort-v26`, `activity-wbs-band-v26` |
+| 26 | WBS indentation coherence | مطابق و تأییدشده | `activity-wbs-collapse-v26` |
+| 27 | Filters / advanced criteria | مطابق و تأییدشده | `activity-filters-v26`; `activity-filters-v26-2026-11-18/` |
+| 28 | Gantt bars, milestones, summary, baseline, critical | مطابق و تأییدشده | `gantt-bar-styles-v26`, `activity-gantt-overlays-v26` |
+| 29 | Data date, progress line, overlays | مطابق و تأییدشده | `activity-gantt-overlays-v26` |
+| 30 | Timescale, zoom, best fit | مطابق و تأییدشده | `gantt-options-v26`, `gantt-fit-v26` |
+| 31 | Relationship arrows and drag editing | مطابق و تأییدشده | `activity-relationships-v26` |
+| 32 | Grid ↔ Gantt scroll/selection sync | مطابق و تأییدشده | `gantt-scroll-sync-v26` |
+| 33 | Table / WBS / Gantt / Details context menus | مطابق و تأییدشده | `context-menus-v26`, `register-context-menus-v26` |
+| 34 | Grid keyboard and roving focus | مطابق و تأییدشده | `activity-grid-keyboard-v26` |
+| 35 | Details keyboard tab model | مطابق و تأییدشده | `activity-details-v26` keyboard + keyboardRtl |
+| 37 | Default Activity/Gantt split at 1280×720 | BLOCKED BY OWNERSHIP | `workspace-responsive-v26` 01 fails: `#workspace` 521px vs `.cp-p6-workspace` `min-height: 540px` (`styles.css:5446`); shell owners #1716/#1711/#1983 |
+| 38 | Menu bar, toolbars, layout bar | مطابق و تأییدشده | `toolbars-v26`, `toolbar-rails-v26`, `workspace-canonical-v26`; 118 menu commands, 57 toolbar buttons, every unavailable item carries a reason |
+| 39 | Localization EN + FA RTL | مطابق و تأییدشده | Details/General plus filters, group-sort, scale, WBS, scope, layout selector at 1280/1366/1920 |
+| 22 | Activity Table field inventory | VERIFY (narrowed) | Calendar, codes, UDF and baseline cells re-audited; `activity.percent_complete_type` still absent from the read model (#41) |
+| 36 | Details pane show/hide and layout modes | VERIFY | Shell files owned by #1716/#1711/#1983; menu state covered by `toolbars-v26`, geometry not re-audited |
+| 40 | Grid refresh after a Details edit | BLOCKED BY OWNERSHIP | No refresh callback in owned files; `main.ts` / `workspace-view.ts` handoff to #1716/#1711/#1983 |
+| 41 | Percent-complete type in the table | BLOCKED BY CONTRACT | Read-model cell missing (`workspace_read_provider.py`); owner #1983 |
+| 42 | Activity code assignment | BLOCKED BY CONTRACT | No assignment HTTP route; platform owner |
+| 43 | Supplied 815-page PDF | VERIFY | MISSING in this environment; Help host returns 403 |
+
+New evidence-backed items added by this run:
+
+| ID | Item | Status | Test / evidence |
+|---|---|---|---|
+| 44 | Table font, colours and row height | مطابق و تأییدشده | `activity-table-font-v26` |
+| 45 | Activity scale / full population and RTL overflow | مطابق و تأییدشده | `activity-scale-v26`, 8 scenarios |
+| 46 | Layout selector: rename, export, import, dirty state, viewer read-only | مطابق و تأییدشده | `layout-selector-v26`, 15 scenarios |
+| 47 | Toolbar rails and compact toolbar | مطابق و تأییدشده | `toolbar-rails-v26` |
+| 48 | Project register context menus | مطابق و تأییدشده | `register-context-menus-v26` |
+| 49 | Canonical shell: one tab strip, window switching | مطابق و تأییدشده | `workspace-canonical-v26` |
+| 50 | Workspace shell accessibility/status bar | مطابق و تأییدشده | `workspace-shell-v26` |
+| 51 | Activity behavior/control flow (scope) | مطابق و تأییدشده | `activity-scope-v26`, 15 scenarios |
+| 52 | Full surface inventory and handoff | مطابق و تأییدشده | `v26-surface-inventory.md` |
+| 53 | Window tab order survives reload | مطابق و تأییدشده | `workspace-window-tabs-v26` keyboard reorder + reload; per-project restore applies the saved order (`workspace-windows.ts`) |
+
+## 6. Execution record
+
+| Command | Result |
+|---|---|
+| `npm run typecheck` | 0 errors |
+| `npm run build` | success |
+| `npm test` | 1178 source + 15 preview-server tests, 0 failed |
+| Python workspace/activity suites | 99 passed |
+| Activity V26 browser suites | all 21 listed suites passed |
+| Additional Activity/WBS suites | `activities-v26-scenarios` 18/18, `wbs-hierarchy` 19 checks, `wbs-status-milestones` 22, `wbs-cut-copy-paste` 29, `layout-trace` 11, `workspace-window-tabs`, `workspace-visual-acceptance` 6 cells — passed |
+| Shell/menu/dialog suites | `toolbars`, `toolbar-rails`, `context-menus`, `register-context-menus`, `workspace-canonical`, `workspace-shell`, `layout-selector` passed |
+| `workspace-responsive-v26` | failed at scenario 01 only (R1 above) |
+
+The suites were run against `f96478f`; the evidence files in this directory and
+the sibling `*-2026-11-18` directories are the artifacts of that run.
+

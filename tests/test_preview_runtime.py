@@ -197,7 +197,14 @@ def test_preview_runtime_serves_real_calculated_reads_and_rejects_stale_revision
             "activity.id",
             "activity.name",
         ]
-        assert len(workspace["columns"]) == 20
+        assert len(workspace["columns"]) == 21
+        pct_column = next(
+            column
+            for column in workspace["columns"]
+            if column["id"] == "activity.percent_complete_type"
+        )
+        assert pct_column["label"] == "Percent Complete Type"
+        assert pct_column["data_type"] == "enum"
 
         a130 = next(
             activity
@@ -1422,7 +1429,7 @@ def test_preview_project_creation_initializes_real_workspace_and_persists(
         assert status == 200
         workspace = json.loads(body)["workspace"]
         assert workspace["activities"] == []
-        assert len(workspace["columns"]) == 20
+        assert len(workspace["columns"]) == 21
         assert workspace["columns"][0]["id"] == "activity.id"
 
         status, _, body = _request(

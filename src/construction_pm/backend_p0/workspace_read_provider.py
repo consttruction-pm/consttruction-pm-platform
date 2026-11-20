@@ -516,6 +516,7 @@ def _activity_payload(
         "activity.status": _enum_text(activity.status),
         "activity.type": _enum_text(activity.activity_type),
         "activity.duration_type": _enum_text(activity.duration_type),
+        "activity.percent_complete_type": _enum_text(activity.percent_complete_type),
         "activity.cost_account": activity.cost_account_id or "",
         "activity.status_code": _enum_text(activity.status_code),
         "activity.leveling_priority": _enum_text(activity.leveling_priority),

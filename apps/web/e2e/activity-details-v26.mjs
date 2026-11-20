@@ -74,6 +74,25 @@ async function poll(page, expression, timeout = 15000) {
   return false;
 }
 
+async function pressTabKey(page, key) {
+  return page.evaluate(`(() => {
+    const focused = document.activeElement;
+    if (!focused || typeof focused.matches !== "function" || !focused.matches("[data-detail-tab]")) {
+      return { ok: false, focused: focused?.getAttribute?.("data-detail-tab") ?? null };
+    }
+    focused.dispatchEvent(new KeyboardEvent("keydown", { key: ${JSON.stringify(key)}, bubbles: true, cancelable: true }));
+    const active = document.querySelector('#cp-details [data-detail-tab].is-active');
+    return {
+      ok: true,
+      tab: active?.dataset.detailTab ?? null,
+      ariaSelected: active?.getAttribute("aria-selected") ?? null,
+      focused: document.activeElement?.dataset?.detailTab ?? null,
+      focusTabIndex: document.activeElement?.getAttribute?.("tabindex") ?? null,
+      visiblePanel: document.querySelector('#cp-details [data-detail-panel]:not([hidden])')?.dataset.detailPanel ?? null,
+    };
+  })()`);
+}
+
 async function submitWriteForm(page, tab, values) {
   const outcome = await page.evaluate(`(() => {
     const form = document.querySelector('#cp-details [data-details-form="${tab}"]');
@@ -129,6 +148,10 @@ async function main() {
 
   await page.initialize();
   await page.navigate(`${baseUrl}/preview/login?next=%2Fapp%3Fview%3Dlive`, "form", "login");
+  // Pin the workspace locale: the acceptance copy and the evidence filenames
+  // are English, so the run must not inherit a non-English host locale.
+  await page.evaluate(`(() => { localStorage.setItem("cubi:workspace-locale", "en"); return true; })()`);
+  await page.navigate(`${baseUrl}/preview/login?next=%2Fapp%3Fview%3Dlive`, "form", "login");
   await page.click('button[name="role"][value="admin"]');
   await page.waitForSelector('[data-project-id="preview-rps-01"]', "project selection");
   await page.click('[data-project-id="preview-rps-01"]');
@@ -142,6 +165,52 @@ async function main() {
   assert(report.tabs.length === REQUIRED_TABS.length + 1, `expected ${REQUIRED_TABS.length + 1} tabs, got ${report.tabs.length}`);
   assert(JSON.stringify(report.tabs.slice(0, REQUIRED_TABS.length)) === JSON.stringify(REQUIRED_TABS), "required tab order is wrong");
   assert(report.tabs.at(-1) === "calendar", "calendar tab must stay last");
+
+  // A cleared selection is a state of its own: the pane must say no activity
+  // is selected instead of presenting blank fields as stored values.
+  const deselected = await page.evaluate(`(() => {
+    const row = document.querySelector('#cp-activity-grid tbody tr.is-selected[data-activity-id]');
+    if (!row) return false;
+    row.dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
+    return true;
+  })()`);
+  assert(deselected, "no selected activity row was available to clear");
+  await sleep(700);
+  const emptyState = await page.evaluate(`(() => {
+    const banner = document.querySelector('#cp-details [data-details-empty-state]');
+    return { present: Boolean(banner), text: banner?.textContent?.trim() ?? "" };
+  })()`);
+  assert(emptyState.present, "clearing the selection did not render the empty-state banner");
+  assert(/No activity is selected/.test(emptyState.text), `empty-state copy was: ${emptyState.text}`);
+  report.emptyState = emptyState;
+  await captureState(page, "details-empty-selection-en-1366");
+  await page.click("#cp-activity-grid tbody tr[data-activity-id]");
+  await page.waitForSelector('#cp-details [data-detail-tab="general"]', "details tabs after reselect");
+  await sleep(700);
+  const emptyAfterReselect = await page.evaluate(`Boolean(document.querySelector('#cp-details [data-details-empty-state]'))`);
+  assert(!emptyAfterReselect, "the empty-state banner stayed after reselecting an activity");
+
+  // Keyboard tab model: only the active tab is in the tab order, so arrow,
+  // Home and End must move focus and selection together and show its panel.
+  await page.evaluate(`(() => { document.querySelector('#cp-details [data-detail-tab].is-active')?.focus(); return true; })()`);
+  const keyboard = {
+    arrowRight: await pressTabKey(page, "ArrowRight"),
+    end: await pressTabKey(page, "End"),
+    home: await pressTabKey(page, "Home"),
+    arrowLeftWrap: await pressTabKey(page, "ArrowLeft"),
+  };
+  assert(keyboard.arrowRight.tab === "status", `ArrowRight moved to ${keyboard.arrowRight.tab}`);
+  assert(keyboard.end.tab === "calendar", `End moved to ${keyboard.end.tab}`);
+  assert(keyboard.home.tab === "general", `Home moved to ${keyboard.home.tab}`);
+  assert(keyboard.arrowLeftWrap.tab === "calendar", `ArrowLeft did not wrap to calendar: ${keyboard.arrowLeftWrap.tab}`);
+  for (const state of Object.values(keyboard)) {
+    assert(
+      state.focused === state.tab && state.ariaSelected === "true" && state.focusTabIndex === "0" && state.visiblePanel === state.tab,
+      `keyboard focus, selection and panel diverged: ${JSON.stringify(state)}`,
+    );
+  }
+  report.keyboard = keyboard;
+  await page.evaluate(`(() => { document.querySelector('#cp-details [data-detail-tab="general"]')?.click(); return true; })()`);
 
   for (const tab of DATA_TABS) {
     await page.evaluate(`(() => { const b = document.querySelector('#cp-details [data-detail-tab="${tab}"]'); if (b) b.click(); return Boolean(b); })()`);
@@ -347,6 +416,26 @@ async function main() {
     dialog?.querySelector("[data-details-customize-ok]")?.click();
     return true;
   })()`);
+
+  // RTL: the horizontal arrow direction follows the rendered text direction, so
+  // ArrowLeft must advance to the next tab in the Persian workspace.
+  await page.evaluate(`(() => {
+    localStorage.setItem("cubi:workspace-locale", "fa");
+    localStorage.removeItem("cubi:activity-details-visible-tabs:v2");
+    localStorage.removeItem("cubi:activity-details-tab");
+    return true;
+  })()`);
+  await page.reload('#cp-details [data-detail-tab="general"]', "reload in Persian");
+  await sleep(1200);
+  const dir = await page.evaluate(`document.documentElement.dir`);
+  assert(dir === "rtl", `Persian workspace is not RTL: ${dir}`);
+  await page.evaluate(`(() => { document.querySelector('#cp-details [data-detail-tab="general"]')?.click(); document.querySelector('#cp-details [data-detail-tab="general"]')?.focus(); return true; })()`);
+  const rtlArrow = await pressTabKey(page, "ArrowLeft");
+  assert(rtlArrow.tab === "status", `RTL ArrowLeft moved to ${rtlArrow.tab} instead of the next tab`);
+  assert(rtlArrow.focused === rtlArrow.tab && rtlArrow.visiblePanel === rtlArrow.tab, `RTL keyboard state diverged: ${JSON.stringify(rtlArrow)}`);
+  report.keyboardRtl = { dir, ...rtlArrow };
+  await captureState(page, "details-tabs-keyboard-fa-1366");
+  await page.evaluate(`(() => { localStorage.setItem("cubi:workspace-locale", "en"); return true; })()`);
 
   await page.screenshot("activity-details-v26/details-en-1366.png");
   copyFileSync(join(outDir, "details-en-1366.png"), join(evidenceDir, "details-en-1366.png"));

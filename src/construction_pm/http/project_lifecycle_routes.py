@@ -135,6 +135,9 @@ from ..p6_financial_period_api import P6FinancialPeriodAPI, P6_FINANCIAL_PERIOD_
 from ..p6_expense_api import P6ExpenseAPI, P6_EXPENSE_API_VERSION
 from ..p6_issue_api import P6IssueAPI, P6_ISSUE_API_VERSION
 from ..p6_activity_step_api import P6ActivityStepReadAPI
+from ..p6_activity_step_repository import P6ActivityStepPersistenceError
+from ..p6_activity_children import ActivityChildPersistenceError
+from ..p6_gantt_attachment import GanttAttachmentPersistenceError
 from ..document_api import DocumentAPI
 from ..document_storage import content_disposition
 from ..tracking_read_model import (
@@ -345,6 +348,9 @@ class ProjectLifecycleHttpRoutes:
         p6_obs_node_api: P6OBSNodeAPI | None = None,
         p6_issue_api: P6IssueAPI | None = None,
         p6_activity_step_api: P6ActivityStepReadAPI | None = None,
+        p6_activity_step_write_api: object | None = None,
+        p6_gantt_attachment_api: object | None = None,
+        p6_activity_children_api: object | None = None,
         document_api: DocumentAPI | None = None,
         tracking_read_api: TrackingReadAPI | None = None,
         budget_api: BudgetAPI | None = None,
@@ -409,6 +415,9 @@ class ProjectLifecycleHttpRoutes:
         self._p6_obs_node_api = p6_obs_node_api
         self._p6_issue_api = p6_issue_api
         self._p6_activity_step_api = p6_activity_step_api
+        self._p6_activity_step_write_api = p6_activity_step_write_api
+        self._p6_gantt_attachment_api = p6_gantt_attachment_api
+        self._p6_activity_children_api = p6_activity_children_api
         self._document_api = document_api
         self._tracking_read_api = tracking_read_api
         self._budget_api = budget_api
@@ -1818,6 +1827,78 @@ class ProjectLifecycleHttpRoutes:
                     )
             if (
                 path.startswith("/api/projects/")
+                and "/p6/gantt/attachments" in path
+                and self._p6_gantt_attachment_api is not None
+            ):
+                prefix, suffix = path.split("/p6/gantt/attachments", 1)
+                project_id = prefix[len("/api/projects/"):].rstrip("/")
+                parts = [unquote(part) for part in suffix.strip("/").split("/") if part]
+                if not project_id or len(parts) > 1:
+                    return self._error(400, "P6_GANTT_ATTACHMENT_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                scope = BackendScope(context.tenant_id, context.project_id, context.revision)
+                payload = json.loads(body.decode("utf-8") or "{}") if body else {}
+                if not isinstance(payload, dict):
+                    return self._error(400, "P6_GANTT_ATTACHMENT_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    if method == "GET" and not parts:
+                        return self._json(200, self._p6_gantt_attachment_api.list(scope, auth_context=auth))
+                    if method == "POST" and not parts:
+                        return self._json(201, self._p6_gantt_attachment_api.create(
+                            scope,
+                            kind=payload.get("kind"),
+                            label=payload.get("label"),
+                            start_date=payload.get("start_date"),
+                            end_date=payload.get("end_date"),
+                            color=payload.get("color"),
+                            activity_id=payload.get("activity_id"),
+                            topic_id=payload.get("topic_id"),
+                            visible=payload.get("visible"),
+                            auth_context=auth,
+                        ))
+                    if method == "PATCH" and len(parts) == 1:
+                        return self._json(200, self._p6_gantt_attachment_api.update(
+                            scope,
+                            parts[0],
+                            kind=payload.get("kind"),
+                            label=payload.get("label"),
+                            start_date=payload.get("start_date"),
+                            end_date=payload.get("end_date"),
+                            color=payload.get("color"),
+                            activity_id=payload.get("activity_id"),
+                            topic_id=payload.get("topic_id"),
+                            visible=payload.get("visible"),
+                            expected_record_revision=payload.get("expected_record_revision"),
+                            auth_context=auth,
+                        ))
+                    if method == "DELETE" and len(parts) == 1:
+                        return self._json(200, self._p6_gantt_attachment_api.delete(
+                            scope,
+                            parts[0],
+                            expected_record_revision=payload.get("expected_record_revision"),
+                            auth_context=auth,
+                        ))
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                except AuthorizationError as exc:
+                    return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
+                except GanttAttachmentPersistenceError as exc:
+                    code = str(exc)
+                    if code == "REVISION_CONFLICT":
+                        return self._error(409, code, "error.revision.conflict")
+                    if code.endswith("_NOT_FOUND"):
+                        return self._error(404, code, "error.resource.not_found")
+                    return self._error(400, code, "error.request.invalid")
+                except (ValueError, TypeError) as exc:
+                    return self._error(400, _stable_error_code(exc, "P6_GANTT_ATTACHMENT_REQUEST_INVALID"), "error.request.invalid")
+            if (
+                path.startswith("/api/projects/")
                 and "/p6/activities" in path
                 and self._p6_activity_master_api is not None
             ):
@@ -2125,6 +2206,169 @@ class ProjectLifecycleHttpRoutes:
                                 scope, parts[0], auth_context=auth
                             ),
                         )
+                    if (
+                        method == "POST"
+                        and len(parts) == 2
+                        and parts[0]
+                        and parts[1] == "steps"
+                        and self._p6_activity_step_write_api is not None
+                    ):
+                        return self._json(
+                            201,
+                            self._p6_activity_step_write_api.create(
+                                scope,
+                                parts[0],
+                                description=str(payload.get("description") or ""),
+                                weight=payload.get("weight"),
+                                percent_complete=payload.get("percent_complete"),
+                                sequence=payload.get("sequence"),
+                                auth_context=auth,
+                            ),
+                        )
+                    if (
+                        method == "PATCH"
+                        and len(parts) == 3
+                        and parts[0]
+                        and parts[1] == "steps"
+                        and self._p6_activity_step_write_api is not None
+                    ):
+                        return self._json(
+                            200,
+                            self._p6_activity_step_write_api.update(
+                                scope,
+                                parts[0],
+                                parts[2],
+                                description=None if payload.get("description") is None else str(payload.get("description")),
+                                weight=payload.get("weight"),
+                                percent_complete=payload.get("percent_complete"),
+                                sequence=payload.get("sequence"),
+                                auth_context=auth,
+                            ),
+                        )
+                    if (
+                        method == "DELETE"
+                        and len(parts) == 3
+                        and parts[0]
+                        and parts[1] == "steps"
+                        and self._p6_activity_step_write_api is not None
+                    ):
+                        return self._json(
+                            200,
+                            self._p6_activity_step_write_api.delete(
+                                scope, parts[0], parts[2], auth_context=auth
+                            ),
+                        )
+                    if (
+                        len(parts) == 2
+                        and parts[0]
+                        and parts[1] in {"codes", "notebook"}
+                        and self._p6_activity_children_api is not None
+                    ):
+                        children = self._p6_activity_children_api
+                        if method == "GET" and parts[1] == "codes":
+                            return self._json(200, children.list_codes(scope, parts[0], auth_context=auth))
+                        if method == "GET" and parts[1] == "notebook":
+                            return self._json(200, children.list_notebook(scope, parts[0], auth_context=auth))
+                        if method == "POST" and parts[1] == "codes":
+                            return self._json(
+                                201,
+                                children.assign_code(
+                                    scope,
+                                    parts[0],
+                                    code_type=str(payload.get("code_type") or ""),
+                                    code_value=str(payload.get("code_value") or ""),
+                                    description=None if payload.get("description") is None else str(payload.get("description")),
+                                    auth_context=auth,
+                                ),
+                            )
+                        if method == "POST" and parts[1] == "notebook":
+                            return self._json(
+                                201,
+                                children.add_topic(
+                                    scope,
+                                    parts[0],
+                                    topic_name=str(payload.get("topic_name") or ""),
+                                    description=str(payload.get("description") or ""),
+                                    auth_context=auth,
+                                ),
+                            )
+                    if (
+                        len(parts) == 3
+                        and parts[0]
+                        and parts[1] in {"codes", "notebook"}
+                        and self._p6_activity_children_api is not None
+                    ):
+                        children = self._p6_activity_children_api
+                        if method == "DELETE" and parts[1] == "codes":
+                            return self._json(200, children.remove_code(scope, parts[0], parts[2], auth_context=auth))
+                        if method == "PATCH" and parts[1] == "notebook":
+                            expected = payload.get("expected_record_revision")
+                            if isinstance(expected, bool) or not isinstance(expected, int) or expected < 1:
+                                raise ValueError("EXPECTED_RECORD_REVISION_REQUIRED")
+                            return self._json(
+                                200,
+                                children.update_topic(
+                                    scope,
+                                    parts[0],
+                                    parts[2],
+                                    topic_name=str(payload.get("topic_name") or ""),
+                                    description=str(payload.get("description") or ""),
+                                    expected_record_revision=expected,
+                                    auth_context=auth,
+                                ),
+                            )
+                        if method == "DELETE" and parts[1] == "notebook":
+                            expected = payload.get("expected_record_revision")
+                            if isinstance(expected, bool) or not isinstance(expected, int) or expected < 1:
+                                raise ValueError("EXPECTED_RECORD_REVISION_REQUIRED")
+                            return self._json(
+                                200,
+                                children.delete_topic(
+                                    scope,
+                                    parts[0],
+                                    parts[2],
+                                    expected_record_revision=expected,
+                                    auth_context=auth,
+                                ),
+                            )
+                    if (
+                        method == "POST"
+                        and len(parts) == 1
+                        and parts[0] == "renumber"
+                    ):
+                        raw_entries = payload.get("entries")
+                        if not isinstance(raw_entries, list) or not raw_entries:
+                            raise ValueError("INVALID_RENUMBER_ENTRIES")
+                        entries: list[tuple[str, str, int]] = []
+                        for entry in raw_entries:
+                            if not isinstance(entry, dict):
+                                raise ValueError("INVALID_RENUMBER_ENTRIES")
+                            old_id = entry.get("activity_id")
+                            new_id = entry.get("new_activity_id")
+                            expected_revision = entry.get("expected_revision")
+                            if not isinstance(old_id, str) or not old_id.strip():
+                                raise ValueError("INVALID_ACTIVITY_ID")
+                            if not isinstance(new_id, str) or not new_id.strip():
+                                raise ValueError("INVALID_NEW_ACTIVITY_ID")
+                            if (
+                                isinstance(expected_revision, bool)
+                                or not isinstance(expected_revision, int)
+                                or expected_revision < 1
+                            ):
+                                raise ValueError("EXPECTED_REVISION_REQUIRED")
+                            entries.append((old_id, new_id, expected_revision))
+                        renumber_baselines = payload.get("renumber_baselines", True)
+                        if not isinstance(renumber_baselines, bool):
+                            raise ValueError("INVALID_RENUMBER_BASELINES")
+                        return self._json(
+                            200,
+                            self._p6_activity_master_api.renumber(
+                                scope,
+                                tuple(entries),
+                                renumber_baselines=renumber_baselines,
+                                auth_context=auth,
+                            ),
+                        )
                     if method == "GET" and len(parts) == 1 and parts[0]:
                         result = self._p6_activity_master_api.get(
                             scope, parts[0], auth_context=auth
@@ -2132,6 +2376,37 @@ class ProjectLifecycleHttpRoutes:
                         if result is None:
                             return self._error(404, "P6_ACTIVITY_MASTER_NOT_FOUND", "error.resource.not_found")
                         return self._json(200, result)
+                    if method == "DELETE" and len(parts) == 1 and parts[0]:
+                        expected_revision = payload.get("expected_revision")
+                        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+                            raise ValueError("EXPECTED_REVISION_REQUIRED")
+                        return self._json(
+                            200,
+                            self._p6_activity_master_api.delete(
+                                scope,
+                                parts[0],
+                                expected_revision=expected_revision,
+                                auth_context=auth,
+                            ),
+                        )
+                    if (
+                        method == "POST"
+                        and len(parts) == 2
+                        and parts[0]
+                        and parts[1] == "dissolve"
+                    ):
+                        expected_revision = payload.get("expected_revision")
+                        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+                            raise ValueError("EXPECTED_REVISION_REQUIRED")
+                        return self._json(
+                            200,
+                            self._p6_activity_master_api.dissolve(
+                                scope,
+                                parts[0],
+                                expected_revision=expected_revision,
+                                auth_context=auth,
+                            ),
+                        )
                     if method == "PATCH" and len(parts) == 1 and parts[0]:
                         expected_revision = payload.get("expected_revision")
                         if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
@@ -2158,6 +2433,14 @@ class ProjectLifecycleHttpRoutes:
                 except ActivityPersistenceError as exc:
                     if str(exc) == "REVISION_CONFLICT":
                         return self._error(409, _stable_error_code(exc, "REVISION_CONFLICT"), "error.revision.conflict")
+                    if str(exc) == "ACTIVITY_NOT_FOUND":
+                        return self._error(404, _stable_error_code(exc, "RESOURCE_NOT_FOUND"), "error.resource.not_found")
+                    if str(exc) == "DISSOLVE_UNAVAILABLE":
+                        return self._error(503, _stable_error_code(exc, "RESOURCE_UNAVAILABLE"), "error.resource.unavailable")
+                    if str(exc) == "RENUMBER_TARGET_EXISTS":
+                        return self._error(409, "RENUMBER_TARGET_EXISTS", "error.p6.resource.conflict")
+                    if str(exc).startswith("ACTIVITY_HAS_") or str(exc).startswith("DISSOLVE_"):
+                        return self._error(409, _stable_error_code(exc, "RESOURCE_CONFLICT"), "error.p6.resource.conflict")
                     return self._error(400, _stable_error_code(exc, "REQUEST_INVALID"), "error.request.invalid")
                 except (TypeError, KeyError):
                     return self._error(500, "INTERNAL_ERROR", "error.internal")
@@ -2165,6 +2448,13 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(
                         409, exc.code, "error.project.checkout_conflict"
                     )
+                except (ActivityChildPersistenceError, P6ActivityStepPersistenceError) as exc:
+                    code = str(exc)
+                    if code == "REVISION_CONFLICT":
+                        return self._error(409, _stable_error_code(exc, "REVISION_CONFLICT"), "error.revision.conflict")
+                    if code.endswith("_NOT_FOUND"):
+                        return self._error(404, _stable_error_code(exc, "RESOURCE_NOT_FOUND"), "error.resource.not_found")
+                    return self._error(400, _stable_error_code(exc, "REQUEST_INVALID"), "error.request.invalid")
                 except (ValueError, ArithmeticError) as exc:
                     return self._error(
                         400,

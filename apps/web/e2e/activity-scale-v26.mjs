@@ -465,7 +465,7 @@ async function main() {
 
   log(`\nScenarios: ${scenarios.filter((s) => s.status === "pass").length} passed, ${scenarios.filter((s) => s.status === "fail").length} failed`);
   log(`Evidence: ${join(evidenceDir, "activity-scale-v26.json")}`);
-  await chrome.close?.();
+  await chrome.stop?.();
 }
 
 main().catch((error) => {

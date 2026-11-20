@@ -121,11 +121,16 @@ async function openGroupSort(page) {
 }
 
 async function setGroupBy(page, value) {
+  // The dialog now carries ordered group levels (group.field.N); the legacy
+  // single groupBy select is kept as a fallback for older builds. "none" is
+  // an empty first level, not a literal option value.
   const changed = await page.evaluate(`(() => {
-    const select = document.querySelector('${groupSortDialog} select[name="groupBy"]');
+    const level = document.querySelector('${groupSortDialog} select[name="group.field.0"]');
+    const desired = level && ${JSON.stringify(value)} === "none" ? "" : ${JSON.stringify(value)};
+    const select = level ?? document.querySelector('${groupSortDialog} select[name="groupBy"]');
     if (!select) return false;
-    select.value = ${JSON.stringify(value)};
-    if (select.value !== ${JSON.stringify(value)}) return false;
+    select.value = desired;
+    if (select.value !== desired) return false;
     select.dispatchEvent(new Event("change", { bubbles: true }));
     return true;
   })()`);
