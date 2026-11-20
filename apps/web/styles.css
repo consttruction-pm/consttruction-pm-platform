@@ -10369,3 +10369,17 @@ body.cp-toolbar-dragging .cp-tool-btn { cursor: grabbing; }
 .cubi-public-footer>nav>div{min-width:140px}
 .cubi-public-footer>nav b{display:block;margin-bottom:.35rem;color:#fff}
 [dir="rtl"] .cubi-public-footer>nav>div{text-align:right}
+
+/* CUBI Global Administration — system-level surface, direction-agnostic. */
+.cp-admin { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; color: #0b1f33; }
+.cp-admin header { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; justify-content: space-between; }
+.cp-admin h1 { font-size: clamp(1.4rem, 2.4vw, 2rem); margin: 0 0 8px; }
+.cp-admin h2 { font-size: 1.1rem; margin: 24px 0 8px; }
+.cp-admin-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; list-style: none; padding: 0; margin: 16px 0; }
+.cp-admin-summary li { background: #f4f7fb; border: 1px solid #dbe4ee; border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 4px; }
+.cp-admin-summary strong { font-size: 1.4rem; }
+.cp-admin-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+.cp-admin-table th, .cp-admin-table td { text-align: start; padding: 8px; border-bottom: 1px solid #e3e9f1; vertical-align: top; }
+.cp-admin-table th { background: #f4f7fb; font-weight: 600; }
+.cp-admin-empty { color: #5a6b7d; }
+@media (max-width: 600px) { .cp-admin-table th:nth-child(4), .cp-admin-table td:nth-child(4) { display: none; } }

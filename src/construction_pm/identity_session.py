@@ -201,6 +201,12 @@ class IdentityUser:
     roles: frozenset[str]
     password_hash: str
     active: bool = True
+    # Administrative state. Defaults keep every existing caller valid; the
+    # Global Administration surface is the only writer.
+    locked_at: datetime | None = None
+    expires_at: datetime | None = None
+    must_change_password: bool = False
+    last_login_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -313,7 +319,7 @@ class IdentityService:
             raise IdentityError("AUTHENTICATION_THROTTLED")
         user = self._store.find_user_by_email(normalized)
         valid = False
-        if user is not None and user.active:
+        if user is not None and user.active and self._account_open(user, attempted_at):
             valid = verify_password(password, user.password_hash)
         else:
             # Spend comparable time on an unknown account so response timing
@@ -328,6 +334,9 @@ class IdentityService:
         )
         if not valid or user is None:
             raise IdentityError("AUTHENTICATION_FAILED")
+        mark_login = getattr(self._store, "mark_login", None)
+        if callable(mark_login):
+            mark_login(user.user_id, attempted_at)
         token = new_session_token()
         session = StoredSession(
             token_hash=token_hash(token),
@@ -351,6 +360,15 @@ class IdentityService:
             created_at=attempted_at,
             expires_at=session.expires_at,
         )
+
+    @staticmethod
+    def _account_open(user: IdentityUser, now: datetime) -> bool:
+        """A locked or expired account cannot log in even with the right password."""
+        if user.locked_at is not None:
+            return False
+        if user.expires_at is not None and now >= user.expires_at:
+            return False
+        return True
 
     def logout(self, token: str) -> bool:
         try:
@@ -432,7 +450,8 @@ class _SqlIdentityStore:
     def find_user_by_email(self, email: str) -> IdentityUser | None:
         row = self._one(
             "SELECT user_id, tenant_id, email, display_name, roles_json, "
-            f"password_hash, active FROM identity_users WHERE lower(email)={self.placeholder}",
+            "password_hash, active, locked_at, expires_at, must_change_password, "
+            f"last_login_at FROM identity_users WHERE lower(email)={self.placeholder}",
             (email.lower(),),
         )
         if row is None:
@@ -448,6 +467,10 @@ class _SqlIdentityStore:
             roles=validate_role_tokens(roles),
             password_hash=str(row[5]),
             active=bool(row[6]),
+            locked_at=_parse_time(row[7]) if row[7] is not None else None,
+            expires_at=_parse_time(row[8]) if row[8] is not None else None,
+            must_change_password=bool(row[9]),
+            last_login_at=_parse_time(row[10]) if row[10] is not None else None,
         )
 
     def record_attempt(
@@ -540,6 +563,13 @@ class _SqlIdentityStore:
         ).fetchone()
         return row is not None
 
+    def mark_login(self, user_id: str, when: datetime) -> None:
+        self.connection.execute(
+            "UPDATE identity_users SET last_login_at="
+            f"{self.placeholder} WHERE user_id={self.placeholder}",
+            (when.isoformat(), user_id),
+        )
+
     def delete_attempts_before(self, cutoff: datetime) -> None:
         self.connection.execute(
             "DELETE FROM identity_login_attempts WHERE attempted_at<"
@@ -568,6 +598,10 @@ class SQLiteIdentityStore(_SqlIdentityStore):
                 roles_json TEXT NOT NULL,
                 password_hash TEXT NOT NULL,
                 active INTEGER NOT NULL DEFAULT 1,
+                locked_at TEXT,
+                expires_at TEXT,
+                must_change_password INTEGER NOT NULL DEFAULT 0,
+                last_login_at TEXT,
                 created_at TEXT NOT NULL,
                 password_changed_at TEXT NOT NULL
             );
@@ -597,6 +631,21 @@ class SQLiteIdentityStore(_SqlIdentityStore):
                 ON identity_login_attempts (email, attempted_at);
             """
         )
+        for column, ddl in (
+            ("locked_at", "ALTER TABLE identity_users ADD COLUMN locked_at TEXT"),
+            ("expires_at", "ALTER TABLE identity_users ADD COLUMN expires_at TEXT"),
+            (
+                "must_change_password",
+                "ALTER TABLE identity_users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0",
+            ),
+            ("last_login_at", "ALTER TABLE identity_users ADD COLUMN last_login_at TEXT"),
+        ):
+            existing = {
+                info[1]
+                for info in self.connection.execute("PRAGMA table_info(identity_users)").fetchall()
+            }
+            if column not in existing:
+                self.connection.execute(ddl)
         self.connection.commit()
 
     def upsert_user(self, user: IdentityUser) -> None:
@@ -638,12 +687,22 @@ class PostgresIdentityStore(_SqlIdentityStore):
                 roles_json TEXT NOT NULL,
                 password_hash TEXT NOT NULL,
                 active BOOLEAN NOT NULL DEFAULT TRUE,
+                locked_at TIMESTAMPTZ,
+                expires_at TIMESTAMPTZ,
+                must_change_password BOOLEAN NOT NULL DEFAULT FALSE,
+                last_login_at TIMESTAMPTZ,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
                 password_changed_at TIMESTAMPTZ NOT NULL DEFAULT now()
             )
             """,
             "CREATE UNIQUE INDEX IF NOT EXISTS identity_users_email_unique "
             "ON identity_users (lower(email))",
+            # Additive upgrade for databases created before administration state.
+            "ALTER TABLE identity_users ADD COLUMN IF NOT EXISTS locked_at TIMESTAMPTZ",
+            "ALTER TABLE identity_users ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ",
+            "ALTER TABLE identity_users ADD COLUMN IF NOT EXISTS must_change_password "
+            "BOOLEAN NOT NULL DEFAULT FALSE",
+            "ALTER TABLE identity_users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ",
             """
             CREATE TABLE IF NOT EXISTS identity_sessions (
                 token_hash TEXT PRIMARY KEY,

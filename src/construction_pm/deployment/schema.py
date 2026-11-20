@@ -10,6 +10,7 @@ from typing import Any
 
 from ..activity_master_repository import PostgresActivityMasterRepository
 from ..enterprise_task_repository import PostgresEnterpriseTaskRepository
+from ..global_administration import PostgresGlobalAdministrationStore
 from ..enterprise_organization_access_repository import PostgresEnterpriseOrganizationAccessRepository
 from ..identity_session import PostgresIdentityStore
 from ..p6_cost_account_repository import PostgresP6CostAccountRepository
@@ -34,6 +35,7 @@ from ..wbs_master_repository import PostgresWBSMasterRepository
 def initialize_production_schema(connection: Any) -> None:
     """Create every table the deployed surface reads or writes."""
     PostgresIdentityStore(connection).initialize()
+    PostgresGlobalAdministrationStore(connection).initialize()
     PostgresEnterpriseTaskRepository(connection).initialize()
     PostgresEnterpriseOrganizationAccessRepository(connection).initialize()
     initialize_project_lifecycle_schema(connection)

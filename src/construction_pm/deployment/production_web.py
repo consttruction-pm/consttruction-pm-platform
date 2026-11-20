@@ -39,8 +39,9 @@ StartResponse = Callable[[str, list[tuple[str, str]]], None]
 
 LOGIN_PATH = "/login"
 APP_PATH = "/app"
+ADMIN_PATH = "/admin"
 ENTERPRISE_PATH = "/enterprise"
-WORKSPACE_PATHS = frozenset({APP_PATH, ENTERPRISE_PATH})
+WORKSPACE_PATHS = frozenset({APP_PATH, ADMIN_PATH, ENTERPRISE_PATH})
 API_PREFIX = "/api/"
 LOGIN_BODY_LIMIT = 8_192
 API_BODY_LIMIT = 1_048_576
@@ -580,6 +581,7 @@ def _json(
 
 __all__ = [
     "APP_PATH",
+    "ADMIN_PATH",
     "ENTERPRISE_PATH",
     "WORKSPACE_PATHS",
     "LOGIN_PATH",
