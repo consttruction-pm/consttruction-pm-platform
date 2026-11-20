@@ -79,7 +79,7 @@
         justify-content: flex-end;
         margin-bottom: 8px;
       }
-      .cp-login-locale button {
+      .cp-login-locale select {
         font: inherit;
         font-size: 12px;
         background: none;
@@ -100,7 +100,18 @@
     <main class="cp-login-page">
       <section class="cp-login-card" aria-labelledby="cp-login-title">
         <div class="cp-login-locale">
-          <button type="button" id="cp-login-locale" aria-label="Change language">فارسی</button>
+          <select id="cp-login-locale" aria-label="Change language">
+            <option value="en">English</option>
+            <option value="fa">فارسی</option>
+            <option value="de">Deutsch</option>
+            <option value="zh">中文</option>
+            <option value="ar">العربية</option>
+            <option value="fr">Français</option>
+            <option value="ja">日本語</option>
+            <option value="ko">한국어</option>
+            <option value="ru">Русский</option>
+            <option value="tr">Türkçe</option>
+          </select>
         </div>
         <div class="cp-login-brand">
           <img src="/cubi-platform-logo-primary.svg" alt="" />
@@ -148,7 +159,6 @@
           throttled: "Too many attempts. Wait a few minutes and try again.",
           invalid: "Enter your email and password.",
           network: "The workspace service is unreachable. Try again.",
-          locale: "فارسی",
         },
         fa: {
           product: "محیط برنامه‌ریزی ساخت",
@@ -163,14 +173,151 @@
           throttled: "تلاش‌های بیش از حد. چند دقیقه بعد دوباره امتحان کنید.",
           invalid: "ایمیل و گذرواژه را وارد کنید.",
           network: "سرویس میزکار در دسترس نیست. دوباره تلاش کنید.",
-          locale: "English",
+        },
+        de: {
+          product: "Arbeitsbereich für Bauplanung",
+          title: "Anmelden",
+          lead: "Melden Sie sich mit Ihrem Organisationskonto an, um den Arbeitsbereich zu öffnen.",
+          email: "E-Mail",
+          password: "Passwort",
+          submit: "Anmelden",
+          working: "Anmeldung läuft…",
+          footer: "Der Zugriff ist auf Projekte beschränkt, in denen Ihr Konto Mitglied ist.",
+          failed: "E-Mail oder Passwort ist falsch.",
+          throttled: "Zu viele Versuche. Warten Sie einige Minuten und versuchen Sie es erneut.",
+          invalid: "Geben Sie E-Mail und Passwort ein.",
+          network: "Der Arbeitsbereichsdienst ist nicht erreichbar. Versuchen Sie es erneut.",
+        },
+        zh: {
+          product: "施工计划工作区",
+          title: "登录",
+          lead: "使用您的组织账户打开工作区。",
+          email: "电子邮箱",
+          password: "密码",
+          submit: "登录",
+          working: "正在登录…",
+          footer: "访问仅限您的账户所属的项目。",
+          failed: "邮箱或密码不正确。",
+          throttled: "尝试次数过多。请等待几分钟后重试。",
+          invalid: "请输入邮箱和密码。",
+          network: "无法连接工作区服务，请重试。",
+        },
+        ar: {
+          product: "مساحة عمل تخطيط الإنشاءات",
+          title: "تسجيل الدخول",
+          lead: "استخدم حساب مؤسستك لفتح مساحة العمل.",
+          email: "البريد الإلكتروني",
+          password: "كلمة المرور",
+          submit: "تسجيل الدخول",
+          working: "جارٍ تسجيل الدخول…",
+          footer: "الوصول مقصور على المشاريع التي يعد حسابك عضوًا فيها.",
+          failed: "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
+          throttled: "محاولات كثيرة جدًا. انتظر بضع دقائق ثم أعد المحاولة.",
+          invalid: "أدخل بريدك الإلكتروني وكلمة المرور.",
+          network: "خدمة مساحة العمل غير متاحة. أعد المحاولة.",
+        },
+        fr: {
+          product: "Espace de travail de planification de construction",
+          title: "Connexion",
+          lead: "Utilisez votre compte d’organisation pour ouvrir l’espace de travail.",
+          email: "E-mail",
+          password: "Mot de passe",
+          submit: "Se connecter",
+          working: "Connexion…",
+          footer: "L’accès est limité aux projets dont votre compte est membre.",
+          failed: "L’e-mail ou le mot de passe est incorrect.",
+          throttled: "Trop de tentatives. Attendez quelques minutes puis réessayez.",
+          invalid: "Saisissez votre e-mail et votre mot de passe.",
+          network: "Le service de l’espace de travail est injoignable. Réessayez.",
+        },
+        ja: {
+          product: "建設計画ワークスペース",
+          title: "サインイン",
+          lead: "組織のアカウントでワークスペースを開きます。",
+          email: "メールアドレス",
+          password: "パスワード",
+          submit: "サインイン",
+          working: "サインインしています…",
+          footer: "アクセスは、アカウントがメンバーであるプロジェクトに限られます。",
+          failed: "メールアドレスまたはパスワードが正しくありません。",
+          throttled: "試行回数が多すぎます。数分待ってから再度お試しください。",
+          invalid: "メールアドレスとパスワードを入力してください。",
+          network: "ワークスペースサービスに接続できません。もう一度お試しください。",
+        },
+        ko: {
+          product: "건설 계획 작업 공간",
+          title: "로그인",
+          lead: "조직 계정으로 작업 공간을 여십시오.",
+          email: "이메일",
+          password: "비밀번호",
+          submit: "로그인",
+          working: "로그인 중…",
+          footer: "접근은 계정이 구성원인 프로젝트로 제한됩니다.",
+          failed: "이메일 또는 비밀번호가 올바르지 않습니다.",
+          throttled: "시도가 너무 많습니다. 몇 분 후 다시 시도하십시오.",
+          invalid: "이메일과 비밀번호를 입력하십시오.",
+          network: "작업 공간 서비스에 연결할 수 없습니다. 다시 시도하십시오.",
+        },
+        ru: {
+          product: "Рабочая область планирования строительства",
+          title: "Вход",
+          lead: "Используйте учётную запись организации, чтобы открыть рабочую область.",
+          email: "Электронная почта",
+          password: "Пароль",
+          submit: "Войти",
+          working: "Вход…",
+          footer: "Доступ ограничен проектами, в которых ваша учётная запись является участником.",
+          failed: "Неверная электронная почта или пароль.",
+          throttled: "Слишком много попыток. Подождите несколько минут и повторите попытку.",
+          invalid: "Введите электронную почту и пароль.",
+          network: "Сервис рабочей области недоступен. Повторите попытку.",
+        },
+        tr: {
+          product: "İnşaat planlama çalışma alanı",
+          title: "Giriş yap",
+          lead: "Çalışma alanını açmak için kuruluş hesabınızı kullanın.",
+          email: "E-posta",
+          password: "Parola",
+          submit: "Giriş yap",
+          working: "Giriş yapılıyor…",
+          footer: "Erişim, hesabınızın üye olduğu projelerle sınırlıdır.",
+          failed: "E-posta veya parola yanlış.",
+          throttled: "Çok fazla deneme. Birkaç dakika bekleyip tekrar deneyin.",
+          invalid: "E-postanızı ve parolanızı girin.",
+          network: "Çalışma alanı hizmetine ulaşılamıyor. Tekrar deneyin.",
         },
       };
 
+      const DIRECTION = { fa: "rtl", ar: "rtl" };
+      const HTML_LANG = { en: "en", fa: "fa", de: "de", zh: "zh-CN", ar: "ar", fr: "fr", ja: "ja", ko: "ko", ru: "ru", tr: "tr-TR" };
+      const SUPPORTED = Object.keys(COPY);
+      const STORAGE_KEY = "cubi.login.locale";
+
       const params = new URLSearchParams(window.location.search);
-      let locale = params.get("lang") === "fa" || params.get("lang") === "en"
-        ? params.get("lang")
-        : (navigator.language || "").toLowerCase().startsWith("fa") ? "fa" : "en";
+
+      function normalize(raw) {
+        const value = String(raw || "").trim().toLowerCase();
+        if (!value) return "";
+        if (value.startsWith("zh")) return "zh";
+        if (value.startsWith("tr")) return "tr";
+        if (value.startsWith("fa")) return "fa";
+        const base = value.split("-")[0];
+        return SUPPORTED.includes(base) ? base : "";
+      }
+
+      function storedLocale() {
+        try {
+          return localStorage.getItem(STORAGE_KEY) || "";
+        } catch {
+          return "";
+        }
+      }
+
+      let locale =
+        normalize(params.get("lang")) ||
+        normalize(storedLocale()) ||
+        normalize(navigator.language) ||
+        "en";
 
       const nextParam = params.get("next") || "";
       const nextPath = nextParam.startsWith("/") && !nextParam.startsWith("//") && !nextParam.includes("\\")
@@ -180,18 +327,18 @@
       const form = document.getElementById("cp-login-form");
       const errorBox = document.getElementById("cp-login-error");
       const submit = document.getElementById("cp-login-submit");
-      const localeButton = document.getElementById("cp-login-locale");
+      const localeSelect = document.getElementById("cp-login-locale");
 
       function applyLocale() {
         const copy = COPY[locale];
-        document.documentElement.lang = locale;
-        document.documentElement.dir = locale === "fa" ? "rtl" : "ltr";
+        document.documentElement.lang = HTML_LANG[locale] || locale;
+        document.documentElement.dir = DIRECTION[locale] || "ltr";
         document.title = `CUBI Workspace — ${copy.title}`;
         document.querySelectorAll("[data-i18n]").forEach((node) => {
           const key = node.getAttribute("data-i18n");
           if (key && copy[key]) node.textContent = copy[key];
         });
-        localeButton.textContent = copy.locale;
+        if (localeSelect.value !== locale) localeSelect.value = locale;
       }
 
       function showError(message) {
@@ -199,8 +346,16 @@
         errorBox.hidden = !message;
       }
 
-      localeButton.addEventListener("click", () => {
-        locale = locale === "fa" ? "en" : "fa";
+      localeSelect.addEventListener("change", () => {
+        const chosen = normalize(localeSelect.value);
+        if (!chosen) return;
+        locale = chosen;
+        try {
+          localStorage.setItem(STORAGE_KEY, locale);
+        } catch {
+          /* storage can be blocked; the language still applies for this view */
+        }
+        showError("");
         applyLocale();
       });
 

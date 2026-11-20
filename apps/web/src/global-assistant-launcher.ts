@@ -3,6 +3,7 @@ import {
   getWorkspaceLocaleDirection,
   translateWorkspaceText,
 } from "./workspace-localization.js";
+import { translateAssistantChrome } from "./assistant-chrome-translations.js";
 import { cubiAssistantAvatarUrl } from "./cubi-brand-assets.js";
 import {
   readAssistantGuideQuery,
@@ -47,7 +48,11 @@ function getLanguageRouteLocale(supported: readonly string[]): string | null {
 }
 
 function translated(locale: string, key: string, fallback: string): string {
-  return translateWorkspaceText(locale, `landing.assistant.${key}`, fallback);
+  const packed = translateWorkspaceText(locale, `landing.assistant.${key}`, "");
+  if (packed) return packed;
+  const base = locale.split("-")[0].toLowerCase();
+  if (base === "fa" || base === "en") return fallback;
+  return translateAssistantChrome(base, fallback);
 }
 
 /**
@@ -247,11 +252,9 @@ export function mountGlobalAssistantLauncher(): void {
     const entry = resolveAssistantGuide({ ...query, locale });
     guideHeading.textContent = entry.heading;
     guidePurpose.textContent = entry.purpose;
-    guideStepsLabel.textContent = translateWorkspaceText(
-      locale,
-      "assistant.guide.stepsLabel",
-      locale === "fa" ? "گام‌های بعدی" : "Next steps",
-    );
+    guideStepsLabel.textContent =
+      translateWorkspaceText(locale, "assistant.guide.stepsLabel", "") ||
+      translated(locale, "stepsLabel", locale === "fa" ? "گام‌های بعدی" : "Next steps");
     guideSteps.replaceChildren(
       ...entry.steps.map((step) => {
         const item = document.createElement("li");
