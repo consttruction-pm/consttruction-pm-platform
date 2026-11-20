@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="de" dir="ltr">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CUBI Sicherheit | Identität, Zugriff und Datengrenzen</title>
+<meta name="description" content="Wie CUBI Identität, Sitzungen, Projektmitgliedschaft, Datengrenzen und die Trennung von öffentlichen Seiten und Projektdaten handhabt.">
+<link rel="canonical" href="__CUBI_BASE_URL__/de/security/">
+<link rel="alternate" hreflang="en" href="__CUBI_BASE_URL__/security/">
+<link rel="alternate" hreflang="fa" href="__CUBI_BASE_URL__/fa/security/">
+<link rel="alternate" hreflang="de" href="__CUBI_BASE_URL__/de/security/">
+<link rel="alternate" hreflang="x-default" href="__CUBI_BASE_URL__/security/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="CUBI Platform">
+<meta property="og:locale" content="de_DE">
+<meta property="og:locale:alternate" content="en_US">
+<meta property="og:locale:alternate" content="fa_IR">
+<meta property="og:title" content="CUBI Sicherheit | Identität, Zugriff und Datengrenzen">
+<meta property="og:description" content="Wie CUBI Identität, Sitzungen, Projektmitgliedschaft, Datengrenzen und die Trennung von öffentlichen Seiten und Projektdaten handhabt.">
+<meta property="og:url" content="__CUBI_BASE_URL__/de/security/">
+<meta property="og:image" content="__CUBI_BASE_URL__/cubi-platform-logo-primary.svg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="CUBI Sicherheit | Identität, Zugriff und Datengrenzen">
+<meta name="twitter:description" content="Wie CUBI Identität, Sitzungen, Projektmitgliedschaft, Datengrenzen und die Trennung von öffentlichen Seiten und Projektdaten handhabt.">
+<meta name="twitter:image" content="__CUBI_BASE_URL__/cubi-platform-logo-primary.svg">
+<meta name="robots" content="index,follow">
+<meta name="theme-color" content="#081A2F">
+<link rel="stylesheet" href="../../styles.css">
+<link rel="icon" href="../../cubi-platform-logo-primary.svg" type="image/svg+xml">
+</head>
+<body class="cubi-public-page">
+<header class="cubi-public-header"><a href="../" aria-label="Startseite"><img src="../../cubi-platform-logo-primary.svg" alt="CUBI Platform" width="132" height="48"></a><nav class="cubi-public-nav" aria-label="Hauptnavigation"><a href="../">Startseite</a><a href="../platform/">Plattform</a><a href="../features/">Funktionen</a><a href="../solutions/">Lösungen</a><a href="../pricing/">Preise</a><a href="../resources/">Ressourcen</a><a href="../about/">Über uns</a><a href="../contact/">Kontakt</a></nav><a class="cubi-public-language" hreflang="en" href="../../security/" lang="en">English</a><details class="cubi-public-languages"><summary>Sprachen</summary><nav aria-label="Sprachen"><a hreflang="fa" href="../../fa/security/" lang="fa">فارسی</a></nav></details></header>
+<main>
+<section class="cubi-public-hero"><p class="eyebrow">SICHERHEIT</p><h1>Sicherheit klar benannt</h1><p>Diese Seite beschreibt, was das Produkt heute tatsächlich tut. Sie ist keine Zertifizierungsaussage und ersetzt keine Sicherheitsprüfung Ihrer eigenen Installation.</p></section>
+<section class="cubi-public-content"><h2>Identität und Sitzungen</h2><p>Zugang beginnt mit einem authentifizierten Konto und einer serverseitigen Sitzung.</p><div class="cubi-public-grid"><article class="cubi-public-card"><h3>Passwortbehandlung</h3><p>Passwörter werden als gesalzene scrypt-Hashes gespeichert, nie im Klartext.</p></article><article class="cubi-public-card"><h3>Sitzungsbehandlung</h3><p>Sitzungen nutzen HttpOnly-Cookies mit CSRF-Schutz bei zustandsändernden Anfragen.</p></article><article class="cubi-public-card"><h3>Anmeldedrosselung</h3><p>Wiederholte Fehlanmeldungen werden begrenzt, um Rateversuche zu verlangsamen.</p></article></div>
+<h2>Datengrenzen</h2><p>Projektdaten sind nach Mandant und Projekt getrennt und werden auf dem Server durchgesetzt.</p><div class="cubi-public-grid"><article class="cubi-public-card"><h3>Mandant und Projekt</h3><p>Jedes Lesen und Schreiben ist auf Mandant und Mitgliedschaft des Kontos begrenzt.</p></article><article class="cubi-public-card"><h3>Rollenbasierter Zugriff</h3><p>Umgebungs- und Aktionszugriff folgt den serverseitig geprüften Rollen, nicht den angezeigten Schaltflächen.</p></article><article class="cubi-public-card"><h3>Öffentlich und privat</h3><p>Marketingseiten sind statisch; Projektdaten liefert nur die authentifizierte Laufzeit.</p></article></div>
+<div class="cubi-public-cta"><div><strong>Sicherheit prüfen</strong><p>Details zu Identität und Zugriff in der Dokumentation.</p></div><a href="../../app/">Dokumentation →</a></div></section>
+</main>
+<footer class="cubi-public-footer"><span>© 2026 CUBI Platform · Planen. Steuern. Klüger bauen.</span><nav aria-label="Hauptnavigation"><div><b>Produkt</b><a href="../features/">Funktionen</a> · <a href="../platform/">Plattform</a> · <a href="../pricing/">Preise</a></div><div><b>Lernen</b><a href="../documentation/">Dokumentation</a> · <a href="../resources/">Ressourcen</a></div><div><b>Unternehmen</b><a href="../about/">Über uns</a> · <a href="../contact/">Kontakt</a></div></nav></footer>
+<script type="module" src="../../dist/global-assistant-launcher.bundle.js"></script>
+</body></html>
