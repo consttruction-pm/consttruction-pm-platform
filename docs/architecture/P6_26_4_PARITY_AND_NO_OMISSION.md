@@ -155,6 +155,30 @@ The parity registry must include every applicable P6 setting that can affect cal
 
 Each option needs an explicit enum/boolean/typed contract, persistence, UI exposure where applicable, serialization, and regression tests.
 
+### 5A. Resource-leveling priority semantic conformance — verified source, implementation gap tracked
+
+**Official source baseline:** P6 Professional Help Version 26, “Leveling priority definitions” (last published 2026-07-16): https://docs.oracle.com/cd/G48902_01/client_help/en_US/leveling_priority_definitions.htm ; “Specify leveling priorities”: https://docs.oracle.com/cd/G48902_01/client_help/en_US/specify_leveling_priorities.htm
+
+Source-derived rules:
+- Priority rows are lexicographically ordered by configured list position: each row takes precedence over all rows below it.
+- For activities that are ready for leveling, numeric values sort before alphabetic values, followed by blank values.
+- When no priority codes are configured, Activity ID is the fallback ordering.
+- Supported documented priority dimensions include Activity ID, Activity Priority, Early Finish, Early Start, Free Float, Late Finish, Late Start, Original/Planned Duration, Planned Finish, Project Planned Start, Project Priority, Remaining Duration and Total Float, each with documented ascending/descending semantics.
+- The priority order selects which eligible/ready activity is leveled first; it does not erase dependency/network logic. Relationship propagation and applicable constraints must be respected by the authoritative CPM recalculation.
+- With “Preserve Scheduled Early and Late Dates” enabled, the documented leveling mode preserves the scheduled early/late dates and uses forward-only leveling; backward leveling is a distinct mode when preservation is disabled.
+
+**Current implementation gap found during source-to-code inspection (main):** `src/construction_pm/scheduling/resource_leveling.py::_priority_value` currently exposes only `activity_id`, `activity_priority`, `early_start`, `early_finish` and `total_float`. The remaining documented priority dimensions are not represented in this leveling activity contract/mapping, including Free Float, Late Start/Finish, Planned/Remaining Duration, Planned Finish, Project Planned Start and Project Priority. This is a verified completeness gap, not an assertion that all missing fields can be added without domain-model work.
+
+**Disposition:** `GAP / IMPLEMENTATION BLOCKED PENDING INDEPENDENT SEMANTIC REVIEW`. Hasan's follow-up is tracked in Issue #1447. Before production changes, record the canonical source-derived field/type mappings, ordering rules for numeric/text/blank values, tie-break behavior, and tests for multiple configured priorities. Add end-to-end cases proving that priority chooses only among eligible activities and that FS/SS/FF/SF dependencies, constraints, the final CPM pass and final resource capacity validation remain authoritative. Do not label the complete priority list P6-conformant until all applicable fields and ordering behavior are tested.
+
+### 5B. Relationship-lag calendar default — conformance gap requiring explicit disposition
+
+**Official source baseline:** P6 Professional Help Version 26, “General tab - Schedule Options dialog box” documents the four selectable modes and explicitly states that if no calendar is selected, the Successor Activity Calendar is used: https://docs.oracle.com/cd/G48902_01/client_help/en_US/general_tab_-_schedule_options_dialog_box.htm . The P6 Professional API field summary also documents the four valid enum values: https://docs.oracle.com/cd/F51303_01/English/Integration/p6_pro_api_reference/FieldSummary.html
+
+**Current implementation observation:** `src/construction_pm/scheduling/schedule_options.py` initializes `ScheduleOptions.relationship_lag_calendar` to `RelationshipLagCalendar.PROJECT_DEFAULT`. This differs from the documented P6 fallback when the user has not explicitly selected a lag calendar.
+
+**Disposition:** `GAP / REVIEW REQUIRED`, not silently accepted as parity. Determine whether CUBI's default is intended to be an explicit product-specific setting or the P6-compatible “not selected” state. If compatibility is intended, distinguish “unset/default-to-successor-calendar” from explicit `PROJECT_DEFAULT`; add mixed-calendar FS/SS/FF/SF + positive/negative lag regression cases. Do not change the default by intuition: record the approved semantic decision first, then update implementation and tests. Relationship lag units/calendar conversion must be tested together with final CPM propagation.
+
 ### 6. Import/export completeness
 
 The interchange layer is a first-class domain boundary, not a spreadsheet helper.
