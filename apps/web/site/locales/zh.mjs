@@ -1,0 +1,200 @@
+// Chinese (Simplified) public site copy. Published routes: home, platform,
+// features, solutions, pricing, resources, documentation, contact.
+export default {
+  code: "zh",
+  htmlLang: "zh-CN",
+  dir: "ltr",
+  prefix: "zh/",
+  label: "简体中文",
+  nav: {
+    home: "首页",
+    platform: "平台",
+    features: "功能",
+    solutions: "解决方案",
+    pricing: "价格",
+    resources: "资源",
+    documentation: "文档",
+    help: "帮助",
+    about: "关于我们",
+    contact: "联系我们",
+  },
+  footer: {
+    tagline: "© 2026 CUBI Platform · 计划、控制、更聪明地建造。",
+    groups: [
+      { title: "产品", links: [["features", "功能"], ["platform", "平台"], ["pricing", "价格"]] },
+      { title: "学习", links: [["documentation", "文档"], ["resources", "资源"]] },
+      { title: "公司", links: [["about", "关于我们"], ["contact", "联系我们"]] },
+    ],
+  },
+  cta: { label: "打开 CUBI 工作区", href: "/app/" },
+  pages: [
+    {
+      id: "home",
+      path: "",
+      title: "CUBI | 建筑计划与项目控制一体化",
+      description: "CUBI 将计划、项目控制、资源、成本和文档整合到一个工作区。",
+      eyebrow: "CUBI 平台",
+      h1: "计划与控制，彼此相连。",
+      lead: "面向建筑项目的工作区：组织计划、跟踪交付，让信息更接近决策。",
+      sections: [
+        {
+          h2: "CUBI 连接什么",
+          p: "所有功能读取同一份项目、日历和活动记录。",
+          cards: [
+            { h3: "计划与排程", p: "工作分解结构、活动、日历、关系与基准计划在同一流程中。" },
+            { h3: "项目控制", p: "里程碑、状态和指标来自团队实际执行的计划。" },
+            { h3: "资源与成本", p: "需求、分配和成本显示在其所属活动的位置。" },
+          ],
+        },
+      ],
+      cta: { title: "聚焦你的项目。", text: "查看 CUBI 的互联工作流程。", label: "打开工作区", href: "/app/" },
+    },
+    {
+      id: "platform",
+      path: "platform/",
+      title: "CUBI 平台 | 建筑项目控制",
+      description: "CUBI 平台将计划、控制、资源、成本、文档与 AI 辅助整合在一起。",
+      eyebrow: "CUBI 平台",
+      h1: "一个互联的控制平台",
+      lead: "公开页面介绍产品；项目数据只存在于已认证的工作区中。",
+      sections: [
+        {
+          h2: "一个项目，一份记录",
+          p: "每个功能都在同一个项目和同一套权限上工作。",
+          cards: [
+            { h3: "排程", p: "结构、活动、日历和依赖关系明确且可追溯。" },
+            { h3: "控制", p: "状态、里程碑和指标，无需另建表格。" },
+            { h3: "访问", p: "环境与操作遵循服务器校验的角色。" },
+          ],
+        },
+      ],
+      cta: { title: "查看平台", text: "使用你的账号打开工作区。", label: "打开工作区", href: "/app/" },
+    },
+    {
+      id: "features",
+      path: "features/",
+      title: "CUBI 功能 | 计划、控制、成本与 AI",
+      description: "CUBI 如何连接计划、控制、资源、成本、文档、风险、报表与 AI 辅助。",
+      eyebrow: "功能",
+      h1: "每项功能都连接实际工作",
+      lead: "可用性取决于你的账号获授权的环境。",
+      sections: [
+        {
+          h2: "计划与控制",
+          p: "共享记录让计划变更在关键位置可见。",
+          cards: [
+            { h3: "计划", p: "结构、活动、日历、关系、基准计划与进度。" },
+            { h3: "项目控制", p: "里程碑、状态与指标的统一视图。" },
+            { h3: "文档与风险", p: "证据保留在它所解释的活动旁边。" },
+          ],
+        },
+      ],
+      cta: { title: "查看平台", text: "每个功能都有独立页面。", label: "前往平台", href: "/zh/platform/" },
+    },
+    {
+      id: "solutions",
+      path: "solutions/",
+      title: "CUBI 解决方案 | 建筑项目交付",
+      description: "面向希望把计划与证据结合起来的承包商、业主和控制团队。",
+      eyebrow: "解决方案",
+      h1: "为执行计划的团队而建",
+      lead: "项目很少因缺少数据而受阻，更多是因为数据彼此分离。CUBI 把它们连接起来。",
+      sections: [
+        {
+          h2: "项目中的角色",
+          p: "每个角色只看到决策所需的部分。",
+          cards: [
+            { h3: "承包商", p: "自身范围在内的计划、进度与证据。" },
+            { h3: "业主", p: "相对约定基准计划的状态与里程碑。" },
+            { h3: "控制团队", p: "来自同一数据源的指标与偏差。" },
+          ],
+        },
+      ],
+      cta: { title: "你的场景", text: "与我们讨论你的项目。", label: "联系我们", href: "/zh/contact/" },
+    },
+    {
+      id: "pricing",
+      path: "pricing/",
+      title: "CUBI 价格 | Pro 订阅",
+      description: "CUBI Pro 按月单位购买，服务器在支付确认后记录权益。",
+      eyebrow: "价格",
+      h1: "清晰的计费",
+      lead: "十二个月即十二个月单位，不是单独的年付方案。未配置支付服务商时不会产生扣款。",
+      sections: [
+        {
+          h2: "购买流程",
+          p: "选择月数、确认合计并前往结账。页面本身不扣款。",
+          cards: [
+            { h3: "月单位", p: "每个单位是一个月，合并购买。" },
+            { h3: "现有订阅", p: "确认的购买会延长现有到期日。" },
+            { h3: "无服务商即不扣款", p: "没有经验证的服务商，结账不会开始。" },
+          ],
+        },
+      ],
+      cta: { title: "购买 Pro", text: "结账在英文页面完成。", label: "前往结账", href: "/pricing/" },
+    },
+    {
+      id: "resources",
+      path: "resources/",
+      title: "CUBI 资源 | 产品概览与指南",
+      description: "关于环境、项目设置、排程、控制与数据访问的指南。",
+      eyebrow: "资源",
+      h1: "日常工作的资料",
+      lead: "资源随产品更新，并说明适用于哪个环境。",
+      sections: [
+        {
+          h2: "入门与参考",
+          p: "选择与你的角色相匹配的指南。",
+          cards: [
+            { h3: "快速开始", p: "登录、选择环境并打开获授权的项目。" },
+            { h3: "Engineering 环境", p: "计划、控制与报表。" },
+            { h3: "Enterprise 环境", p: "面向获授权账号的角色与任务界面。" },
+          ],
+        },
+      ],
+      cta: { title: "文档", text: "完整指南已就绪。", label: "打开文档", href: "/zh/documentation/" },
+    },
+    {
+      id: "documentation",
+      path: "documentation/",
+      title: "CUBI 文档 | 平台与工作区指南",
+      description: "CUBI 中关于环境、项目设置、排程、控制与数据访问的指南。",
+      eyebrow: "文档",
+      h1: "为你的工作准备的文档",
+      lead: "每份指南都注明适用的环境。",
+      sections: [
+        {
+          h2: "选择入口",
+          p: "角色与环境决定合适的指南。",
+          cards: [
+            { h3: "快速开始", p: "登录、选择环境、打开项目。" },
+            { h3: "数据与 API", p: "数据如何被限定范围、版本化与读取。" },
+            { h3: "安全", p: "身份、会话、角色与项目成员关系。" },
+          ],
+        },
+      ],
+      cta: { title: "需要帮助？", text: "帮助中心覆盖常见情况。", label: "帮助中心", href: "/help/" },
+    },
+    {
+      id: "contact",
+      path: "contact/",
+      title: "联系 CUBI | 账号与产品信息",
+      description: "账号访问、产品问题与项目场景的联系渠道。",
+      eyebrow: "联系我们",
+      h1: "聊聊你的项目",
+      lead: "访问问题请提供账号邮箱；项目咨询请提供项目规模与希望使用的环境。",
+      sections: [
+        {
+          h2: "我们需要的信息",
+          p: "信息越具体，回复越快。",
+          cards: [
+            { h3: "账号访问", p: "账号邮箱以及要打开的环境。" },
+            { h3: "项目问题", p: "项目规模、角色与涉及的领域。" },
+            { h3: "安全", p: "如怀疑安全问题，请立即告知。" },
+          ],
+        },
+      ],
+      cta: { title: "快速开始", text: "登录并打开获授权的环境。", label: "登录", href: "/login?next=/environments/" },
+    },
+  ],
+};

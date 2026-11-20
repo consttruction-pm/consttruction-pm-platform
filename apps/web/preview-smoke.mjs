@@ -27,6 +27,14 @@ const expected = [
   ["http://127.0.0.1:4173/fa/pricing/", "مدت اشتراک Pro را انتخاب کنید."],
   ["http://127.0.0.1:4173/fa/pricing/", "month-quantity"],
   ["http://127.0.0.1:4173/fa/contact/", "global-assistant-launcher.bundle.js"],
+  // The ten public locales are real documents on their own routes, including RTL.
+  ["http://127.0.0.1:4173/de/features/", '<html lang="de" dir="ltr">'],
+  ["http://127.0.0.1:4173/de/features/", "Jede Funktion mit der Arbeit verbunden"],
+  ["http://127.0.0.1:4173/tr/pricing/", '<html lang="tr-TR" dir="ltr">'],
+  ["http://127.0.0.1:4173/ar/features/", '<html lang="ar" dir="rtl">'],
+  ["http://127.0.0.1:4173/zh/documentation/", '<html lang="zh-CN" dir="ltr">'],
+  ["http://127.0.0.1:4173/ja/", '<html lang="ja" dir="ltr">'],
+  ["http://127.0.0.1:4173/features/scheduling/", "A schedule the whole team can trust"],
 ];
 
 const server = startPreviewServer();

@@ -1,0 +1,200 @@
+// Korean public site copy. Published routes: home, platform, features,
+// solutions, pricing, resources, documentation, contact.
+export default {
+  code: "ko",
+  htmlLang: "ko",
+  dir: "ltr",
+  prefix: "ko/",
+  label: "한국어",
+  nav: {
+    home: "홈",
+    platform: "플랫폼",
+    features: "기능",
+    solutions: "솔루션",
+    pricing: "요금",
+    resources: "자료",
+    documentation: "문서",
+    help: "도움말",
+    about: "회사 소개",
+    contact: "문의",
+  },
+  footer: {
+    tagline: "© 2026 CUBI Platform · 계획하고 통제하며 더 스마트하게 짓습니다.",
+    groups: [
+      { title: "제품", links: [["features", "기능"], ["platform", "플랫폼"], ["pricing", "요금"]] },
+      { title: "배우기", links: [["documentation", "문서"], ["resources", "자료"]] },
+      { title: "회사", links: [["about", "회사 소개"], ["contact", "문의"]] },
+    ],
+  },
+  cta: { label: "CUBI 워크스페이스 열기", href: "/app/" },
+  pages: [
+    {
+      id: "home",
+      path: "",
+      title: "CUBI | 건설 계획과 프로젝트 통제를 하나로",
+      description: "CUBI는 계획, 프로젝트 통제, 자원, 비용, 문서를 하나의 워크스페이스로 연결합니다.",
+      eyebrow: "CUBI 플랫폼",
+      h1: "계획과 통제를 연결합니다.",
+      lead: "건설 프로젝트를 위한 워크스페이스. 계획을 정리하고 진행을 추적하며 정보를 의사결정 가까이에 둡니다.",
+      sections: [
+        {
+          h2: "CUBI가 연결하는 것",
+          p: "모든 기능이 같은 프로젝트, 캘린더, 활동 기록을 읽습니다.",
+          cards: [
+            { h3: "계획과 일정", p: "작업 분할 구조, 활동, 캘린더, 관계, 기준선을 한 흐름에서." },
+            { h3: "프로젝트 통제", p: "마일스톤, 상태, 지표는 팀이 실행하는 계획에서 나옵니다." },
+            { h3: "자원과 비용", p: "수요, 배정, 비용이 해당 활동 위치에서 보입니다." },
+          ],
+        },
+      ],
+      cta: { title: "프로젝트에 집중하세요.", text: "CUBI의 연결된 흐름을 살펴보세요.", label: "워크스페이스 열기", href: "/app/" },
+    },
+    {
+      id: "platform",
+      path: "platform/",
+      title: "CUBI 플랫폼 | 건설 프로젝트 통제",
+      description: "CUBI 플랫폼은 계획, 통제, 자원, 비용, 문서, AI 지원을 하나로 통합합니다.",
+      eyebrow: "CUBI 플랫폼",
+      h1: "하나로 연결된 통제 플랫폼",
+      lead: "공개 페이지는 제품을 설명하고, 프로젝트 데이터는 인증된 워크스페이스에만 존재합니다.",
+      sections: [
+        {
+          h2: "하나의 프로젝트, 하나의 기록",
+          p: "모든 기능이 같은 프로젝트와 같은 권한 위에서 작동합니다.",
+          cards: [
+            { h3: "일정", p: "구조, 활동, 캘린더, 의존 관계를 명시적으로." },
+            { h3: "통제", p: "상태, 마일스톤, 지표를 별도 스프레드시트 없이." },
+            { h3: "접근", p: "환경과 작업은 서버가 확인하는 역할을 따릅니다." },
+          ],
+        },
+      ],
+      cta: { title: "플랫폼 보기", text: "계정으로 워크스페이스를 엽니다.", label: "워크스페이스 열기", href: "/app/" },
+    },
+    {
+      id: "features",
+      path: "features/",
+      title: "CUBI 기능 | 계획, 통제, 비용, AI",
+      description: "CUBI가 계획, 통제, 자원, 비용, 문서, 리스크, 보고서, AI 지원을 어떻게 연결하는지 설명합니다.",
+      eyebrow: "기능",
+      h1: "모든 기능이 업무에 연결됩니다",
+      lead: "사용 가능 여부는 계정이 허용된 환경에 따라 달라집니다.",
+      sections: [
+        {
+          h2: "계획하고 통제하기",
+          p: "공통 기록은 계획 변경을 중요한 곳에 보이게 합니다.",
+          cards: [
+            { h3: "계획", p: "구조, 활동, 캘린더, 관계, 기준선, 진척." },
+            { h3: "프로젝트 통제", p: "마일스톤, 상태, 지표를 일관된 화면에서." },
+            { h3: "문서와 리스크", p: "근거는 그것을 설명하는 활동 옆에 남습니다." },
+          ],
+        },
+      ],
+      cta: { title: "플랫폼 보기", text: "각 기능에는 전용 페이지가 있습니다.", label: "플랫폼", href: "/ko/platform/" },
+    },
+    {
+      id: "solutions",
+      path: "solutions/",
+      title: "CUBI 솔루션 | 건설 프로젝트 수행",
+      description: "계획과 근거를 함께 모으려는 시공사, 발주자, 통제팀을 위한 CUBI.",
+      eyebrow: "솔루션",
+      h1: "계획을 실행하는 팀을 위해",
+      lead: "프로젝트는 데이터 부족이 아니라 분리된 데이터 때문에 어려워집니다. CUBI가 연결합니다.",
+      sections: [
+        {
+          h2: "프로젝트 역할",
+          p: "각 역할은 의사결정에 필요한 범위만 봅니다.",
+          cards: [
+            { h3: "시공사", p: "자사 범위의 계획, 진척, 근거." },
+            { h3: "발주자", p: "합의된 기준선 대비 상태와 마일스톤." },
+            { h3: "통제", p: "같은 데이터베이스의 지표와 차이." },
+          ],
+        },
+      ],
+      cta: { title: "상담", text: "프로젝트에 대해 이야기해 주세요.", label: "문의", href: "/ko/contact/" },
+    },
+    {
+      id: "pricing",
+      path: "pricing/",
+      title: "CUBI 요금 | Pro 구독",
+      description: "CUBI Pro는 월 단위로 구매합니다. 서버가 검증된 결제 후 권리를 기록합니다.",
+      eyebrow: "요금",
+      h1: "명확한 청구",
+      lead: "12개월은 12개의 월 단위이며 별도 연간 요금제가 아닙니다. 결제 사업자가 없으면 결제가 시작되지 않습니다.",
+      sections: [
+        {
+          h2: "구매 방식",
+          p: "개월 수를 선택하고 합계를 확인한 뒤 결제로 이동합니다. 페이지 자체는 청구하지 않습니다.",
+          cards: [
+            { h3: "월 단위", p: "1단위가 1개월이며 함께 구매합니다." },
+            { h3: "기존 구독", p: "확인된 구매는 기존 만료일을 연장합니다." },
+            { h3: "사업자 없으면 결제 없음", p: "검증된 사업자가 없으면 결제가 시작되지 않습니다." },
+          ],
+        },
+      ],
+      cta: { title: "Pro 구매", text: "결제는 영어 페이지에서 진행됩니다.", label: "결제로 이동", href: "/pricing/" },
+    },
+    {
+      id: "resources",
+      path: "resources/",
+      title: "CUBI 자료 | 제품 개요와 가이드",
+      description: "환경, 프로젝트 설정, 일정, 통제, 데이터 접근에 대한 가이드.",
+      eyebrow: "자료",
+      h1: "일상 업무를 위한 자료",
+      lead: "자료는 제품을 따르며 적용 환경을 명시합니다.",
+      sections: [
+        {
+          h2: "시작과 참조",
+          p: "역할에 맞는 가이드를 선택하세요.",
+          cards: [
+            { h3: "시작하기", p: "로그인, 환경 선택, 허용된 프로젝트 열기." },
+            { h3: "Engineering 환경", p: "계획, 통제, 보고서." },
+            { h3: "Enterprise 환경", p: "허용된 계정의 역할과 작업 화면." },
+          ],
+        },
+      ],
+      cta: { title: "문서", text: "전체 가이드를 제공합니다.", label: "문서 열기", href: "/ko/documentation/" },
+    },
+    {
+      id: "documentation",
+      path: "documentation/",
+      title: "CUBI 문서 | 플랫폼과 워크스페이스 가이드",
+      description: "CUBI의 환경, 프로젝트 설정, 일정, 통제, 데이터 접근 가이드.",
+      eyebrow: "문서",
+      h1: "업무를 위한 문서",
+      lead: "각 가이드는 적용되는 환경을 밝힙니다.",
+      sections: [
+        {
+          h2: "시작 지점 선택",
+          p: "역할과 환경이 적합한 가이드를 결정합니다.",
+          cards: [
+            { h3: "시작하기", p: "로그인, 환경 선택, 프로젝트 열기." },
+            { h3: "데이터와 API", p: "데이터의 범위, 버전, 읽기 방식." },
+            { h3: "보안", p: "ID, 세션, 역할, 프로젝트 멤버십." },
+          ],
+        },
+      ],
+      cta: { title: "도움이 필요하신가요", text: "도움말 센터가 일반 사례를 설명합니다.", label: "도움말 센터", href: "/help/" },
+    },
+    {
+      id: "contact",
+      path: "contact/",
+      title: "CUBI 문의 | 계정과 제품 정보",
+      description: "계정 접근, 제품 질문, 프로젝트 상담 창구.",
+      eyebrow: "문의",
+      h1: "프로젝트를 이야기합시다",
+      lead: "접근은 계정 이메일을, 상담은 프로젝트 규모와 원하는 환경을 알려주세요.",
+      sections: [
+        {
+          h2: "필요한 정보",
+          p: "정보가 구체적일수록 답변이 빠릅니다.",
+          cards: [
+            { h3: "계정", p: "계정 이메일과 열고자 하는 환경." },
+            { h3: "프로젝트", p: "규모, 역할, 관련 영역." },
+            { h3: "보안", p: "의심되는 문제는 즉시 알려주세요." },
+          ],
+        },
+      ],
+      cta: { title: "빠른 시작", text: "로그인 후 허용된 환경을 엽니다.", label: "로그인", href: "/login?next=/environments/" },
+    },
+  ],
+};

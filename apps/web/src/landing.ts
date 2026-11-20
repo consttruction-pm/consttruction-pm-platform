@@ -267,6 +267,31 @@ const copy: Partial<Record<LandingLocale, LandingCopy>> = {
     assistantDescription:"اعثر على إرشادات المنتج والدعم المرتبط بسياق المشروع. يجب أن تحترم الإجابات الصلاحيات وتوضح فجوات المعرفة وتطلب موافقتك قبل تغيير سجلات المشروع.",
     assistantWorkspaceAction:"افتح مساحة عمل المشروع →",assistantClose:"إغلاق المساعد",signIn:"تسجيل الدخول",start:"ابدأ الآن",language:"فارسی",
     footerColumns:[{title:"المنصة",links:["التحكم بالمشروع","التخطيط والجدولة","الموارد والتكاليف"]},{title:"الحلول",links:["فرق البناء","قيادة المشروع","تنفيذ المشروع"]},{title:"الموارد",links:["الوثائق","نظرة عامة على المنتج","اتصل بنا"]}],footerNote:"خطّط. تحكّم. ابنِ بذكاء أكبر."
+  },
+  tr: {
+    nav:["Ana sayfa","Platform","Çözümler","Kaynaklar","Hakkımızda","İletişim"],eyebrow:"İNŞAAT, ALTYAPI VE ENDÜSTRİ İÇİN PROJE YÖNETİMİ",
+    title:"Her ayrıntıyı kontrol edin.",accent:"Güvenle inşa edin.",subtitle:"Planla. Yönet. Daha akıllı inşa et.",
+    body:"Binalardan ve altyapıdan petrol, gaz, petrokimya, enerji ve karmaşık endüstriyel tesislere kadar CUBI; proje kapsamını, takvimi, ilerlemeyi, kaynakları, maliyetleri ve kanıtları tek bir disiplinli proje kontrol ortamında birleştirir.",
+    primary:"Platformu keşfet →",secondary:"Nasıl çalıştığını görün",
+    featuresEyebrow:"TEK BAĞLI İŞ AKIŞI",featuresTitle:"Proje tesliminin arkasındaki bilgi, birbirine bağlı",featuresBody:"Planları, performansı, ekipleri, kayıtları ve kararları proje yaşam döngüsü boyunca bir araya getirin; net sorumluluklar ve izlenebilir bilgilerle.",
+    features:[
+      {icon:"⌁",title:"Proje planlama ve takvimleme",body:"İş kırılım yapısını, faaliyetleri, takvimleri, ilişkileri, esas planları ve ilerlemeyi yönetin."},
+      {icon:"✧",assistantAvatar:true,title:"Mühendislik zekâsı ve rehberlik",body:"İlgili CUBI rehberini bulun ve yetki kontrolüyle bağlama uygun sonraki adımları hazırlayın; değişiklikten önce onayınızı ister."},
+      {icon:"↗",title:"Kaynaklar ve maliyet",body:"Kaynak ihtiyacı, atamalar, bütçeler ve maliyet performansı görünürlüğünü güçlendirin."},
+      {icon:"▤",title:"Belgeler ve sözleşmeler",body:"Sürümleri, proje kayıtlarını, sözleşme bilgilerini ve kanıtları ilgili işlerle ilişkilendirin."},
+      {icon:"◎",title:"Ekip ve saha koordinasyonu",body:"Proje ekiplerini, saha bilgilerini, açık konuları ve kararları birbirine bağlayın."},
+      {icon:"☁",title:"Raporlama ve iş birliği",body:"İzlenebilir proje bilgileri, tanımlı roller ve düzenli inceleme akışlarıyla birlikte çalışın."}
+    ],
+    techEyebrow:"KARMAŞIK PROJELER İÇİN TASARLANDI",techTitle:"Daha iyi kararlar için bağlı bir temel",
+    techBody:"CUBI; proje tanımını, iş kırılım yapısını, faaliyet ağlarını, takvimleri, esas planları, ilerlemeyi, kaynak ve maliyet görünürlüğünü, kontrollü belgeleri ve raporları birbirine bağlar. Hesaplamalar ve takvim sonuçları yetkili proje servislerinden gelir; asistan tahmininden değil.",
+    techLink:"Platform yeteneklerini keşfet →",techNodes:["Proje kontrolü","Mühendislik rehberi","Bağlı veri","Yönetilen iş akışı"],
+    industriesEyebrow:"İNŞAATTAN KARMAŞIK PROSES TESİSLERİNE",industriesTitle:"Tek bir proje kontrol temeli. Birçok sektör.",
+    industriesBody:"CUBI; bina ve altyapı programları, petrol ve gaz geliştirmeleri, boru hatları, rafineriler, petrokimya tesisleri, enerji ve kamu hizmetleri projeleri, endüstriyel tesisler ve EPC projeleri için tasarlanmıştır. Proje yapılarını, takvimleri, rolleri ve raporlamayı işin niteliğine uyarlayın.",
+    ctaTitle:"Sonraki proje kararınızı daha net bir görünümle verin.",ctaBody:"Planı, ekipleri, sayıları ve kanıtları proje yaşam döngüsü boyunca birbirine bağlayın.",
+    assistantTitle:"CUBI Mühendislik Zekâsı Asistanı",assistantSubtitle:"Proje rehberliği bir adım ötede",
+    assistantDescription:"Çalışma alanınızda ürün rehberliği ve proje bağlamı desteği bulun. Yanıtlar yetkilerinize uymalı, bilgi boşluklarını açıkça belirtmeli ve proje kayıtlarını değiştirmeden önce onayınızı almalıdır.",
+    assistantWorkspaceAction:"Proje çalışma alanını aç →",assistantClose:"Asistan panelini kapat",signIn:"Giriş yap",start:"Başlayın",language:"فارسی",
+    footerColumns:[{title:"Platform",links:["Proje kontrolü","Planlama ve takvimleme","Kaynaklar ve maliyet"]},{title:"Çözümler",links:["İnşaat ekipleri","Proje liderliği","Proje teslimi"]},{title:"Kaynaklar",links:["Belgeler","Ürün genel bakışı","İletişim"]}],footerNote:"Planla. Yönet. Daha akıllı inşa et."
   }
 };
 
@@ -320,24 +345,29 @@ import { LANDING_LOCALE_STORAGE_KEY } from "./workspace-preferences.js";
 /** The un-prefixed landing document is the default language route. */
 export const DEFAULT_LANDING_LOCALE = "en";
 /**
- * Locales that have complete, indexable public-site routes. A locale is not added
- * to this list until its homepage and every public marketing route (including
- * pricing) have translated documents, correct metadata and working twin links.
+ * Locales that ship a complete, indexable public-site route tree. Every entry
+ * has a translated homepage plus the localized subpages generated from
+ * apps/web/site/locales, correct metadata and working twin links.
  */
-export const LANDING_LANGUAGE_ROUTES: readonly string[] = Object.freeze(["en", "fa"]);
-/** Homepage copy is available in these locales; other public routes remain gated until translated. */
-export const LANDING_HOMEPAGE_LOCALES: readonly string[] = Object.freeze(["en", "fa", "de", "zh-Hans", "zh-Hant", "ar", "fr", "ja", "ko", "ru"]);
+export const LANDING_LANGUAGE_ROUTES: readonly string[] = Object.freeze(["en", "fa", "de", "fr", "ru", "tr", "ja", "ko", "zh", "ar"]);
+/** Homepage copy exists in exactly the locales that carry complete public routes. */
+export const LANDING_HOMEPAGE_LOCALES: readonly string[] = Object.freeze(["en", "fa", "de", "fr", "ru", "tr", "ja", "ko", "zh", "ar"]);
 let locale: LandingLocale = "en";
 
-/** Locales the public site can actually serve as complete, indexable route trees. */
+/**
+ * Locales the public site serves as complete, indexable route trees. The list is
+ * the published contract itself; it must not shrink to the workspace UI catalogs,
+ * because a localized public tree can ship before the workspace is translated.
+ */
 export function getLandingLanguageRoutes(available: readonly string[] = getAvailableWorkspaceLocales()): string[] {
-  const shipped = LANDING_LANGUAGE_ROUTES.filter((code) => available.includes(code));
-  return shipped.length ? shipped : [DEFAULT_LANDING_LOCALE];
+  void available;
+  return [...LANDING_LANGUAGE_ROUTES];
 }
 
-/** Locales with complete homepage copy. This list does not imply translated subpages. */
+/** Locales offered in the homepage language selector; each one has a real route. */
 export function getLandingHomepageLocales(available: readonly string[] = getAvailableWorkspaceLocales()): string[] {
-  return LANDING_HOMEPAGE_LOCALES.filter((code) => available.includes(code) || (code.startsWith("zh-") && available.includes("zh")));
+  void available;
+  return [...LANDING_HOMEPAGE_LOCALES];
 }
 
 /**
@@ -412,7 +442,7 @@ function setLandingDocumentLocale(): void {
   const description = document.querySelector<HTMLMetaElement>('meta[name="description"]');
   if (description) description.content = localized.body;
   const ogLocale = document.querySelector<HTMLMetaElement>('meta[property="og:locale"]');
-  if (ogLocale) ogLocale.content = ({ en: "en_US", fa: "fa_IR", de: "de_DE", "zh-Hans": "zh_CN", "zh-Hant": "zh_TW", ar: "ar_SA", fr: "fr_FR", ja: "ja_JP", ko: "ko_KR", ru: "ru_RU" } as Record<string, string>)[locale] ?? "en_US";
+  if (ogLocale) ogLocale.content = ({ en: "en_US", fa: "fa_IR", de: "de_DE", zh: "zh_CN", "zh-Hans": "zh_CN", "zh-Hant": "zh_TW", ar: "ar_SA", fr: "fr_FR", ja: "ja_JP", ko: "ko_KR", ru: "ru_RU", tr: "tr_TR" } as Record<string, string>)[locale] ?? "en_US";
 }
 function getLandingCopy(requestedLocale: LandingLocale): LandingCopy & { chrome: LandingChromeCopy } {
   const normalizedLocale = normalizeLandingLocaleTag(requestedLocale);
@@ -507,7 +537,7 @@ function renderLanding(container: HTMLElement): void {
           <a class="is-active" href="#home">${t.nav[0]}</a><a href="${publicPageHref("platform")}">${t.nav[1]}</a><a href="${publicPageHref("solutions")}">${t.nav[2]}</a><a href="${pricingHref}">${c.pricing}</a><a href="${publicPageHref("resources")}">${t.nav[3]}</a><a href="${publicPageHref("about")}">${t.nav[4]}</a><a href="${publicPageHref("contact")}">${t.nav[5]}</a>
         </nav>
         <div class="cubi-exact-actions">
-          <label class="cubi-language-picker"><span class="sr-only">${c.changeLanguage}</span><select class="cubi-exact-language" id="cubi-language" aria-label="${c.changeLanguage}">${getLandingHomepageLocales().map((code) => { const names: Record<string, string> = { "zh-Hans": "简体中文", "zh-Hant": "繁體中文" }; return `<option value="${code}"${code === locale ? " selected" : ""}>${names[code] ?? getWorkspaceLocaleDisplayName(code)}</option>`; }).join("")}</select></label>
+          <label class="cubi-language-picker"><span class="sr-only">${c.changeLanguage}</span><select class="cubi-exact-language" id="cubi-language" aria-label="${c.changeLanguage}">${getLandingHomepageLocales().map((code) => { const names: Record<string, string> = { zh: "简体中文", tr: "Türkçe", "zh-Hans": "简体中文", "zh-Hant": "繁體中文" }; return `<option value="${code}"${code === locale ? " selected" : ""}>${names[code] ?? getWorkspaceLocaleDisplayName(code)}</option>`; }).join("")}</select></label>
           <a href="${workspaceHref}" class="cubi-exact-signin">${t.signIn}</a><a href="${workspaceHref}" class="cubi-exact-start">${t.start} →</a>
         </div>
       </header>
@@ -550,16 +580,14 @@ function renderLanding(container: HTMLElement): void {
       </div>`;
   document.getElementById("cubi-language")?.addEventListener("change", (event) => {
     const selected = (event.currentTarget as HTMLSelectElement).value;
-    const next = normalizeLandingLocaleTag(selected);
-    if (!getLandingHomepageLocales().includes(next)) return;
-    locale = next;
+    if (!getLandingHomepageLocales().includes(selected)) return;
+    locale = selected;
     persistLandingLocale();
     renderLanding(container);
     setLandingDocumentLocale();
-    // Only English and Persian have complete public subpage routes. Keep
-    // homepage-only locales on the root homepage instead of routing them into
-    // a Persian or English subpage by accident.
-    const targetHome = resolveLandingLanguageHref(next === "fa" ? "fa" : "en", window.location.pathname);
+    // Every offered locale has a complete public route tree, so the selector
+    // moves the reader to the document that matches the selected language.
+    const targetHome = resolveLandingLanguageHref(selected, window.location.pathname);
     if (targetHome !== window.location.pathname) window.location.assign(targetHome);
   });
 }

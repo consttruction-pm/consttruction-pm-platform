@@ -1,0 +1,200 @@
+// Turkish public site copy. Published routes: home, platform, features,
+// solutions, pricing, resources, documentation, contact.
+export default {
+  code: "tr",
+  htmlLang: "tr-TR",
+  dir: "ltr",
+  prefix: "tr/",
+  label: "Türkçe",
+  nav: {
+    home: "Ana sayfa",
+    platform: "Platform",
+    features: "Özellikler",
+    solutions: "Çözümler",
+    pricing: "Fiyatlandırma",
+    resources: "Kaynaklar",
+    documentation: "Dokümantasyon",
+    help: "Yardım",
+    about: "Hakkımızda",
+    contact: "İletişim",
+  },
+  footer: {
+    tagline: "© 2026 CUBI Platform · Planla. Kontrol et. Daha akıllı inşa et.",
+    groups: [
+      { title: "Ürün", links: [["features", "Özellikler"], ["platform", "Platform"], ["pricing", "Fiyatlandırma"]] },
+      { title: "Öğren", links: [["documentation", "Dokümantasyon"], ["resources", "Kaynaklar"]] },
+      { title: "Şirket", links: [["about", "Hakkımızda"], ["contact", "İletişim"]] },
+    ],
+  },
+  cta: { label: "CUBI çalışma alanını aç", href: "/app/" },
+  pages: [
+    {
+      id: "home",
+      path: "",
+      title: "CUBI | İnşaat planlama ve proje kontrolü bir arada",
+      description: "CUBI; planlama, proje kontrolü, kaynaklar, maliyet ve dokümanları tek bir çalışma alanında birleştirir.",
+      eyebrow: "CUBI PLATFORMU",
+      h1: "Planlama ve kontrol, bağlantılı.",
+      lead: "İnşaat projeleri için bir çalışma alanı: planı düzenleyin, teslimi izleyin ve bilgiyi karara yaklaştırın.",
+      sections: [
+        {
+          h2: "CUBI neyi birleştirir",
+          p: "Tüm özellikler aynı proje, takvim ve aktivite kaydını okur.",
+          cards: [
+            { h3: "Planlama ve çizelgeleme", p: "İş kırılım yapısı, aktiviteler, takvimler, ilişkiler ve baz plan tek akışta." },
+            { h3: "Proje kontrolü", p: "Kilometre taşları, durum ve göstergeler ekibin yürüttüğü plandan gelir." },
+            { h3: "Kaynak ve maliyet", p: "Talep, atamalar ve maliyet ait oldukları aktivitede görünür." },
+          ],
+        },
+      ],
+      cta: { title: "Projenizi odaklayın.", text: "Bağlantılı CUBI iş akışını inceleyin.", label: "Çalışma alanını aç", href: "/app/" },
+    },
+    {
+      id: "platform",
+      path: "platform/",
+      title: "CUBI Platform | İnşaat proje kontrolü",
+      description: "CUBI platformu planlama, kontrol, kaynak, maliyet, doküman ve yapay zekâ desteğini birleştirir.",
+      eyebrow: "CUBI PLATFORMU",
+      h1: "Tek bağlantılı kontrol platformu",
+      lead: "Genel sayfalar ürünü anlatır; proje verileri yalnızca kimliği doğrulanmış çalışma alanında bulunur.",
+      sections: [
+        {
+          h2: "Tek proje, tek kayıt",
+          p: "Her işlev aynı proje ve aynı yetkiler üzerinde çalışır.",
+          cards: [
+            { h3: "Çizelgeleme", p: "Yapı, aktiviteler, takvimler ve bağımlılıklar açık ve izlenebilir." },
+            { h3: "Kontrol", p: "Durum, kilometre taşları ve göstergeler paralel tablo olmadan." },
+            { h3: "Erişim", p: "Ortam ve eylemler sunucunun doğruladığı rollere bağlıdır." },
+          ],
+        },
+      ],
+      cta: { title: "Platformu görün", text: "Çalışma alanını hesabınızla açın.", label: "Çalışma alanını aç", href: "/app/" },
+    },
+    {
+      id: "features",
+      path: "features/",
+      title: "CUBI Özellikler | Planlama, kontrol, maliyet ve yapay zekâ",
+      description: "CUBI planlama, kontrol, kaynak, maliyet, doküman, risk, rapor ve yapay zekâ desteğini nasıl birleştirir.",
+      eyebrow: "ÖZELLİKLER",
+      h1: "Her özellik işe bağlı",
+      lead: "Kullanılabilirlik, hesabınızın yetkili olduğu ortama bağlıdır.",
+      sections: [
+        {
+          h2: "Planla ve kontrol et",
+          p: "Ortak kayıt, plandaki değişikliği önemli olduğu yerde görünür kılar.",
+          cards: [
+            { h3: "Planlama", p: "Yapı, aktiviteler, takvimler, ilişkiler, baz plan ve ilerleme." },
+            { h3: "Proje kontrolü", p: "Kilometre taşları, durum ve göstergeler tek tutarlı görünümde." },
+            { h3: "Doküman ve risk", p: "Kanıtlar, açıkladıkları aktivitenin yanında kalır." },
+          ],
+        },
+      ],
+      cta: { title: "Platforma bakın", text: "Her işlevin kendi sayfası vardır.", label: "Platform", href: "/tr/platform/" },
+    },
+    {
+      id: "solutions",
+      path: "solutions/",
+      title: "CUBI Çözümler | İnşaat proje teslimi",
+      description: "Planı ve kanıtları bir araya getirmek isteyen yükleniciler, işverenler ve kontrol ekipleri için CUBI.",
+      eyebrow: "ÇÖZÜMLER",
+      h1: "Planı yürüten ekipler için",
+      lead: "Projeler veri eksikliğinden değil, ayrı verilerden zorlanır. CUBI bunları birleştirir.",
+      sections: [
+        {
+          h2: "Projedeki roller",
+          p: "Her rol, kararı için gereken bölümü görür.",
+          cards: [
+            { h3: "Yükleniciler", p: "Kendi kapsamları için plan, ilerleme ve kanıtlar." },
+            { h3: "İşverenler", p: "Durum ve kilometre taşları, kararlaştırılan baz plana göre." },
+            { h3: "Kontrol", p: "Göstergeler ve sapmalar aynı veri tabanından." },
+          ],
+        },
+      ],
+      cta: { title: "Senaryonuz", text: "Projenizi konuşalım.", label: "İletişim", href: "/tr/contact/" },
+    },
+    {
+      id: "pricing",
+      path: "pricing/",
+      title: "CUBI Fiyatlandırma | Pro aboneliği",
+      description: "CUBI Pro aylık birimlerle satın alınır. Sunucu, doğrulanmış ödemeden sonra hakkı kaydeder.",
+      eyebrow: "FİYATLANDIRMA",
+      h1: "Net faturalandırma",
+      lead: "On iki ay, on iki aylık birim demektir; ayrı bir yıllık plan yoktur. Sağlayıcı yapılandırılmadıysa ödeme alınmaz.",
+      sections: [
+        {
+          h2: "Satın alma nasıl işler",
+          p: "Ay sayısını seçer, tutarı görür ve ödemeye geçersiniz. Sayfa kendisi tahsilat yapmaz.",
+          cards: [
+            { h3: "Aylık birimler", p: "Her birim bir aydır; birlikte satın alınır." },
+            { h3: "Mevcut abonelik", p: "Onaylanan satın alma mevcut bitiş tarihini uzatır." },
+            { h3: "Sağlayıcı yoksa ödeme yok", p: "Doğrulanmış sağlayıcı yoksa ödeme başlamaz." },
+          ],
+        },
+      ],
+      cta: { title: "Pro satın al", text: "Ödeme İngilizce sayfada yapılır.", label: "Ödemeye git", href: "/pricing/" },
+    },
+    {
+      id: "resources",
+      path: "resources/",
+      title: "CUBI Kaynaklar | Ürün özeti ve kılavuzlar",
+      description: "Ortamlar, proje kurulumu, çizelgeleme, kontrol ve veri erişimi için kılavuzlar.",
+      eyebrow: "KAYNAKLAR",
+      h1: "Günlük iş için kaynaklar",
+      lead: "Kaynaklar ürünü izler ve hangi ortam için geçerli olduğunu belirtir.",
+      sections: [
+        {
+          h2: "Başlangıç ve referans",
+          p: "Rolünüze uygun kılavuzu seçin.",
+          cards: [
+            { h3: "İlk adımlar", p: "Giriş yapın, ortam seçin, yetkili projeyi açın." },
+            { h3: "Engineering ortamı", p: "Planlama, kontrol ve raporlar." },
+            { h3: "Enterprise ortamı", p: "Yetkili hesaplar için roller ve görev yüzeyi." },
+          ],
+        },
+      ],
+      cta: { title: "Dokümantasyon", text: "Tam kılavuzlar hazır.", label: "Dokümantasyonu aç", href: "/tr/documentation/" },
+    },
+    {
+      id: "documentation",
+      path: "documentation/",
+      title: "CUBI Dokümantasyon | Platform ve çalışma alanı kılavuzları",
+      description: "CUBI'de ortamlar, proje kurulumu, çizelgeleme, kontrol ve veri erişimi kılavuzları.",
+      eyebrow: "DOKÜMANTASYON",
+      h1: "İşiniz için dokümantasyon",
+      lead: "Her kılavuz hangi ortam için geçerli olduğunu belirtir.",
+      sections: [
+        {
+          h2: "Giriş noktanızı seçin",
+          p: "Rol ve ortam uygun kılavuzu belirler.",
+          cards: [
+            { h3: "İlk adımlar", p: "Giriş, ortam seçimi, proje açma." },
+            { h3: "Veri ve API", p: "Verinin nasıl sınırlandığı, sürümlendiği ve okunduğu." },
+            { h3: "Güvenlik", p: "Kimlik, oturum, roller ve proje üyeliği birlikte." },
+          ],
+        },
+      ],
+      cta: { title: "Yardım mı gerek?", text: "Yardım merkezi yaygın durumları yanıtlar.", label: "Yardım merkezi", href: "/help/" },
+    },
+    {
+      id: "contact",
+      path: "contact/",
+      title: "CUBI ile iletişim | Hesap ve ürün bilgisi",
+      description: "Hesap erişimi, ürün soruları ve proje senaryoları için iletişim.",
+      eyebrow: "İLETİŞİM",
+      h1: "Projenizi konuşalım",
+      lead: "Hesap erişimi için hesap adresini; senaryo için proje büyüklüğünü ve istediğiniz ortamı belirtin.",
+      sections: [
+        {
+          h2: "Neye ihtiyacımız var",
+          p: "Bilgi ne kadar netse yanıt o kadar hızlı olur.",
+          cards: [
+            { h3: "Hesap erişimi", p: "Hesap e-postası ve açılacak ortam." },
+            { h3: "Proje sorusu", p: "Proje büyüklüğü, roller ve ilgili alan." },
+            { h3: "Güvenlik", p: "Şüpheli güvenlik sorunlarını hemen bildirin." },
+          ],
+        },
+      ],
+      cta: { title: "Hızlı giriş", text: "Giriş yapın ve yetkili ortamı açın.", label: "Giriş yap", href: "/login?next=/environments/" },
+    },
+  ],
+};

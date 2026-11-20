@@ -1,0 +1,200 @@
+// German public site copy. Published routes: home, platform, features,
+// solutions, pricing, resources, documentation, contact.
+export default {
+  code: "de",
+  htmlLang: "de",
+  dir: "ltr",
+  prefix: "de/",
+  label: "Deutsch",
+  nav: {
+    home: "Startseite",
+    platform: "Plattform",
+    features: "Funktionen",
+    solutions: "Lösungen",
+    pricing: "Preise",
+    resources: "Ressourcen",
+    documentation: "Dokumentation",
+    help: "Hilfe",
+    about: "Über uns",
+    contact: "Kontakt",
+  },
+  footer: {
+    tagline: "© 2026 CUBI Platform · Planen. Steuern. Klüger bauen.",
+    groups: [
+      { title: "Produkt", links: [["features", "Funktionen"], ["platform", "Plattform"], ["pricing", "Preise"]] },
+      { title: "Lernen", links: [["documentation", "Dokumentation"], ["resources", "Ressourcen"]] },
+      { title: "Unternehmen", links: [["about", "Über uns"], ["contact", "Kontakt"]] },
+    ],
+  },
+  cta: { label: "CUBI-Arbeitsbereich öffnen", href: "/app/" },
+  pages: [
+    {
+      id: "home",
+      path: "",
+      title: "CUBI | Bauplanung und Projektsteuerung an einem Ort",
+      description: "CUBI verbindet Terminplanung, Projektsteuerung, Ressourcen, Kosten und Dokumente in einem Arbeitsbereich für Bauprojekte.",
+      eyebrow: "CUBI PLATTFORM",
+      h1: "Planung und Steuerung, verbunden.",
+      lead: "Ein Arbeitsbereich für Bauprojekte: den Plan organisieren, die Lieferung verfolgen und Projektinformationen näher an die Entscheidung bringen.",
+      sections: [
+        {
+          h2: "Was CUBI verbindet",
+          p: "Alle Funktionen lesen denselben Projekt-, Kalender- und Aktivitätsdatensatz.",
+          cards: [
+            { h3: "Planung & Terminplanung", p: "Arbeitsstruktur, Aktivitäten, Kalender, Beziehungen und Basislinie in einem Workflow." },
+            { h3: "Projektsteuerung", p: "Meilensteine, Status und Kennzahlen aus demselben Plan, den das Team ausführt." },
+            { h3: "Ressourcen & Kosten", p: "Bedarf, Zuweisungen und Kosten sichtbar bei der Aktivität, zu der sie gehören." },
+          ],
+        },
+      ],
+      cta: { title: "Bringen Sie Ihr Projekt in den Fokus.", text: "Prüfen Sie den verbundenen Arbeitsablauf im CUBI-Arbeitsbereich.", label: "Arbeitsbereich öffnen", href: "/app/" },
+    },
+    {
+      id: "platform",
+      path: "platform/",
+      title: "CUBI Plattform | Bauprojekt-Steuerung",
+      description: "Die CUBI Plattform verbindet Planung, Steuerung, Ressourcen, Kosten, Dokumente und KI-Unterstützung in einem Arbeitsbereich.",
+      eyebrow: "CUBI PLATTFORM",
+      h1: "Eine verbundene Steuerungsplattform",
+      lead: "Öffentliche Seiten informieren über das Produkt; Projektdaten liegen ausschließlich im authentifizierten Arbeitsbereich.",
+      sections: [
+        {
+          h2: "Ein Projekt, ein Datensatz",
+          p: "Jede Funktion arbeitet auf demselben Projekt und denselben Berechtigungen.",
+          cards: [
+            { h3: "Terminplanung", p: "Struktur, Aktivitäten, Kalender und Abhängigkeiten explizit und nachvollziehbar." },
+            { h3: "Steuerung", p: "Status, Meilensteine und Kennzahlen ohne parallele Tabellenkalkulation." },
+            { h3: "Zugriff", p: "Umgebung und Aktionen folgen den Rollen, die der Server prüft." },
+          ],
+        },
+      ],
+      cta: { title: "Sehen Sie die Plattform", text: "Öffnen Sie den Arbeitsbereich mit Ihrem Konto.", label: "Arbeitsbereich öffnen", href: "/app/" },
+    },
+    {
+      id: "features",
+      path: "features/",
+      title: "CUBI Funktionen | Planung, Steuerung, Kosten und KI",
+      description: "Wie CUBI Planung, Projektsteuerung, Ressourcen, Kosten, Dokumente, Risiken, Berichte und KI-Unterstützung verbindet.",
+      eyebrow: "CUBI FUNKTIONEN",
+      h1: "Jede Funktion mit der Arbeit verbunden",
+      lead: "Verfügbarkeit hängt von der Umgebung ab, für die Ihr Konto berechtigt ist.",
+      sections: [
+        {
+          h2: "Planen und steuern",
+          p: "Ein gemeinsamer Datensatz bedeutet, dass eine Planänderung dort sichtbar wird, wo sie zählt.",
+          cards: [
+            { h3: "Planung & Terminplanung", p: "Arbeitsstruktur, Aktivitäten, Kalender, Beziehungen, Basislinie und Fortschritt." },
+            { h3: "Projektsteuerung", p: "Meilensteine, Status und Kennzahlen in einer konsistenten Sicht." },
+            { h3: "Dokumente, Risiken, Berichte", p: "Nachweise bleiben bei der Aktivität, die sie erklären." },
+          ],
+        },
+      ],
+      cta: { title: "Funktionen im Detail", text: "Jede Funktion hat eine eigene Seite mit ihrem Umfang.", label: "Terminplanung ansehen", href: "/de/features/" },
+    },
+    {
+      id: "solutions",
+      path: "solutions/",
+      title: "CUBI Lösungen | Projektabwicklung im Bauwesen",
+      description: "CUBI für Auftragnehmer, Bauherren und Steuerungsteams, die Plan und Nachweise zusammenführen wollen.",
+      eyebrow: "LÖSUNGEN",
+      h1: "Für Teams, die den Plan ausführen",
+      lead: "Bauprojekte scheitern selten an fehlenden Daten, sondern an getrennten Daten. CUBI führt sie zusammen.",
+      sections: [
+        {
+          h2: "Rollen im Projekt",
+          p: "Jede Rolle sieht den Ausschnitt, den sie für ihre Entscheidung braucht.",
+          cards: [
+            { h3: "Auftragnehmer", p: "Terminplan, Fortschritt und Nachweise für die eigene Leistung." },
+            { h3: "Bauherr", p: "Status und Meilensteine gegenüber dem vereinbarten Basisplan." },
+            { h3: "Steuerung", p: "Kennzahlen und Abweichungen aus derselben Datenbasis." },
+          ],
+        },
+      ],
+      cta: { title: "Ihr Szenario", text: "Sprechen Sie mit uns über Ihr Projekt.", label: "Kontakt", href: "/de/contact/" },
+    },
+    {
+      id: "pricing",
+      path: "pricing/",
+      title: "CUBI Preise | Pro-Abonnement",
+      description: "CUBI Pro wird in Monatseinheiten erworben. Der Server bestätigt den Anspruch nach einer verifizierten Zahlung.",
+      eyebrow: "PREISE",
+      h1: "Klare Abrechnung",
+      lead: "Zwölf Monate bedeuten zwölf Monatseinheiten, kein separates Jahresangebot. Ohne konfigurierten Anbieter wird nichts berechnet.",
+      sections: [
+        {
+          h2: "So funktioniert der Kauf",
+          p: "Sie wählen die Monate, prüfen die Summe und gehen zur Kasse. Die Seite selbst berechnet nichts.",
+          cards: [
+            { h3: "Monatseinheiten", p: "Jede Einheit ist ein Monat; sie werden gemeinsam erworben." },
+            { h3: "Bestehendes Abonnement", p: "Ein bestätigter Kauf verlängert das bestehende Ablaufdatum." },
+            { h3: "Kein Anbieter, keine Zahlung", p: "Ist kein verifizierter Anbieter konfiguriert, startet keine Zahlung." },
+          ],
+        },
+      ],
+      cta: { title: "Pro erwerben", text: "Die Kasse läuft auf der englischen Seite.", label: "Zur Kasse", href: "/pricing/" },
+    },
+    {
+      id: "resources",
+      path: "resources/",
+      title: "CUBI Ressourcen | Produktübersicht und Leitfäden",
+      description: "Leitfäden und Referenzen zu Umgebungen, Projektaufbau, Terminplanung, Steuerung und Datenzugriff.",
+      eyebrow: "RESSOURCEN",
+      h1: "Material für die tägliche Arbeit",
+      lead: "Die Ressourcen folgen dem Produkt und nennen die Umgebung, für die sie gelten.",
+      sections: [
+        {
+          h2: "Einstieg und Referenz",
+          p: "Wählen Sie den Leitfaden, der zu Ihrer Rolle passt.",
+          cards: [
+            { h3: "Erste Schritte", p: "Anmelden, Umgebung wählen und ein autorisiertes Projekt öffnen." },
+            { h3: "Engineering-Umgebung", p: "Planung, Terminplanung, Steuerung und Berichte." },
+            { h3: "Enterprise-Umgebung", p: "Organisationsweite Rollen und Aufgaben für berechtigte Konten." },
+          ],
+        },
+      ],
+      cta: { title: "Dokumentation", text: "Die vollständigen Leitfäden stehen bereit.", label: "Dokumentation öffnen", href: "/de/documentation/" },
+    },
+    {
+      id: "documentation",
+      path: "documentation/",
+      title: "CUBI Dokumentation | Leitfäden für Plattform und Arbeitsbereich",
+      description: "Leitfäden zu Umgebungen, Projektaufbau, Terminplanung, Steuerung und Datenzugriff in CUBI.",
+      eyebrow: "DOKUMENTATION",
+      h1: "Dokumentation für Ihre Arbeit",
+      lead: "Jeder Leitfaden nennt die Umgebung, für die er gilt.",
+      sections: [
+        {
+          h2: "Wählen Sie Ihren Einstieg",
+          p: "Rolle und Umgebung bestimmen den passenden Leitfaden.",
+          cards: [
+            { h3: "Erste Schritte", p: "Anmelden, Umgebung wählen, autorisiertes Projekt öffnen." },
+            { h3: "Daten und API", p: "Wie Projektdaten begrenzt, versioniert und gelesen werden." },
+            { h3: "Sicherheit", p: "Identität, Sitzungen, Rollen und Projektmitgliedschaft zusammen." },
+          ],
+        },
+      ],
+      cta: { title: "Hilfe nötig?", text: "Das Help Center beantwortet die häufigen Fälle.", label: "Zum Help Center", href: "/help/" },
+    },
+    {
+      id: "contact",
+      path: "contact/",
+      title: "Kontakt zu CUBI | Konto und Produktinformationen",
+      description: "Kontakt für Kontozugang, Produktfragen und Projektszenarien.",
+      eyebrow: "KONTAKT",
+      h1: "Sprechen Sie mit uns",
+      lead: "Für Kontozugang nennen Sie die Kontoadresse; für Projektszenarien die Projektgröße und die gewünschte Umgebung.",
+      sections: [
+        {
+          h2: "Was wir brauchen",
+          p: "Je genauer die Angaben, desto schneller die Antwort.",
+          cards: [
+            { h3: "Kontozugang", p: "Konto-E-Mail und die Umgebung, die geöffnet werden soll." },
+            { h3: "Projektfrage", p: "Projektgröße, Rollen und der Bereich, der betroffen ist." },
+            { h3: "Sicherheit", p: "Melden Sie vermutete Sicherheitsprobleme umgehend." },
+          ],
+        },
+      ],
+      cta: { title: "Schneller Einstieg", text: "Anmelden und die autorisierte Umgebung öffnen.", label: "Anmelden", href: "/login?next=/environments/" },
+    },
+  ],
+};
