@@ -787,23 +787,40 @@ class SchedulingJobExecutor:
     def _reap_process_jobs(self) -> None:
         now = time.monotonic()
         for job_id, run in list(self._process_jobs.items()):
+            # Read a published payload *before* waiting for exit. A child that
+            # has finished calculating but whose result exceeds the OS pipe
+            # buffer stays blocked in ``send`` until the parent reads, so
+            # joining first would deadlock both sides until the job timeout.
+            self._drain_process_pipe(run, timeout=0.0)
             if run.process.is_alive():
                 if self._job_timeout is not None and now - run.started > self._job_timeout:
                     run.timed_out = True
                     run.process.terminate()
                 continue
+            self._drain_process_pipe(run, timeout=0.1)
             self._finish_process_job(run)
+
+    def _drain_process_pipe(self, run: _ProcessJob, *, timeout: float) -> None:
+        """Move a completed child payload out of the pipe into ``run``.
+
+        Safe to call while the child is alive: it only reads once ``poll``
+        reports that bytes are buffered (the child is mid-``send`` or has
+        finished it), and it treats EOF/truncation as "no payload".
+        """
+        if run.payload is not None or run.pipe_closed:
+            return
+        try:
+            if not run.receiver.poll(timeout):
+                return
+            run.payload = run.receiver.recv()
+        except (EOFError, OSError, pickle.UnpicklingError):
+            run.pipe_closed = True
 
     def _finish_process_job(self, run: _ProcessJob) -> None:
         run.process.join(timeout=1.0)
-        payload: tuple | None = None
-        try:
-            if run.receiver.poll(0.5):
-                payload = run.receiver.recv()
-        except (EOFError, OSError):
-            payload = None
-        finally:
-            run.receiver.close()
+        self._drain_process_pipe(run, timeout=0.1)
+        payload = run.payload
+        run.receiver.close()
         self._process_jobs.pop(run.job.job_id, None)
         self._release_slots(run.slots)
         slots = 0  # already released
@@ -987,6 +1004,8 @@ class _ProcessJob:
     queue_wait_ms: float
     next_renewal: float
     timed_out: bool = False
+    payload: tuple | None = None
+    pipe_closed: bool = False
 
 
 def _process_job_entry(

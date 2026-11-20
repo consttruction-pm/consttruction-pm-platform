@@ -61,7 +61,7 @@ Complementary suites (real PostgreSQL or in-memory service):
 tests/test_scheduling_job_postgres.py                       9 passed
 tests/scheduling/test_scheduling_job_lifecycle.py           ...
 tests/scheduling/test_scheduling_job_production_api.py      (includes two-worker, recovery, process timeout)
-tests/scheduling/test_scheduling_job_executor_process.py    (cancellation, lease renewal)
+tests/scheduling/test_scheduling_job_executor_process.py    (12 tests: cancellation, lease renewal, pipe-buffer regression)
 tests/test_scheduling_job_http_routes.py                    ...
 ```
 
@@ -72,12 +72,82 @@ Key companion tests:
 * `test_two_workers_never_execute_the_same_job_twice`
 * `test_expired_lease_is_recovered_and_the_job_runs_once`
 * `test_process_timeout_marks_the_job_failed`
+* `test_result_larger_than_the_pipe_buffer_does_not_deadlock`
 * `test_cancellation_terminates_the_child_and_releases_slots`
 * `test_lease_is_renewed_while_the_child_calculates`
 * `test_cancel_leased_job_is_cooperative_and_never_publishes_a_result`
 * `test_postgres_result_is_immutable_per_job`
 
 ## 4. Observed output
+
+Direct run on 2026-11-20 (real PostgreSQL, real worker), 5 activities, two slots:
+
+Thread mode (`logs/live-job-run-thread.log`):
+
+```
+submitted QUEUED job 4d613d4c… state QUEUED
+finished  SUCCEEDED attempts 1
+drain     {"claimed": 1, "succeeded": 1, "failed": 0, "cancelled": 0,
+           "retried": 0, "lease_lost": 0, "process_starts": 0,
+           "inline_fallbacks": 0, "cache_hits": 0, "cache_misses": 0,
+           "peak_slots": 0, "stopped": false}
+output_hash               ddd8648e11b8d3b578b08db829bc92c2d6d59b1b1739aa3f0daf1e3b1c4fd684
+calculation_run_identity  ddd8648e11b8d3b578b08db829bc92c2d6d59b1b1739aa3f0daf1e3b1c4fd684
+hash_equal                true
+last_error                null
+```
+
+Process mode (`logs/live-job-run-process.log`):
+
+```
+submitted QUEUED job 885be1af… state QUEUED
+finished  SUCCEEDED attempts 1
+drain     {"claimed": 1, "succeeded": 1, "failed": 0, "cancelled": 0,
+           "retried": 0, "lease_lost": 0, "process_starts": 1,
+           "inline_fallbacks": 0, "cache_hits": 0, "cache_misses": 0,
+           "peak_slots": 1, "stopped": false}
+output_hash               c40a83732e49fec386fe2c26d8882800f69b503bf7c91a4eede49d243bffc5ed
+calculation_run_identity  c40a83732e49fec386fe2c26d8882800f69b503bf7c91a4eede49d243bffc5ed
+hash_equal                true
+last_error                null
+```
+
+The two runs used different random tenants/snapshots, so the hashes differ by input;
+within each run the published hash equals the payload identity. `process_starts = 1`
+proves the process run executed in a child, and `inline_fallbacks = 0` proves it did
+not silently fall back to the parent.
+
+### 4.1 Defect found and fixed during activation: child-result pipe deadlock
+
+Process placement initially timed out for real workloads while the 4-activity
+integration test passed. Root cause was in `scheduling_job_executor.py`, not in the
+engine:
+
+* the child published the pickled result with `sender.send(("ok", result))`;
+* the parent waited for the child to exit (`process.join`) **before** reading the
+  pipe (`receiver.poll` / `recv`).
+
+A child whose result exceeds the OS pipe buffer stays blocked inside `send` until the
+parent drains it, so the parent and child waited on each other until
+`job_timeout`, and the job was retried as `SCHEDULING_JOB_TIMEOUT`. Small results
+(below the buffer) exited and passed, which is why only the 4-activity test was green.
+
+Fix: `_reap_process_jobs` now drains the pipe with a non-blocking `poll`/`recv` into
+`_ProcessJob.payload` **while the child may still be alive**, and only then checks
+existence/timeout; `_finish_process_job` publishes the already-read payload instead
+of reading after `join`. EOF or a truncated pickle is treated as "no payload" and
+still reported as `CHILD_EXITED_WITHOUT_RESULT`.
+
+Regression test `tests/scheduling/test_scheduling_job_executor_process.py::
+test_result_larger_than_the_pipe_buffer_does_not_deadlock` publishes a 2 MB payload
+(well above the pipe buffer):
+
+```
+old code: 1 failed in 60.34s  (succeeded=0, retried=1, job_timeout=60)
+new code: 12 passed in 5.11s
+```
+
+## 5. Targeted suite
 
 `logs/targeted.log` (commit `8fdb06a9`):
 
@@ -101,7 +171,7 @@ PYTHONPATH=src python -m pytest -q \
   tests/scheduling/test_scheduling_job_authoritative_path.py
 ```
 
-## 5. GitHub references
+## 6. GitHub references
 
 * `src/construction_pm/scheduling_job_lifecycle.py`
 * `src/construction_pm/postgres_scheduling_job_lifecycle.py`
