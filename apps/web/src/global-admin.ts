@@ -88,6 +88,11 @@ type Labels = {
   signedOut: string;
   temporaryPassword: string;
   copied: string;
+  edit: string;
+  save: string;
+  cancel: string;
+  active: string;
+  confirmPassword: string;
 };
 
 const LABELS: Record<AdminLocale, Labels> = {
@@ -120,6 +125,11 @@ const LABELS: Record<AdminLocale, Labels> = {
     signedOut: "Your session has ended. Sign in again.",
     temporaryPassword: "Temporary password (shown once)",
     copied: "Copied",
+    edit: "Edit",
+    save: "Save",
+    cancel: "Cancel",
+    active: "Active",
+    confirmPassword: "Confirm password",
   },
   fa: {
     title: "مدیریت کل CUBI",
@@ -150,6 +160,11 @@ const LABELS: Record<AdminLocale, Labels> = {
     signedOut: "نشست شما پایان یافت. دوباره وارد شوید.",
     temporaryPassword: "رمز موقت (فقط یک‌بار نمایش داده می‌شود)",
     copied: "کپی شد",
+    edit: "ویرایش",
+    save: "ذخیره",
+    cancel: "انصراف",
+    active: "فعال",
+    confirmPassword: "تأیید گذرواژه",
   },
   de: {
     title: "CUBI Globale Administration",
@@ -180,6 +195,11 @@ const LABELS: Record<AdminLocale, Labels> = {
     signedOut: "Ihre Sitzung ist beendet. Bitte erneut anmelden.",
     temporaryPassword: "Temporäres Passwort (einmalig sichtbar)",
     copied: "Kopiert",
+    edit: "Bearbeiten",
+    save: "Speichern",
+    cancel: "Abbrechen",
+    active: "Aktiv",
+    confirmPassword: "Passwort bestätigen",
   },
   zh: {
     title: "CUBI 全局管理",
@@ -210,6 +230,11 @@ const LABELS: Record<AdminLocale, Labels> = {
     signedOut: "会话已结束，请重新登录。",
     temporaryPassword: "临时密码（仅显示一次）",
     copied: "已复制",
+    edit: "编辑",
+    save: "保存",
+    cancel: "取消",
+    active: "启用",
+    confirmPassword: "确认密码",
   },
   ar: {
     title: "إدارة CUBI العامة",
@@ -240,6 +265,11 @@ const LABELS: Record<AdminLocale, Labels> = {
     signedOut: "انتهت جلستك. يرجى تسجيل الدخول مرة أخرى.",
     temporaryPassword: "كلمة مرور مؤقتة (تُعرض مرة واحدة)",
     copied: "تم النسخ",
+    edit: "تحرير",
+    save: "حفظ",
+    cancel: "إلغاء",
+    active: "نشط",
+    confirmPassword: "تأكيد كلمة المرور",
   },
   fr: {
     title: "Administration globale CUBI",
@@ -270,6 +300,11 @@ const LABELS: Record<AdminLocale, Labels> = {
     signedOut: "Votre session est terminée. Reconnectez-vous.",
     temporaryPassword: "Mot de passe temporaire (affiché une fois)",
     copied: "Copié",
+    edit: "Modifier",
+    save: "Enregistrer",
+    cancel: "Annuler",
+    active: "Actif",
+    confirmPassword: "Confirmer le mot de passe",
   },
   ja: {
     title: "CUBI グローバル管理",
@@ -300,6 +335,11 @@ const LABELS: Record<AdminLocale, Labels> = {
     signedOut: "セッションが終了しました。再度サインインしてください。",
     temporaryPassword: "一時パスワード（一度だけ表示）",
     copied: "コピーしました",
+    edit: "編集",
+    save: "保存",
+    cancel: "キャンセル",
+    active: "有効",
+    confirmPassword: "パスワードの確認",
   },
   ko: {
     title: "CUBI 글로벌 관리",
@@ -330,6 +370,11 @@ const LABELS: Record<AdminLocale, Labels> = {
     signedOut: "세션이 종료되었습니다. 다시 로그인하세요.",
     temporaryPassword: "임시 비밀번호(한 번만 표시)",
     copied: "복사됨",
+    edit: "편집",
+    save: "저장",
+    cancel: "취소",
+    active: "활성",
+    confirmPassword: "비밀번호 확인",
   },
   ru: {
     title: "Глобальное администрирование CUBI",
@@ -360,6 +405,11 @@ const LABELS: Record<AdminLocale, Labels> = {
     signedOut: "Сеанс завершён. Войдите снова.",
     temporaryPassword: "Временный пароль (показывается один раз)",
     copied: "Скопировано",
+    edit: "Изменить",
+    save: "Сохранить",
+    cancel: "Отмена",
+    active: "Активен",
+    confirmPassword: "Подтвердить пароль",
   },
   tr: {
     title: "CUBI Genel Yönetim",
@@ -390,6 +440,11 @@ const LABELS: Record<AdminLocale, Labels> = {
     signedOut: "Oturumunuz sona erdi. Lütfen tekrar giriş yapın.",
     temporaryPassword: "Geçici parola (yalnızca bir kez gösterilir)",
     copied: "Kopyalandı",
+    edit: "Düzenle",
+    save: "Kaydet",
+    cancel: "İptal",
+    active: "Etkin",
+    confirmPassword: "Parolayı doğrula",
   },
 };
 
@@ -615,25 +670,41 @@ export function renderUserRows(locale: string, users: readonly AdminUser[]): str
   </tr></thead><tbody>${users
     .map((user) => {
       const roles = user.role_keys.map((role) => escapeHtml(roleLabel(locale, role))).join(", ");
-      const status = user.locked ? "locked" : user.active ? "active" : "disabled";
+      const status = user.locked ? labels.lock : user.active ? labels.active : labels.disable;
       const lockAction = user.locked
         ? `<button type="button" data-admin-action="unlock" data-user-id="${escapeHtml(user.user_id)}">${escapeHtml(labels.unlock)}</button>`
         : `<button type="button" data-admin-action="lock" data-user-id="${escapeHtml(user.user_id)}">${escapeHtml(labels.lock)}</button>`;
       const activeAction = user.active
         ? `<button type="button" data-admin-action="disable" data-user-id="${escapeHtml(user.user_id)}">${escapeHtml(labels.disable)}</button>`
         : `<button type="button" data-admin-action="enable" data-user-id="${escapeHtml(user.user_id)}">${escapeHtml(labels.enable)}</button>`;
+      const roleBoxes = ADMIN_ROLE_KEYS.map(
+        (role) =>
+          `<label class="cp-admin-role"><input type="checkbox" name="role" value="${role}"${
+            user.role_keys.includes(role) ? " checked" : ""
+          } /> ${escapeHtml(roleLabel(locale, role))}</label>`,
+      ).join("");
+      const editor = `<tr class="cp-admin-editor" data-editor-for="${escapeHtml(user.user_id)}" hidden><td colspan="5">
+        <form class="cp-admin-edit-form" data-user-id="${escapeHtml(user.user_id)}">
+          <label>${escapeHtml(labels.sections.users)}<input name="display_name" value="${escapeHtml(user.display_name)}" required /></label>
+          <fieldset><legend>${escapeHtml(labels.sections.roles)}</legend>${roleBoxes}</fieldset>
+          <label><input type="checkbox" name="active"${user.active ? " checked" : ""} /> ${escapeHtml(labels.active)}</label>
+          <label><input type="checkbox" name="locked"${user.locked ? " checked" : ""} /> ${escapeHtml(labels.lock)}</label>
+          <label>${escapeHtml(labels.confirmPassword)}<input name="confirm_password" type="password" autocomplete="off" /></label>
+          <button type="button" data-admin-action="save-edit" data-user-id="${escapeHtml(user.user_id)}">${escapeHtml(labels.save)}</button>
+          <button type="button" data-admin-action="cancel-edit" data-user-id="${escapeHtml(user.user_id)}">${escapeHtml(labels.cancel)}</button>
+        </form></td></tr>`;
       return `<tr data-user="${escapeHtml(user.user_id)}">
         <td><strong>${escapeHtml(user.display_name)}</strong><br /><span>${escapeHtml(user.email)}</span><br /><span>${escapeHtml(user.tenant_id)}</span></td>
         <td>${roles}${user.is_test_user ? " · test" : ""}</td>
         <td>${escapeHtml(status)}</td>
         <td>${user.sessions}</td>
         <td class="cp-admin-actions">
-          <button type="button" data-admin-action="edit-roles" data-user-id="${escapeHtml(user.user_id)}">${escapeHtml(labels.sections.roles)}</button>
+          <button type="button" data-admin-action="edit-roles" data-user-id="${escapeHtml(user.user_id)}">${escapeHtml(labels.edit)}</button>
           ${lockAction}${activeAction}
           <button type="button" data-admin-action="reset-password" data-user-id="${escapeHtml(user.user_id)}">${escapeHtml(labels.resetPassword)}</button>
           <button type="button" data-admin-action="revoke-sessions" data-user-id="${escapeHtml(user.user_id)}">${escapeHtml(labels.revokeSessions)}</button>
         </td>
-      </tr>`;
+      </tr>${editor}`;
     })
     .join("")}</tbody></table>`;
 }
@@ -700,13 +771,21 @@ export async function mountGlobalAdmin(container: HTMLElement, locale: string, c
     <header><h1>${escapeHtml(labels.title)}</h1><p>${escapeHtml(dashboard.data.viewer.user_id)}</p></header>
     <section aria-label="${escapeHtml(labels.sections.dashboard)}"><ul class="cp-admin-summary">${summary}</ul></section>
     ${renderCreateUserForm(locale)}
-    <section aria-label="${escapeHtml(labels.sections.users)}"><h2>${escapeHtml(labels.sections.users)}</h2>${userTable}</section>
+    <section class="cp-admin-users" aria-label="${escapeHtml(labels.sections.users)}"><h2>${escapeHtml(labels.sections.users)}</h2>${userTable}</section>
     <output role="status" aria-live="polite" class="cp-admin-status"></output>
   </main>`);
 
   const status = container.querySelector<HTMLOutputElement>(".cp-admin-status");
   const say = (text: string): void => {
     if (status) status.textContent = text;
+  };
+  const editorRow = (id: string): HTMLElement | null =>
+    container.querySelector<HTMLElement>(`tr[data-editor-for="${id}"]`);
+  const refreshUsers = async (): Promise<void> => {
+    const refreshed = await client.users();
+    if (!refreshed.ok) return;
+    const section = container.querySelector<HTMLElement>("section.cp-admin-users");
+    if (section) section.innerHTML = `<h2>${escapeHtml(labels.sections.users)}</h2>${renderUserRows(locale, refreshed.data.users)}`;
   };
 
   container.addEventListener("click", async (event) => {
@@ -718,18 +797,45 @@ export async function mountGlobalAdmin(container: HTMLElement, locale: string, c
       if (action === "create-user") {
         const result = await client.createUser(buildCreateUserInput(readForm(container)));
         say(result.ok ? `${labels.temporaryPassword}: ${result.data.temporary_password}` : result.code);
+      } else if (action === "edit-roles") {
+        const row = editorRow(userId);
+        if (!row) return;
+        row.hidden = !row.hidden;
+        if (!row.hidden) row.querySelector<HTMLInputElement>('input[name="display_name"]')?.focus();
+        return;
+      } else if (action === "cancel-edit") {
+        const row = editorRow(userId);
+        if (row) row.hidden = true;
+        return;
+      } else if (action === "save-edit") {
+        const form = container.querySelector<HTMLFormElement>(`form.cp-admin-edit-form[data-user-id="${userId}"]`);
+        if (!form) return;
+        const field = (name: string): HTMLInputElement | null => form.querySelector<HTMLInputElement>(`[name="${name}"]`);
+        const roles = [...form.querySelectorAll<HTMLInputElement>('input[name="role"]')]
+          .filter((box) => box.checked)
+          .map((box) => box.value as AdminRoleKey);
+        const result = await client.updateUser(
+          userId,
+          buildUserPatch({
+            displayName: field("display_name")?.value ?? "",
+            roles,
+            active: Boolean(field("active")?.checked),
+            locked: Boolean(field("locked")?.checked),
+            confirmPassword: field("confirm_password")?.value || undefined,
+          }),
+        );
+        if (result.ok) {
+          say(`${labels.save}: OK`);
+          await refreshUsers();
+        } else {
+          say(result.code);
+        }
+        return;
       } else if (action === "lock" || action === "unlock") {
         const result = await client.updateUser(userId, buildUserPatch({ locked: action === "lock" }));
         say(result.ok ? "OK" : result.code);
       } else if (action === "disable" || action === "enable") {
         const result = await client.updateUser(userId, buildUserPatch({ active: action === "enable" }));
-        say(result.ok ? "OK" : result.code);
-      } else if (action === "edit-roles") {
-        const answer = window.prompt(`${labels.sections.roles}: ${ADMIN_ROLE_KEYS.join(", ")}`, "engineering_viewer");
-        if (!answer) return;
-        const roles = answer.split(",").map((value) => value.trim()).filter(Boolean) as AdminRoleKey[];
-        const confirmPassword = window.prompt(`${labels.resetPassword}?`) ?? undefined;
-        const result = await client.updateUser(userId, buildUserPatch({ roles, confirmPassword }));
         say(result.ok ? "OK" : result.code);
       } else if (action === "reset-password") {
         const confirmPassword = window.prompt(labels.resetPassword) ?? "";
@@ -740,13 +846,7 @@ export async function mountGlobalAdmin(container: HTMLElement, locale: string, c
         const result = await client.revokeSessions(userId, confirmPassword);
         say(result.ok ? "OK" : result.code);
       }
-      if (action !== "create-user") {
-        const refreshed = await client.users();
-        if (refreshed.ok) {
-          const section = container.querySelector<HTMLElement>('section[aria-label="' + labels.sections.users + '"]');
-          if (section) section.innerHTML = `<h2>${escapeHtml(labels.sections.users)}</h2>${renderUserRows(locale, refreshed.data.users)}`;
-        }
-      }
+      if (action !== "create-user") await refreshUsers();
     } catch (error) {
       say(error instanceof Error ? error.message : String(error));
     }
