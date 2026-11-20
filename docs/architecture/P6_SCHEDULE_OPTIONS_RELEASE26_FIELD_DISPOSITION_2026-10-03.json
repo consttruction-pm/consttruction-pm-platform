@@ -238,5 +238,374 @@
       "status": "pending",
       "reason": "The canonical Shared Core domain and snapshot path preserve ResourceList as an ordered tuple/JSON array, including resource IDs containing commas. The remaining gap is the external wire adapter: Release 26 REST exposes a scalar string while the Integration API exposes String[], and the cited REST schema does not establish a lossless encoding/escaping rule. Keep this field pending until a source-backed REST adapter and round-trip/resource-leveling evidence exist."
     }
-  ]
+  ],
+  "priority_list_compatibility_audit": {
+    "audit_date": "2026-10-16",
+    "current_implementation_files": [
+      "src/construction_pm/scheduling/leveling_boundary.py::_map_priority_list",
+      "src/construction_pm/scheduling/resource_leveling.py::_priority_value and priority comparators",
+      "src/construction_pm/scheduling/leveling_scheduler.py::_planned_finish_priority_value and Activity.leveling_priority propagation",
+      "src/construction_pm/scheduling/authoritative_schedule_batch.py::execute_authoritative_schedule_batch",
+      "src/construction_pm/scheduling/activity.py::Activity.planned_finish and Activity.leveling_priority",
+      "src/construction_pm/activity_master_repository.py::ActivityMaster.planned_finish and ActivityMaster.leveling_priority",
+      "tests/scheduling/test_resource_leveling.py::priority direction and fail-closed tests",
+      "tests/test_activity_master_repository.py::priority round-trip, default and migration tests",
+      "tests/integration/test_activity_master_postgres_live.py::priority storage and update tests"
+    ],
+    "current_supported_fields": [
+      "activity_id",
+      "activity_leveling_priority",
+      "early_finish",
+      "early_start",
+      "free_float",
+      "late_finish",
+      "late_start",
+      "planned_finish",
+      "project_planned_start",
+      "project_priority",
+      "remaining_duration",
+      "total_float"
+    ],
+    "documented_p6_professional_priority_fields": [
+      "activity_id",
+      "activity_leveling_priority",
+      "early_finish",
+      "early_start",
+      "free_float",
+      "late_finish",
+      "late_start",
+      "original_or_planned_duration",
+      "planned_finish",
+      "project_planned_start",
+      "project_priority",
+      "remaining_duration",
+      "total_float"
+    ],
+    "documented_sort_modes": [
+      "ascending",
+      "descending",
+      "hierarchy_for_hierarchical_fields"
+    ],
+    "known_gaps": [
+      {
+        "gap": "priority-field-coverage",
+        "detail": "Twelve of the 13 documented P6 priority criteria now have distinct internal value/comparator paths through the typed boundary and leveling core: Activity ID, Activity Leveling Priority, Early Start, Early Finish, Late Start, Late Finish, Free Float, Planned Finish, Project Planned Start, Project Priority, Remaining Duration, and Total Float. The documented Activity Leveling Priority is a string enum (Top/High/Normal/Low/Lowest), not the separate internal numeric activity_priority field. It propagates through the scheduling Activity model and ActivityMaster storage; the documented default Normal is applied to new and legacy-null records. Planned Finish is distinct; explicit values are preserved, and a CPM fallback is permitted only for unstarted activities with no actual dates. Project Priority comes from the authoritative project-leveling-priority snapshot (1 highest through 100 lowest). Core and persistence support are not complete end-to-end certification: canonical XER/REST import materialization into ActivityMaster and onward into the schedule Activity is still not demonstrated losslessly. Original/Planned Duration remains blocked because its context-dependent source semantics and external adapter contract are not established; the ambiguous original_or_planned_duration alias remains rejected.",
+        "status": "partially_implemented_pending_import_roundtrip_and_semantic_acceptance"
+      },
+      {
+        "gap": "hierarchy-sort",
+        "detail": "Current SortOrder enum supports ASCENDING and DESCENDING only; P6 hierarchy sort semantics are not represented.",
+        "status": "documented_gap"
+      },
+      {
+        "gap": "multi-field-precedence-and-wire-roundtrip",
+        "detail": "Regression coverage includes Project Priority in both directions and the authoritative multi-project snapshot path; Activity Leveling Priority enum values, documented Normal default, ascending/descending selection, public scheduler propagation, and SQLite/PostgreSQL persistence; and Planned Finish ordering, fail-closed behavior after activity start, public scheduler sourcing, and storage/migration. Remaining acceptance must cover Original/Planned Duration resolution, stable ties and mixed-field precedence for every documented criterion, Hierarchy sort, canonical XER/REST → ActivityMaster → Shared Core import/materializer round-trip, lossless REST/interchange PriorityList/ResourceList encoding and escaping, Project Planned Start provenance, and deterministic backward retry acceptance.",
+        "status": "partially_implemented_pending_acceptance"
+      }
+    ],
+    "source_references": [
+      "https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/leveling_priority_definitions.htm",
+      "https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/specify_leveling_priorities.htm",
+      "https://docs.oracle.com/cd/G48902_01/client_help/en_US/level_resources_dialog_box.htm",
+      "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-project-put.html",
+      "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activity-get.html",
+      "https://docs.oracle.com/cd/F51301_01/p6help/en/44352.htm",
+      "https://docs.oracle.com/cd/F51301_01/p6help/en/7974.htm"
+    ],
+    "compatibility_rule": "The current PR #1457 implements 12 of the 13 documented P6 priority criteria internally; Original/Planned Duration remains unresolved. The documented Activity Leveling Priority is the Top/High/Normal/Low/Lowest enum and defaults to Normal; the separate numeric activity_priority field is not a substitute. Planned Finish and Project Priority have distinct core and persistence paths, but canonical import/materializer provenance and lossless external PriorityList/ResourceList round-trip are not yet certified. Keep the feature PR Draft until the remaining source-backed gates and independent semantic review pass.",
+    "source_version": "P6 Professional User Guide Version 26; relevant online pages last published 2026-05-29",
+    "documented_rules": [
+      {
+        "rule": "Priority row order is precedence order: each row takes precedence over every row below it. Priority rows are used only when multiple activities compete for the same resource at the same time.",
+        "evidence": "https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/specify_leveling_priorities.htm",
+        "status": "verified_release_26"
+      },
+      {
+        "rule": "If multiple activities are ready for leveling, the leveler applies the configured priority rows. For Activity ID ordering, number-like values sort before alphabetic values and blanks; when no priority codes are configured, Activity ID is the default.",
+        "evidence": "https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/leveling_priority_definitions.htm",
+        "status": "verified_release_26"
+      },
+      {
+        "rule": "The documented priority table has 13 fields and supports ascending and descending; Hierarchy appears only for hierarchical fields. The internal model and leveling comparators now represent 12 criteria, including Activity Leveling Priority (Top/High/Normal/Low/Lowest), Planned Finish, and Project Priority. Original/Planned Duration remains blocked until the context-dependent source rule and adapter mapping are proven.",
+        "evidence": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/level_resources_dialog_box.htm",
+        "status": "partially_implemented_12_of_13; hierarchy_and_wire_roundtrip_pending"
+      }
+    ],
+    "implementation_path_review_2026_10_16": {
+      "reviewed_branch": "fix/backward-leveling-rebased-main-2026-10-16",
+      "reviewed_paths": [
+        {
+          "path": "src/construction_pm/scheduling/leveling_boundary.py::_map_priority_list",
+          "finding": "The typed boundary accepts distinct activity_leveling_priority, planned_finish, and project_priority criteria alongside earlier criteria. Activity Leveling Priority uses its own enum; the separate numeric internal activity_priority is not treated as equivalent. The ambiguous original_or_planned_duration label remains rejected.",
+          "required_acceptance": "Implement the source-backed Original/Planned Duration resolver; add public tests for state-dependent selection, all directions and stable ties; then verify canonical wire round-trip."
+        },
+        {
+          "path": "src/construction_pm/scheduling/leveling_scheduler.py::_planned_finish_priority_value and Activity.leveling_priority propagation",
+          "finding": "The scheduler preserves explicit Planned Finish and only uses initial CPM Early Finish as a calculated fallback for unstarted activities with no actual dates. Started activities do not silently alias missing Planned Finish. Activity Leveling Priority is propagated from Activity.leveling_priority; the documented default is Normal. Project Priority is propagated from each authoritative project snapshot.",
+          "required_acceptance": "Verify field values through authoritative REST/XER import and ActivityMaster-to-schedule materialization; add end-to-end round-trip evidence, progress-state checks and independent semantic review."
+        },
+        {
+          "path": "src/construction_pm/scheduling/resource_leveling.py::_priority_value, _priority_sort_key, and backward_leveling_priority_key",
+          "finding": "Activity Leveling Priority is a distinct Top/High/Normal/Low/Lowest enum; Project Priority is a distinct 1–100 value where 1 is highest and 100 lowest. Since this comparator selects activities to move, it is inverse to allocation precedence, moving lower-precedence contributors first under contention. Missing values on direct leveling slices fail closed.",
+          "required_acceptance": "Complete mixed-field precedence and tie acceptance for both directions and compare each documented criterion to versioned Release 26 definitions."
+        },
+        {
+          "path": "src/construction_pm/activity_master_repository.py::ActivityMaster.planned_finish and ActivityMaster.leveling_priority",
+          "finding": "ActivityMaster validates and round-trips Planned Finish and Activity Leveling Priority in SQLite and PostgreSQL. Existing schemas receive additive columns; legacy NULL Activity Leveling Priority values become the source-defined Normal default. Exact-head database integration and legacy-null migration tests are present.",
+          "required_acceptance": "Connect and test the authoritative XER/REST import path to ActivityMaster and the canonical scheduling Activity without lossy aliases; preserve unknown/manual values and prove restart/reload/export round-trip."
+        }
+      ],
+      "acceptance_gate_matrix": [
+        {
+          "gate": "documented_original_or_planned_duration",
+          "status": "blocked_pending_semantics_and_adapter",
+          "evidence_required": [
+            "Versioned source rule defining when Original Duration versus Planned Duration supplies the priority value",
+            "Tests for not-started, in-progress, completed, and missing original-duration data where source semantics apply",
+            "REST/interchange/storage round-trip with no silent alias or value substitution"
+          ]
+        },
+        {
+          "gate": "planned_finish",
+          "status": "partial_core_and_storage_ci_green_import_materializer_unverified",
+          "evidence_required": [
+            "Keep Planned Finish distinct from Early Finish and Late Finish, based on versioned Release 26 field semantics",
+            "Verify an explicitly supplied value is preserved; compute the fallback from initial early CPM finish only for an unstarted activity",
+            "After activity start, do not silently replace a missing Planned Finish with Early/Late Finish; fail closed when that priority is selected",
+            "Forward/backward priority direction, tie, and missing-value tests",
+            "SQLite/PostgreSQL schema migration and read/write/update round-trip (now covered on the feature branch)",
+            "End-to-end REST/XER import -> canonical activity/master persistence -> scheduling path and export round-trip"
+          ]
+        },
+        {
+          "gate": "project_priority",
+          "status": "partial_core_and_batch_mapping_ci_green_wire_roundtrip_pending",
+          "evidence_required": [
+            "Authoritative project-leveling priority source in range 1–100, with 1 highest and 100 lowest",
+            "Distinct value through forward/backward leveling and multi-project batch snapshot mapping (unit/integration tests added)",
+            "Ascending and descending behavior, row precedence, ties, missing values, persistence and lossless REST/interchange round-trip",
+            "Independent semantic review against versioned Release 26 documentation"
+          ]
+        },
+        {
+          "gate": "project_planned_start",
+          "status": "partial_provenance_unverified",
+          "evidence_required": [
+            "Trace from authoritative project planned-start field through API/import and storage to both leveling directions",
+            "Fail-closed behavior when the source value is absent"
+          ]
+        },
+        {
+          "gate": "hierarchy_sort",
+          "status": "blocked_not_represented",
+          "evidence_required": [
+            "Typed Hierarchy sort mode restricted to documented hierarchical fields",
+            "WBS/parent-child precedence tests, including stable ties and both leveling directions"
+          ]
+        },
+        {
+          "gate": "prioritylist_resourcelist_wire_round_trip",
+          "status": "blocked_external_encoding_unverified",
+          "evidence_required": [
+            "Source-backed Release 26 REST encoding and escaping rules distinct from Integration API array schema",
+            "Lossless ordered round-trip tests for priority entries, sort directions/defaults, and resource IDs containing commas"
+          ]
+        },
+        {
+          "gate": "exact_head_release_gates",
+          "status": "latest exact-head CI green; semantic and wire gates remain open",
+          "evidence_required": [
+            "Feature branch compared with main: 110 ahead, 0 behind on SHA 2ae621f96b536df2e921d3e77dadb168ca33e959",
+            "ConstructionPM CI run 38831431237 passed on Python 3.11/3.12/3.13; each 2,583 passed, 90 skipped, 1 warning",
+            "Client Typecheck run 38831431130 passed for desktop, web, mobile and client-sync",
+            "PostgreSQL Integration run 38831431341 passed",
+            "PostgreSQL Sync State Integration remains absent from the PR-triggered run set; confirm whether maintainers require it for this scheduling-only PR",
+            "Independent semantic review, Original/Planned Duration and Hierarchy acceptance, plus full REST/interchange round-trip",
+            "Run all required gates again after any later code change"
+          ]
+        },
+        {
+          "gate": "activity_leveling_priority",
+          "status": "partial_core_storage_default_and_ci_green_import_materializer_roundtrip_unverified",
+          "evidence_required": [
+            "Release 26 Activity.LevelingPriority accepts only Top, High, Normal, Low and Lowest; Normal is the documented default unless overridden",
+            "Forward/backward direction tests and public scheduler propagation",
+            "SQLite/PostgreSQL storage, update, legacy-null migration and canonical enum validation",
+            "Prove canonical REST/XER import/materialization to ActivityMaster and onward to schedule Activity, plus lossless export round-trip",
+            "Complete mixed-field precedence/tie acceptance and independent Release 26 semantic review"
+          ]
+        }
+      ],
+      "policy": "An internal value or green CI is not sufficient evidence of full documented parity. Keep the feature pull request Draft while any semantic, provenance, round-trip or independent-review gate remains blocked. Do not infer semantics from similarly named fields."
+    },
+    "ci_baseline_failure_observation_2026_10_16": {
+      "tested_commit": "4faad5f84642b7fd383788e02e6b58e7bed3b46f",
+      "workflow_run_id": 38826621369,
+      "workflow": "ConstructionPM CI",
+      "conclusion": "failure",
+      "matrix": [
+        {
+          "python": "3.11",
+          "passed": 2523,
+          "failed": 2,
+          "skipped": 90,
+          "warnings": 1
+        },
+        {
+          "python": "3.12",
+          "passed": 2523,
+          "failed": 2,
+          "skipped": 90,
+          "warnings": 1
+        },
+        {
+          "python": "3.13",
+          "passed": 2523,
+          "failed": 2,
+          "skipped": 90,
+          "warnings": 1
+        }
+      ],
+      "failures": [
+        {
+          "test": "tests/scheduling/test_authoritative_schedule_batch.py::test_shared_resource_leveling_runs_once_for_the_batch_graph",
+          "error": "FINAL_RESOURCE_OVERALLOCATION:R1:2026-10-02:demand=2:capacity=1.0",
+          "implication": "The final schedule returned by the shared batch graph still overloads a selected resource despite the leveling boundary's final validation."
+        },
+        {
+          "test": "tests/scheduling/test_public_forward_backward_leveling.py::test_public_backward_leveling_moves_linked_activities_without_breaking_ss",
+          "error": "ConstraintViolation: start no later than constraint violated for B",
+          "implication": "The public backward-leveling route attempts a move that is rejected by the scheduler's upper-bound constraint validation."
+        }
+      ],
+      "attribution_check": {
+        "docs_branch_diff_scope": "Only the field-disposition JSON differs from main in the compare result.",
+        "identical_source_files_verified": [
+          "src/construction_pm/scheduling/leveling_scheduler.py",
+          "src/construction_pm/scheduling/authoritative_schedule_batch.py",
+          "tests/scheduling/test_authoritative_schedule_batch.py",
+          "tests/scheduling/test_public_forward_backward_leveling.py"
+        ],
+        "status": "baseline_main_failure_not_introduced_by_documentation_change",
+        "caveat": "Do not assume the feature branch is clear merely because older exact-head CI passed; rerun these regression tests on the reconciled final SHA."
+      },
+      "client_typecheck": "success",
+      "postgres_sync_state_integration": "not evidenced by this documentation commit's visible run set",
+      "release_decision": "BLOCKED",
+      "recorded_in": [
+        "PR #1458 comment 6204814217",
+        "PR #1457 comment 6204817686"
+      ]
+    },
+    "current_exact_head_ci_2026_10_16": {
+      "head_sha": "2ae621f96b536df2e921d3e77dadb168ca33e959",
+      "branch": "fix/backward-leveling-rebased-main-2026-10-16",
+      "branch_ahead_by": 110,
+      "branch_behind_by": 0,
+      "construction_pm_ci": {
+        "run_id": 38831431237,
+        "conclusion": "success",
+        "python_matrix": [
+          {
+            "python": "3.11",
+            "passed": 2583,
+            "skipped": 90,
+            "warnings": 1
+          },
+          {
+            "python": "3.12",
+            "passed": 2583,
+            "skipped": 90,
+            "warnings": 1
+          },
+          {
+            "python": "3.13",
+            "passed": 2583,
+            "skipped": 90,
+            "warnings": 1
+          }
+        ]
+      },
+      "client_typecheck": {
+        "run_id": 38831431130,
+        "conclusion": "success",
+        "clients": [
+          "desktop",
+          "web",
+          "mobile",
+          "client-sync"
+        ]
+      },
+      "postgresql_integration": {
+        "run_id": 38831431341,
+        "conclusion": "success"
+      },
+      "note": "This exact head includes the legacy-null to Normal migration regression. Import/materializer provenance and wire round-trip remain open despite green code and database checks."
+    },
+    "docs_branch_latest_ci_observation_2026_10_16": {
+      "tested_commit": "4b945a5184b04867ddb430fdceff48b981cebfe1",
+      "workflow_run_id": 38832201449,
+      "workflow": "ConstructionPM CI",
+      "conclusion": "failure",
+      "matrix": [
+        {
+          "python": "3.11",
+          "passed": 2526,
+          "failed": 2,
+          "skipped": 90,
+          "warnings": 1
+        },
+        {
+          "python": "3.12",
+          "passed": 2526,
+          "failed": 2,
+          "skipped": 90,
+          "warnings": 1
+        },
+        {
+          "python": "3.13",
+          "passed": 2526,
+          "failed": 2,
+          "skipped": 90,
+          "warnings": 1
+        }
+      ],
+      "failures": [
+        {
+          "test": "tests/scheduling/test_authoritative_schedule_batch.py::test_shared_resource_leveling_runs_once_for_the_batch_graph",
+          "error": "FINAL_RESOURCE_OVERALLOCATION:R1:2026-10-02:demand=2:capacity=1.0",
+          "attribution": "current_mainline_scheduling_baseline",
+          "disposition": "Not introduced by the audit JSON/test; the scheduling implementation PR #1457 contains a passing fix on its separately tested head."
+        },
+        {
+          "test": "tests/scheduling/test_public_forward_backward_leveling.py::test_public_backward_leveling_moves_linked_activities_without_breaking_ss",
+          "error": "ConstraintViolation: start no later than constraint violated for B",
+          "attribution": "current_mainline_scheduling_baseline",
+          "disposition": "Not introduced by the audit JSON/test; the implementation PR #1457 contains backward candidate/rollback handling on its separately tested head."
+        }
+      ],
+      "superseded_observation": {
+        "commit": "785993095709abf8c935996105ab3a230de0c852",
+        "failure": "KeyError: 'activity_leveling_priority' in the newly added audit test",
+        "status": "fixed_by_adding_activity_leveling_priority_acceptance_gate",
+        "note": "The latest CI run no longer reports an audit-test KeyError; both remaining failures are scheduling baseline failures."
+      },
+      "attribution_check": {
+        "docs_branch_diff_scope": "The audit JSON and scoped audit-test file differ from main; the implementation/test files involved in the two remaining failures remain current-main copies.",
+        "status": "two_remaining_failures_are_mainline_baseline_not_introduced_by_audit_changes"
+      },
+      "client_typecheck": {
+        "run_id": 38832201440,
+        "conclusion": "success",
+        "clients": [
+          "desktop",
+          "web",
+          "mobile",
+          "client-sync"
+        ]
+      },
+      "release_decision": "BLOCKED",
+      "note": "Do not suppress the two scheduling tests or declare the documentation branch green. The feature fix is on PR #1457 and its separately tested exact head passed all required PR-triggered gates."
+    }
+  }
 }
