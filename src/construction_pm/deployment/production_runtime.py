@@ -28,6 +28,11 @@ from ..activity_master_repository import PostgresActivityMasterRepository
 from ..enterprise_task_application import EnterpriseTaskApplicationService
 from ..enterprise_task_http import EnterpriseTaskHttpMiddleware
 from ..enterprise_task_repository import PostgresEnterpriseTaskRepository
+from ..global_administration import (
+    GlobalAdministrationService,
+    PostgresGlobalAdministrationStore,
+)
+from ..global_administration_http import GlobalAdministrationHttpMiddleware
 from ..application.authorization import (
     RoleBasedAuthorizationPolicy,
     default_role_permissions,
@@ -360,6 +365,12 @@ class ProductionRuntime:
             p6_layout_definition_api=P6LayoutDefinitionAPI(layout_repository, policy),
             environment={},
             operational_endpoints=False,
+        )
+        self.api_app = GlobalAdministrationHttpMiddleware(
+            self.api_app,
+            GlobalAdministrationService(
+                PostgresGlobalAdministrationStore(connection), self.identity
+            ),
         )
         self.api_app = EnterpriseTaskHttpMiddleware(
             self.api_app,

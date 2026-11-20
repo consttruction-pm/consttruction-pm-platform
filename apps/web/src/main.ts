@@ -4885,6 +4885,16 @@ async function boot(): Promise<void> {
   const container = document.getElementById("app");
   if (!container) throw new Error("APP_ROOT_NOT_FOUND");
 
+  if (window.location.pathname === "/admin" || window.location.pathname === "/admin/") {
+    const { GlobalAdminClient, mountGlobalAdmin } = await import("./global-admin.js");
+    await mountGlobalAdmin(
+      container,
+      getInitialLocale(),
+      new GlobalAdminClient(window.location.origin),
+    );
+    return;
+  }
+
   if (window.location.pathname === "/enterprise" || window.location.pathname === "/enterprise/") {
     await mountEnterpriseTaskCenter(container);
     return;
