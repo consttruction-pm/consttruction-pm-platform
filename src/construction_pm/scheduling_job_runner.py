@@ -24,15 +24,18 @@ import hashlib
 import json
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
+from functools import partial
 from typing import Callable, Mapping
 
 from .application.authorization import AuthorizationContext
 from .backend_p0.authoritative_schedule_query import AuthoritativeScheduleQueryProvider
+from .backend_p0.errors import BackendApplicationError
 from .control_intelligence.contracts import ControlScope
 from .control_intelligence.query import ScheduleQueryKind, ScheduleQueryRequest
 from .scheduling.time_schedule import FloatExecutionPolicy
 from .scheduling_execution_budget import GlobalExecutionBudget, global_execution_budget
 from .scheduling_job_executor import (
+    SchedulingExecutionError,
     SchedulingExecutionSummary,
     SchedulingJobExecutor,
 )
@@ -144,6 +147,7 @@ class SchedulingEngineJobRunner:
         *,
         provider: AuthoritativeScheduleQueryProvider | None,
         provider_factory: Callable[[], AuthoritativeScheduleQueryProvider] | None = None,
+        child_database_url: str | None = None,
         execution_mode: str = "thread",
         owner: str = "scheduling-worker",
         budget: GlobalExecutionBudget | None = None,
@@ -156,10 +160,12 @@ class SchedulingEngineJobRunner:
     ) -> None:
         if execution_mode not in ("thread", "process"):
             raise SchedulingJobRunnerError("INVALID_EXECUTION_MODE")
-        if execution_mode == "process" and provider_factory is None:
+        if execution_mode == "process" and child_database_url is None and provider_factory is None:
             # A forked child cannot safely reuse the parent's database
-            # connection; without a factory the worker would corrupt state.
+            # connection; without a way to build its own it would corrupt state.
             raise SchedulingJobRunnerError("PROCESS_MODE_REQUIRES_PROVIDER_FACTORY")
+        if execution_mode == "process" and child_database_url is not None and provider_factory is not None:
+            raise SchedulingJobRunnerError("PROCESS_MODE_FACTORY_CONFLICT")
         if execution_mode == "thread" and provider is None:
             raise SchedulingJobRunnerError("THREAD_MODE_REQUIRES_PROVIDER")
         if job_timeout is not None and job_timeout <= 0:
@@ -167,6 +173,7 @@ class SchedulingEngineJobRunner:
         self._service = service
         self._provider = provider
         self._provider_factory = provider_factory
+        self._child_database_url = child_database_url
         self._execution_mode = execution_mode
         self._owner = owner
         self._clock = clock or (lambda: datetime.now(timezone.utc))
@@ -182,18 +189,30 @@ class SchedulingEngineJobRunner:
             "execution_mode": execution_mode,
         }
         if execution_mode == "process":
+            if child_database_url is not None:
+                # The pickled callables must be self-contained: the child opens
+                # its own database connection and rebuilds the provider. Only a
+                # DSN string crosses the process boundary.
+                calculate_with_slots = partial(
+                    run_scheduled_job_in_child, child_database_url
+                )
+            else:
+                calculate = self._calculate
+                calculate_with_slots = self._calculate_with_slots
             executor_kwargs.update(
                 slot_policy=self._slot_policy,
                 workload_estimator=self._estimate_workload,
                 result_cache=self._result_cache,
-                calculate_with_slots=self._calculate_with_slots,
+                calculate_with_slots=calculate_with_slots,
                 job_timeout=job_timeout,
             )
             if start_method is not None:
                 executor_kwargs["start_method"] = start_method
         self._executor = SchedulingJobExecutor(
             service,
-            calculate=self._calculate,
+            calculate=self._calculate if child_database_url is None else partial(
+                run_scheduled_job_in_child, child_database_url
+            ),
             **executor_kwargs,  # type: ignore[arg-type]
         )
 
@@ -241,26 +260,7 @@ class SchedulingEngineJobRunner:
         self, job: SchedulingJob, slots: int
     ) -> SchedulingJobResult:
         provider = self._provider_for(slots)
-        answer = provider.execute(
-            _job_query(job),
-            auth_context=job_authorization_context(job),
-        )
-        source_refs = tuple(getattr(answer, "source_refs", ()) or ())
-        if not source_refs:
-            raise SchedulingJobRunnerError("SCHEDULING_JOB_RESULT_WITHOUT_SOURCE")
-        data = getattr(answer, "data", None)
-        if not isinstance(data, Mapping):
-            raise SchedulingJobRunnerError("SCHEDULING_JOB_RESULT_INVALID")
-        return SchedulingJobResult(
-            tenant_id=job.tenant_id,
-            project_id=job.project_id,
-            job_id=job.job_id,
-            engine_version=job.engine_version,
-            calculation_identity=job.calculation_identity,
-            output_hash=source_refs[0].content_hash,
-            payload=dict(data),
-            persisted_at=self._clock(),
-        )
+        return execute_job_with_provider(provider, job, self._clock())
 
     def _calculate(self, job: SchedulingJob) -> SchedulingJobResult:
         return self._result_for(job, 1)
@@ -333,6 +333,128 @@ class SchedulingEngineJobRunner:
             "in_flight": self._executor.in_flight(),
             "cache": None if self._result_cache is None else self._result_cache.stats(),
         }
+
+
+def execute_job_with_provider(
+    provider: AuthoritativeScheduleQueryProvider,
+    job: SchedulingJob,
+    persisted_at: datetime,
+) -> SchedulingJobResult:
+    """Run one immutable job and keep the stable rejection code on failure.
+
+    The provider translates core/validation failures into
+    ``BackendApplicationError``; its ``__str__`` is a generic user message, so
+    a durable job's error must carry the stable code instead. That is what
+    makes a failed run diagnosable (for example a calendar that is not
+    registered for the snapshot's scope).
+    """
+    try:
+        answer = provider.execute(
+            _job_query(job),
+            auth_context=job_authorization_context(job),
+        )
+    except BackendApplicationError as error:
+        raise SchedulingExecutionError(
+            f"{error.category.value}:{error.code}", retryable=error.retryable
+        ) from error
+    return answer_to_job_result(job, answer, persisted_at)
+
+
+def answer_to_job_result(
+    job: SchedulingJob,
+    answer: object,
+    persisted_at: datetime,
+) -> SchedulingJobResult:
+    """Project one authoritative query answer onto the durable result row."""
+    source_refs = tuple(getattr(answer, "source_refs", ()) or ())
+    if not source_refs:
+        raise SchedulingJobRunnerError("SCHEDULING_JOB_RESULT_WITHOUT_SOURCE")
+    data = getattr(answer, "data", None)
+    if not isinstance(data, Mapping):
+        raise SchedulingJobRunnerError("SCHEDULING_JOB_RESULT_INVALID")
+    return SchedulingJobResult(
+        tenant_id=job.tenant_id,
+        project_id=job.project_id,
+        job_id=job.job_id,
+        engine_version=job.engine_version,
+        calculation_identity=job.calculation_identity,
+        output_hash=source_refs[0].content_hash,
+        payload=dict(data),
+        persisted_at=persisted_at,
+    )
+
+
+def run_scheduled_job_in_child(
+    database_url: str,
+    job: SchedulingJob,
+    slots: int = 1,
+) -> SchedulingJobResult:
+    """Calculate one job in a child process with its own database connection.
+
+    This function is the only thing that crosses the process boundary in
+    production process mode: the DSN string and the immutable job. The child
+    builds every repository itself, so no parent connection, cursor or lock is
+    inherited. A dedicated process is single-threaded and non-daemonic, which
+    is the condition under which the engine may fork its float workers inside
+    the granted ``slots``.
+    """
+    import psycopg
+
+    from .calendar_exception_repository import PostgresCalendarExceptionRepository
+    from .calendar_master_repository import PostgresCalendarMasterRepository
+    from .calendar_snapshot_repository import PostgresCalendarSnapshotRepository
+    from .calendar_work_hours_repository import PostgresCalendarWorkHourRepository
+    from .p6_versioned_resource_calendar_resolver import (
+        build_calendar_registry_for_scope,
+    )
+    from .schedule_calculation_context_repository import (
+        PostgresCalculationContextRepository,
+    )
+    from .schedule_input_snapshot_repository import (
+        PostgresScheduleInputSnapshotRepository,
+    )
+
+    connection = psycopg.connect(
+        database_url,
+        autocommit=True,
+        options="-c statement_timeout=600000",
+    )
+    try:
+        master_repository = PostgresCalendarMasterRepository(connection)
+        calendar_snapshot_repository = PostgresCalendarSnapshotRepository(connection)
+        exception_repository = PostgresCalendarExceptionRepository(connection)
+        work_hours_repository = PostgresCalendarWorkHourRepository(connection)
+
+        def scoped_factory(scope):
+            return build_calendar_registry_for_scope(
+                scope=scope,
+                calendar_repository=master_repository,
+                snapshot_repository=calendar_snapshot_repository,
+                exception_repository=exception_repository,
+                work_hours_repository=work_hours_repository,
+            )
+
+        provider = AuthoritativeScheduleQueryProvider(
+            snapshot_repository=PostgresScheduleInputSnapshotRepository(connection),
+            scoped_calendar_registry_factory=scoped_factory,
+            calculation_context_repository=PostgresCalculationContextRepository(
+                connection
+            ),
+        )
+        if slots > 1:
+            provider = replace(
+                provider,
+                float_execution=FloatExecutionPolicy(
+                    workers=max(1, slots - 1),
+                    admission=make_slot_admission(slots),
+                    allow_nested_fork=True,
+                ),
+            )
+        return execute_job_with_provider(
+            provider, job, datetime.now(timezone.utc)
+        )
+    finally:
+        connection.close()
 
 
 def request_fingerprint(
