@@ -150,7 +150,7 @@ export async function mountEnterpriseTaskCenter(container: HTMLElement): Promise
   const identity = element("div", "ce-header-title");
   identity.append(element("span", "ce-eyebrow", t.eyebrow), element("strong", "", t.workspace));
   const back = element("a", "ce-back", `← ${t.back}`);
-  back.href = "/app";
+  back.href = "/workbench/";
   header.append(brand, identity, back);
 
   const hero = element("section", "ce-hero");

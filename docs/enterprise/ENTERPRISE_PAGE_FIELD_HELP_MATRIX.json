@@ -1,0 +1,283 @@
+{
+ "contract": "cubi-enterprise-page-field-help-matrix.v1",
+ "pages": [
+  {
+   "environment": "enterprise",
+   "page_id": "ENT-HOME",
+   "page": "/environments/",
+   "surface": "Environment selection and Enterprise entry",
+   "kind": "workspace_page",
+   "help_topic": "Working with P6",
+   "help_url": "https://docs.oracle.com/cd/G48897_01/p6help/en/6660.htm",
+   "evidence": "apps/web/src/enterprise-task-center.ts",
+   "status": "WIRED_READ",
+   "source_status": "PARTIAL",
+   "browser": "",
+   "note": "Static /environments/ page; links to sign-in, no server grant check on the page itself."
+  },
+  {
+   "environment": "enterprise",
+   "page_id": "ENT-DASHBOARDS",
+   "page": "/enterprise/",
+   "surface": "Dashboards",
+   "kind": "workspace_page",
+   "help_topic": "About Dashboards",
+   "help_url": "https://docs.oracle.com/cd/G48897_01/p6help/en/6608.htm",
+   "evidence": "src/construction_pm/enterprise_dashboard_application.py",
+   "status": "MISSING",
+   "source_status": "PARTIAL",
+   "browser": "",
+   "note": "No route is served for this page at the audited SHA; backend modules alone are not a page."
+  },
+  {
+   "environment": "enterprise",
+   "page_id": "ENT-PORTFOLIO",
+   "page": "/enterprise/portfolio/",
+   "surface": "Portfolio and executive center",
+   "kind": "workspace_page",
+   "help_topic": "About Portfolio Views",
+   "help_url": "https://docs.oracle.com/cd/G48897_01/p6help/en/14087.htm",
+   "evidence": "src/construction_pm/enterprise_dashboard.py",
+   "status": "MISSING",
+   "source_status": "PARTIAL",
+   "browser": "",
+   "note": "No route is served for this page at the audited SHA; backend modules alone are not a page."
+  },
+  {
+   "environment": "enterprise",
+   "page_id": "ENT-PROJECTS",
+   "page": "/enterprise/projects/",
+   "surface": "Project context and EPS",
+   "kind": "workspace_page",
+   "help_topic": "About the Enterprise Project Structure (EPS)",
+   "help_url": "https://docs.oracle.com/cd/G48897_01/p6help/en/6621.htm",
+   "evidence": "src/construction_pm/enterprise_task_application.py",
+   "status": "MISSING",
+   "source_status": "PARTIAL",
+   "browser": "",
+   "note": "No route is served for this page at the audited SHA; backend modules alone are not a page."
+  },
+  {
+   "environment": "enterprise",
+   "page_id": "ENT-TEAM-TASKS",
+   "page": "/enterprise/tasks/",
+   "surface": "Team and task center",
+   "kind": "workspace_page",
+   "help_topic": "About P6 Team Member Status Updates",
+   "help_url": "https://docs.oracle.com/cd/G48897_01/p6help/en/50904.htm",
+   "evidence": "apps/web/src/enterprise-task-center.test.ts",
+   "status": "WIRED_WRITE",
+   "source_status": "IMPLEMENTED",
+   "browser": "",
+   "note": "/enterprise/ mounts the task center against /api/enterprise/tasks with revision guards."
+  },
+  {
+   "environment": "enterprise",
+   "page_id": "ENT-FEEDBACK-APPROVAL",
+   "page": "/enterprise/approvals/",
+   "surface": "Feedback and approval center",
+   "kind": "workspace_page",
+   "help_topic": "Reviewing Team Member Status Updates",
+   "help_url": "https://docs.oracle.com/cd/G48897_01/p6help/en/51331.htm",
+   "evidence": "src/construction_pm/enterprise_task.py",
+   "status": "MISSING",
+   "source_status": "PLANNED",
+   "browser": "",
+   "note": "No route is served for this page at the audited SHA; backend modules alone are not a page."
+  },
+  {
+   "environment": "enterprise",
+   "page_id": "ENT-OPERATIONS",
+   "page": "/enterprise/operations/",
+   "surface": "Operations and job center",
+   "kind": "workspace_page",
+   "help_topic": "About Project Scheduled Services",
+   "help_url": "https://docs.oracle.com/cd/G48897_01/p6help/en/46217.htm",
+   "evidence": "src/construction_pm/enterprise_dashboard_repository.py",
+   "status": "MISSING",
+   "source_status": "PARTIAL",
+   "browser": "",
+   "note": "No route is served for this page at the audited SHA; backend modules alone are not a page."
+  },
+  {
+   "environment": "enterprise",
+   "page_id": "ENT-WORKFLOW",
+   "page": "/enterprise/workflows/",
+   "surface": "Workflow studio",
+   "kind": "workspace_page",
+   "help_topic": "Configuring P6 Team Member Status Update Reviews",
+   "help_url": "https://docs.oracle.com/cd/G48897_01/p6help/en/50915.htm",
+   "evidence": "src/construction_pm/enterprise_organization_access.py",
+   "status": "MISSING",
+   "source_status": "PLANNED",
+   "browser": "",
+   "note": "No route is served for this page at the audited SHA; backend modules alone are not a page."
+  },
+  {
+   "environment": "enterprise",
+   "page_id": "ENT-ORG-ACCESS",
+   "page": "/enterprise/organization/",
+   "surface": "Organization and access center",
+   "kind": "workspace_page",
+   "help_topic": "About Users",
+   "help_url": "https://docs.oracle.com/cd/G48897_01/p6help/en/43794.htm",
+   "evidence": "src/construction_pm/enterprise_identity.py",
+   "status": "MISSING",
+   "source_status": "PARTIAL",
+   "browser": "",
+   "note": "No route is served for this page at the audited SHA; backend modules alone are not a page."
+  },
+  {
+   "environment": "enterprise",
+   "page_id": "ENT-PORTAL",
+   "page": "/enterprise/portal/",
+   "surface": "Project portal",
+   "kind": "workspace_page",
+   "help_topic": "Publishing P6 Data",
+   "help_url": "https://docs.oracle.com/cd/G48897_01/p6help/en/48619.htm",
+   "evidence": "src/construction_pm/enterprise_organization_access_repository.py",
+   "status": "MISSING",
+   "source_status": "PLANNED",
+   "browser": "",
+   "note": "No route is served for this page at the audited SHA; backend modules alone are not a page."
+  },
+  {
+   "environment": "enterprise",
+   "page_id": "ENT-INTEGRATION",
+   "page": "/enterprise/integrations/",
+   "surface": "Integration hub",
+   "kind": "workspace_page",
+   "help_topic": "About Importing and Exporting Data",
+   "help_url": "https://docs.oracle.com/cd/G48897_01/p6help/en/6604.htm",
+   "evidence": "apps/web/src/p6-interchange-api.ts",
+   "status": "MISSING",
+   "source_status": "PARTIAL",
+   "browser": "",
+   "note": "No route is served for this page at the audited SHA; backend modules alone are not a page."
+  },
+  {
+   "environment": "enterprise",
+   "page_id": "ENT-RESOURCES",
+   "page": "/enterprise/resources/",
+   "surface": "Resource capacity",
+   "kind": "workspace_page",
+   "help_topic": "Analyzing Role Allocation (Capacity Planning)",
+   "help_url": "https://docs.oracle.com/cd/G48897_01/p6help/en/7855.htm",
+   "evidence": "src/construction_pm/enterprise_dashboard_application.py",
+   "status": "MISSING",
+   "source_status": "PARTIAL",
+   "browser": "",
+   "note": "No route is served for this page at the audited SHA; backend modules alone are not a page."
+  },
+  {
+   "environment": "enterprise",
+   "page_id": "ENT-REPORTS",
+   "page": "/enterprise/reports/",
+   "surface": "Enterprise reporting",
+   "kind": "workspace_page",
+   "help_topic": "Configuring Report Settings",
+   "help_url": "https://docs.oracle.com/cd/G48897_01/p6help/en/78291.htm",
+   "evidence": "src/construction_pm/enterprise_dashboard_application.py",
+   "status": "MISSING",
+   "source_status": "PARTIAL",
+   "browser": "",
+   "note": "No route is served for this page at the audited SHA; backend modules alone are not a page."
+  },
+  {
+   "environment": "enterprise",
+   "page_id": "ENT-ADMIN",
+   "page": "/enterprise/admin/",
+   "surface": "Enterprise administration",
+   "kind": "workspace_page",
+   "help_topic": "About Administration",
+   "help_url": "https://docs.oracle.com/cd/G48897_01/p6help/en/6590.htm",
+   "evidence": "src/construction_pm/enterprise_identity.py",
+   "status": "MISSING",
+   "source_status": "PARTIAL",
+   "browser": "",
+   "note": "No route is served for this page at the audited SHA; backend modules alone are not a page."
+  },
+  {
+   "environment": "enterprise",
+   "page_id": "ENT-DOCUMENTS",
+   "page": "/enterprise/documents/",
+   "surface": "Documents and reviews",
+   "kind": "workspace_page",
+   "help_topic": "About Documents",
+   "help_url": "https://docs.oracle.com/cd/G48897_01/p6help/en/6620.htm",
+   "evidence": "src/construction_pm/enterprise_organization_access_repository.py",
+   "status": "MISSING",
+   "source_status": "PLANNED",
+   "browser": "",
+   "note": "No route is served for this page at the audited SHA; backend modules alone are not a page."
+  },
+  {
+   "environment": "enterprise",
+   "page_id": "ENT-RISKS-ISSUES",
+   "page": "/enterprise/risks/",
+   "surface": "Risks and issues",
+   "kind": "workspace_page",
+   "help_topic": "About Risks",
+   "help_url": "https://docs.oracle.com/cd/G48897_01/p6help/en/6628.htm",
+   "evidence": "src/construction_pm/enterprise_task.py",
+   "status": "MISSING",
+   "source_status": "PLANNED",
+   "browser": "",
+   "note": "No route is served for this page at the audited SHA; backend modules alone are not a page."
+  }
+ ],
+ "fields": [
+  {
+   "surface": "/enterprise/",
+   "field": "title",
+   "status": "WIRED_WRITE"
+  },
+  {
+   "surface": "/enterprise/",
+   "field": "description",
+   "status": "WIRED_WRITE"
+  },
+  {
+   "surface": "/enterprise/",
+   "field": "project scope",
+   "status": "WIRED_WRITE"
+  },
+  {
+   "surface": "/enterprise/",
+   "field": "priority",
+   "status": "WIRED_WRITE"
+  },
+  {
+   "surface": "/enterprise/",
+   "field": "due date",
+   "status": "WIRED_WRITE"
+  },
+  {
+   "surface": "/enterprise/",
+   "field": "status",
+   "status": "WIRED_WRITE"
+  },
+  {
+   "surface": "/enterprise/",
+   "field": "revision",
+   "status": "WIRED_WRITE"
+  }
+ ],
+ "field_audit_pending": [
+  "ENT-HOME",
+  "ENT-DASHBOARDS",
+  "ENT-PORTFOLIO",
+  "ENT-PROJECTS",
+  "ENT-FEEDBACK-APPROVAL",
+  "ENT-OPERATIONS",
+  "ENT-WORKFLOW",
+  "ENT-ORG-ACCESS",
+  "ENT-PORTAL",
+  "ENT-INTEGRATION",
+  "ENT-RESOURCES",
+  "ENT-REPORTS",
+  "ENT-ADMIN",
+  "ENT-DOCUMENTS",
+  "ENT-RISKS-ISSUES"
+ ]
+}

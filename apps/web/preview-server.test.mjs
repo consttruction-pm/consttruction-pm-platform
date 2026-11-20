@@ -131,3 +131,9 @@ test("the authenticated workspace shell loads the workspace bundle directly", ()
   assert.doesNotMatch(appShell, /landing-entry\.bundle\.js/);
   assert.match(appShell, /global-assistant-launcher\.bundle\.js/);
 });
+
+test("the personal workbench resolves to the authenticated application shell", () => {
+  const appShell = resolveRequestFile("/app");
+  assert.equal(resolveRequestFile("/workbench"), appShell);
+  assert.equal(resolveRequestFile("/workbench/"), appShell);
+});
