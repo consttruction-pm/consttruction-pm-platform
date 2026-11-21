@@ -375,24 +375,36 @@ class IdentityService:
             expires_at=session.expires_at,
         )
 
-    def register(self, username: str, password: str, *, display_name: str = "") -> IssuedSession:
+    def register(self, username: str, password: str, *, display_name: str = "",
+                ip_hash: str = "") -> IssuedSession:
         """Create a least-privilege account and issue its first persisted session."""
         normalized = normalize_username(username)
         policy_error = password_policy_error(password)
         if policy_error:
             raise IdentityError(policy_error)
+        now = _as_utc(self._clock())
+        since = now - self._failure_window
+        _, ip_failures = self._store.count_failures(email=normalized, ip_hash=ip_hash, since=since)
+        if ip_failures >= self._max_ip_failures:
+            raise IdentityError("AUTHENTICATION_THROTTLED")
         creator = getattr(self._store, "create_registered_user", None)
         if not callable(creator):
             raise IdentityError("SIGNUP_UNAVAILABLE")
-        now = _as_utc(self._clock())
-        user = creator(
-            user_id=str(uuid.uuid4()),
-            tenant_id=str(uuid.uuid4()),
-            username=normalized,
-            display_name=(display_name.strip()[:120] if isinstance(display_name, str) else "") or normalized,
-            password_hash=hash_password(password),
-            created_at=now,
-        )
+        try:
+            user = creator(
+                user_id=str(uuid.uuid4()),
+                tenant_id=str(uuid.uuid4()),
+                username=normalized,
+                display_name=(display_name.strip()[:120] if isinstance(display_name, str) else "") or normalized,
+                password_hash=hash_password(password),
+                created_at=now,
+            )
+        except IdentityError:
+            self._store.record_attempt(email=normalized, tenant_id=None, ip_hash=ip_hash,
+                                       attempted_at=now, succeeded=False)
+            raise
+        self._store.record_attempt(email=normalized, tenant_id=user.tenant_id, ip_hash=ip_hash,
+                                   attempted_at=now, succeeded=True)
         token = new_session_token()
         session = StoredSession(
             token_hash=token_hash(token), user_id=user.user_id, tenant_id=user.tenant_id,
