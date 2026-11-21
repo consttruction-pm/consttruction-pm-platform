@@ -28,7 +28,7 @@ export function renderAudit(ctx: PageContext, host: HTMLElement): void {
   const help = el("a", { class: "cubi-btn cubi-btn-ghost", text: "Open the Help topic", attrs: { target: "_blank", rel: "noopener noreferrer" } });
   help.href = "https://docs.oracle.com/cd/G48897_01/p6help/en/102813.htm";
   sectionBody(intro,
-    el("p", { class: "cubi-field-hint", text: "Help topic: About Table Auditing (P6 EPPM V26)" }),
+    el("p", { class: "cubi-field-hint", text: "Help topic: About Table Auditing" }),
     note("There is no delete or edit control on this page. The server exposes the trail read-only; a 405 is the expected answer to a write.", "warning"),
     el("div", { class: "cubi-row" }, help),
   );

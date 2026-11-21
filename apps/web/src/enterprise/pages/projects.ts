@@ -175,7 +175,7 @@ async function renderTab(ctx: PageContext, host: HTMLElement, project: PageConte
     ]);
     host.replaceChildren(
       note("The official route to schedule detail is the Engineering workspace. No schedule, CPM, WBS or activity data is recomputed in Enterprise.", "warning"),
-      connectionListLocal(ctx, [["Project P6 workspace read", workspace], ["Issue register", issues], ["Earned-value source", evm]]),
+      connectionListLocal(ctx, [["Project workspace read", workspace], ["Issue register", issues], ["Earned-value source", evm]]),
       pageActions(linkButton("Open schedule in Engineering", "/app/")),
     );
     return;
@@ -229,7 +229,7 @@ async function renderTab(ctx: PageContext, host: HTMLElement, project: PageConte
       const rows = await api.listIssues(project.project_id);
       blocks.push(rows.length ? recordsTable("Issue", rows) : emptyLine("No issue is registered."));
     } else {
-      blocks.push(sourceState(issuesProbe, ctx.t, { title: "Issue register", source: "P6 issue API" }));
+      blocks.push(sourceState(issuesProbe, ctx.t, { title: "Issue register", source: "Engineering issue API" }));
     }
     host.replaceChildren(...blocks, sourceStamp("Project risk and issue registers", "per record", null, ctx.locale));
     return;

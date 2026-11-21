@@ -18,7 +18,7 @@ import {
 /**
  * Page 10 — Team and task center.
  *
- * Generic enterprise tasks, not P6 activities and not timesheets. The list,
+ * Generic enterprise tasks, not Engineering activities and not timesheets. The list,
  * create form and revision-checked update are implemented against the
  * Enterprise Task API v1 contract. When the PostgreSQL-backed route is not
  * mounted, the page says so and shows no task rows.
@@ -52,7 +52,7 @@ export function renderTasks(ctx: PageContext, host: HTMLElement): void {
 
 function build(ctx: PageContext, state: TaskState, paint: () => void): HTMLElement[] {
   const nodes: HTMLElement[] = [];
-  const intro = section("Enterprise tasks", "These are collaboration tasks. They are not P6 activities, assignments, progress or timesheets, and they never change the schedule.");
+  const intro = section("Enterprise tasks", "These are collaboration tasks. They are not Engineering activities, assignments, progress or timesheets, and they never change the schedule.");
   sectionBody(intro,
     note("Every mutation is revision-checked. A stale or duplicate submission is rejected by the server; the browser cannot force an update."),
   );

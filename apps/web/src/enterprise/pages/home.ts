@@ -5,7 +5,7 @@ import { button, el, link as uiLink } from "../ui.js";
 /**
  * Page 1 — CUBI product homepage.
  *
- * CUBI-owned; no P6 Help topic is the reference. Sign-up is not self-service in
+ * CUBI-owned; no external Help topic is the reference. Sign-up is not self-service in
  * the current product, so the call to action is an honest access request, not a
  * fake registration form.
  */

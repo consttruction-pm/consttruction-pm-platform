@@ -68,7 +68,7 @@ export function renderWorkbench(ctx: PageContext, host: HTMLElement): void {
   testId(sources, "workbench-sources");
   host.append(sources);
 
-  const tasksCard = section("My assigned enterprise tasks", "Generic collaboration tasks only. P6 activities, timesheets and progress remain in the Engineering environment.");
+  const tasksCard = section("My assigned enterprise tasks", "Generic collaboration tasks only. Activities, timesheets and progress remain in the Engineering environment.");
   const tasksHost = el("div", {}, el("div", { class: "cubi-loading" }, el("div", { class: "cubi-spinner" }), el("span", { text: ctx.t("common.loading") })));
   sectionBody(tasksCard, tasksHost);
   testId(tasksCard, "workbench-tasks");

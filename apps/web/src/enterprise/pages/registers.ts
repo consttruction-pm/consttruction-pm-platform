@@ -13,7 +13,7 @@ const RISKS: RecordPageSpec = {
   testId: "risks",
   description: "Project risks and issues registered in Enterprise, with owner, severity and status.",
   note: "Enterprise keeps the register and its history. Schedule impact is owned by Engineering and is not computed here.",
-  help: { topic: "About Risks (P6 EPPM V26)", url: "https://docs.oracle.com/cd/G48897_01/p6help/en/6628.htm" },
+  help: { topic: "About Risks", url: "https://docs.oracle.com/cd/G48897_01/p6help/en/6628.htm" },
   fields: [
     { name: "title", label: "Title", required: true, placeholder: "Short risk or issue statement" },
     {
@@ -50,7 +50,7 @@ const DOCUMENTS: RecordPageSpec = {
   testId: "documents",
   description: "Controlled documents with category, owner and review status.",
   note: "Binary content is not stored by this register. It records the document identity and its review state; file storage is a separate capability.",
-  help: { topic: "About Documents (P6 EPPM V26)", url: "https://docs.oracle.com/cd/G48897_01/p6help/en/6620.htm" },
+  help: { topic: "About Documents", url: "https://docs.oracle.com/cd/G48897_01/p6help/en/6620.htm" },
   fields: [
     { name: "title", label: "Title", required: true, placeholder: "Document title" },
     { name: "category", label: "Category", placeholder: "Contract, drawing, procedure…" },
@@ -94,8 +94,8 @@ const TIMESHEETS: RecordPageSpec = {
   kind: "timesheets",
   testId: "timesheets",
   description: "Time entries recorded against a person and a working day, with server-side hour limits.",
-  note: "Hours are validated by the server (0 < hours ≤ 24). These entries are CUBI records, not P6 timesheet approvals; approval stays in Engineering.",
-  help: { topic: "About Timesheets (P6 EPPM V26)", url: "https://docs.oracle.com/cd/G48897_01/p6help/en/6610.htm" },
+  note: "Hours are validated by the server (0 < hours ≤ 24). These entries are CUBI records, not Engineering timesheet approvals; approval stays in Engineering.",
+  help: { topic: "About Timesheets", url: "https://docs.oracle.com/cd/G48897_01/p6help/en/6610.htm" },
   fields: [
     { name: "user_id", label: "Person", required: true, placeholder: "User id" },
     { name: "work_date", label: "Work date", kind: "date", required: true },
@@ -117,7 +117,7 @@ const NOTIFICATIONS: RecordPageSpec = {
   testId: "notifications",
   description: "CUBI notification records with audience and delivery channel.",
   note: "This register stores the notification intent and its state. Delivery to an external channel is not claimed unless the server reports it.",
-  help: { topic: "About email Notifications (P6 EPPM V26)", url: "https://docs.oracle.com/cd/G48897_01/p6help/en/6605.htm" },
+  help: { topic: "About email Notifications", url: "https://docs.oracle.com/cd/G48897_01/p6help/en/6605.htm" },
   fields: [
     { name: "title", label: "Title", required: true, placeholder: "Notification subject" },
     { name: "message", label: "Message", kind: "textarea", placeholder: "Message body" },
@@ -142,7 +142,7 @@ const SETTINGS: RecordPageSpec = {
   testId: "settings",
   description: "Tenant administration settings. Only an enterprise administrator can write them.",
   note: "The server enforces the administrator role; a non-administrator receives 403 and no value is changed.",
-  help: { topic: "About Application Settings (P6 EPPM V26)", url: "https://docs.oracle.com/cd/G48897_01/p6help/en/36403.htm" },
+  help: { topic: "About Application Settings", url: "https://docs.oracle.com/cd/G48897_01/p6help/en/36403.htm" },
   fields: [
     { name: "key", label: "Setting key", required: true, placeholder: "e.g. timesheet.week_start" },
     { name: "value", label: "Value", required: true, placeholder: "Stored value" },
@@ -160,9 +160,9 @@ const FORMS: RecordPageSpec = {
   kind: "forms",
   testId: "forms",
   description: "CUBI form definitions: named field lists that other surfaces can reuse.",
-  note: "Fields are a JSON array and the server rejects an empty or unnamed field list. Form Builder is CUBI-owned; P6 UDF topics describe the closest equivalent.",
+  note: "Fields are a JSON array and the server rejects an empty or unnamed field list. Form Builder is CUBI-owned; The Help matrix records the closest equivalent topics.",
   help: {
-    topic: "About User Defined Fields (P6 EPPM V26)",
+    topic: "About User Defined Fields",
     url: "https://docs.oracle.com/cd/G48897_01/p6help/en/6599.htm",
   },
   fields: [
@@ -191,7 +191,7 @@ const DIRECTORY: RecordPageSpec = {
   testId: "directory",
   description: "Resource directory entries: people available to Enterprise teams, with role and capacity.",
   note: "This is a CUBI directory record. Engineering resource calendars, units and rates stay authoritative in Engineering.",
-  help: { topic: "About Resources (P6 EPPM V26)", url: "https://docs.oracle.com/cd/G48897_01/p6help/en/6640.htm" },
+  help: { topic: "About Resources", url: "https://docs.oracle.com/cd/G48897_01/p6help/en/6640.htm" },
   fields: [
     { name: "display_name", label: "Name", required: true, placeholder: "Person or resource name" },
     { name: "email", label: "Email", placeholder: "name@example.com" },
