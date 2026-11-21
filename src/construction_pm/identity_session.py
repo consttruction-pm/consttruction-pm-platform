@@ -685,7 +685,6 @@ class SQLiteIdentityStore(_SqlIdentityStore):
                 display_name TEXT NOT NULL DEFAULT '',
                 roles_json TEXT NOT NULL,
                 password_hash TEXT NOT NULL,
-                username TEXT,
                 active INTEGER NOT NULL DEFAULT 1,
                 locked_at TEXT,
                 expires_at TEXT,
