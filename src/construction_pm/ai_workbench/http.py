@@ -154,13 +154,24 @@ class AIWorkbenchHttpMiddleware:
     def _route(path: str) -> tuple[str, str]:
         prefix = "/api/projects/"
         rest = path[len(prefix):]
-        project_id, marker, suffix = rest.partition("/workbench/")
-        if not marker or not project_id:
+        raw_project, marker, suffix = rest.partition("/workbench/")
+        if not marker or not raw_project:
             raise WorkbenchRequestError("WORKBENCH_ROUTE_INVALID")
-        if "/" in project_id or len(project_id) > _MAX_PROJECT:
+        # Validate after decoding. Percent-encoded separators, control
+        # characters and dot segments must not be able to smuggle a second
+        # path segment into the authorization lookup.
+        project_id = unquote(raw_project)
+        if (
+            not project_id
+            or "/" in project_id
+            or "\\" in project_id
+            or project_id in {".", ".."}
+            or any(ord(char) < 0x20 or ord(char) == 0x7F for char in project_id)
+            or len(project_id) > _MAX_PROJECT
+        ):
             raise WorkbenchRequestError("PROJECT_ID_INVALID")
         action = suffix.strip("/")
-        return unquote(project_id), action
+        return project_id, action
 
     def _authorize(self, session_id: str, project_id: str) -> _Scope:
         now = self._clock()

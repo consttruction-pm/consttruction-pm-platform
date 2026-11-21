@@ -13,7 +13,7 @@
 
 ## 2. Python coverage
 
-`tests/test_ai_workbench_http.py` (20 tests) covers:
+`tests/test_ai_workbench_http.py` (27 tests) covers:
 
 - delegation of non-owned paths;
 - missing and unknown session → 401;
@@ -27,7 +27,13 @@
 - Persian import command resolves to the partial import studio;
 - unknown command returns one clarifying question;
 - empty command, invalid locale, invalid correlation, oversized body;
-- wrong method → 405 and unknown action → 404.
+- wrong method → 405 and unknown action → 404;
+- **Phase 7 gates**: a project owned by another tenant is not disclosed to the
+  requesting session; the same project id in two tenants resolves to each
+  tenant's own record; the data-date provider receives the session tenant;
+  scope fields in the command body cannot override the URL project or server
+  revision; encoded separators, `.`/`..` segments and control characters in the
+  project id are rejected with `PROJECT_ID_INVALID` before any lookup.
 
 `tests/test_ai_workbench_orchestration.py` (27 tests) covers the envelope,
 intent rules, objective/constraint extraction, studio registry and the pure
@@ -108,6 +114,9 @@ Screenshots: `ai-workbench-en.png`, `ai-workbench-fa.png` under
 | Gate | Requirement |
 |---|---|
 | Authorization | every workbench API call authorizes project + tenant on the server |
+| Tenant isolation | a project id owned by another tenant is never disclosed, and a shared id resolves per-tenant |
+| Scope binding | body/query cannot override tenant, project, actor, roles or revision |
+| Request path | decoded project ids reject separators, dot segments and control characters |
 | No fake data | empty/failed reads show explicit states; no sample records |
 | Determinism | the same command with the same envelope yields the same intent/studio |
 | Writes | idempotent, revision-checked, audited, read back |
@@ -116,7 +125,25 @@ Screenshots: `ai-workbench-en.png`, `ai-workbench-fa.png` under
 | Responsive | three columns at desktop; stacked at ≤ 980 px |
 | Cache | document is `no-store` |
 
-## 6. What is not yet proven
+## 6. Phase 7 security acceptance (implemented)
+
+The workbench HTTP boundary now has explicit cross-tenant and scope-binding
+tests, not only the lifecycle service tests:
+
+| Test | Proves |
+|---|---|
+| `test_project_owned_by_another_tenant_is_not_disclosed` | tenant B receives `403 PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED` for tenant A's project, with no project payload |
+| `test_same_project_id_resolves_to_each_tenants_own_record` | the same id in two tenants returns each tenant's name and revision |
+| `test_data_date_provider_receives_the_session_tenant` | derived settings are resolved with the session tenant, not a client value |
+| `test_command_body_cannot_override_server_scope` | body `tenant_id`, `project_id`, `revision`, `actor_id`, `roles` are ignored |
+| `test_encoded_path_separator_is_rejected` | `%2F` cannot inject a path segment |
+| `test_dot_segment_project_id_is_rejected` | `.` and `%2E%2E` are rejected before lookup |
+| `test_control_character_project_id_is_rejected` | `%00` is rejected before lookup |
+
+Cross-phase acceptance for import, scenario and approval stays pending because
+those contracts do not exist yet (see `IMPLEMENTATION_STATUS.md`).
+
+## 7. What is not yet proven
 
 - Cross-phase acceptance (Phases 4–7) for import, scenario and approval.
 - Per-studio Help deep links (see `HELP_CROSSWALK.md`).

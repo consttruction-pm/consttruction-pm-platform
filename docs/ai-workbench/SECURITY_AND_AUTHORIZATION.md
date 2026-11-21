@@ -25,6 +25,14 @@ tenant or not visible to the actor raises `PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED`
 and the response is `403` with that stable code. This is the IDOR guard: the
 URL's project id is never trusted on its own.
 
+The router validates the project id **after** percent-decoding: a decoded
+`/`, `\`, control character, `.`/`..` segment or an id longer than 200
+characters is rejected with `400 PROJECT_ID_INVALID` before any lifecycle
+lookup. An encoded separator cannot add a second path segment. Every scope
+field in the command body (`tenant_id`, `project_id`, `revision`, `actor_id`,
+`roles`) is ignored; the envelope is built only from the resolved session and
+URL project.
+
 ## 3. Request forgery
 
 - In production, `ProductionWebApp._api` rejects a mutating API request when:
@@ -55,8 +63,12 @@ services:
 
 - risk create: idempotency key, revisioned record, audit event, server-side
   validation, response read back by a fresh list read;
-- no risk update/delete control is exposed yet, so no optimistic-lock UI can
-  silently overwrite a concurrent edit;
+- risk update: canonical `PUT /api/projects/{id}/risks/{risk_id}` with
+  `expected_revision`; a `409 RISK_REVISION_CONFLICT` triggers a fresh list read
+  and the client never retries with a stale token; the audit history is read
+  from `/risks/{risk_id}/history`;
+- risk delete is not exposed in the studio; the canonical endpoint remains the
+  only authority if it is added later;
 - analysis is read-only and sends the pinned `X-Project-Revision`; a stale
   revision returns `409 STALE_WORKSPACE_READ_SCOPE`.
 
