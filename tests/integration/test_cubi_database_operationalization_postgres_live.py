@@ -1132,3 +1132,30 @@ def test_knowledge_survives_and_reports_missing_coverage(runtime):
     assert status == 200
     listing = json.loads(body)
     assert any(entry.get("title") == title for entry in listing["entries"])
+
+
+
+def test_username_signup_is_durable_and_duplicate_recovery_keeps_postgres_usable(runtime):
+    suffix = runtime.test_ids["suffix"]
+    username = f"signup-{suffix}"
+    status, _, body = call(
+        runtime, "POST", "/api/signup",
+        body={"username": username, "password": "signup password battery staple"},
+    )
+    assert status == 201, body
+    created = json.loads(body)
+    assert created["roles"] == ["viewer"]
+
+    status, _, body = call(
+        runtime, "POST", "/api/signup",
+        body={"username": username.upper(), "password": "signup password battery staple"},
+    )
+    assert status == 409
+    assert json.loads(body)["code"] == "USERNAME_TAKEN"
+
+    status, _, body = call(
+        runtime, "POST", "/api/signup",
+        body={"username": f"signup-next-{suffix}", "password": "signup password battery staple"},
+    )
+    assert status == 201, body
+
