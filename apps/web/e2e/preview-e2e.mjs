@@ -636,6 +636,33 @@ async function runAiWorkbenchJourney(page, baseUrl) {
     studios: shell.tabs,
   });
 
+  await page.click('#aiw-inspector .aiw-inspector-header [data-workbench="help"]');
+  await page.waitForSelector("#aiw-inspector-body a.aiw-help-link", "verified help references");
+  const help = await page.evaluate(`(() => ({
+    links: Array.from(document.querySelectorAll("#aiw-inspector-body a.aiw-help-link")).map((link) => ({
+      href: link.getAttribute("href"),
+      target: link.getAttribute("target"),
+      rel: link.getAttribute("rel"),
+      text: link.textContent?.trim() ?? "",
+    })),
+    pending: Array.from(document.querySelectorAll("#aiw-inspector-body .aiw-help-list li"))
+      .filter((item) => /HELP_REFERENCE_PENDING/.test(item.textContent ?? "")).length,
+    foreign: Array.from(document.querySelectorAll("#aiw-inspector-body a.aiw-help-link"))
+      .filter((link) => !(link.getAttribute("href") ?? "").startsWith("https://docs.oracle.com/")).length,
+  }))()`);
+  assert(help.links.length === 5, "five studios must expose a verified reference");
+  assert(help.foreign === 0, "no Help link may point outside the official reference host");
+  assert(
+    help.links.every((link) => link.target === "_blank" && /noopener/.test(link.rel ?? "")),
+    "Help links must open in a new tab without an opener",
+  );
+  record("studio Help links are the recorded official references", {
+    count: help.links.length,
+    hosts: help.links.map((link) => new URL(link.href).host),
+    pending_controls: help.pending,
+  });
+  await page.click('#aiw-inspector-body [data-workbench="help"]');
+
   await page.waitForSelector("[data-risk-empty], [data-risk-table]", "risk register panel");
   const emptyRisk = await page.evaluate(
     `Boolean(document.querySelector("[data-risk-empty]"))`,

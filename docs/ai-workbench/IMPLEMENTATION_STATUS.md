@@ -181,9 +181,10 @@ there is no cross-phase flow to accept without inventing a parallel engine.
 1. Import staging has no project-import engine; only register exchange exists.
 2. Schedule scenarios have no persisted contract.
 3. Decision/approval has no Engineering proposal or execution contract.
-4. Every studio Help status is `HELP_REFERENCE_PENDING`; no fabricated URL. The
-   document row `ENG-WS-AI-WORKBENCH` is registered as `CUBI_OWNED` with no
-   official topic.
+4. Each studio now records one verified studio-level Help reference
+   (`HELP_REFERENCE_VERIFIED`) and the Inspector links it. Per-control deep
+   links remain pending; the document row `ENG-WS-AI-WORKBENCH` is registered as
+   `CUBI_OWNED` with no official topic.
 5. Workbench-specific UI strings use the shared localization system but most
    non-English catalogs do not yet contain them; the document shows an explicit
    fallback notice for non-English locales.

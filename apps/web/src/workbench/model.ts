@@ -216,6 +216,16 @@ export type AnalysisCounts = {
 };
 
 /**
+ * Only a recorded official reference may become a link. The server supplies the
+ * URL; the client still refuses any other origin or scheme before rendering it.
+ */
+export function verifiedHelpUrl(value: unknown): string | null {
+  return typeof value === "string" && value.startsWith("https://docs.oracle.com/")
+    ? value
+    : null;
+}
+
+/**
  * The canonical v2 read names the hierarchy `wbs_nodes`. An older envelope used
  * `wbs`; reading both keeps the stored rows visible instead of silently showing
  * zero WBS elements.

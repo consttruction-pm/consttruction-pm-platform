@@ -75,7 +75,7 @@ Vercel maps every workspace document onto:
 
 ## 3. Web unit coverage
 
-`apps/web/src/workbench-model.test.ts` (14 tests):
+`apps/web/src/workbench-model.test.ts` (15 tests):
 
 - studio labels and stable studio order;
 - English fallback and Persian values through the shared localization system;
@@ -89,6 +89,8 @@ Vercel maps every workspace document onto:
   legacy `workspace.wbs` field only as a fallback;
 - stored metrics keep their values and stable order; source refs are unique;
 - query/project helpers preserve only the intended parameters;
+- only an `https://docs.oracle.com/` reference becomes a Help link; other
+  origins, `http:` and `javascript:` are refused;
 - proposal impact compares the literal `activity.create` payload with the
   current read (not present → no warnings);
 - proposal impact names an existing activity id and an unknown WBS by code
@@ -178,6 +180,7 @@ Screenshots: `ai-workbench-en.png`, `ai-workbench-fa.png` under
 | Blocked studios | zero working controls |
 | Environments | `/app`, `/cubi/*` and `/ai-workbench` are separate documents; Vercel builds stage each document and the shell restores the requested path |
 | Localization | document `lang`/`dir` from the shared system; fallback announced |
+| Help | a studio links only a recorded official page; no URL is guessed and per-control rows stay pending |
 | Responsive | three columns at desktop; stacked at ≤ 980 px |
 | Cache | document is `no-store` |
 

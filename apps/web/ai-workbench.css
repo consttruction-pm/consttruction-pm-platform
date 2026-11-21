@@ -385,6 +385,8 @@ ul.aiw-history li {
 .aiw-open-studio { align-self: flex-start; padding: .35rem .7rem; border-radius: 5px; border: 1px solid var(--aiw-blue); background: #fff; color: var(--aiw-blue); cursor: pointer; }
 .aiw-analysis { display: flex; flex-direction: column; gap: .8rem; }
 .aiw-help-list { margin: 0; padding-inline-start: 1rem; font-size: .78rem; display: flex; flex-direction: column; gap: .4rem; }
+.aiw-help-link { color: var(--aiw-accent, #2563eb); text-decoration: underline; }
+.aiw-help-link:focus-visible { outline: 2px solid var(--aiw-accent, #2563eb); outline-offset: 2px; }
 .aiw-inspector-header button { font-weight: 700; }
 .aiw-inspector > div { padding: .8rem; display: flex; flex-direction: column; gap: .6rem; }
 

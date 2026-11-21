@@ -30,6 +30,7 @@ class StudioStatus:
     PLANNED = "PLANNED"
     BLOCKED = "BLOCKED"
     HELP_REFERENCE_PENDING = "HELP_REFERENCE_PENDING"
+    HELP_REFERENCE_VERIFIED = "HELP_REFERENCE_VERIFIED"
 
 
 @dataclass(frozen=True)
@@ -60,6 +61,7 @@ class Studio:
     blocked_reason: str | None
     help_topic: str
     help_status: str
+    help_url: str | None = None
 
     @property
     def can_open(self) -> bool:
@@ -121,8 +123,11 @@ def studios(capabilities: Capabilities | None = None) -> tuple[Studio, ...]:
                 else None
             ),
             blocked_reason=import_reason,
-            help_topic="Import and Export Projects",
-            help_status=StudioStatus.HELP_REFERENCE_PENDING,
+            help_topic="Importing and exporting data",
+            help_status=StudioStatus.HELP_REFERENCE_VERIFIED,
+            help_url=(
+                "https://docs.oracle.com/cd/G48902_01/client_help/en_US/48617.htm"
+            ),
         ),
         Studio(
             id=StudioId.SCHEDULE_SCENARIO,
@@ -132,8 +137,12 @@ def studios(capabilities: Capabilities | None = None) -> tuple[Studio, ...]:
             read_route="/api/projects/{project_id}/p6/schedule",
             write_route=None,
             blocked_reason=scenario_reason,
-            help_topic="Activities, Gantt Chart, Schedule Calculation",
-            help_status=StudioStatus.HELP_REFERENCE_PENDING,
+            help_topic="Scheduling Projects",
+            help_status=StudioStatus.HELP_REFERENCE_VERIFIED,
+            help_url=(
+                "https://docs.oracle.com/cd/G48902_01/client_help/en_US/"
+                "schedulingprojects.htm"
+            ),
         ),
         Studio(
             id=StudioId.RISK_ANALYSIS,
@@ -145,8 +154,11 @@ def studios(capabilities: Capabilities | None = None) -> tuple[Studio, ...]:
             read_route="/api/projects/{project_id}/risks",
             write_route="/api/projects/{project_id}/risks" if caps.risk_service else None,
             blocked_reason=None if caps.risk_service else "Risk service is not mounted.",
-            help_topic="Risk register",
-            help_status=StudioStatus.HELP_REFERENCE_PENDING,
+            help_topic="Risks",
+            help_status=StudioStatus.HELP_REFERENCE_VERIFIED,
+            help_url=(
+                "https://docs.oracle.com/cd/G48902_01/client_help/en_US/risks.htm"
+            ),
         ),
         Studio(
             id=StudioId.PROJECT_ANALYSIS,
@@ -164,8 +176,11 @@ def studios(capabilities: Capabilities | None = None) -> tuple[Studio, ...]:
                 if caps.analysis_read_models
                 else "No authoritative project read model is mounted."
             ),
-            help_topic="Project Statistics, Schedule Performance, Earned Value",
-            help_status=StudioStatus.HELP_REFERENCE_PENDING,
+            help_topic="Earned Value",
+            help_status=StudioStatus.HELP_REFERENCE_VERIFIED,
+            help_url=(
+                "https://docs.oracle.com/cd/G48902_01/client_help/en_US/earned_value.htm"
+            ),
         ),
         Studio(
             id=StudioId.DECISION_APPROVAL,
@@ -183,8 +198,11 @@ def studios(capabilities: Capabilities | None = None) -> tuple[Studio, ...]:
                 else None
             ),
             blocked_reason=decision_reason,
-            help_topic="Approvals, Workflows, Change Management",
-            help_status=StudioStatus.HELP_REFERENCE_PENDING,
+            help_topic="Approving or Denying Budget Change Requests",
+            help_status=StudioStatus.HELP_REFERENCE_VERIFIED,
+            help_url=(
+                "https://docs.oracle.com/cd/G48897_01/p6help/en/44036.htm"
+            ),
         ),
     )
 

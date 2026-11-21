@@ -13,6 +13,7 @@ import {
   statusTone,
   studioLabel,
   t,
+  verifiedHelpUrl,
   withProject,
   workspaceWbsNodes,
 } from "./workbench/model.js";
@@ -325,4 +326,17 @@ test("proposal impact declares an unavailable current read and ignores other too
     proposalImpact(snapshot(), proposal({ tool_name: "project.plan.create" })),
     null,
   );
+});
+
+
+test("only a recorded Oracle reference becomes a help link", () => {
+  assert.equal(
+    verifiedHelpUrl("https://docs.oracle.com/cd/G48902_01/client_help/en_US/risks.htm"),
+    "https://docs.oracle.com/cd/G48902_01/client_help/en_US/risks.htm",
+  );
+  assert.equal(verifiedHelpUrl("https://example.test/risks.htm"), null);
+  assert.equal(verifiedHelpUrl("http://docs.oracle.com/risks.htm"), null);
+  assert.equal(verifiedHelpUrl("javascript:alert(1)"), null);
+  assert.equal(verifiedHelpUrl(null), null);
+  assert.equal(verifiedHelpUrl(""), null);
 });

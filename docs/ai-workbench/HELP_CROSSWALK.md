@@ -1,54 +1,53 @@
 # Help Crosswalk
 
-Every studio records a `help_topic` and `help_status` on the server. The
-Workbench does not fabricate a Help URL: each studio stays
-`HELP_REFERENCE_PENDING` until a real, verified page exists, and the Inspector
-lists the topic and status.
+Every studio records a `help_topic`, a `help_status` and, when verified, an
+exact `help_url` on the server. The Workbench renders a link only for an
+`https://docs.oracle.com/` reference recorded here; it never guesses a URL.
 
 ## Document entry
 
-The Workbench document is now registered in `docs/traceability/engineering-v26.json`
+The Workbench document is registered in `docs/traceability/engineering-v26.json`
 as `ENG-WS-AI-WORKBENCH` (`/ai-workbench/`, `CUBI_OWNED`). It intentionally has
-**no official Help topic** and a recorded rationale: the Workbench is CUBI-owned
-and no vendor page describes it. `resolveContextualHelp` therefore falls back to
-the internal documentation for this route instead of borrowing a P6 topic. The
-generated registry reports 84 entries (69 with an official topic).
+**no official Help topic**: the Workbench is CUBI-owned and no vendor page
+describes it, so `resolveContextualHelp` falls back to internal documentation
+for this route rather than borrowing a vendor topic.
 
-## Recorded topics
+## Verified studio references
 
-| Studio | Recorded `help_topic` | Recorded status | Candidate registry entry |
+Each page below was opened on 2026-11-21: it returned `200`, its title matched
+the recorded topic, and the topic covers the studio's authoritative behaviour.
+The Inspector renders the link with `target="_blank"` and
+`rel="noopener noreferrer"`; CUBI branding is unchanged and no vendor brand is
+displayed.
+
+| Studio | `help_topic` | Exact `help_url` | Status |
 |---|---|---|---|
-| Project Import Review & Staging | Import and Export Projects | `HELP_REFERENCE_PENDING` | `ENG-WS-EXCHANGE` (`/app/exchange/`) |
-| Schedule Scenario Studio | Activities, Gantt Chart, Schedule Calculation | `HELP_REFERENCE_PENDING` | `ENG-WS-SCHEDULE` (`/app/schedule/`) |
-| Risk Analysis Studio | Risk register | `HELP_REFERENCE_PENDING` | `ENG-WS-RISKS` (`/app/risks/`) |
-| Project Analysis Studio | Project Statistics, Schedule Performance, Earned Value | `HELP_REFERENCE_PENDING` | no single entry; `ENG-WS-SCHEDULE` is the closest |
-| Decision & Approval Workspace | Approvals, Workflows, Change Management | `HELP_REFERENCE_PENDING` | `ENT-FEEDBACK-APPROVAL` (`/enterprise/approvals/`) |
+| Project Import Review & Staging | Importing and exporting data | `https://docs.oracle.com/cd/G48902_01/client_help/en_US/48617.htm` | `HELP_REFERENCE_VERIFIED` |
+| Schedule Scenario Studio | Scheduling Projects | `https://docs.oracle.com/cd/G48902_01/client_help/en_US/schedulingprojects.htm` | `HELP_REFERENCE_VERIFIED` |
+| Risk Analysis Studio | Risks | `https://docs.oracle.com/cd/G48902_01/client_help/en_US/risks.htm` | `HELP_REFERENCE_VERIFIED` |
+| Project Analysis Studio | Earned Value | `https://docs.oracle.com/cd/G48902_01/client_help/en_US/earned_value.htm` | `HELP_REFERENCE_VERIFIED` |
+| Decision & Approval Workspace | Approving or Denying Budget Change Requests | `https://docs.oracle.com/cd/G48897_01/p6help/en/44036.htm` | `HELP_REFERENCE_VERIFIED` |
 
-## Verified P6 Help sources already in the repository
+The sources are the two official references named by the product rules:
 
-These entries are published in `apps/web/src/help-registry.generated.ts`; they
-are the reference material the Workbench topics point at. They are **not** yet
-wired as per-studio deep links.
+- P6 Professional V26 HTML Help TOC:
+  <https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm>
+- P6 EPPM V26 HTML Help TOC:
+  <https://docs.oracle.com/cd/G48897_01/p6help/en/toc.htm>
 
-- Risks: `https://docs.oracle.com/cd/G48902_01/client_help/en_US/risks.htm`
-- Scheduling: `https://docs.oracle.com/cd/G48902_01/client_help/en_US/schedulingprojects.htm`
-- Importing and exporting: `https://docs.oracle.com/cd/G48902_01/client_help/en_US/48617.htm`
-- The Gantt Chart: `https://docs.oracle.com/cd/G48902_01/client_help/en_US/the_gantt_chart.htm`
-- Enterprise approvals: `https://docs.oracle.com/cd/G48897_01/p6help/en/51331.htm`
+## Boundary of the verification
 
-## What must happen to clear the pending status
+The verified URL is the studio-level reference. Individual control rows in
+`ENGINEERING_AI_WORKBENCH_HELP_MATRIX.md` stay `HELP_REFERENCE_PENDING` until
+that exact control's page is opened; a studio link is not presented as proof
+that every control has its own deep link.
 
-1. ~~Add `/ai-workbench/` (and the studio anchors) to the traceability source
-   used by `scripts/generate-assistant-registries.mjs`.~~ Done: the document
-   entry `ENG-WS-AI-WORKBENCH` exists (`CUBI_OWNED`, no topic).
-2. Regenerate `help-registry.generated.ts` so the document and each studio have
-   a stable entry id. Done for the document entry.
-3. Change the server `help_status` from `HELP_REFERENCE_PENDING` to
-   `PUBLISHED`/`IMPLEMENTED` only for entries that resolve to a real page. The
-   document entry intentionally has none, so the studios stay pending until a
-   verified CUBI Help page is published.
-4. Add a browser acceptance check that the Inspector link opens the registered
-   entry, not a guessed URL. Not applicable while no link is rendered.
+## What changed in the registry
 
-Until then, the Inspector shows the topic and `HELP_REFERENCE_PENDING`; no link
-is rendered.
+- `Studio.help_url` is part of the server context payload (`help_url`).
+- `StudioStatus.HELP_REFERENCE_VERIFIED` replaces the previous blanket pending
+  status for the five studios above.
+- The client refuses any URL that is not `https://docs.oracle.com/…` before
+  rendering a link (`verifiedHelpUrl`).
+- Tests pin the five exact URLs in the Python registry test and the client
+  origin rule in `workbench-model.test.ts`.

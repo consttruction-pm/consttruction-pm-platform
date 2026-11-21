@@ -187,6 +187,14 @@ def test_context_returns_project_roles_and_studio_registry():
     assert studios["schedule-scenario"]["can_open"] is False
     assert studios["risk-analysis"]["status"] == "WIRED_WRITE"
     assert studios["risk-analysis"]["can_execute"] is True
+    assert studios["risk-analysis"]["help_status"] == "HELP_REFERENCE_VERIFIED"
+    assert studios["risk-analysis"]["help_url"] == (
+        "https://docs.oracle.com/cd/G48902_01/client_help/en_US/risks.htm"
+    )
+    assert all(
+        entry["help_url"] is None or entry["help_url"].startswith("https://docs.oracle.com/")
+        for entry in studios.values()
+    )
     assert lifecycle.opened == ["alpha"]
 
 

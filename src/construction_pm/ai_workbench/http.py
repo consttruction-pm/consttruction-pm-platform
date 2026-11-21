@@ -290,6 +290,7 @@ class AIWorkbenchHttpMiddleware:
             "blocked_reason": studio.blocked_reason,
             "help_topic": studio.help_topic,
             "help_status": studio.help_status,
+            "help_url": studio.help_url,
         }
 
     def _resolve_data_date(self, scope: _Scope) -> date | None:
