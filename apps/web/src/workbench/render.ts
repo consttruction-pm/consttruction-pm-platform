@@ -25,6 +25,7 @@ import {
   formatNumber,
   metricRows,
   metricSourceSummary,
+  proposalImpact,
   proposalStatusLabel,
   proposalStatusTone,
   riskMatrix,
@@ -60,6 +61,7 @@ export type ShellState = {
   proposalError: string | null;
   proposalNotice: string | null;
   proposalBusy: string | null;
+  impactError: string | null;
   loading: string | null;
   lastUpdated: string | null;
   connected: boolean;
@@ -582,6 +584,71 @@ export function renderDecisionStudio(state: ShellState): string {
   </section>`;
 }
 
+function renderProposalImpact(state: ShellState, proposal: AIActionProposal): string {
+  const { locale } = state;
+  const impact = proposalImpact(state.workspace, proposal);
+  if (!impact) return "";
+  const missing = t(locale, "Not present in the current read", "در خوانش کنونی وجود ندارد");
+  const current = impact.current;
+  const warningCopy: Record<string, string> = {
+    CURRENT_STATE_UNAVAILABLE: t(
+      locale,
+      "The current project read is unavailable, so the before/after comparison cannot be shown.",
+      "خوانش کنونی پروژه در دسترس نیست؛ بنابراین مقایسهٔ پیش و پس نمایش داده نمی‌شود.",
+    ),
+    ACTIVITY_ID_EXISTS: t(
+      locale,
+      "An activity with this ID already exists in the current revision. This is a create proposal, not an update; review the conflict before approving.",
+      "فعالیتی با این شناسه در نسخهٔ کنونی وجود دارد. این پیشنهاد «ایجاد» است نه «ویرایش»؛ پیش از تأیید، تعارض را بررسی کنید.",
+    ),
+    WBS_NOT_IN_CURRENT_READ: t(
+      locale,
+      "The proposed WBS node is not in the current project read. The server re-checks it before execution.",
+      "گره WBS پیشنهادی در خوانش کنونی پروژه نیست. سرور پیش از اجرا آن را دوباره بررسی می‌کند.",
+    ),
+  };
+  const warnings = impact.warnings
+    .map(
+      (code) =>
+        `<p class="aiw-hint is-warning" data-impact-warning="${escapeHtml(code)}">${escapeHtml(warningCopy[code])}</p>`,
+    )
+    .join("");
+  return `<section class="aiw-proposal-impact" data-proposal-impact="activity.create">
+    <h4>${escapeHtml(t(locale, "Impact review", "بازبینی اثر"))}</h4>
+    <table class="aiw-impact-table">
+      <thead><tr>
+        <th scope="col"></th>
+        <th scope="col">${escapeHtml(t(locale, "Current state", "وضعیت کنونی"))}</th>
+        <th scope="col">${escapeHtml(t(locale, "Proposed change", "تغییر پیشنهادی"))}</th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <th scope="row">${escapeHtml(t(locale, "Activity ID", "شناسه فعالیت"))}</th>
+          <td>${escapeHtml(current ? impact.activityId : missing)}</td>
+          <td>${escapeHtml(impact.activityId)}</td>
+        </tr>
+        <tr>
+          <th scope="row">${escapeHtml(t(locale, "Name", "نام"))}</th>
+          <td>${escapeHtml(current?.name ?? "—")}</td>
+          <td>${escapeHtml(impact.proposed.name)}</td>
+        </tr>
+        <tr>
+          <th scope="row">${escapeHtml(t(locale, "WBS node", "گره WBS"))}</th>
+          <td>${escapeHtml(current?.wbsLabel ?? "—")}</td>
+          <td>${escapeHtml(impact.proposed.wbsLabel ?? impact.proposed.wbsId)}</td>
+        </tr>
+        <tr>
+          <th scope="row">${escapeHtml(t(locale, "Duration", "مدت"))}</th>
+          <td>${escapeHtml(current?.duration ?? "—")}</td>
+          <td>${escapeHtml(`${impact.proposed.duration} ${impact.proposed.unit}`)}</td>
+        </tr>
+      </tbody>
+    </table>
+    ${warnings}
+    <p class="aiw-hint">${escapeHtml(t(locale, "Literal comparison of the proposal payload with the canonical workspace read. No schedule, cost or earned-value calculation is performed and no date is estimated.", "مقایسهٔ تحت‌اللفظی بار پیشنهاد با خوانش معتبر محیط کار. هیچ محاسبهٔ زمان‌بندی، هزینه یا ارزش کسب‌شده انجام نمی‌شود و هیچ تاریخی تخمین زده نمی‌شود."))}</p>
+  </section>`;
+}
+
 function renderProposal(state: ShellState, proposal: AIActionProposal): string {
   const { locale } = state;
   const payload = escapeHtml(JSON.stringify(proposal.payload, null, 2));
@@ -615,6 +682,8 @@ function renderProposal(state: ShellState, proposal: AIActionProposal): string {
       <dt>${escapeHtml(t(locale, "Evidence", "شواهد"))}</dt><dd>${escapeHtml(proposal.evidence_refs.length ? proposal.evidence_refs.join(", ") : "—")}</dd>
       ${proposal.decided_by ? `<dt>${escapeHtml(t(locale, "Decided by", "تصمیم‌گیرنده"))}</dt><dd>${escapeHtml(proposal.decided_by)}</dd>` : ""}
     </dl>
+    ${state.impactError ? `<p class="aiw-hint is-warning" data-impact-error="${escapeHtml(state.impactError)}">${escapeHtml(t(locale, "Current project read failed", "خواندن وضعیت کنونی پروژه ناموفق بود"))}: ${escapeHtml(state.impactError)}</p>` : ""}
+    ${renderProposalImpact(state, proposal)}
     <details class="aiw-proposal-payload"><summary>${escapeHtml(t(locale, "Payload", "بار"))}</summary><pre>${payload}</pre></details>
     ${result}
     ${busy ? `<p class="aiw-hint">${escapeHtml(t(locale, "Working…", "در حال انجام…"))}</p>` : ""}

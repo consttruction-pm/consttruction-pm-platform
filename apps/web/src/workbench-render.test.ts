@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { AIActionProposal, BaselineRecord, EarnedValueSnapshot, RiskHistoryEvent, RiskRecord } from "./workbench/api.js";
+import type { AIActionProposal, BaselineRecord, EarnedValueSnapshot, RiskHistoryEvent, RiskRecord, WorkspaceReadSnapshot } from "./workbench/api.js";
 import {
   renderAnalysisStudio,
   renderDecisionStudio,
@@ -77,6 +77,7 @@ function state(overrides: Partial<ShellState> = {}): ShellState {
     proposalError: null,
     proposalNotice: null,
     proposalBusy: null,
+    impactError: null,
     loading: null,
     lastUpdated: null,
     connected: true,
@@ -304,4 +305,84 @@ test("a proposal read error is surfaced with its stable code", () => {
   const html = renderDecisionStudio(state({ proposalError: "AUTHORIZATION_DENIED" }));
   assert.match(html, /data-decision-error/);
   assert.match(html, /AUTHORIZATION_DENIED/);
+});
+
+function workspace(): WorkspaceReadSnapshot {
+  return {
+    contract_version: "workspace-control-room-read.v2",
+    context: { tenant_id: "t", project_id: "p-1", revision: 7 },
+    workspace: {
+      activities: [
+        { id: "AIW-1", wbs_id: "WBS-1", name: "Existing activity", cells: { duration: "1" } },
+      ],
+      wbs_nodes: [{ wbs_id: "WBS-1", local_code: "1", name: "Civil works" }],
+      relationships: [{ relationship_id: "L1" }],
+    },
+    control_intelligence: null,
+  };
+}
+
+function activityProposal(activityId: string): AIActionProposal {
+  return proposal({
+    payload: {
+      activity_id: activityId,
+      name: "New activity",
+      duration_value: "5",
+      duration_unit: "working-day",
+      wbs_id: "WBS-1",
+    },
+  });
+}
+
+test("analysis counts read the canonical wbs_nodes collection", () => {
+  const html = renderAnalysisStudio(state({ workspace: workspace() }));
+  assert.match(html, /<span>Activities<\/span><strong>1<\/strong>/);
+  assert.match(html, /<span>WBS elements<\/span><strong>1<\/strong>/);
+  assert.match(html, /<span>Relationships<\/span><strong>1<\/strong>/);
+});
+
+test("a pending activity proposal is compared with the canonical current read", () => {
+  const html = renderDecisionStudio(
+    state({ workspace: workspace(), proposals: [activityProposal("AIW-NEW")] }),
+  );
+  assert.match(html, /data-proposal-impact="activity.create"/);
+  assert.match(html, /Civil works/);
+  assert.match(html, /New activity/);
+  assert.match(html, /Not present in the current read/);
+  assert.match(html, /Literal comparison/);
+  assert.ok(!html.includes('data-impact-warning="ACTIVITY_ID_EXISTS"'));
+});
+
+test("an existing activity and a missing WBS are review warnings, not calculations", () => {
+  const html = renderDecisionStudio(
+    state({
+      workspace: workspace(),
+      proposals: [
+        proposal({
+          payload: {
+            activity_id: "AIW-1",
+            name: "Changed name",
+            duration_value: "2",
+            duration_unit: "working-day",
+            wbs_id: "WBS-MISSING",
+          },
+        }),
+      ],
+    }),
+  );
+  assert.match(html, /data-impact-warning="ACTIVITY_ID_EXISTS"/);
+  assert.match(html, /data-impact-warning="WBS_NOT_IN_CURRENT_READ"/);
+  assert.match(html, /Existing activity/);
+});
+
+test("an unavailable current read is declared instead of fabricated", () => {
+  const html = renderDecisionStudio(
+    state({
+      workspace: null,
+      impactError: "WORKSPACE_READ_FAILED",
+      proposals: [activityProposal("AIW-NEW")],
+    }),
+  );
+  assert.match(html, /data-impact-error="WORKSPACE_READ_FAILED"/);
+  assert.match(html, /data-impact-warning="CURRENT_STATE_UNAVAILABLE"/);
 });

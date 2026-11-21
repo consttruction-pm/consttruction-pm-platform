@@ -142,12 +142,42 @@ export type EarnedValueSnapshot = {
   };
 };
 
-export type WorkspaceReadSnapshot = {  contract_version: string;
+export type WorkspaceActivityRow = {
+  id: string;
+  wbs_id?: string;
+  code?: string;
+  name?: string;
+  cells?: Record<string, unknown>;
+  gantt?: { start?: string; finish?: string; progressPercent?: number; critical?: boolean } | null;
+};
+
+export type WorkspaceWbsNode = {
+  wbs_id: string;
+  parent_wbs_id?: string | null;
+  local_code?: string;
+  code?: string;
+  name?: string;
+  sequence_number?: number;
+};
+
+export type WorkspaceRelationshipRow = {
+  relationship_id?: string;
+  id?: string;
+};
+
+/**
+ * The cursor writes the canonical v2 workspace read contract, which names the
+ * WBS collection `wbs_nodes`. `wbs` remains in the type only so an older
+ * envelope can still be displayed without hiding rows.
+ */
+export type WorkspaceReadSnapshot = {
+  contract_version: string;
   context: { tenant_id: string; project_id: string; revision: number };
   workspace: {
-    activities?: unknown[];
-    wbs?: unknown[];
-    relationships?: unknown[];
+    activities?: WorkspaceActivityRow[];
+    wbs_nodes?: WorkspaceWbsNode[];
+    wbs?: WorkspaceWbsNode[];
+    relationships?: WorkspaceRelationshipRow[];
   };
   control_intelligence?: {
     contract_version: string;

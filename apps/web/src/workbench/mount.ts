@@ -80,6 +80,7 @@ function initialState(locale: string, projectId: string | null): ShellState {
     proposalError: null,
     proposalNotice: null,
     proposalBusy: null,
+    impactError: null,
     loading: null,
     lastUpdated: null,
     connected: typeof navigator === "undefined" ? true : navigator.onLine,
@@ -153,6 +154,7 @@ export async function mountWorkbench(options: MountOptions = {}): Promise<void> 
   let analysisLoaded = false;
   let riskByIdempotency = new Map<string, string>();
   let projectRevision = 0;
+  let workspacePromise: Promise<void> | null = null;
 
   const el = <T extends HTMLElement>(id: string): T =>
     root.querySelector(`#${id}`) as T;
@@ -282,7 +284,15 @@ export async function mountWorkbench(options: MountOptions = {}): Promise<void> 
       return;
     }
     state.context = result.data;
-    projectRevision = result.data.project.revision;
+    const nextRevision = result.data.project.revision;
+    if (nextRevision !== projectRevision) {
+      // A new project revision invalidates every cached comparison; the next
+      // studio read must come from the canonical service, not this session.
+      state.workspace = null;
+      state.impactError = null;
+      analysisLoaded = false;
+    }
+    projectRevision = nextRevision;
     state.lastUpdated = new Date().toISOString();
     renderAll();
     if (state.activeStudio === "risk-analysis") await loadRisks();
@@ -338,6 +348,7 @@ export async function mountWorkbench(options: MountOptions = {}): Promise<void> 
       return;
     }
     state.workspace = result.data as WorkspaceReadSnapshot;
+    state.impactError = null;
     analysisLoaded = true;
     state.lastUpdated = new Date().toISOString();
     await baselinesPromise;
@@ -404,14 +415,47 @@ export async function mountWorkbench(options: MountOptions = {}): Promise<void> 
     renderAll();
   }
 
+  /**
+   * Load the canonical workspace read once per revision for proposal impact
+   * previews. A failure is recorded explicitly; approvals remain available and
+   * the studio says that the comparison is unavailable instead of guessing.
+   */
+  async function ensureWorkspace(): Promise<void> {
+    const id = projectId;
+    if (!id || state.workspace) return;
+    if (workspacePromise) return workspacePromise;
+    workspacePromise = (async () => {
+      const result = await api.readWorkspace(id, {
+        tenant_id: sessionTenant,
+        project_id: id,
+        revision: projectRevision,
+      });
+      if (!result.ok) {
+        state.impactError = `${result.error.code}`;
+        state.connected =
+          result.error.code === "NETWORK_ERROR" || result.error.code === "NETWORK_TIMEOUT"
+            ? false
+            : state.connected;
+        return;
+      }
+      state.impactError = null;
+      state.workspace = result.data;
+    })().finally(() => {
+      workspacePromise = null;
+    });
+    return workspacePromise;
+  }
+
   async function loadDecisions(): Promise<void> {
     if (!projectId || !state.context?.permissions.can_propose) return;
     state.proposalError = null;
+    const workspaceRead = ensureWorkspace();
     const result = await api.proposals(projectId, {
       tenant_id: sessionTenant,
       project_id: projectId,
       revision: projectRevision,
     });
+    await workspaceRead;
     if (!result.ok) {
       state.proposalError = `${result.error.code}`;
       state.connected =

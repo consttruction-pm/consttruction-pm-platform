@@ -323,6 +323,11 @@ ul.aiw-history li {
 .aiw-table tbody tr { cursor: pointer; }
 .aiw-table tbody tr:hover { background: var(--aiw-subtle); }
 .aiw-table tbody tr.is-selected { background: #eaf3ff; }
+.aiw-proposal-impact { display: flex; flex-direction: column; gap: .4rem; padding: .6rem; background: var(--aiw-subtle); border-radius: 6px; }
+.aiw-proposal-impact h4 { margin: 0; font-size: .8rem; }
+.aiw-impact-table { width: 100%; border-collapse: collapse; font-size: .78rem; }
+.aiw-impact-table th, .aiw-impact-table td { text-align: start; padding: .35rem .45rem; border-bottom: 1px solid var(--aiw-border); vertical-align: top; overflow-wrap: anywhere; }
+.aiw-impact-table thead th { color: var(--aiw-muted); font-size: .68rem; text-transform: uppercase; letter-spacing: .04em; }
 
 .aiw-risk-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 300px); gap: 1rem; align-items: start; }
 .aiw-matrix { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; background: var(--aiw-border); border: 1px solid var(--aiw-border); border-radius: 6px; padding: 2px; }

@@ -789,6 +789,11 @@ async function runAiWorkbenchJourney(page, baseUrl) {
   assert(analysis.cards.length === 4, "the analysis overview must expose four stored counts");
   const activities = analysis.cards.find((card) => /activities/i.test(card.label));
   assert(Number(activities?.value) > 0, "activity count must come from the read model");
+  const wbsElements = analysis.cards.find((card) => /wbs/i.test(card.label));
+  assert(
+    Number(wbsElements?.value) > 0,
+    "WBS count must come from the canonical wbs_nodes collection: " + JSON.stringify(analysis.cards),
+  );
   assert(analysis.evm && analysis.resources, "unavailable analysis sections must be declared, not faked");
   record("project analysis presents stored counts and declared PLANNED sections", {
     cards: analysis.cards,
@@ -920,12 +925,20 @@ async function runAiWorkbenchJourney(page, baseUrl) {
   );
   const pendingDecision = await page.evaluate(`(() => {
     const row = document.querySelector('[data-proposal="${decisionProposalId}"]');
+    const impact = row?.querySelector('[data-proposal-impact="activity.create"]');
     return {
       status: row?.dataset.proposalStatus ?? null,
       tool: row?.querySelector("strong")?.textContent ?? null,
       approve: Boolean(row?.querySelector('[data-workbench="decide-proposal"][data-approved="true"]')),
       reject: Boolean(row?.querySelector('[data-workbench="decide-proposal"][data-approved="false"]')),
       execute: Boolean(row?.querySelector('[data-workbench="execute-proposal"]')),
+      impact: {
+        present: Boolean(impact),
+        text: impact?.textContent ?? "",
+        warnings: Array.from(impact?.querySelectorAll("[data-impact-warning]") ?? []).map(
+          (warning) => warning.getAttribute("data-impact-warning"),
+        ),
+      },
     };
   })()`);
   assert(
@@ -936,6 +949,19 @@ async function runAiWorkbenchJourney(page, baseUrl) {
     pendingDecision.approve && pendingDecision.reject && !pendingDecision.execute,
     "a pending proposal must offer approve/reject and never execution: " +
       JSON.stringify(pendingDecision),
+  );
+  assert(
+    pendingDecision.impact.present &&
+      /Approval acceptance/.test(pendingDecision.impact.text) &&
+      /Civil works/.test(pendingDecision.impact.text),
+    "the pending proposal must compare its payload with the canonical workspace read: " +
+      JSON.stringify(pendingDecision.impact),
+  );
+  assert(
+    !pendingDecision.impact.warnings.includes("CURRENT_STATE_UNAVAILABLE") &&
+      !pendingDecision.impact.warnings.includes("ACTIVITY_ID_EXISTS"),
+    "a readable current state and a new activity ID must not raise review warnings: " +
+      JSON.stringify(pendingDecision.impact.warnings),
   );
 
   await page.evaluate(`(() => {
@@ -982,6 +1008,8 @@ async function runAiWorkbenchJourney(page, baseUrl) {
   record("decision studio reads the canonical proposal store and records a rejection without a write", {
     proposal_id: decisionProposalId,
     status: afterDecision.status,
+    impact_preview: pendingDecision.impact.present,
+    impact_warnings: pendingDecision.impact.warnings,
   });
 
   await page.setSelect('[data-workbench="locale"]', "fa");
