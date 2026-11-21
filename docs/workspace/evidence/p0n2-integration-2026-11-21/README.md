@@ -16,7 +16,8 @@ the measured limits.
 | `origin/main` at integration time | `c34ac05e` (84 commits ahead of the base, 59 non-merge) |
 | Integration branch | `feat/p0n2-integration` |
 | Merge commit (main + P0-N.2) | `89ced6a7` |
-| Evidence run commit | `89ced6a7` plus the harness/test/evidence changes in this branch |
+| Code + evidence commit | `71a9f5f1` |
+| Pull request | #2100 (against `main`, not merged) |
 
 Hard limits observed: **main was not merged into, Production was not changed, and no
 production deployment was performed.** The integration branch is the only output.

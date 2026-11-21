@@ -118,9 +118,19 @@ the port.
 | --- | --- |
 | Integration branch | `feat/p0n2-integration` |
 | Merge commit | `89ced6a7 merge(p0n): integrate P0-N.2 runtime activation onto main c34ac05e` |
-| Evidence commit | to be filled at push time |
-| Pull request | to be filled at push time |
-| CI on the final code-bearing commit | to be filled at push time |
+| Code + evidence commit | `71a9f5f1 test(p0n): prove the merged runtime composition and re-measure on main` |
+| Pull request | #2100, https://github.com/consttruction-pm/consttruction-pm-platform/pull/2100 |
+| CI on `71a9f5f1` | ConstructionPM CI success (jobs `test (3.11)`, `test (3.12)`, `test (3.13)`), PostgreSQL Integration success, Client Typecheck success |
 
-This section is completed with the exact run URLs/status after the branch is
-pushed; nothing here is pre-declared.
+Exact runs on `71a9f5f178cce53370bdb2de7a40264c235dceeb`:
+
+| Workflow | Run | Result |
+| --- | --- | --- |
+| ConstructionPM CI | 44869201706 | success, 3m06s (all three test jobs) |
+| PostgreSQL Integration | 44869201705 | success, 41s |
+| Client Typecheck | 44869201835 | success, 55s |
+
+This CI table was written from `gh run list`/`gh run view` for that SHA, not
+inferred from the local runs. The commit that adds this record is documentation
+only; its own pull-request workflow, if scheduled by the repository, is visible on
+PR #2100 and is not claimed in this file unless observed.
