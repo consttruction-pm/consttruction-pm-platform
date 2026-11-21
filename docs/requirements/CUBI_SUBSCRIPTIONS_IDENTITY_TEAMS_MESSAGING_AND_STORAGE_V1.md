@@ -90,6 +90,25 @@ A project owner/manager assigns a particular form to named member(s). A field wo
 
 Workflow states are explicit (at minimum draft, submitted/pending, approved, rejected, changes requested). A valid approver can decide only records within their scope; each decision stores actor, timestamp, reason, prior/new state and revision. Rejected/changes-requested records can be corrected and resubmitted with history intact. Unapproved submissions must not be presented as authoritative actual quantities, accepted progress, approved consumption or official report totals.
 
+
+### 4.2 Project creator, WBS-scoped grants, form-only access and controlled application
+
+The user account that creates a project becomes its initial **Project Owner / Project Administrator**. This is distinct from Team Owner and subscription owner. A later project ownership transfer is possible only through an explicit, atomic, audited transfer; project creator status must not silently grant team-wide ownership.
+
+The Project Owner/Administrator assigns each member an explicit grant. A grant identifies the actor, team/project, resource scope, allowed operations, optional field/form/date restrictions, effective period, current revision and audit reference. At minimum, support:
+
+- **Whole-project read:** read only the project and its permitted records.
+- **Whole-project read/write:** create and edit project records within the granted permission set.
+- **WBS-scoped read or read/write:** scope to one or more selected WBS nodes and their descendants by default; sibling branches and unrelated project data remain inaccessible unless separately granted. A narrower node-only grant may be used where the implementation supports it.
+- **Form-only access:** open and submit only forms explicitly assigned to that user (or a role they hold); do not expose the general project workspace, unrelated activities, WBS branches, files or reports merely because the user can submit a form.
+- **Daily-log-only access:** create a dated field/site log with permitted fields and attachments. The log is stored in the corresponding day's project documents/records and does not itself mutate activity status, progress, quantities, resource assignments or schedule facts.
+- **Submit-for-approval:** create a proposal or form submission against an explicitly mapped WBS/activity/record; it remains pending and cannot change authoritative project values until an authorized approver accepts it.
+- **Approve/reject/request changes:** an approver may decide only submissions within their assigned project/WBS/form scope. A submitter cannot approve their own submission unless a separately approved policy explicitly permits it.
+
+Submission and application are separate operations. A field worker may be allowed to (a) save a daily log as a dated document only, or (b) submit proposed values mapped to a specific WBS/activity for an authorized user's review. Only an explicit approval applies approved values to canonical project records and makes them eligible for authoritative calculations or official totals. If a project owner explicitly grants direct-write permission to a scoped member, direct writes are allowed only inside that exact scope and field/operation grant.
+
+The project owner may delegate approval to named users or authorized roles, but cannot grant privileges beyond their own authority or bypass tenant/team security. Every read, write, form assignment, submit, approval, rejection, mapping/application, export and background job must be authorized server-side against current membership, grant, scope and revision. All changes record actor, time, scope, before/after or source revision, decision and reason in the audit trail. Revocation blocks new access immediately; it does not erase historical submitted records or audit evidence.
+
 ## 5. Invitations by CUBI ID
 
 - Team managers can paste/type a public CUBI ID or select a verified account returned by exact ID search; display name is confirmation context, not the lookup key.
@@ -132,7 +151,41 @@ Required behavior:
 - clarify whether messages, attachments, project documents, report artifacts and retained versions count toward each quota. Do not choose inconsistent answers in separate clients;
 - support backup/export/restore under existing permission-bounded portability policies.
 
-Numeric account/team/project quotas and retention periods are configuration/product decisions and remain unassigned until approved. No UI may advertise unlimited storage unless the server enforces that policy.
+The following storage capacity policy is now product-owner approved and mandatory:
+- Each distinct team member with an active Pro entitlement contributes **2 GB (2,000,000,000 bytes)** to that team's shared storage capacity (initial policy value; store it in central entitlement configuration, never duplicate/hard-code it in clients).
+- Team capacity is the sum of active Pro member contributions. A Pro member is counted once per team, regardless of how many projects they join. Membership in several projects does not multiply the contribution.
+- The capacity is shared by all projects in the team/organization. It is not allocated separately per project. Show total capacity, used and remaining space at team level and show usage by project/category for management.
+- No separate storage-space purchase/add-on is part of the current product model. Additional shared capacity comes from additional distinct, active Pro team members.
+- When a Pro contribution ends because entitlement expires/downgrades or membership ends, recalculate capacity without deleting stored data. Notify the team owner and apply a 30-day remediation/grace period. If still over quota after the grace period, block new uploads/writes that increase storage while preserving existing data, read access, download, export and deletion. Never delete or truncate data automatically.
+- Count customer-owned project files, attachments, report artifacts and manual backup data according to one byte-accurate central accounting policy. Compress/deduplicate where safe; deduplication must remain tenant/team isolated and quota attribution must not double-count shared physical objects. Temporary download artifacts are not a permanent customer quota allocation.
+- Do not include platform-operated automatic disaster-recovery backups in customer quota. No UI may advertise a limit that the server does not enforce.
+
+
+### 7.1 Approved backup ownership, quota and retention policy
+
+There are two independent backup classes; they must never be mixed in customer quota or UI semantics:
+
+**A. User/team manual project backups**
+- An authorized project user can request an immediate manual backup for a project.
+- Manual backups are stored in that customer team's shared storage and count toward its quota using the central byte-accurate, compression/dedup-aware accounting policy.
+- Keep at most **three manual restore points per project**. When creating a fourth, let the authorized user choose which existing manual version to replace; do not silently discard a version.
+- Show backup timestamp, project, creator, size, status and integrity result. Permit download and restore only within the current project/team permissions.
+- A restore-as-new-project path is preferred for inspection/recovery without overwriting the live project. Restore-in-place requires explicit privilege, confirmation, a pre-restore checkpoint and an audit event.
+
+**B. Platform-operated automatic disaster-recovery backups**
+- CUBI automatically backs up the database and required file/object data under platform operations control.
+- These backups use CUBI-operated infrastructure/storage that is separate from the primary application/database failure domain. They do **not** consume or reduce customer/team storage quota.
+- Ordinary users and team/project administrators cannot list, download or manage full-system backups. Access is restricted to explicitly authorized CUBI platform/database operations roles.
+- Initial retention policy: daily restore points for 7 days, weekly restore points for 4 weeks and monthly restore points for 3 months. Preserve chain integrity so expiry of an older increment cannot make retained restore points unusable.
+- Restore testing and integrity verification are mandatory; a backup is not considered reliable merely because its job reported success.
+
+**Shared rules**
+- User-facing backup management is available inside the visual workspace at **Settings → Backup & Restore**. The UI shows only projects and versions the current actor is authorized to access.
+- Temporary download artifacts expire and are cleaned up after 24 hours; expiry must not delete the retained backup source.
+- Portable project backups must preserve project identity/relationships, WBS, activities, calendars and overrides, relationships/lag settings, baselines, resource/material/labor assignments, cost/progress data, documents/attachments and source/version metadata needed for supported restoration. Re-run authoritative calculations after restore; never trust client-provided calculated fields as current facts.
+- Full database/system backup and portable project package are explicitly different artifact types. A project package must never be labelled as a full database backup.
+- Enforce server-side authorization at request creation, background-job execution, artifact retrieval, download and restore. Re-check current grants at each boundary; use expiring, scope-bound downloads, encryption, checksums/manifests and audit events. Never expose another tenant's data or raw database secrets.
+- Use incremental backup, compression and safe tenant-isolated deduplication where suitable. Retention/garbage collection must understand dependency chains; never delete a base/increment still needed by any retained restore point.
 
 ## 8. Reports and audit views
 
