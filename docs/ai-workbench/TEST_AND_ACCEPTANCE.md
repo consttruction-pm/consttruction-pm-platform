@@ -5,6 +5,7 @@
 | Layer | Command |
 |---|---|
 | Workbench Python | `PYTHONPATH=src python -m pytest tests/test_ai_workbench_http.py tests/test_ai_workbench_orchestration.py -q` |
+| Deployment routing | `PYTHONPATH=src python -m pytest tests/test_workspace_shell_routing.py -q` |
 | Routing Python | `PYTHONPATH=src python -m pytest tests/test_production_web_app.py tests/test_preview_runtime.py -q` |
 | Web unit | `cd apps/web && npm test` |
 | Web typecheck | `cd apps/web && npm run typecheck` |
@@ -55,6 +56,22 @@ planner.
 - the Workbench document is not the `#app` workspace document;
 - the stylesheet is served;
 - an undocumented `redirect` parameter is dropped.
+
+`tests/test_workspace_shell_routing.py` covers the deployment entrypoint that
+Vercel maps every workspace document onto:
+
+- `/app` and the retired `/enterprise` resolve without a rewrite query;
+- `__path=enterprise`, `__path=cubi`, nested `/cubi/*` and `/ai-workbench`
+  preserve the requested document;
+- unknown, blank and traversal paths fall back to `/app` and never become a
+  filesystem path;
+- both API shell entrypoints use the shared resolver instead of forcing
+  `PATH_INFO` to `/app`;
+- the `__path` marker is stripped from the user query before the HTTP boundary
+  builds a post-login `next` target;
+- both `vercel.json` files route `/cubi` and `/ai-workbench` to the shell, and
+  every deployment build stages `enterprise.html`, `ai-workbench.html` and
+  `ai-workbench.css`.
 
 ## 3. Web unit coverage
 
@@ -111,31 +128,36 @@ planner.
 The journey added to `apps/web/e2e/preview-e2e.mjs` runs headless Chrome against
 the real WSGI runtime, real SQLite stores and the real API composition:
 
-1. unauthenticated `/ai-workbench` redirects to `/login` and keeps the project
+1. the preview runtime serves the landing page, and the two product
+   environments resolve to their own documents: `/enterprise` redirects to
+   `/cubi/` (308), `/cubi/` serves the Enterprise document and bundle, and
+   `/cubi/enterprise/*` and `/ai-workbench` keep their session gates and deep
+   links;
+2. unauthenticated `/ai-workbench` redirects to `/login` and keeps the project
    and language;
-2. planner sign-in returns to the Workbench;
-3. the header carries the pinned project, five studios and the server statuses;
-4. the fresh revision shows the empty risk state, not fixtures;
-5. a risk is created; the table, the matrix cell and the inspector agree;
-6. the risk is edited with its rendered revision; the status and revision 2 are
+3. planner sign-in returns to the Workbench;
+4. the header carries the pinned project, five studios and the server statuses;
+5. the fresh revision shows the empty risk state, not fixtures;
+6. a risk is created; the table, the matrix cell and the inspector agree;
+7. the risk is edited with its rendered revision; the status and revision 2 are
    read back and the audit history lists the events;
-7. a full document reload reads the updated record back;
-8. a typed command returns a plan with four separated blocks and names the
+8. a full document reload reads the updated record back;
+9. a typed command returns a plan with four separated blocks and names the
    canonical studio;
-9. the scenario studio renders `BLOCKED` with zero controls;
-10. the analysis studio shows four stored counts (read from the canonical
+10. the scenario studio renders `BLOCKED` with zero controls;
+11. the analysis studio shows four stored counts (read from the canonical
     `activities`/`wbs_nodes`/`relationships` collections) and states
     `INSUFFICIENT_DATA` for EVM with no control when no baseline exists;
-11. a baseline is captured through the canonical service; the EVM form appears;
+12. a baseline is captured through the canonical service; the EVM form appears;
     submitting it surfaces the server refusal (`EVM_`/`EARNED_VALUE_`) and draws
     no fabricated figure;
-12. the decision studio starts empty; a canonical `activity.create` proposal is
+13. the decision studio starts empty; a canonical `activity.create` proposal is
     created through the runtime, listed as proposed with approve/reject and no
     execute control; the pending proposal shows the literal impact table with
     its WBS node and no `CURRENT_STATE_UNAVAILABLE`/`ACTIVITY_ID_EXISTS`
     warning; rejecting records the decision; a reload shows the rejected
     proposal with no live control and the activity was never created;
-13. switching to Persian flips direction while keeping five studios, then back
+14. switching to Persian flips direction while keeping five studios, then back
     to English.
 
 Screenshots: `ai-workbench-en.png`, `ai-workbench-fa.png` under
@@ -154,6 +176,7 @@ Screenshots: `ai-workbench-en.png`, `ai-workbench-fa.png` under
 | Writes | idempotent, revision-checked, audited, read back |
 | Approvals | proposal read, decision and execution use the canonical runtime with the pinned revision; a stale proposal has no control |
 | Blocked studios | zero working controls |
+| Environments | `/app`, `/cubi/*` and `/ai-workbench` are separate documents; Vercel builds stage each document and the shell restores the requested path |
 | Localization | document `lang`/`dir` from the shared system; fallback announced |
 | Responsive | three columns at desktop; stacked at ≤ 980 px |
 | Cache | document is `no-store` |

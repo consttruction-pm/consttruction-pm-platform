@@ -30,6 +30,22 @@
       "destination": "/api/shell?__path=enterprise"
     },
     {
+      "source": "/cubi",
+      "destination": "/api/shell?__path=cubi"
+    },
+    {
+      "source": "/cubi/:path*",
+      "destination": "/api/shell?__path=cubi/:path*"
+    },
+    {
+      "source": "/ai-workbench",
+      "destination": "/api/shell?__path=ai-workbench"
+    },
+    {
+      "source": "/ai-workbench/:path*",
+      "destination": "/api/shell?__path=ai-workbench/:path*"
+    },
+    {
       "source": "/app.html",
       "destination": "/api/shell?__path=app"
     },
@@ -52,6 +68,14 @@
     {
       "source": "/dist/global-assistant-launcher.bundle.js",
       "destination": "/dist/web/src/global-assistant-launcher.bundle.js"
+    },
+    {
+      "source": "/dist/enterprise-entry.bundle.js",
+      "destination": "/dist/web/src/enterprise-entry.bundle.js"
+    },
+    {
+      "source": "/dist/ai-workbench-entry.bundle.js",
+      "destination": "/dist/web/src/ai-workbench-entry.bundle.js"
     },
     {
       "source": "/api/:path*",
@@ -173,6 +197,24 @@
     },
     {
       "source": "/enterprise/",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    },
+    {
+      "source": "/cubi/:path*",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    },
+    {
+      "source": "/ai-workbench/:path*",
       "headers": [
         {
           "key": "Cache-Control",

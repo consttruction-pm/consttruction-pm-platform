@@ -59,6 +59,28 @@ copyDirectoryContents(join(root, "public"), output);
 cpSync(join(root, "dist"), join(output, "dist"), { recursive: true, force: true });
 cpSync(join(root, "index.html"), join(output, "index.html"));
 cpSync(join(root, "styles.css"), join(output, "styles.css"));
+// Workspace documents are served by the session-gated function, but the
+// assets they reference (the Workbench stylesheet) must be reachable on the
+// same origin. The Enterprise and Workbench bundles are emitted under dist.
+cpSync(join(root, "enterprise.html"), join(output, "enterprise.html"));
+cpSync(join(root, "ai-workbench.html"), join(output, "ai-workbench.html"));
+cpSync(join(root, "ai-workbench.css"), join(output, "ai-workbench.css"));
+// The source documents use the flat /dist/<entry>.bundle.js address that the
+// runtime and Vercel rewrites provide. A static Pages artifact has no rewrite,
+// so point the two isolated applications at the emitted build path.
+for (const [document, entry] of [
+  ["enterprise.html", "enterprise-entry"],
+  ["ai-workbench.html", "ai-workbench-entry"],
+]) {
+  const file = join(output, document);
+  writeFileSync(
+    file,
+    readFileSync(file, "utf8").replaceAll(
+      `/dist/${entry}.bundle.js`,
+      `/dist/web/src/${entry}.bundle.js`,
+    ),
+  );
+}
 mkdirSync(join(output, "app"), { recursive: true });
 cpSync(join(root, "index.html"), join(output, "app/index.html"));
 cpSync(join(root, "public/cubi-platform-logo-primary.svg"), join(output, "app/cubi-platform-logo-primary.svg"));
@@ -282,6 +304,12 @@ for (const file of listHtml(output)) {
   // document; it is intentionally not the workspace shell and should not mount
   // the assistant while the browser navigates away.
   if (workspaceUrl && file === join(output, "app/index.html")) continue;
+  // The Enterprise and Workbench documents are their own applications. They
+  // deliberately do not mount the public-site assistant launcher.
+  if (
+    file === join(output, "enterprise.html") ||
+    file === join(output, "ai-workbench.html")
+  ) continue;
   assert(
     readFileSync(file, "utf8").includes("global-assistant-launcher.bundle.js"),
     "global floating assistant launcher missing from " + file,

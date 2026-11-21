@@ -1,6 +1,31 @@
 # Implementation Status
 
-Updated: canonical workspace-read and proposal impact review, 2026-11-21.
+Updated: environment document routing and canonical workspace read, 2026-11-21.
+
+## Environment document routing
+
+The two products are separate documents on one origin: Engineering at `/app`,
+Enterprise at `/cubi/*`, and the shared AI Workbench at `/ai-workbench`.
+Reading the deployment entrypoints exposed three real routing gaps:
+
+- The root `api/shell.py` forced `PATH_INFO` to `/app`, so any document routed
+  through it became the Engineering shell. Both entrypoints now use the shared
+  `deployment/workspace_routes.py` resolver, which accepts only `app`,
+  `enterprise`, `cubi/*` and `ai-workbench/*` and falls back to `/app` for an
+  unknown or traversing path.
+- Neither `vercel.json` routed `/cubi` or `/ai-workbench`, so the deployed
+  origin could not reach either document. Both now rewrite them to the
+  session-gated shell, and the `__path` marker is removed from the user query
+  before the boundary builds a post-login target.
+- The deployment builds did not stage `enterprise.html`, `ai-workbench.html` or
+  `ai-workbench.css`. The root build, the `apps/web` runtime stage and the Pages
+  assembly now copy all three, and the `apps/web` project rewrites its two
+  entry bundles to the flat build output.
+
+The retired `/enterprise` address still returns `308` from the HTTP boundary to
+`/cubi/`; it never serves the Engineering shell. `tests/test_workspace_shell_routing.py`
+pins the resolver and the deployment configuration, and the browser journey now
+checks both documents and their independent session gates.
 
 ## Workbench read and review corrections
 
