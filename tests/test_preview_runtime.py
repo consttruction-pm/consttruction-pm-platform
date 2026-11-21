@@ -38,6 +38,10 @@ def _web_root(tmp_path: Path) -> Path:
         '<!doctype html><html><body><div id="app"></div></body></html>',
         encoding="utf-8",
     )
+    (root / "enterprise.html").write_text(
+        '<!doctype html><html><body><div id="cubi-app"></div></body></html>',
+        encoding="utf-8",
+    )
     (root / "styles.css").write_text("body { margin: 0; }\n", encoding="utf-8")
     (root / "cubi-platform-logo-primary.svg").write_text(
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"></svg>\n',
@@ -646,7 +650,87 @@ def test_preview_project_deep_link_survives_login_and_rejects_external_redirects
             content_type="application/x-www-form-urlencoded",
         )
         assert status == 303
-        assert headers["location"] == "/app?view=live"
+        # An unknown or external destination never silently becomes the
+        # Engineering workspace; it resolves to the Personal Workbench.
+        assert headers["location"] == "/workbench/"
+        assert headers["location"] != "/app?view=live"
+    finally:
+        runtime.close()
+
+
+def test_the_retired_enterprise_route_redirects_to_the_canonical_document(
+    tmp_path: Path,
+) -> None:
+    runtime = open_preview_runtime(
+        tmp_path / "enterprise-route.sqlite3",
+        web_root=_web_root(tmp_path),
+        reset=True,
+    )
+    try:
+        app = build_preview_application(runtime)
+        for path in ("/enterprise", "/enterprise/"):
+            status, headers, _ = _request(app, "GET", path + "?project=alpha")
+            assert status == 308
+            assert headers["location"].startswith("/cubi/")
+            assert "/app" not in headers["location"]
+    finally:
+        runtime.close()
+
+
+def test_cubi_documents_are_gated_and_public_entry_pages_are_anonymous(
+    tmp_path: Path,
+) -> None:
+    runtime = open_preview_runtime(
+        tmp_path / "cubi-gate.sqlite3",
+        web_root=_web_root(tmp_path),
+        reset=True,
+    )
+    try:
+        app = build_preview_application(runtime)
+
+        # The public entry documents render without a session.
+        for path in ("/cubi", "/cubi/", "/cubi/login"):
+            status, _, body = _request(app, "GET", path)
+            assert status == 200, path
+            assert b'id="cubi-app"' in body
+
+        # Every other Enterprise document redirects to the sign-in card with
+        # the requested document preserved.
+        status, headers, _ = _request(app, "GET", "/cubi/enterprise/dashboard")
+        assert status == 302
+        assert headers["location"].startswith("/preview/login?next=%2Fcubi%2Fenterprise%2Fdashboard")
+
+        status, headers, _ = _request(
+            app,
+            "POST",
+            "/preview/login",
+            body=b"role=enterprise&next=%2Fcubi%2Fenterprise%2Fdashboard",
+            content_type="application/x-www-form-urlencoded",
+        )
+        assert status == 303
+        assert headers["location"] == "/cubi/enterprise/dashboard"
+        cookie = _session_cookie(headers)
+
+        status, _, body = _request(app, "GET", "/cubi/enterprise/dashboard", cookie=cookie)
+        assert status == 200
+        assert b'id="cubi-app"' in body
+
+        # A session with only project roles cannot open the Enterprise data
+        # area; it is sent back to the Personal Workbench.
+        status, headers, _ = _request(
+            app,
+            "POST",
+            "/preview/login",
+            body=b"role=planner&next=%2Fworkbench%2F",
+            content_type="application/x-www-form-urlencoded",
+        )
+        assert status == 303
+        planner = _session_cookie(headers)
+        status, headers, _ = _request(
+            app, "GET", "/cubi/enterprise/dashboard", cookie=planner
+        )
+        assert status == 303
+        assert headers["location"] == "/workbench/"
     finally:
         runtime.close()
 

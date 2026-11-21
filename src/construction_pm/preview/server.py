@@ -79,44 +79,38 @@ def _html(status: int, document: str) -> tuple[int, dict[str, str], bytes]:
 
 
 def _safe_next(raw: object) -> str:
-    """Allow only canonical live workspace mode or a local Enterprise path.
+    """Return a same-origin destination, defaulting to the Personal Workbench.
 
-    Both destinations are same-origin product routes. Nothing from the query
-    string is trusted beyond a project identifier and the fixed view mode.
+    A normal sign-in must land on the Personal Workbench, never directly in the
+    Engineering workspace: the workbench is where the caller chooses an
+    environment. Two explicit destinations survive the round trip: a requested
+    Engineering deep link (``/app?view=live`` with an optional project) and a
+    requested Enterprise document (``/cubi/*``). Anything else resolves to the
+    workbench.
     """
+    fallback = "/workbench/"
     value = str(raw or "").strip()
     try:
         parsed = urlsplit(value)
     except ValueError:
-        return "/app?view=live"
-    if (
-        not parsed.scheme
-        and not parsed.netloc
-        and not parsed.fragment
-        and (parsed.path == "/cubi" or parsed.path.startswith("/cubi/"))
-        and "\\" not in value
-        and not any(ord(char) < 0x20 for char in value)
-    ):
-        # The Enterprise Workbench owns its own client router under /cubi/*.
-        return value or "/cubi/"
-    if (
-        not parsed.scheme
-        and not parsed.netloc
-        and not parsed.fragment
-        and parsed.path in {"/workbench", "/workbench/"}
-        and "\\" not in value
-        and not any(ord(char) < 0x20 for char in value)
-    ):
-        # The Personal Workbench is the single signed-in entry to both
-        # environments; ignore any query it was not asked to carry.
-        return "/workbench/"
+        return fallback
     if (
         parsed.scheme
         or parsed.netloc
         or parsed.fragment
-        or parsed.path not in {"/app", "/app/"}
+        or "\\" in value
+        or any(ord(char) < 0x20 for char in value)
     ):
-        return "/app?view=live"
+        return fallback
+    if parsed.path == "/cubi" or parsed.path.startswith("/cubi/"):
+        # The Enterprise Workbench owns its own client router under /cubi/*.
+        return value or "/cubi/"
+    if parsed.path in {"/workbench", "/workbench/", "/admin", "/admin/"}:
+        # The Personal Workbench is the single signed-in entry to both
+        # environments; ignore any query it was not asked to carry.
+        return value
+    if parsed.path not in {"/app", "/app/"}:
+        return fallback
     query = parse_qs(parsed.query, keep_blank_values=True)
     if set(query) - {"project", "view"}:
         return "/app?view=live"
@@ -127,7 +121,7 @@ def _safe_next(raw: object) -> str:
     if project_values and (
         not project_id
         or len(project_id) > 200
-        or any(ord(char) < 0x20 for char in project_id)
+        or any(ord(char) < 0x20 or char in "/\\" for char in project_id)
     ):
         return "/app?view=live"
     view_values = query.get("view", [])
@@ -326,12 +320,27 @@ class PreviewApplication:
                         # A stale HttpOnly cookie otherwise survives the API
                         # failure and causes the same bootstrap error on retry.
                         headers["Set-Cookie"] = _clear_cookie_header()[1]
+            elif path == "/enterprise" or path == "/enterprise/":
+                # The retired Enterprise task-center route used to serve the
+                # Engineering shell. It now resolves to the canonical
+                # Enterprise document; it must never open Engineering.
+                query = str(environ.get("QUERY_STRING", "") or "")
+                status, headers, body = (
+                    308,
+                    {
+                        "Location": "/cubi/" + (f"?{query}" if query else ""),
+                        "Cache-Control": "no-store",
+                    },
+                    b"",
+                )
             elif path == "/app" or path.startswith("/app/") or path == "/app.html":
                 status, headers, body = self._app_shell(environ, session)
             elif path == "/workbench" or path.startswith("/workbench/"):
                 # The Personal Workbench is the single signed-in entry to both
                 # environments; it is the same application shell as /app.
                 status, headers, body = self._app_shell(environ, session)
+            elif path == "/cubi" or path.startswith("/cubi/"):
+                status, headers, body = self._cubi_shell(path, environ, session)
             else:
                 status, headers, body = self._static(path, method)
         except PreviewRuntimeError as exc:
@@ -378,6 +387,8 @@ class PreviewApplication:
             "no-store"
             if path.startswith(("/api/", "/preview/"))
             or path in {"/app", "/app.html"}
+            or path.startswith(("/app/", "/workbench", "/cubi"))
+            or status in {301, 302, 303, 307, 308}
             else "public, max-age=60"
         )
         response_headers.extend([
@@ -624,6 +635,69 @@ class PreviewApplication:
             shell = shell + banner
         return 200, {"Content-Type": "text/html; charset=utf-8"}, shell.encode("utf-8")
 
+    def _cubi_shell(
+        self,
+        path: str,
+        environ: Mapping[str, object],
+        session: AuthenticatedSession | None,
+    ) -> tuple[int, dict[str, str], bytes]:
+        """Serve the Enterprise document, gated outside the public entry pages."""
+        public = path in {"/cubi", "/cubi/", "/cubi/login", "/cubi/login/"}
+        if not public and session is None:
+            query = str(environ.get("QUERY_STRING", "") or "")
+            requested_next = path + ("?" + query if query else "")
+            next_path = _safe_next(requested_next)
+            return (
+                302,
+                {
+                    "Content-Type": "text/html; charset=utf-8",
+                    "Location": f"{LOGIN_PATH}?{urlencode({'next': next_path})}",
+                    "Set-Cookie": _clear_cookie_header()[1],
+                },
+                b"",
+            )
+        # The Enterprise data area is not a project surface. A session without
+        # an Enterprise entitlement leaves it for the Personal Workbench, where
+        # both environments are explained; the API also answers 403.
+        if (
+            session is not None
+            and path.startswith("/cubi/enterprise")
+            and not frozenset(session.roles).intersection(
+                {"enterprise_admin", "enterprise_user", "enterprise_viewer"}
+            )
+            and not frozenset(session.roles).intersection({"global_admin"})
+        ):
+            return (
+                303,
+                {
+                    "Content-Type": "text/html; charset=utf-8",
+                    "Location": "/workbench/",
+                    "Cache-Control": "no-store",
+                },
+                b"",
+            )
+        shell_path = self.frontend.resolve("/cubi/")
+        if shell_path is None or not shell_path.is_file():
+            return _json(503, {"code": "ENTERPRISE_SHELL_MISSING"})
+        shell = shell_path.read_text(encoding="utf-8")
+        # The Enterprise client router must know where the preview sign-in
+        # lives; the deployed runtime serves /login instead.
+        meta = (
+            f'<meta name="cubi-login-path" content="{LOGIN_PATH}" />'
+            f'<meta name="cubi-workbench-path" content="/workbench/" />'
+        )
+        if "</head>" in shell:
+            shell = shell.replace("</head>", f"    {meta}\n  </head>", 1)
+        else:
+            shell = meta + shell
+        if self.asset_base:
+            for asset, remote in (
+                ("/styles.css", "/styles.css"),
+                ("/dist/enterprise-entry.bundle.js", "/apps/web/dist/enterprise-entry.bundle.js"),
+            ):
+                shell = shell.replace(f'"{asset}"', f'"{self.asset_base}{remote}"')
+        return 200, {"Content-Type": "text/html; charset=utf-8"}, shell.encode("utf-8")
+
     def _static(self, path: str, method: str) -> tuple[int, dict[str, str], bytes]:
         if method not in {"GET", "HEAD"}:
             return _json(405, {"code": "METHOD_NOT_ALLOWED"})
@@ -650,7 +724,7 @@ class PreviewApplication:
         *,
         session: AuthenticatedSession | None = None,
         error: str | None = None,
-        next_path: str = "/app",
+        next_path: str = "/workbench/",
     ) -> str:
         safe_next = html.escape(_safe_next(next_path), quote=True)
         if session is not None:

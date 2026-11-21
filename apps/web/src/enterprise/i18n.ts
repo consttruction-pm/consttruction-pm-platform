@@ -42,7 +42,7 @@ const en: Dict = {
   "nav.home": "Home",
   "nav.login": "Sign in",
   "nav.roles": "Role & access",
-  "nav.workbench": "Workbench",
+  "nav.workbench": "Workbench", "nav.engineering": "Engineering workspace",
   "nav.environments": "Environments",
   "nav.dashboard": "Dashboards",
   "nav.portfolio": "Portfolio",
@@ -182,7 +182,7 @@ const fa: Dict = {
   "nav.home": "خانه",
   "nav.login": "ورود",
   "nav.roles": "نقش و دسترسی",
-  "nav.workbench": "میزکار",
+  "nav.workbench": "میزکار", "nav.engineering": "محیط مهندسی",
   "nav.environments": "محیط‌ها",
   "nav.dashboard": "داشبوردها",
   "nav.portfolio": "پورتفولیو",
@@ -315,7 +315,7 @@ const fa: Dict = {
 
 const de: Dict = {
   "brand.suite": "CUBI Plattform", "brand.workbench": "CUBI Arbeitsbereich", "brand.enterprise": "CUBI Enterprise", "brand.engineering": "CUBI Engineering",
-  "nav.home": "Start", "nav.login": "Anmelden", "nav.roles": "Rolle & Zugriff", "nav.workbench": "Arbeitsbereich", "nav.environments": "Umgebungen",
+  "nav.home": "Start", "nav.login": "Anmelden", "nav.roles": "Rolle & Zugriff", "nav.workbench": "Arbeitsbereich", "nav.engineering": "Engineering-Arbeitsbereich", "nav.environments": "Umgebungen",
   "nav.dashboard": "Dashboards", "nav.portfolio": "Portfolio", "nav.projects": "Projekte", "nav.access": "Organisation & Zugriff",
   "nav.tasks": "Team & Aufgaben", "nav.workflows": "Workflow-Studio", "nav.approvals": "Genehmigungen", "nav.resources": "Ressourcen & Kapazität",
   "nav.reports": "Berichte & Betrieb", "nav.knowledge": "Wissen & PMBOK", "nav.help": "Produkthilfe",
@@ -364,7 +364,7 @@ const de: Dict = {
 
 const zh: Dict = {
   "brand.suite": "CUBI 平台", "brand.workbench": "CUBI 工作台", "brand.enterprise": "CUBI 企业版", "brand.engineering": "CUBI 工程版",
-  "nav.home": "首页", "nav.login": "登录", "nav.roles": "角色与权限", "nav.workbench": "工作台", "nav.environments": "环境",
+  "nav.home": "首页", "nav.login": "登录", "nav.roles": "角色与权限", "nav.workbench": "工作台", "nav.engineering": "工程环境", "nav.environments": "环境",
   "nav.dashboard": "仪表板", "nav.portfolio": "项目组合", "nav.projects": "项目", "nav.access": "组织与访问",
   "nav.tasks": "团队与任务", "nav.workflows": "工作流工作室", "nav.approvals": "审批", "nav.resources": "资源与产能",
   "nav.reports": "报告与运营", "nav.knowledge": "知识与 PMBOK", "nav.help": "产品帮助",
@@ -413,7 +413,7 @@ const zh: Dict = {
 
 const ar: Dict = {
   "brand.suite": "منصة كوبي", "brand.workbench": "مساحة عمل كوبي", "brand.enterprise": "كوبي للمؤسسات", "brand.engineering": "كوبي للهندسة",
-  "nav.home": "الرئيسية", "nav.login": "تسجيل الدخول", "nav.roles": "الدور والوصول", "nav.workbench": "مساحة العمل", "nav.environments": "البيئات",
+  "nav.home": "الرئيسية", "nav.login": "تسجيل الدخول", "nav.roles": "الدور والوصول", "nav.workbench": "مساحة العمل", "nav.engineering": "بيئة الهندسة", "nav.environments": "البيئات",
   "nav.dashboard": "لوحات المعلومات", "nav.portfolio": "المحفظة", "nav.projects": "المشاريع", "nav.access": "المؤسسة والوصول",
   "nav.tasks": "الفريق والمهام", "nav.workflows": "استوديو سير العمل", "nav.approvals": "الموافقات", "nav.resources": "الموارد والطاقة",
   "nav.reports": "التقارير والعمليات", "nav.knowledge": "المعرفة وPMBOK", "nav.help": "مساعدة المنتج",
@@ -462,7 +462,7 @@ const ar: Dict = {
 
 const fr: Dict = {
   "brand.suite": "Plateforme CUBI", "brand.workbench": "Espace CUBI", "brand.enterprise": "CUBI Enterprise", "brand.engineering": "CUBI Engineering",
-  "nav.home": "Accueil", "nav.login": "Connexion", "nav.roles": "Rôle & accès", "nav.workbench": "Espace de travail", "nav.environments": "Environnements",
+  "nav.home": "Accueil", "nav.login": "Connexion", "nav.roles": "Rôle & accès", "nav.workbench": "Espace de travail", "nav.engineering": "Espace Engineering", "nav.environments": "Environnements",
   "nav.dashboard": "Tableaux de bord", "nav.portfolio": "Portefeuille", "nav.projects": "Projets", "nav.access": "Organisation & accès",
   "nav.tasks": "Équipe & tâches", "nav.workflows": "Studio de workflow", "nav.approvals": "Approbations", "nav.resources": "Ressources & capacité",
   "nav.reports": "Rapports & opérations", "nav.knowledge": "Connaissances & PMBOK", "nav.help": "Aide produit",
@@ -511,7 +511,7 @@ const fr: Dict = {
 
 const ja: Dict = {
   "brand.suite": "CUBI プラットフォーム", "brand.workbench": "CUBI ワークベンチ", "brand.enterprise": "CUBI エンタープライズ", "brand.engineering": "CUBI エンジニアリング",
-  "nav.home": "ホーム", "nav.login": "サインイン", "nav.roles": "ロールと権限", "nav.workbench": "ワークベンチ", "nav.environments": "環境",
+  "nav.home": "ホーム", "nav.login": "サインイン", "nav.roles": "ロールと権限", "nav.workbench": "ワークベンチ", "nav.engineering": "エンジニアリング環境", "nav.environments": "環境",
   "nav.dashboard": "ダッシュボード", "nav.portfolio": "ポートフォリオ", "nav.projects": "プロジェクト", "nav.access": "組織とアクセス",
   "nav.tasks": "チームとタスク", "nav.workflows": "ワークフロースタジオ", "nav.approvals": "承認", "nav.resources": "リソースとキャパシティ",
   "nav.reports": "レポートと運用", "nav.knowledge": "ナレッジと PMBOK", "nav.help": "製品ヘルプ",
@@ -560,7 +560,7 @@ const ja: Dict = {
 
 const ko: Dict = {
   "brand.suite": "CUBI 플랫폼", "brand.workbench": "CUBI 워크벤치", "brand.enterprise": "CUBI 엔터프라이즈", "brand.engineering": "CUBI 엔지니어링",
-  "nav.home": "홈", "nav.login": "로그인", "nav.roles": "역할 및 권한", "nav.workbench": "워크벤치", "nav.environments": "환경",
+  "nav.home": "홈", "nav.login": "로그인", "nav.roles": "역할 및 권한", "nav.workbench": "워크벤치", "nav.engineering": "엔지니어링 환경", "nav.environments": "환경",
   "nav.dashboard": "대시보드", "nav.portfolio": "포트폴리오", "nav.projects": "프로젝트", "nav.access": "조직 및 접근",
   "nav.tasks": "팀 및 작업", "nav.workflows": "워크플로 스튜디오", "nav.approvals": "승인", "nav.resources": "리소스 및 역량",
   "nav.reports": "보고서 및 운영", "nav.knowledge": "지식 및 PMBOK", "nav.help": "제품 도움말",
@@ -609,7 +609,7 @@ const ko: Dict = {
 
 const ru: Dict = {
   "brand.suite": "Платформа CUBI", "brand.workbench": "Рабочее место CUBI", "brand.enterprise": "CUBI Enterprise", "brand.engineering": "CUBI Engineering",
-  "nav.home": "Главная", "nav.login": "Вход", "nav.roles": "Роль и доступ", "nav.workbench": "Рабочее место", "nav.environments": "Среды",
+  "nav.home": "Главная", "nav.login": "Вход", "nav.roles": "Роль и доступ", "nav.workbench": "Рабочее место", "nav.engineering": "Среда Engineering", "nav.environments": "Среды",
   "nav.dashboard": "Панели", "nav.portfolio": "Портфель", "nav.projects": "Проекты", "nav.access": "Организация и доступ",
   "nav.tasks": "Команда и задачи", "nav.workflows": "Студия процессов", "nav.approvals": "Согласования", "nav.resources": "Ресурсы и загрузка",
   "nav.reports": "Отчёты и операции", "nav.knowledge": "Знания и PMBOK", "nav.help": "Справка",
@@ -658,7 +658,7 @@ const ru: Dict = {
 
 const tr: Dict = {
   "brand.suite": "CUBI Platformu", "brand.workbench": "CUBI Çalışma Alanı", "brand.enterprise": "CUBI Kurumsal", "brand.engineering": "CUBI Mühendislik",
-  "nav.home": "Ana sayfa", "nav.login": "Giriş", "nav.roles": "Rol ve erişim", "nav.workbench": "Çalışma alanı", "nav.environments": "Ortamlar",
+  "nav.home": "Ana sayfa", "nav.login": "Giriş", "nav.roles": "Rol ve erişim", "nav.workbench": "Çalışma alanı", "nav.engineering": "Mühendislik ortamı", "nav.environments": "Ortamlar",
   "nav.dashboard": "Panolar", "nav.portfolio": "Portföy", "nav.projects": "Projeler", "nav.access": "Kurum ve erişim",
   "nav.tasks": "Ekip ve görevler", "nav.workflows": "İş akışı stüdyosu", "nav.approvals": "Onaylar", "nav.resources": "Kaynaklar ve kapasite",
   "nav.reports": "Raporlar ve operasyon", "nav.knowledge": "Bilgi ve PMBOK", "nav.help": "Ürün yardımı",

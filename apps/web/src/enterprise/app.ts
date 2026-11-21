@@ -250,7 +250,9 @@ function renderShell(): void {
   crumbs.append(
     link(`${BASE_PATH}/`, "CUBI"),
     el("span", { class: "sep", text: "/" }),
-    link(pageHref("workbench"), state.t("nav.workbench")),
+    // The Personal Workbench is one canonical document at /workbench/; the
+    // Enterprise application must not mount a second copy of it.
+    link("/workbench/", state.t("nav.workbench")),
     el("span", { class: "sep", text: "/" }),
     el("span", { text: state.t(route.titleKey) }),
   );
@@ -258,6 +260,14 @@ function renderShell(): void {
   const access = environmentAccess(session);
   topActions.append(
     el("span", { class: "cubi-env-pill", text: access.enterprise.allowed ? state.t("brand.enterprise") : state.t("brand.enterprise") + " · " + state.t("common.restricted") }),
+  );
+  topActions.append(link("/workbench/", state.t("nav.workbench"), false, "cubi-btn cubi-btn-ghost"));
+  if (access.engineering.allowed) {
+    // Switching environments uses the same session; the Engineering server
+    // re-authorizes every project request.
+    topActions.append(link("/app?view=live", state.t("nav.engineering"), false, "cubi-btn cubi-btn-ghost"));
+  }
+  topActions.append(
     languageSelect(),
     link(publicHelpUrl(), "?", true, "cubi-btn cubi-btn-ghost"),
   );
