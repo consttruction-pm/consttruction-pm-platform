@@ -852,6 +852,7 @@ class PostgresIdentityStore(_SqlIdentityStore):
     def create_registered_user(self, *, user_id: str, tenant_id: str, username: str,
                               display_name: str, password_hash: str, created_at: datetime) -> IdentityUser:
         email = f"{username}@accounts.cubi.invalid"
+        self.connection.execute("SAVEPOINT identity_signup")
         try:
             self.connection.execute(
                 "INSERT INTO identity_users (user_id, tenant_id, email, display_name, roles_json, password_hash, username, active, created_at, password_changed_at) "
@@ -860,9 +861,12 @@ class PostgresIdentityStore(_SqlIdentityStore):
                  username, created_at, created_at),
             )
         except Exception as error:
+            self.connection.execute("ROLLBACK TO SAVEPOINT identity_signup")
+            self.connection.execute("RELEASE SAVEPOINT identity_signup")
             if getattr(error, "sqlstate", None) == "23505":
                 raise IdentityError("USERNAME_TAKEN") from None
             raise
+        self.connection.execute("RELEASE SAVEPOINT identity_signup")
         return IdentityUser(user_id, tenant_id, email, display_name, frozenset({"viewer"}),
                             password_hash, username=username)
 
