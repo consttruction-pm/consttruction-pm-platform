@@ -578,6 +578,199 @@ function readPersistedWbsEvidence(managed, projectId) {  if (!managed?.database)
   return JSON.parse(output);
 }
 
+/**
+ * Drive the CUBI AI Workbench through the real preview runtime.
+ *
+ * The journey proves the document gate, the project context, the deterministic
+ * command endpoint, a real risk write with a fresh read-back, the 5x5 matrix,
+ * the honest BLOCKED scenario studio, the stored analysis read model and both
+ * interface directions. No API response is mocked.
+ */
+async function runAiWorkbenchJourney(page, baseUrl) {
+  await page.navigate(
+    `${baseUrl}/ai-workbench?project=${encodeURIComponent(PROJECT_ID)}&lang=en`,
+    'form[action="/preview/login"]',
+    "AI Workbench sign-in gate",
+    `${baseUrl}/login`,
+  );
+  const gate = await page.evaluate(`(() => ({
+    pathname: location.pathname,
+    next: document.querySelector('form[action="/preview/login"] input[name="next"]')?.value ?? null,
+  }))()`);
+  assert(gate.pathname === "/login", "the workbench must redirect to sign-in");
+  assert(
+    typeof gate.next === "string" &&
+      gate.next.startsWith("/ai-workbench") &&
+      gate.next.includes(`project=${PROJECT_ID}`) &&
+      gate.next.includes("lang=en"),
+    "the workbench deep link must survive sign-in: " + JSON.stringify(gate),
+  );
+  await page.click('button[name="role"][value="planner"]');
+  await page.waitFor(
+    `location.pathname === "/ai-workbench" && Boolean(document.querySelector("#aiw-header h1"))`,
+    "AI Workbench shell after sign-in",
+    30000,
+  );
+  await page.waitForSelector("#aiw-tabs button", "workbench studio tabs", 30000);
+
+  const shell = await page.evaluate(`(() => ({
+    project: document.querySelector(".aiw-project-id")?.textContent?.trim() ?? null,
+    tabs: Array.from(document.querySelectorAll("#aiw-tabs button")).map((button) => ({
+      studio: button.dataset.studio,
+      status: button.querySelector(".aiw-status")?.textContent?.trim() ?? null,
+    })),
+    active: document.querySelector('#aiw-tabs button[aria-selected="true"]')?.dataset.studio ?? null,
+    locale: document.documentElement.lang,
+    dir: document.documentElement.dir,
+    access: document.querySelector(".aiw-header-meta")?.textContent ?? "",
+  }))()`);
+  assert(shell.project === PROJECT_ID, "workbench header must carry the pinned project");
+  assert(shell.tabs.length === 5, "five studios must be registered");
+  assert(
+    shell.tabs.some((item) => item.studio === "schedule-scenario" && /blocked/i.test(item.status ?? "")),
+    "the scenario studio must be declared BLOCKED by the server",
+  );
+  assert(shell.active === "risk-analysis", "risk analysis is the first wired studio");
+  assert(shell.locale === "en" && shell.dir === "ltr", "English document direction");
+  record("AI Workbench shell loads its project scope and server studio statuses", {
+    studios: shell.tabs,
+  });
+
+  await page.waitForSelector("[data-risk-empty], [data-risk-table]", "risk register panel");
+  const emptyRisk = await page.evaluate(
+    `Boolean(document.querySelector("[data-risk-empty]"))`,
+  );
+  assert(emptyRisk, "a fresh project revision must show the empty risk state, not fixtures");
+
+  await page.click('[data-workbench="new-risk"]');
+  await page.waitForSelector('form[data-workbench="risk-form"]', "risk form in the inspector");
+  await page.evaluate(`(() => {
+    const form = document.querySelector('form[data-workbench="risk-form"]');
+    const set = (name, value) => {
+      const field = form.querySelector('[name="' + name + '"]');
+      if (field) field.value = value;
+    };
+    set("risk_id", "R-AIW-1");
+    set("title", "Late steel delivery");
+    set("description", "Supplier confirmed a two-week delay.");
+    set("category", "schedule");
+    set("probability", "5");
+    set("impact", "4");
+    set("owner", "planner");
+    set("response_strategy", "mitigate");
+    set("date_identified", "2026-11-21");
+    form.requestSubmit();
+    return true;
+  })()`);
+  await page.waitForSelector('[data-risk="R-AIW-1"]', "stored risk row after the write", 30000);
+  const written = await page.evaluate(`(() => ({
+    row: document.querySelector('[data-risk="R-AIW-1"]')?.textContent?.replace(/\s+/g, " ").trim() ?? null,
+    matrix_marks: document.querySelectorAll(".aiw-matrix-cell.has-risks").length,
+    marked_count: Array.from(document.querySelectorAll(".aiw-matrix-cell.has-risks"))
+      .map((cell) => cell.querySelector("strong")?.textContent?.trim())
+      .filter(Boolean),
+    inspector: document.querySelector("#aiw-inspector")?.textContent ?? "",
+  }))()`);
+  assert(/R-AIW-1/.test(written.row ?? ""), "the stored risk must be read back into the table");
+  assert(written.matrix_marks === 1, "the 5x5 matrix must mark exactly the stored cell");
+  assert(written.marked_count.includes("1"), "the marked matrix cell must count the stored risk");
+  record("risk write is read back from the authoritative service", {
+    row: written.row,
+    matrix_marks: written.matrix_marks,
+  });
+
+  await page.navigate(
+    `${baseUrl}/ai-workbench?project=${encodeURIComponent(PROJECT_ID)}&lang=en`,
+    '[data-risk="R-AIW-1"]',
+    "risk persisted across a full document reload",
+  );
+  record("risk survives a full reload (fresh read-back)", {});
+
+  await page.evaluate(`(() => {
+    const input = document.querySelector("#aiw-command-input");
+    input.value = "Show project risks";
+    document.querySelector("#aiw-command-form").requestSubmit();
+  })()`);
+  await page.waitForSelector("#aiw-plan-region .aiw-plan", "command plan panel", 30000);
+  const plan = await page.evaluate(`(() => ({
+    blocks: document.querySelectorAll("#aiw-plan-region .aiw-plan-block").length,
+    text: document.querySelector("#aiw-plan-region .aiw-plan")?.textContent ?? "",
+    studio: document.querySelector("#aiw-plan-region .aiw-plan-studio")?.textContent ?? "",
+    refusal: document.querySelector("#aiw-plan-region .aiw-refusal")?.textContent ?? null,
+  }))()`);
+  assert(plan.blocks === 4, "the plan must separate facts, calculation, assumptions and recommendations");
+  assert(
+    /Risk Analysis Studio|risk-analysis/i.test(plan.studio),
+    "the plan must name the canonical studio: " + JSON.stringify(plan.studio),
+  );
+  assert(plan.refusal === null, "an in-scope command must not be refused");
+  record("deterministic command endpoint returns a separated plan", {
+    blocks: plan.blocks,
+    studio: plan.studio.trim(),
+  });
+
+  await page.click('#aiw-tabs button[data-studio="schedule-scenario"]');
+  await page.waitForSelector(
+    '[data-blocked-studio="schedule-scenario"]',
+    "blocked scenario studio",
+  );
+  const blocked = await page.evaluate(`(() => ({
+    text: document.querySelector('[data-blocked-studio="schedule-scenario"]')?.textContent ?? "",
+    controls: document.querySelectorAll('[data-blocked-studio="schedule-scenario"] button').length,
+  }))()`);
+  assert(/BLOCKED|Blocked/.test(blocked.text), "the blocked studio must state its status");
+  assert(blocked.controls === 0, "a blocked studio must not render working controls");
+  record("scenario studio renders an explicit BLOCKED state with no controls", {});
+
+  await page.click('#aiw-tabs button[data-studio="project-analysis"]');
+  await page.waitForSelector("[data-analysis-metrics]", "project analysis studio", 30000);
+  await page.waitForSelector(".aiw-cards .aiw-card", "analysis counts from the read model", 30000);
+  const analysis = await page.evaluate(`(() => {
+    const cards = Array.from(document.querySelectorAll(".aiw-cards .aiw-card")).map((card) => ({
+      label: card.querySelector("span")?.textContent?.trim() ?? "",
+      value: card.querySelector("strong")?.textContent?.trim() ?? "",
+    }));
+    return {
+      cards,
+      metrics: document.querySelectorAll("[data-analysis-metrics] .aiw-metric-label").length,
+      evm: Boolean(document.querySelector("[data-analysis-evm]")),
+      resources: Boolean(document.querySelector("[data-analysis-resources]")),
+    };
+  })()`);
+  assert(analysis.cards.length === 4, "the analysis overview must expose four stored counts");
+  const activities = analysis.cards.find((card) => /activities/i.test(card.label));
+  assert(Number(activities?.value) > 0, "activity count must come from the read model");
+  assert(analysis.evm && analysis.resources, "unavailable analysis sections must be declared, not faked");
+  record("project analysis presents stored counts and declared PLANNED sections", {
+    cards: analysis.cards,
+  });
+
+  await page.setSelect('[data-workbench="locale"]', "fa");
+  await page.waitFor(
+    `document.documentElement.dir === "rtl" && document.querySelectorAll("#aiw-tabs button").length === 5`,
+    "Persian RTL workbench with the full studio registry",
+    30000,
+  );
+  const persian = await page.evaluate(`(() => ({
+    lang: document.documentElement.lang,
+    dir: document.documentElement.dir,
+    fallback: Boolean(document.querySelector("[data-locale-fallback]")),
+    tabs: document.querySelectorAll("#aiw-tabs button").length,
+  }))()`);
+  assert(persian.lang === "fa" && persian.dir === "rtl", "Persian must flip the document direction");
+  assert(persian.tabs === 5, "the studio registry must survive the locale switch");
+  await page.screenshot("ai-workbench-fa.png");
+  await page.setSelect('[data-workbench="locale"]', "en");
+  await page.waitFor(
+    `document.documentElement.dir === "ltr" && document.documentElement.lang === "en" && document.querySelectorAll("#aiw-tabs button").length === 5`,
+    "English LTR workbench with the full studio registry",
+    30000,
+  );
+  record("locale switch keeps the studio shell and flips direction", {
+    persian_fallback_notice: persian.fallback,
+  });
+}
+
 async function waitForHttp(url, timeoutMs = 60000) {  const deadline = Date.now() + timeoutMs;
   let lastError;
   while (Date.now() < deadline) {
@@ -2085,6 +2278,27 @@ async function main() {
       if (deepLinkPage) deepLinkPage.cdp.close();
       await deepLinkChrome.stop();
       await removeChromeProfile(deepLinkChrome.userDataDir);
+    }
+
+    // Run the AI Workbench journey in its own browser profile so its locale
+    // preference cannot leak into the Engineering workspace journey.
+    const workbenchChrome = await launchChrome();
+    let workbenchPage;
+    try {
+      workbenchPage = new Page(workbenchChrome.cdp);
+      await workbenchPage.initialize();
+      await workbenchPage.cdp.send("Emulation.setDeviceMetricsOverride", {
+        width: 1440,
+        height: 900,
+        deviceScaleFactor: 1,
+        mobile: false,
+      });
+      await runAiWorkbenchJourney(workbenchPage, baseUrl);
+      await workbenchPage.screenshot("ai-workbench-en.png");
+    } finally {
+      if (workbenchPage) workbenchPage.cdp.close();
+      await workbenchChrome.stop();
+      await removeChromeProfile(workbenchChrome.userDataDir);
     }
 
     await page.navigate(
@@ -7495,6 +7709,7 @@ if (isDirectInvocation) {
 export {
   Page,
   launchChrome,
+  runAiWorkbenchJourney,
   waitForHttp,
   startManagedRuntime,
   gitHead,

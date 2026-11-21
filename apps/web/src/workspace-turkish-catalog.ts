@@ -48,6 +48,7 @@ export const TURKISH_CATALOG: TurkishCatalog = {
   "Compare baselines…": "Temel planları karşılaştır…",
   "Update progress…": "İlerlemeyi güncelle…",
   "Enterprise": "Kurumsal",
+  "AI Workbench": "Yapay Zekâ Tezgâhı",
   "Resource assignments": "Kaynak atamaları",
   "Roles…": "Roller…",
   "Calendars…": "Takvimler…",

@@ -58,6 +58,10 @@ def site_root(tmp_path: Path) -> Path:
     (tmp_path / "app.html").write_text("<!doctype html><title>CUBI Workspace</title>", encoding="utf-8")
     (tmp_path / "enterprise.html").write_text("<!doctype html><title>CUBI Enterprise Workbench</title>", encoding="utf-8")
     (tmp_path / "login.html").write_text("<!doctype html><title>CUBI Login</title>", encoding="utf-8")
+    (tmp_path / "ai-workbench.html").write_text(
+        '<!doctype html><div id="aiw-root"></div>', encoding="utf-8"
+    )
+    (tmp_path / "ai-workbench.css").write_text(".aiw-shell{}", encoding="utf-8")
     public = tmp_path / "public"
     public.mkdir()
     (public / "theme.css").write_text("body{}", encoding="utf-8")
@@ -240,6 +244,31 @@ def test_session_survives_across_requests_and_app_serves_shell(app):
     assert status == 200
     assert b"CUBI Workspace" in body
     assert headers["cache-control"] == ["no-store"]
+
+
+def test_ai_workbench_document_is_gated_and_served_as_its_own_shell(app):
+    status, headers, _ = call(
+        app, "GET", "/ai-workbench", query="project=p1&lang=fa"
+    )
+    assert status == 302
+    location = headers["location"][0]
+    assert location.startswith("/login?next=")
+    assert "ai-workbench" in location
+    assert headers["cache-control"] == ["no-store"]
+
+    cookie, _ = login(app)
+    status, headers, body = call(
+        app, "GET", "/ai-workbench", cookie=cookie, query="project=p1&lang=fa"
+    )
+    assert status == 200
+    assert b'id="aiw-root"' in body
+    assert b"CUBI Workspace" not in body
+    assert headers["cache-control"] == ["no-store"]
+    assert headers["content-type"] == ["text/html; charset=utf-8"]
+
+    status, headers, body = call(app, "GET", "/ai-workbench.css", cookie=cookie)
+    assert status == 200
+    assert b".aiw-shell" in body
 
 
 def test_login_page_redirects_an_authenticated_user_to_the_next_target(app):
@@ -535,3 +564,10 @@ def test_safe_next_defaults_to_the_personal_workbench_and_preserves_real_deep_li
     assert _safe_next("//evil.test/cubi/") == "/workbench/"
     assert _safe_next("https://evil.test/cubi/") == "/workbench/"
     assert _safe_next("/app?project=a/b") == "/app?view=live"
+    # The AI Workbench keeps only its documented scope parameters.
+    assert _safe_next("/ai-workbench") == "/ai-workbench"
+    assert _safe_next("/ai-workbench?project=alpha&lang=fa") == (
+        "/ai-workbench?lang=fa&project=alpha"
+    )
+    assert _safe_next("/ai-workbench?project=alpha&redirect=//evil.test") == "/ai-workbench"
+    assert _safe_next("/ai-workbench?project=a/b") == "/ai-workbench"

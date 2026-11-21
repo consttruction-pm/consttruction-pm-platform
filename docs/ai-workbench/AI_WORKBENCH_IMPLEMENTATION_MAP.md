@@ -46,12 +46,12 @@ blocked. It is not proof that a studio works.
 | Phase | Component | Status | Owner path |
 |---|---|---|---|
 | 0 | Audit, path ownership, docs | DONE (this change) | `docs/ai-workbench/` |
-| 1 | Command envelope, intent resolver, studio registry, permissions | LAYERED (unit-tested, not exposed over HTTP) | `src/construction_pm/ai_workbench/` |
-| 1 | Workbench shell, command panel, inspector, status bar | PLANNED | not created |
-| 2 | Import staging (7 tabs) | BLOCKED by #1799 project import engine; PARTIAL for register exchange | `exchange_*` |
+| 1 | Command envelope, intent resolver, studio registry, permissions | LIVE: exposed over the Workbench HTTP boundary | `src/construction_pm/ai_workbench/` |
+| 1 | Workbench shell, command panel, inspector, status bar | WIRED (preview browser journey) | `apps/web/src/workbench/`, `apps/web/ai-workbench.html` |
+| 2 | Import staging (7 tabs) | PARTIAL: register exchange only; project ingestion still absent | `exchange_*` |
 | 3 | Schedule Scenario Studio | BLOCKED by #1989 backend contract | none |
-| 4 | Risk Analysis Studio | WIRED_READ/WRITE reuse of risk API; UI not built | `risk_*` |
-| 5 | Project Analysis Studio | WIRED_READ reuse; UI not built | schedule read models |
+| 4 | Risk Analysis Studio | WIRED_WRITE: table, matrix, create form, read-back | `risk_*` |
+| 5 | Project Analysis Studio | WIRED_READ: stored counts and control metrics | schedule read models |
 | 6 | Decision & Approval | PARTIAL: Enterprise approvals exist, proposal execution absent | `enterprise` approvals |
 | 7 | Enterprise reuse | PLANNED after shared contracts stabilise | Enterprise shell |
 
@@ -59,8 +59,8 @@ blocked. It is not proof that a studio works.
 
 - Do not modify `scheduling/`, `schedule_evaluator.py`, resource leveling or the
   schedule composer while #1989/#1423 work is open.
-- Do not modify `apps/web/src/main.ts` for a Workbench shell; open PRs #2048 and
-  #2045 already touch workspace surfaces.
+- The Workbench shell is its own document and bundle; `apps/web/src/main.ts`
+  only routes to it through a single localized menu command.
 - Do not add a second import engine. #1799 owns project exchange.
 - Do not add a second scenario persistence model. #1989 owns it.
 - The Workbench may read the risk and schedule routes today; it may not write

@@ -43,6 +43,7 @@ ADMIN_PATH = "/admin"
 ENTERPRISE_PATH = "/enterprise"
 CUBI_PATH = "/cubi"
 WORKBENCH_PATH = "/workbench"
+AI_WORKBENCH_PATH = "/ai-workbench"
 WORKSPACE_PATHS = frozenset({APP_PATH, ADMIN_PATH, WORKBENCH_PATH})
 # Public (unauthenticated) documents of the Enterprise application. The login
 # card and the public home page must render before a session exists; every
@@ -125,6 +126,14 @@ class StaticSite:
             return _file(self.root / "index.html")
         if segments in (["app"], ["app", "index.html"]):
             return _file(self.root / "app.html")
+        # The AI Workbench has its own document and bundle inside the
+        # Engineering environment; it is never the general workspace shell.
+        if segments in (
+            ["ai-workbench"],
+            ["ai-workbench", "index.html"],
+            ["ai-workbench.html"],
+        ):
+            return _file(self.root / "ai-workbench.html")
         # The Enterprise application is its own document (`enterprise.html`).
         # It is never served as the Engineering shell. Every /cubi/* path is
         # owned by the Enterprise client router, so all of them resolve to the
@@ -249,6 +258,24 @@ def _safe_next(value: str | None) -> str:
         return candidate
     if path in (WORKBENCH_PATH, WORKBENCH_PATH + "/", ADMIN_PATH, ADMIN_PATH + "/"):
         return candidate
+    if path in (AI_WORKBENCH_PATH, AI_WORKBENCH_PATH + "/"):
+        query = parse_qs(split.query, keep_blank_values=True)
+        if set(query) - {"project", "lang", "studio"}:
+            return AI_WORKBENCH_PATH
+        project_values = query.get("project", [])
+        project_id = project_values[0].strip() if len(project_values) == 1 else ""
+        if project_values and (
+            not project_id
+            or len(project_id) > 200
+            or any(ord(char) < 0x20 or char in "/\\" for char in project_id)
+        ):
+            return AI_WORKBENCH_PATH
+        preserved = {key: [query[key][0]] for key in ("lang", "studio") if key in query}
+        if project_id:
+            preserved["project"] = [project_id]
+        return AI_WORKBENCH_PATH + (
+            "?" + urlencode(preserved, doseq=True) if preserved else ""
+        )
     if path not in (APP_PATH, APP_PATH + "/"):
         return fallback
     query = parse_qs(split.query, keep_blank_values=True)
@@ -417,6 +444,8 @@ class ProductionWebApp:
             return 308, [("Location", target), ("Cache-Control", "no-store")], b""
         if path == CUBI_PATH or path.startswith(CUBI_PATH + "/"):
             return self._cubi(method, environ)
+        if path == AI_WORKBENCH_PATH or path.startswith(AI_WORKBENCH_PATH + "/"):
+            return self._workbench(method, environ)
         if path in WORKSPACE_PATHS or path.rstrip("/") in WORKSPACE_PATHS:
             return self._app(method, environ)
         if path == LOGIN_PATH:
@@ -572,6 +601,36 @@ class ProductionWebApp:
         page = self.site.resolve("/app")
         if page is None:
             return _json(503, {"code": "APP_SHELL_MISSING"}, cache="no-store")
+        return 200, [
+            ("Content-Type", "text/html; charset=utf-8"),
+            ("Cache-Control", "no-store"),
+        ], page.read_bytes()
+
+    def _workbench(
+        self, method: str, environ: Mapping[str, Any]
+    ) -> tuple[int, list[tuple[str, str]], bytes]:
+        """Serve the AI Workbench document with a session gate.
+
+        The document is only the shell: every workbench API call authorizes the
+        project and tenant independently, so this gate never substitutes for
+        server-side authorization.
+        """
+        if method not in {"GET", "HEAD"}:
+            return _json(405, {"code": "METHOD_NOT_ALLOWED"}, cache="no-store")
+        cookies = _cookie_values(environ)
+        session = self.identity.resolve(cookies.get(SESSION_COOKIE_NAME, ""))
+        if session is None:
+            requested = str(environ.get("PATH_INFO", AI_WORKBENCH_PATH)) + (
+                f"?{environ.get('QUERY_STRING')}" if environ.get("QUERY_STRING") else ""
+            )
+            target = _safe_next(requested)
+            return 302, [
+                ("Location", f"{LOGIN_PATH}?{quote('next')}={quote(target)}"),
+                ("Cache-Control", "no-store"),
+            ], b""
+        page = self.site.resolve(AI_WORKBENCH_PATH)
+        if page is None:
+            return _json(503, {"code": "AI_WORKBENCH_SHELL_MISSING"}, cache="no-store")
         return 200, [
             ("Content-Type", "text/html; charset=utf-8"),
             ("Cache-Control", "no-store"),
