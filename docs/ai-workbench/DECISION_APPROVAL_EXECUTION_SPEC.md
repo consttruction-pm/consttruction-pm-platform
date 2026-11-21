@@ -11,6 +11,15 @@ risk, status, created, due date. Filters by project/status/type/requester/due
 window. A proposal always points to one immutable scenario run and one base
 revision.
 
+## Conversation entry
+
+The Workbench command panel calls the canonical assistant turn
+(`POST .../ai/assistant/turn`) and renders the server's messages. When a turn
+returns `action_proposal`, the panel shows the stored proposal id and links to
+this studio; it never renders an approve or execute control itself. With no
+provider configured the panel states that and falls back to the deterministic,
+read-only planner, which cannot create a proposal.
+
 ## Proposal detail
 
 1. **Summary** — objective, assumptions, constraints, evidence, limitations.

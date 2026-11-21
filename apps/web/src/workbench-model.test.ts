@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   STUDIO_ORDER,
   analysisCounts,
+  assistantUnavailable,
   escapeHtml,
   metricRows,
   metricSourceSummary,
@@ -339,4 +340,14 @@ test("only a recorded Oracle reference becomes a help link", () => {
   assert.equal(verifiedHelpUrl("javascript:alert(1)"), null);
   assert.equal(verifiedHelpUrl(null), null);
   assert.equal(verifiedHelpUrl(""), null);
+});
+
+test("only a missing or failed AI provider falls back to the command planner", () => {
+  assert.equal(assistantUnavailable("AI_ASSISTANT_NOT_CONFIGURED"), true);
+  assert.equal(assistantUnavailable("AI_ASSISTANT_PROVIDER_UNAVAILABLE"), true);
+  assert.equal(assistantUnavailable("AI_ASSISTANT_PROVIDER_RATE_LIMITED"), true);
+  assert.equal(assistantUnavailable("AI_ASSISTANT_PROVIDER_CONFIGURATION_INVALID"), true);
+  assert.equal(assistantUnavailable("AI_ASSISTANT_STALE_REVISION"), false);
+  assert.equal(assistantUnavailable("AUTHORIZATION_DENIED"), false);
+  assert.equal(assistantUnavailable("NETWORK_ERROR"), false);
 });

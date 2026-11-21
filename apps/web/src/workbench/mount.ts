@@ -14,9 +14,12 @@ import {
   type WorkbenchContext,
   type WorkspaceReadSnapshot,
 } from "./api.js";
-import { direction, isWritable, planAction, escapeHtml, t, verifiedHelpUrl } from "./model.js";
+import { direction, isWritable, planAction, escapeHtml, t, verifiedHelpUrl, assistantUnavailable } from "./model.js";
+import { boundedAIAssistantHistory } from "../ai-assistant-chat.js";
+import type { AIAssistantHistoryMessage } from "../ai-action-client.js";
 import {
   renderAnalysisStudio,
+  renderAssistantTranscript,
   renderBlockedStudio,
   renderCommandPlan,
   renderDecisionStudio,
@@ -80,6 +83,10 @@ function initialState(locale: string, projectId: string | null): ShellState {
     proposalError: null,
     proposalNotice: null,
     proposalBusy: null,
+    transcript: [] as AIAssistantHistoryMessage[],
+    assistantNotice: null,
+    assistantPending: false,
+    assistantProposalId: null,
     impactError: null,
     loading: null,
     lastUpdated: null,
@@ -100,6 +107,7 @@ function shellMarkup(locale: string): string {
           </header>
           <div class="aiw-command-body">
             <div id="aiw-context-chips" class="aiw-context-chips"></div>
+            <div id="aiw-transcript" class="aiw-transcript-region" aria-live="polite"></div>
             <div id="aiw-plan-region" class="aiw-plan-region"></div>
             <form id="aiw-command-form" class="aiw-command-form" novalidate>
               <label for="aiw-command-input" class="aiw-visually-hidden">${escapeHtml(t(locale, "Command", "فرمان"))}</label>
@@ -193,7 +201,19 @@ export async function mountWorkbench(options: MountOptions = {}): Promise<void> 
     fallback.innerHTML = state.fallbackNotice ? renderFallbackNotice(state.locale) : "";
     fallback.hidden = !state.fallbackNotice;
     renderPlanRegion();
+    renderTranscriptRegion();
     renderContextChips();
+  }
+
+  function renderTranscriptRegion(): void {
+    const region = root.querySelector<HTMLElement>("#aiw-transcript");
+    if (!region) return;
+    region.innerHTML = renderAssistantTranscript(state.locale, {
+      messages: state.transcript,
+      notice: state.assistantNotice,
+      pending: state.assistantPending,
+      proposalId: state.assistantProposalId,
+    });
   }
 
   function renderPartialStudio(studio: WorkbenchContext["studios"][number]): string {
@@ -543,22 +563,95 @@ export async function mountWorkbench(options: MountOptions = {}): Promise<void> 
     setError("aiw-command-error", null);
     const submit = root.querySelector<HTMLButtonElement>("#aiw-command-submit");
     if (submit) submit.disabled = true;
+    state.transcript = cappedTranscript([
+      ...state.transcript,
+      { role: "user", content: trimmed },
+    ]);
+    // A previous plan described an earlier sentence; never leave it under a new
+    // conversation while the canonical assistant is answering.
+    state.plan = null;
+    state.assistantNotice = null;
+    state.assistantProposalId = null;
+    state.assistantPending = true;
+    renderAll();
+    // The conversation is the canonical assistant turn; history is bounded by
+    // the same helper the workspace chat uses, and excludes the message itself.
+    const history = boundedAIAssistantHistory(state.transcript.slice(0, -1));
+    const turn = await api.assistantTurn(
+      projectId,
+      { tenant_id: sessionTenant, project_id: projectId, revision: projectRevision },
+      trimmed,
+      state.locale,
+      history,
+    );
+    state.assistantPending = false;
+    if (turn.ok) {
+      state.transcript = cappedTranscript([
+        ...state.transcript,
+        { role: "assistant", content: turn.data.message },
+      ]);
+      if (turn.data.proposal) {
+        state.assistantProposalId = turn.data.proposal.proposal_id;
+        state.assistantNotice = t(
+          state.locale,
+          "The assistant stored a proposal. It is not executed until you approve it and then execute it in Decision & Approval.",
+          "دستیار پیشنهادی ذخیره کرد. تا زمانی که آن را تأیید و سپس در «تصمیم و تأیید» اجرا نکنید، اجرا نمی‌شود.",
+        );
+        await loadDecisions();
+      }
+      if (submit) submit.disabled = false;
+      renderAll();
+      return;
+    }
+    if (assistantUnavailable(turn.error.code)) {
+      // No provider in this deployment: route the same sentence through the
+      // deterministic, read-only command planner so the studio stays usable.
+      state.assistantNotice = t(
+        state.locale,
+        "No AI provider is configured in this environment, so the sentence was routed through the deterministic command planner. Free-form conversation and generated proposals stay unavailable until a provider is configured.",
+        "در این محیط ارائه‌دهنده هوش مصنوعی پیکربندی نشده است؛ بنابراین جمله از مسیریاب قطعی فرمان هدایت شد. تا پیکربندی ارائه‌دهنده، گفت‌وگوی آزاد و تولید پیشنهاد در دسترس نیست.",
+      );
+      await runCommandPlan(trimmed);
+      if (submit) submit.disabled = false;
+      return;
+    }
+    state.connected =
+      turn.error.code === "NETWORK_ERROR" || turn.error.code === "NETWORK_TIMEOUT"
+        ? false
+        : state.connected;
+    if (submit) submit.disabled = false;
+    if (turn.error.code === "AI_ASSISTANT_STALE_REVISION") {
+      state.assistantNotice = t(
+        state.locale,
+        "The project revision advanced. The workspace is re-reading the pinned project; send the message again.",
+        "نسخهٔ پروژه پیش رفته است. محیط کار پروژهٔ ثابت‌شده را دوباره می‌خواند؛ پیام را دوباره بفرستید.",
+      );
+      await loadContext();
+      return;
+    }
+    setError("aiw-command-error", turn.error.code);
+    renderAll();
+  }
+
+  /** Deterministic routing for the same sentence when no provider is configured. */
+  async function runCommandPlan(command: string): Promise<void> {
+    if (!projectId || !state.context) return;
     const result = await api.command(
       projectId,
       {
-        command: trimmed,
+        command,
         locale: state.locale,
         correlation_id: newCorrelationId(),
       },
       { tenant_id: sessionTenant, project_id: projectId, revision: projectRevision },
     );
-    if (submit) submit.disabled = false;
     if (!result.ok) {
       state.connected =
         result.error.code === "NETWORK_ERROR" || result.error.code === "NETWORK_TIMEOUT"
           ? false
           : state.connected;
       setError("aiw-command-error", result.error.code);
+      renderAll();
       return;
     }
     state.plan = result.data;
@@ -945,6 +1038,17 @@ export async function mountWorkbench(options: MountOptions = {}): Promise<void> 
   // The session supplies the tenant used by the risk and analysis read
   // headers; the context endpoint supplies the project and revision.
   if (await loadSession()) await loadContext();
+}
+
+const TRANSCRIPT_LIMIT = 40;
+
+/** Keep the newest messages so a long session never grows without bound. */
+function cappedTranscript(
+  messages: AIAssistantHistoryMessage[],
+): AIAssistantHistoryMessage[] {
+  return messages.length > TRANSCRIPT_LIMIT
+    ? messages.slice(messages.length - TRANSCRIPT_LIMIT)
+    : messages;
 }
 
 /** True when a project is pinned for every command and studio. */

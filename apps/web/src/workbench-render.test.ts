@@ -3,6 +3,7 @@ import test from "node:test";
 import type { AIActionProposal, BaselineRecord, EarnedValueSnapshot, RiskHistoryEvent, RiskRecord, WorkspaceReadSnapshot } from "./workbench/api.js";
 import {
   renderAnalysisStudio,
+  renderAssistantTranscript,
   renderDecisionStudio,
   renderInspector,
   renderRiskEditForm,
@@ -77,6 +78,10 @@ function state(overrides: Partial<ShellState> = {}): ShellState {
     proposalError: null,
     proposalNotice: null,
     proposalBusy: null,
+    transcript: [],
+    assistantNotice: null,
+    assistantPending: false,
+    assistantProposalId: null,
     impactError: null,
     loading: null,
     lastUpdated: null,
@@ -385,4 +390,44 @@ test("an unavailable current read is declared instead of fabricated", () => {
   );
   assert.match(html, /data-impact-error="WORKSPACE_READ_FAILED"/);
   assert.match(html, /data-impact-warning="CURRENT_STATE_UNAVAILABLE"/);
+});
+
+test("the assistant transcript renders canonical messages and refuses to be an approval control", () => {
+  const html = renderAssistantTranscript("en", {
+    messages: [
+      { role: "user", content: "Add a 5-day activity to Civil works" },
+      { role: "assistant", content: "I prepared <proposal> for review." },
+    ],
+    notice: "A proposal was stored.",
+    pending: false,
+    proposalId: "AIA-9",
+  });
+  assert.match(html, /data-chat-role="user"/);
+  assert.match(html, /data-chat-role="assistant"/);
+  assert.ok(html.includes("&lt;proposal&gt;"));
+  assert.ok(!html.includes("<proposal>"));
+  assert.match(html, /data-workbench="open-studio" data-studio="decision-approval"/);
+  assert.ok(!html.includes("decide-proposal") && !html.includes("execute-proposal"));
+  assert.match(html, /AIA-9/);
+});
+
+test("an empty transcript with nothing pending renders no region", () => {
+  assert.equal(
+    renderAssistantTranscript("en", {
+      messages: [],
+      notice: null,
+      pending: false,
+      proposalId: null,
+    }),
+    "",
+  );
+  assert.match(
+    renderAssistantTranscript("en", {
+      messages: [],
+      notice: null,
+      pending: true,
+      proposalId: null,
+    }),
+    /Thinking…/,
+  );
 });

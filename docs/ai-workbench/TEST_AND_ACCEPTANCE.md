@@ -75,7 +75,7 @@ Vercel maps every workspace document onto:
 
 ## 3. Web unit coverage
 
-`apps/web/src/workbench-model.test.ts` (15 tests):
+`apps/web/src/workbench-model.test.ts` (16 tests):
 
 - studio labels and stable studio order;
 - English fallback and Persian values through the shared localization system;
@@ -96,9 +96,11 @@ Vercel maps every workspace document onto:
 - proposal impact names an existing activity id and an unknown WBS by code
   without calculating a schedule;
 - proposal impact states `CURRENT_STATE_UNAVAILABLE` when no read is held and
-  ignores tools other than `activity.create`.
+  ignores tools other than `activity.create`;
+- only a missing or failed AI provider is classified as a fallback condition; a
+  stale revision or an authorization refusal is not.
 
-`apps/web/src/workbench-render.test.ts` (21 tests):
+`apps/web/src/workbench-render.test.ts` (23 tests):
 
 - the edit form pre-fills stored values and the rendered revision;
 - stored values are escaped in the edit form;
@@ -123,7 +125,10 @@ Vercel maps every workspace document onto:
 - an unavailable workspace read renders `data-impact-error` and
   `CURRENT_STATE_UNAVAILABLE`;
 - a stale proposal shows a warning and no control; an executed proposal shows
-  the canonical result and decision maker; a read error shows its stable code.
+  the canonical result and decision maker; a read error shows its stable code;
+- the assistant transcript renders canonical messages, escapes them, links to
+  Decision & Approval and offers no approve/execute control of its own;
+- an empty transcript with nothing pending renders no region.
 
 ## 4. Browser acceptance (real preview)
 
@@ -144,8 +149,12 @@ the real WSGI runtime, real SQLite stores and the real API composition:
 7. the risk is edited with its rendered revision; the status and revision 2 are
    read back and the audit history lists the events;
 8. a full document reload reads the updated record back;
-9. a typed command returns a plan with four separated blocks and names the
-   canonical studio;
+9. the typed sentence is first sent to the canonical assistant endpoint; with no
+   provider configured the response body is `AI_ASSISTANT_NOT_CONFIGURED`, the
+   panel states that honestly and routes the same sentence through the
+   deterministic planner, which returns four separated blocks and names the
+   canonical studio (the transcript keeps the user message and offers no
+   approval control);
 10. the scenario studio renders `BLOCKED` with zero controls;
 11. the analysis studio shows four stored counts (read from the canonical
     `activities`/`wbs_nodes`/`relationships` collections) and states
@@ -182,6 +191,7 @@ Screenshots: `ai-workbench-en.png`, `ai-workbench-fa.png` under
 | Localization | document `lang`/`dir` from the shared system; fallback announced |
 | Help | a studio links only a recorded official page; no URL is guessed and per-control rows stay pending |
 | Responsive | three columns at desktop; stacked at ≤ 980 px |
+| Assistant | the panel calls `ai-assistant-turn.v1` first; only a proven provider-unavailable 503 falls back to the deterministic planner, and every other 5xx fails the browser run |
 | Cache | document is `no-store` |
 
 ## 6. Phase 7 security acceptance (implemented)

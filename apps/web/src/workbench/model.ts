@@ -48,7 +48,22 @@ const STATUS_LABELS: Record<string, [string, string]> = {
   PLANNED: ["Planned", "برنامه‌ریزی‌شده"],
   BLOCKED: ["Blocked", "مسدود"],
   HELP_REFERENCE_PENDING: ["Help reference pending", "مرجع راهنما در انتظار"],
+  HELP_REFERENCE_VERIFIED: ["Help reference verified", "مرجع راهنمای تأییدشده"],
 };
+
+/**
+ * The canonical assistant endpoint answers 503 while no provider/orchestrator is
+ * configured. That is a deployment state, not a user error: the Workbench then
+ * routes the same sentence through its deterministic, read-only command planner.
+ */
+export function assistantUnavailable(code: string): boolean {
+  return (
+    code === "AI_ASSISTANT_NOT_CONFIGURED" ||
+    code === "AI_ASSISTANT_PROVIDER_UNAVAILABLE" ||
+    code === "AI_ASSISTANT_PROVIDER_RATE_LIMITED" ||
+    code === "AI_ASSISTANT_PROVIDER_CONFIGURATION_INVALID"
+  );
+}
 
 export function t(locale: string, english: string, persian: string): string {
   return translateWorkspaceUiText(locale, english, persian);

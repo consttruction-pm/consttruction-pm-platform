@@ -16,6 +16,7 @@ import type {
   WorkbenchStudio,
   WorkspaceReadSnapshot,
 } from "./api.js";
+import type { AIAssistantHistoryMessage } from "../ai-action-client.js";
 import {
   STUDIO_ORDER,
   analysisCounts,
@@ -61,6 +62,10 @@ export type ShellState = {
   proposalError: string | null;
   proposalNotice: string | null;
   proposalBusy: string | null;
+  transcript: readonly AIAssistantHistoryMessage[];
+  assistantNotice: string | null;
+  assistantPending: boolean;
+  assistantProposalId: string | null;
   impactError: string | null;
   loading: string | null;
   lastUpdated: string | null;
@@ -186,6 +191,48 @@ function listBlock(locale: string, title: string, persianTitle: string, values: 
           : `<ul>${values.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul>`
       }
     </div>`;
+}
+
+export type AssistantTranscriptState = {
+  messages: readonly AIAssistantHistoryMessage[];
+  notice: string | null;
+  pending: boolean;
+  proposalId: string | null;
+};
+
+/**
+ * The conversation is rendered from the canonical assistant's own messages.
+ * An assistant turn that produced a proposal is shown as a stored proposal and
+ * a link to the Decision & Approval studio; this panel never approves anything.
+ */
+export function renderAssistantTranscript(
+  locale: string,
+  state: AssistantTranscriptState,
+): string {
+  const { messages, notice, pending, proposalId } = state;
+  if (messages.length === 0 && !notice && !pending) return "";
+  const items = messages
+    .map((message) => {
+      const author = message.role === "user"
+        ? t(locale, "You", "شما")
+        : t(locale, "Assistant", "دستیار");
+      return `<article class="aiw-chat-message aiw-chat-message-${escapeHtml(message.role)}" data-chat-role="${escapeHtml(message.role)}">
+        <div class="aiw-chat-author">${escapeHtml(author)}</div>
+        <p class="aiw-chat-text">${escapeHtml(message.content)}</p>
+      </article>`;
+    })
+    .join("");
+  return `<section class="aiw-transcript" data-assistant-transcript aria-label="${escapeHtml(t(locale, "Conversation", "گفت‌وگو"))}">
+    ${items}
+    ${pending ? `<p class="aiw-chat-pending" role="status">${escapeHtml(t(locale, "Thinking…", "در حال پردازش…"))}</p>` : ""}
+    ${notice ? `<p class="aiw-chat-notice" role="status">${escapeHtml(notice)}</p>` : ""}
+    ${
+      proposalId
+        ? `<button type="button" class="aiw-chat-review" data-workbench="open-studio" data-studio="decision-approval">${escapeHtml(t(locale, "Review the proposal", "بررسی پیشنهاد"))}</button>
+           <p class="aiw-chat-proposal-id">${escapeHtml(proposalId)}</p>`
+        : ""
+    }
+  </section>`;
 }
 
 export function renderCommandPlan(locale: string, plan: WorkbenchCommandPlan): string {

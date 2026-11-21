@@ -785,6 +785,27 @@ async function runAiWorkbenchJourney(page, baseUrl) {
     studio: plan.studio.trim(),
   });
 
+  // The panel asks the canonical assistant endpoint first. In this preview no
+  // provider is configured, so the honest state is a recorded fallback notice
+  // and the same sentence routed through the deterministic planner.
+  const assistant = await page.evaluate(`(() => ({
+    user: document.querySelector('#aiw-transcript [data-chat-role="user"] .aiw-chat-text')?.textContent ?? "",
+    notice: document.querySelector("#aiw-transcript .aiw-chat-notice")?.textContent ?? "",
+    messages: document.querySelectorAll("#aiw-transcript .aiw-chat-message").length,
+    controls: document.querySelectorAll("#aiw-transcript button").length,
+  }))()`);
+  assert(assistant.user === "Show project risks", "the transcript must keep the sent sentence");
+  assert(
+    /deterministic command planner/i.test(assistant.notice),
+    "an unconfigured provider must be disclosed, not hidden: " + JSON.stringify(assistant.notice),
+  );
+  assert(assistant.messages === 1, "no assistant text may be invented without a provider");
+  assert(assistant.controls === 0, "the transcript must not offer an approval control");
+  record("assistant turn is attempted first and degrades to the command planner", {
+    user: assistant.user,
+    notice: assistant.notice.slice(0, 80),
+  });
+
   await page.click('#aiw-tabs button[data-studio="schedule-scenario"]');
   await page.waitForSelector(
     '[data-blocked-studio="schedule-scenario"]',
@@ -1368,7 +1389,24 @@ class Page {
           at: new Date().toISOString(),
           status: params.response.status,
           url,
+          request_id: params.requestId,
         });
+      }
+    });
+    // The response body tells an expected "no provider configured" 503 apart
+    // from a real server fault on the same route.
+    this.cdp.on("Network.loadingFinished", async (params) => {
+      const entry = API_FAILURES.find(
+        (item) => item.request_id === params.requestId && item.body === undefined,
+      );
+      if (!entry) return;
+      try {
+        const body = await this.cdp.send("Network.getResponseBody", {
+          requestId: params.requestId,
+        });
+        entry.body = String(body.body ?? "").slice(0, 400);
+      } catch {
+        entry.body = "";
       }
     });
   }
@@ -7993,13 +8031,27 @@ async function main() {
         `UNCAUGHT_PAGE_EXCEPTIONS: ${JSON.stringify(EXCEPTIONS.slice(0, 5))}`,
       );
     }
-    if (API_FAILURES.length > 0) {
-      throw new Error(`API_5XX_RESPONSES: ${JSON.stringify(API_FAILURES.slice(0, 5))}`);
+    // A 503 from the assistant route is only tolerated when the recorded body
+    // proves the deployment has no provider. Any other 5xx fails the run.
+    const allowedAssistant503 = (item) => {
+      if (item.status !== 503) return false;
+      let path = "";
+      try {
+        path = new URL(item.url).pathname;
+      } catch {
+        return false;
+      }
+      return /\/ai\/assistant\/turn$/.test(path) && /AI_ASSISTANT_NOT_CONFIGURED/.test(item.body ?? "");
+    };
+    const unexpectedFailures = API_FAILURES.filter((item) => !allowedAssistant503(item));
+    if (unexpectedFailures.length > 0) {
+      throw new Error(`API_5XX_RESPONSES: ${JSON.stringify(unexpectedFailures.slice(0, 5))}`);
     }
     // Deliberate stale-write scenarios log "P6 layout save failed" by design;
     // only unexpected console errors are tolerated here.
-    record("no uncaught browser exceptions or API 5xx responses", {
+    record("no uncaught browser exceptions or unexpected API 5xx responses", {
       console_error_count: CONSOLE_ERRORS.length,
+      assistant_not_configured_503: API_FAILURES.length - unexpectedFailures.length,
     });
   } finally {
     page?.cdp.close();
