@@ -35,7 +35,14 @@ if (existsSync(requirements)) {
 
 const webroot = join(runtime, "webroot");
 mkdirSync(webroot, { recursive: true });
-for (const file of ["index.html", "app.html", "login.html"]) {
+for (const file of [
+  "index.html",
+  "app.html",
+  "login.html",
+  "enterprise.html",
+  "ai-workbench.html",
+  "ai-workbench.css",
+]) {
   cpSync(join(webRoot, file), join(webroot, file));
 }
 

@@ -59,6 +59,12 @@ copyDirectoryContents(join(root, "public"), output);
 cpSync(join(root, "dist"), join(output, "dist"), { recursive: true, force: true });
 cpSync(join(root, "index.html"), join(output, "index.html"));
 cpSync(join(root, "styles.css"), join(output, "styles.css"));
+// Workspace documents are served by the session-gated function, but the
+// assets they reference (the Workbench stylesheet) must be reachable on the
+// same origin. The Enterprise and Workbench bundles are emitted under dist.
+cpSync(join(root, "enterprise.html"), join(output, "enterprise.html"));
+cpSync(join(root, "ai-workbench.html"), join(output, "ai-workbench.html"));
+cpSync(join(root, "ai-workbench.css"), join(output, "ai-workbench.css"));
 mkdirSync(join(output, "app"), { recursive: true });
 cpSync(join(root, "index.html"), join(output, "app/index.html"));
 cpSync(join(root, "public/cubi-platform-logo-primary.svg"), join(output, "app/cubi-platform-logo-primary.svg"));

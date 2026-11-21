@@ -1777,6 +1777,54 @@ async function main() {
     bytes: landingText.length,
   });
 
+  // The two product environments are separate documents on the same origin.
+  // The retired /enterprise address must resolve to Enterprise, never to the
+  // Engineering shell, and /cubi/* must never lose its session gate.
+  const legacyEnterprise = await fetch(`${baseUrl}/enterprise`, { redirect: "manual" });
+  assert(legacyEnterprise.status === 308, "/enterprise must redirect");
+  assert(
+    (legacyEnterprise.headers.get("location") ?? "").startsWith("/cubi/"),
+    "/enterprise must redirect to /cubi/",
+  );
+  const enterpriseHome = await fetch(`${baseUrl}/cubi/`);
+  const enterpriseHomeText = await enterpriseHome.text();
+  assert(enterpriseHome.status === 200, "/cubi/ must load without a session");
+  assert(
+    enterpriseHomeText.includes("CUBI Enterprise Workbench"),
+    "/cubi/ must serve the Enterprise document",
+  );
+  assert(
+    enterpriseHomeText.includes("/dist/enterprise-entry.bundle.js"),
+    "/cubi/ must load the Enterprise bundle",
+  );
+  assert(
+    !enterpriseHomeText.includes("/dist/main.bundle.js"),
+    "/cubi/ must not serve the Engineering bundle",
+  );
+  const enterpriseGated = await fetch(`${baseUrl}/cubi/enterprise/dashboard`, {
+    redirect: "manual",
+  });
+  assert(enterpriseGated.status === 302, "Enterprise data pages require a session");
+  assert(
+    (enterpriseGated.headers.get("location") ?? "").startsWith("/login?next=%2Fcubi%2F"),
+    "Enterprise gate must preserve the deep link",
+  );
+  const workbenchGated = await fetch(`${baseUrl}/ai-workbench?project=p1`, {
+    redirect: "manual",
+  });
+  assert(workbenchGated.status === 302, "the AI Workbench requires a session");
+  assert(
+    (workbenchGated.headers.get("location") ?? "").startsWith("/login?next=%2Fai-workbench"),
+    "the AI Workbench gate must preserve its deep link",
+  );
+  record("environments are separate documents with independent session gates", {
+    enterprise_redirect: legacyEnterprise.status,
+    enterprise_home: enterpriseHome.status,
+    enterprise_bundle: "enterprise-entry",
+    enterprise_gate: enterpriseGated.status,
+    workbench_gate: workbenchGated.status,
+  });
+
   const chrome = await launchChrome();
   let page;
   try {

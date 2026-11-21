@@ -58,34 +58,30 @@ def _unavailable(start_response):
     return [body]
 
 
-_WORKSPACE_ROUTES = {"app": "/app", "enterprise": "/enterprise"}
-
-
 def _workspace_path(environ) -> str:
     """Resolve the canonical workspace route the caller actually requested.
 
-    The Vercel rewrite maps ``/app`` and ``/enterprise`` onto this one
-    function. The original route arrives in the ``__path`` query (or, for
-    direct WSGI calls, in ``PATH_INFO``). Both environments share this single
-    shell document and differ only by URL, so the route must never be forced
-    to ``/app``.
+    The Vercel rewrite maps ``/app``, ``/enterprise``, ``/cubi/*`` and
+    ``/ai-workbench/*`` onto this one function. The original route arrives in
+    the ``__path`` query (or, for direct WSGI calls, in ``PATH_INFO``). The
+    shared resolver is the same one the root entrypoint uses, so no environment
+    can silently fall back to another environment's document.
     """
-    from urllib.parse import parse_qs
+    from construction_pm.deployment.workspace_routes import resolve_workspace_path
 
-    rewritten = parse_qs(str(environ.get("QUERY_STRING", "") or "")).get("__path")
-    if rewritten:
-        candidate = rewritten[0].strip("/").lower()
-        if candidate in _WORKSPACE_ROUTES:
-            return _WORKSPACE_ROUTES[candidate]
-    original = str(environ.get("PATH_INFO", "") or "").strip("/").lower()
-    if original in _WORKSPACE_ROUTES:
-        return _WORKSPACE_ROUTES[original]
-    return "/app"
+    return resolve_workspace_path(environ)
+
+
+def _workspace_query(environ) -> str:
+    from construction_pm.deployment.workspace_routes import query_without_rewrite
+
+    return query_without_rewrite(environ)
 
 
 def app(environ, start_response):
     scoped = dict(environ)
     scoped["PATH_INFO"] = _workspace_path(environ)
+    scoped["QUERY_STRING"] = _workspace_query(environ)
     if _preview_selected():
         global _preview_app
         try:
