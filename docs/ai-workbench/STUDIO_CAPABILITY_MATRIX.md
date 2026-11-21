@@ -46,8 +46,10 @@ Accepted categories: `technical`, `commercial`, `schedule`, `cost`, `quality`,
 - Reads `GET /api/v2/workspace/control-room/read` with the pinned tenant,
   project and revision headers.
 - Counts activities, WBS elements, relationships and critical activities from
-  the returned rows. These are record counts, explicitly **not** a performance
-  index.
+  the returned rows: `workspace.activities`, the canonical
+  `workspace.wbs_nodes` collection (with the older `workspace.wbs` name still
+  read for compatibility) and `workspace.relationships`. These are record
+  counts, explicitly **not** a performance index.
 - Displays control-intelligence metrics exactly as stored, with result id,
   generation time and source references.
 - Lists the stored baselines through `GET .../p6/baselines`. When none exists it
@@ -88,6 +90,15 @@ Accepted categories: `technical`, `commercial`, `schedule`, `cost`, `quality`,
   re-reads the context and list instead of resubmitting.
 - A proposal whose `project_revision_id` no longer matches the context is marked
   stale by the server; the studio shows only a warning and offers no control.
+- Before a decision, an `activity.create` proposal is shown as a literal
+  before/after table against the canonical workspace read of the same revision:
+  the activity ID, name, WBS node and duration currently stored versus the
+  proposed payload. An existing activity ID, an unknown WBS node and an
+  unavailable current read are named as review warnings.
+- That comparison is a record lookup, not a schedule simulation. It does not
+  run CPM, leveling, cost or earned value and never estimates a date; the
+  studio states this next to the table. Proposals for tools without a typed
+  comparison show their canonical payload only.
 - The preview composition mounts the runtime (`Capabilities(proposal_execution=
   True)`). A composition without it reports `PARTIAL`, names the missing service
   and renders no approval control.

@@ -1,6 +1,21 @@
 # Implementation Status
 
-Updated: Phase 7 security acceptance, 2026-11-21.
+Updated: canonical workspace-read and proposal impact review, 2026-11-21.
+
+## Workbench read and review corrections
+
+- Project Analysis read the legacy `workspace.wbs` name while the canonical v2
+  workspace contract returns `workspace.wbs_nodes`. The WBS count therefore
+  displayed zero even when the read contained stored nodes. `analysisCounts`
+  now reads `wbs_nodes` (the older name remains a fallback), and the browser E2E
+  asserts a stored WBS count instead of only the activity count.
+- The Decision & Approval studio now reads the canonical workspace of the same
+  revision and shows an `activity.create` proposal as a literal current/proposed
+  table before a decision. Existing IDs, an unknown WBS node and an unavailable
+  read are explicit review warnings. This is a record comparison only: no
+  schedule, cost or earned-value calculation runs and no date is estimated.
+- The workspace cache is invalidated when the project revision advances, so a
+  decision or execution cannot present a previous revision's comparison.
 
 - Repository: `consttruction-pm/consttruction-pm-platform`
 - Base: `eed937de1` (PR #2093, command foundation)

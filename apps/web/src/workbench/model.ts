@@ -11,11 +11,14 @@ import {
   translateWorkspaceUiText,
 } from "../workspace-localization.js";
 import type {
+  AIActionProposal,
   RiskRecord,
   WorkbenchCommandPlan,
   WorkbenchContext,
   WorkbenchStudio,
+  WorkspaceActivityRow,
   WorkspaceReadSnapshot,
+  WorkspaceWbsNode,
 } from "./api.js";
 
 export const STUDIO_ORDER = [
@@ -212,25 +215,135 @@ export type AnalysisCounts = {
   critical: number;
 };
 
+/**
+ * The canonical v2 read names the hierarchy `wbs_nodes`. An older envelope used
+ * `wbs`; reading both keeps the stored rows visible instead of silently showing
+ * zero WBS elements.
+ */
+export function workspaceWbsNodes(
+  snapshot: WorkspaceReadSnapshot | null,
+): readonly WorkspaceWbsNode[] {
+  if (!snapshot) return [];
+  if (Array.isArray(snapshot.workspace.wbs_nodes)) return snapshot.workspace.wbs_nodes;
+  return Array.isArray(snapshot.workspace.wbs) ? snapshot.workspace.wbs : [];
+}
+
 /** Count server rows for presentation; no ratio or forecast is derived. */
 export function analysisCounts(snapshot: WorkspaceReadSnapshot | null): AnalysisCounts | null {
   if (!snapshot) return null;
   const activities = Array.isArray(snapshot.workspace.activities)
     ? snapshot.workspace.activities
     : [];
-  const wbs = Array.isArray(snapshot.workspace.wbs) ? snapshot.workspace.wbs : [];
   const relationships = Array.isArray(snapshot.workspace.relationships)
     ? snapshot.workspace.relationships
     : [];
-  const critical = activities.filter((activity) => {
-    const gantt = (activity as { gantt?: { critical?: boolean } }).gantt;
-    return gantt?.critical === true;
-  }).length;
+  const critical = activities.filter((activity) => activity.gantt?.critical === true).length;
   return {
     activities: activities.length,
-    wbs: wbs.length,
+    wbs: workspaceWbsNodes(snapshot).length,
     relationships: relationships.length,
     critical,
+  };
+}
+
+export type ActivityProposalWarning =
+  | "CURRENT_STATE_UNAVAILABLE"
+  | "ACTIVITY_ID_EXISTS"
+  | "WBS_NOT_IN_CURRENT_READ";
+
+export type ActivityProposalImpact = {
+  kind: "activity.create";
+  activityId: string;
+  proposed: {
+    name: string;
+    duration: string;
+    unit: string;
+    wbsId: string;
+    wbsLabel: string | null;
+  };
+  exists: boolean;
+  current: {
+    name: string;
+    wbsId: string;
+    wbsLabel: string;
+    duration: string | null;
+  } | null;
+  warnings: readonly ActivityProposalWarning[];
+};
+
+function text(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
+function wbsDisplay(node: WorkspaceWbsNode | null): string | null {
+  if (!node) return null;
+  const code = text(node.local_code) ?? text(node.code);
+  const label = [code, text(node.name)].filter(Boolean).join(" ");
+  return label || text(node.wbs_id);
+}
+
+function activityDuration(row: WorkspaceActivityRow): string | null {
+  const value = row.cells?.duration;
+  return typeof value === "string" || typeof value === "number" ? String(value) : null;
+}
+
+/**
+ * Compare one `activity.create` proposal payload with the canonical current
+ * workspace read. This is a literal record lookup; it never schedules, costs or
+ * forecasts. A different tool returns null because no generic preview exists.
+ */
+export function proposalImpact(
+  snapshot: WorkspaceReadSnapshot | null,
+  proposal: AIActionProposal,
+): ActivityProposalImpact | null {
+  if (proposal.tool_name !== "activity.create") return null;
+  const payload = proposal.payload;
+  const activityId = text(payload.activity_id);
+  const name = text(payload.name);
+  const wbsId = text(payload.wbs_id);
+  const unit = text(payload.duration_unit);
+  const duration =
+    typeof payload.duration_value === "string" || typeof payload.duration_value === "number"
+      ? String(payload.duration_value)
+      : null;
+  if (!activityId || !name || !wbsId || !unit || duration === null) return null;
+
+  const warnings: ActivityProposalWarning[] = [];
+  if (!snapshot) {
+    return {
+      kind: "activity.create",
+      activityId,
+      proposed: { name, duration, unit, wbsId, wbsLabel: null },
+      exists: false,
+      current: null,
+      warnings: ["CURRENT_STATE_UNAVAILABLE"],
+    };
+  }
+  const nodes = workspaceWbsNodes(snapshot);
+  const node = nodes.find((item) => item.wbs_id === wbsId) ?? null;
+  const existing =
+    (snapshot.workspace.activities ?? []).find((item) => item.id === activityId) ?? null;
+  if (!node) warnings.push("WBS_NOT_IN_CURRENT_READ");
+  if (existing) warnings.push("ACTIVITY_ID_EXISTS");
+  const currentWbsNode = existing
+    ? nodes.find((item) => item.wbs_id === existing.wbs_id) ?? null
+    : null;
+  return {
+    kind: "activity.create",
+    activityId,
+    proposed: { name, duration, unit, wbsId, wbsLabel: wbsDisplay(node) },
+    exists: Boolean(existing),
+    current: existing
+      ? {
+          name: text(existing.name) ?? existing.id,
+          wbsId: text(existing.wbs_id) ?? "",
+          wbsLabel: wbsDisplay(currentWbsNode) ?? text(existing.wbs_id) ?? "—",
+          duration: activityDuration(existing),
+        }
+      : null,
+    warnings,
   };
 }
 

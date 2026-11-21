@@ -58,7 +58,7 @@ planner.
 
 ## 3. Web unit coverage
 
-`apps/web/src/workbench-model.test.ts` (10 tests):
+`apps/web/src/workbench-model.test.ts` (14 tests):
 
 - studio labels and stable studio order;
 - English fallback and Persian values through the shared localization system;
@@ -68,10 +68,18 @@ planner.
 - one clarifying question is surfaced;
 - 5×5 matrix groups stored ratings without recalculating;
 - analysis counts read server rows; critical count from stored flags;
+- the canonical `workspace.wbs_nodes` collection drives the WBS count, with the
+  legacy `workspace.wbs` field only as a fallback;
 - stored metrics keep their values and stable order; source refs are unique;
-- query/project helpers preserve only the intended parameters.
+- query/project helpers preserve only the intended parameters;
+- proposal impact compares the literal `activity.create` payload with the
+  current read (not present → no warnings);
+- proposal impact names an existing activity id and an unknown WBS by code
+  without calculating a schedule;
+- proposal impact states `CURRENT_STATE_UNAVAILABLE` when no read is held and
+  ignores tools other than `activity.create`.
 
-`apps/web/src/workbench-render.test.ts` (17 tests):
+`apps/web/src/workbench-render.test.ts` (21 tests):
 
 - the edit form pre-fills stored values and the rendered revision;
 - stored values are escaped in the edit form;
@@ -86,6 +94,15 @@ planner.
   fabricated row;
 - a pending proposal offers approve/reject and never execution, with the payload
   escaped; an approved proposal offers execution only;
+- the analysis panel renders the canonical WBS element count, not the legacy
+  field;
+- a pending `activity.create` proposal renders the literal impact table with the
+  current state, the proposed change and the "no schedule/cost/EVM calculation"
+  note;
+- an existing activity id and an unknown WBS render `data-impact-warning` codes
+  rather than a fabricated comparison;
+- an unavailable workspace read renders `data-impact-error` and
+  `CURRENT_STATE_UNAVAILABLE`;
 - a stale proposal shows a warning and no control; an executed proposal shows
   the canonical result and decision maker; a read error shows its stable code.
 
@@ -106,14 +123,17 @@ the real WSGI runtime, real SQLite stores and the real API composition:
 8. a typed command returns a plan with four separated blocks and names the
    canonical studio;
 9. the scenario studio renders `BLOCKED` with zero controls;
-10. the analysis studio shows four stored counts and states
+10. the analysis studio shows four stored counts (read from the canonical
+    `activities`/`wbs_nodes`/`relationships` collections) and states
     `INSUFFICIENT_DATA` for EVM with no control when no baseline exists;
 11. a baseline is captured through the canonical service; the EVM form appears;
     submitting it surfaces the server refusal (`EVM_`/`EARNED_VALUE_`) and draws
     no fabricated figure;
 12. the decision studio starts empty; a canonical `activity.create` proposal is
     created through the runtime, listed as proposed with approve/reject and no
-    execute control; rejecting records the decision; a reload shows the rejected
+    execute control; the pending proposal shows the literal impact table with
+    its WBS node and no `CURRENT_STATE_UNAVAILABLE`/`ACTIVITY_ID_EXISTS`
+    warning; rejecting records the decision; a reload shows the rejected
     proposal with no live control and the activity was never created;
 13. switching to Persian flips direction while keeping five studios, then back
     to English.

@@ -7,14 +7,17 @@ import {
   metricRows,
   metricSourceSummary,
   planAction,
+  proposalImpact,
   readQuery,
   riskMatrix,
   statusTone,
   studioLabel,
   t,
   withProject,
+  workspaceWbsNodes,
 } from "./workbench/model.js";
 import type {
+  AIActionProposal,
   RiskRecord,
   WorkbenchCommandPlan,
   WorkspaceReadSnapshot,
@@ -171,7 +174,7 @@ test("analysis counts read server rows and never derive a forecast", () => {
         { id: "A2", gantt: { critical: false } },
         { id: "A3" },
       ],
-      wbs: [{ id: "W1" }],
+      wbs: [{ wbs_id: "W1" }],
       relationships: [{ id: "L1" }, { id: "L2" }],
     },
     control_intelligence: null,
@@ -216,4 +219,110 @@ test("query and project helpers preserve only what they are asked to", () => {
   assert.equal(readQuery("project=P-1&lang=fa", "lang"), "fa");
   assert.equal(readQuery("project=P-1", "lang"), null);
   assert.equal(withProject("/ai-workbench?lang=fa", "P-1"), "/ai-workbench?lang=fa&project=P-1");
+});
+
+function snapshot(overrides: Partial<WorkspaceReadSnapshot["workspace"]> = {}): WorkspaceReadSnapshot {
+  return {
+    contract_version: "workspace-control-room-read.v2",
+    context: { tenant_id: "t", project_id: "p", revision: 4 },
+    workspace: {
+      activities: [
+        {
+          id: "A1",
+          wbs_id: "WBS-1",
+          name: "Existing activity",
+          cells: { duration: "3" },
+          gantt: { critical: true },
+        },
+        { id: "A2", wbs_id: "WBS-2", name: "Second", cells: { duration: "2" } },
+      ],
+      wbs_nodes: [
+        { wbs_id: "WBS-1", local_code: "1", name: "Civil works" },
+        { wbs_id: "WBS-2", local_code: "2", name: "Electrical" },
+      ],
+      relationships: [{ relationship_id: "L1" }],
+      ...overrides,
+    },
+    control_intelligence: null,
+  };
+}
+
+function proposal(overrides: Partial<AIActionProposal> = {}): AIActionProposal {
+  return {
+    proposal_id: "prop-1",
+    tool_name: "activity.create",
+    action: "create",
+    status: "proposed",
+    requires_human_approval: true,
+    requested_by: "u-1",
+    evidence_refs: [],
+    project_revision_id: "4",
+    resource_domain: "activities",
+    payload: {
+      activity_id: "A-NEW",
+      name: "New activity",
+      duration_value: "5",
+      duration_unit: "working-day",
+      wbs_id: "WBS-1",
+    },
+    result: null,
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+    decided_by: null,
+    is_stale: false,
+    ...overrides,
+  };
+}
+
+test("canonical wbs_nodes drive the WBS count instead of the legacy field", () => {
+  const canonical = snapshot();
+  assert.equal(workspaceWbsNodes(canonical).length, 2);
+  assert.deepEqual(analysisCounts(canonical), {
+    activities: 2,
+    wbs: 2,
+    relationships: 1,
+    critical: 1,
+  });
+  // The legacy shape stays readable; it is not silently dropped.
+  const legacy = snapshot({ wbs_nodes: undefined, wbs: [{ wbs_id: "WBS-1" }] });
+  assert.equal(analysisCounts(legacy)?.wbs, 1);
+});
+
+test("proposal impact compares the literal payload with the current read", () => {
+  const impact = proposalImpact(snapshot(), proposal());
+  assert.ok(impact);
+  assert.equal(impact?.exists, false);
+  assert.equal(impact?.current, null);
+  assert.equal(impact?.proposed.wbsLabel, "1 Civil works");
+  assert.deepEqual(impact?.warnings, []);
+});
+
+test("proposal impact names an existing activity and an unknown WBS without calculating", () => {
+  const existing = proposalImpact(
+    snapshot(),
+    proposal({
+      payload: {
+        activity_id: "A1",
+        name: "Changed name",
+        duration_value: "9",
+        duration_unit: "working-hour",
+        wbs_id: "WBS-MISSING",
+      },
+    }),
+  );
+  assert.equal(existing?.exists, true);
+  assert.equal(existing?.current?.name, "Existing activity");
+  assert.equal(existing?.current?.wbsLabel, "1 Civil works");
+  assert.equal(existing?.current?.duration, "3");
+  assert.deepEqual(existing?.warnings, ["WBS_NOT_IN_CURRENT_READ", "ACTIVITY_ID_EXISTS"]);
+});
+
+test("proposal impact declares an unavailable current read and ignores other tools", () => {
+  const unavailable = proposalImpact(null, proposal());
+  assert.deepEqual(unavailable?.warnings, ["CURRENT_STATE_UNAVAILABLE"]);
+  assert.equal(unavailable?.proposed.name, "New activity");
+  assert.equal(
+    proposalImpact(snapshot(), proposal({ tool_name: "project.plan.create" })),
+    null,
+  );
 });
