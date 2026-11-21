@@ -22,6 +22,35 @@ Updated: Phase 7 security acceptance, 2026-11-21.
 | 7 | Integrated acceptance | PARTIAL | workbench boundary security gates proven; cross-phase (import, scenario, approval) acceptance waits on their contracts |
 | 8 | Enterprise reuse | PLANNED | after shared contracts stabilise |
 
+## Operationalization on the canonical database (P0)
+
+The workbench now runs on the same production composition as the rest of the
+site, not on a preview-only store. What changed and what is actually proven:
+
+| Capability | Status | Where |
+| --- | --- | --- |
+| Versioned migration ledger (`cubi_schema_migration`, 12 steps, 58 tables) | `WIRED_WRITE` / verified on real PostgreSQL | `deployment/migrations.py`, `tests/integration/test_cubi_database_operationalization_postgres_live.py` |
+| Project/workspace save and restore across logout and a new session | `WIRED_WRITE` | live PostgreSQL WSGI test, test 4 |
+| Risk register (create idempotent, update with `expected_revision`, history) | `WIRED_WRITE` | `risk_persistence.py`, test 6 |
+| Forms library (templates, immutable published versions, submissions, review/approval, audit) | `WIRED_WRITE` | `form_builder_repository.py` shared PG/SQLite base, tests 7–8 |
+| Knowledge store on the caller-owned schema and coverage reporting | `WIRED_READ` | `knowledge/runtime.py`, `PostgresKnowledgeStore(..., migrate=False)`, test 12 |
+| AI action proposals: propose → human approve → execute, stale-revision and duplicate guards | `WIRED_WRITE` | `ai_action_runtime.py`, tests 9–10 |
+| Tenant isolation and role denial (viewer writes, cross-tenant reads) | verified | tests 3, 11 |
+| Assistant with a real model provider | `BLOCKED` externally | needs `CUBI_AI_ENABLED` + provider key; deterministic planner otherwise |
+| Supabase reference database / Vercel Preview | `BLOCKED` externally | no Supabase or Vercel credentials in the sandbox; runbook in `docs/deploy/PREVIEW_SUPABASE_CONNECTION.md` |
+
+Every write above is gated by the session's tenant and roles and recorded in
+the append-only audit/event tables. A proposal never mutates before approval;
+execution re-checks the pinned revision and is idempotent, and a second execute
+returns `409 AI_ACTION_PROPOSAL_NOT_APPROVED` instead of mutating twice.
+
+The status vocabulary distinguishes local proof from deployment proof:
+`WIRED_*` means the code path is exercised, and only a real Supabase + Preview
+run may be labelled `VERIFIED_ON_SUPABASE`. No studio or assistant response is
+fabricated to close a gap; unavailable capabilities return `BLOCKED`/`PARTIAL`
+with the missing dependency named.
+
+
 ## Phase 1 delivered
 
 Server:

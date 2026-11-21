@@ -24,7 +24,13 @@ preview personas and demo data are never used by the production composition.
 | `/api/projects`, `/api/projects/{id}`, `/api/projects/{id}/open` | `api/index.py` | authorized project lifecycle |
 | `/api/v2/workspace/control-room/read` | `api/index.py` | canonical workspace read (v2 contract) |
 | `/api/projects/{id}/p6/fields/…`, `/api/projects/{id}/p6/layouts/…` | `api/index.py` | field registry and layout presentation |
-| `/api/health/live`, `/api/health/ready` | `api/index.py` | liveness vs. database readiness |
+| `/api/projects/{id}/risks`, `/api/projects/{id}/risks/{risk_id}` | `api/index.py` | risk register: create (idempotent), read, full-body update with `expected_revision`, history, delete |
+| `/api/projects/{id}/forms/…`, `/api/forms/organization/…` | `api/index.py` | form templates, published versions, submissions, review/approval, revisions, audit |
+| `/api/projects/{id}/ai/actions/proposals…` | `api/index.py` | AI action proposals, decision, execute (approval-gated, idempotent) |
+| `/api/projects/{id}/ai/assistant/turn` | `api/index.py` | deterministic assistant turn with knowledge grounding |
+| `/api/knowledge/…`, `/api/projects/{id}/knowledge` | `api/index.py` | knowledge locales, coverage, search, cards, project knowledge |
+| `/api/projects/{id}/ai-workbench/…` | `api/index.py` | AI Workbench context and command |
+| `/api/health/live`, `/api/health/ready` | `api/index.py` | liveness vs. database readiness, plus migration ledger version/table count/drift |
 
 Everything else returns 404. Unsafe methods require both a same-origin
 `Origin`/`Referer` and `X-CSRF-Token` derived from the caller's own session.
@@ -41,6 +47,11 @@ is used). Values are never committed.
 | `CONSTRUCTION_PM_PUBLIC_ORIGIN` | yes | Exact HTTPS origin, e.g. `https://cubi-web-preview.vercel.app`. Login/logout/mutations are rejected when `Origin` does not match. |
 | `CONSTRUCTION_PM_DB_POOL_SIZE` | no | Idle connections per warm instance (1–8, default 2). |
 | `CONSTRUCTION_PM_DB_CONNECT_TIMEOUT` | no | Connect timeout seconds (2–30, default 10). |
+| `CONSTRUCTION_PM_DB_SCHEMA` | no | PostgreSQL schema for the whole runtime (`search_path`). Empty means the connection default; used only to isolate a disposable test schema, never in production. |
+| `CUBI_AI_ENABLED` | no | Instantiate the server-only OpenAI-compatible assistant provider. Unset means the deterministic planner runs and capability is reported honestly. |
+| `CUBI_AI_BASE_URL`, `CUBI_AI_API_KEY`, `CUBI_AI_MODEL` | no | Provider endpoint, key and model; only read server-side. |
+| `CUBI_AI_ACTIONS_ENABLED` | no | Allow AI action proposals and approval-gated execution. |
+| `CUBI_AI_REQUIRE_DISTINCT_APPROVER` | no | When set, the approver must differ from the proposer. |
 | `CUBI_WEB_ROOT` | no | Override for the built Web root; by default `public/` next to the function bundle. |
 | `CONSTRUCTION_PM_INSECURE_COOKIES` | never in production | Disables the `Secure` cookie flag. Only the loopback E2E harness avoids it by constructing settings directly. |
 
@@ -89,6 +100,34 @@ If the runtime configuration is missing, liveness still answers
 `{"status":"ok"}`; readiness, login and `/app` answer
 `503 CONFIGURATION_REQUIRED`. This is deliberate: the function is observable
 without ever faking a session or serving workspace HTML.
+
+## Schema migrations
+
+The runtime owns a versioned migration registry in
+`src/construction_pm/deployment/migrations.py`, recorded in the
+`cubi_schema_migration` ledger (version, name, per-step checksum, duration,
+runtime version, structural fingerprint). On the first request
+`initialize_production_schema` applies every pending step in one transaction and
+commits; a failure aborts the whole bootstrap and records nothing.
+
+- Twelve steps own identity, administration, enterprise tasks and organization
+  access, project lifecycle, engineering masters, presentation, scheduling
+  state, risk register, forms library, knowledge/assistant and the AI action
+  runtime.
+- Steps are additive (`CREATE TABLE IF NOT EXISTS`,
+  `ALTER TABLE … ADD COLUMN IF NOT EXISTS`); there is no `DROP`, `TRUNCATE` or
+  `RESET`.
+- Re-running applies zero steps. Unknown future ledger versions fail closed with
+  `MIGRATION_HISTORY_UNKNOWN`.
+- Checksum or structural drift is reported; readiness exposes
+  `schema.version`, `schema.tables` and `schema.drift`. The default policy is
+  `report`; `fail` stops readiness once a fingerprint mismatch is confirmed.
+- On a fresh empty schema the result is 12 steps and 58 tables; readiness then
+  reports `{"version":12,"tables":58,"drift":null}`.
+
+Run it explicitly with `python scripts/provision_workspace.py init`. The exact
+Supabase/Vercel procedure, including DSN shape, backup and count checks, is in
+[`PREVIEW_SUPABASE_CONNECTION.md`](PREVIEW_SUPABASE_CONNECTION.md).
 
 ## First-run provisioning
 
