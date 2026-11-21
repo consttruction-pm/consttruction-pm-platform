@@ -14,7 +14,7 @@ import {
   type WorkbenchContext,
   type WorkspaceReadSnapshot,
 } from "./api.js";
-import { direction, isWritable, planAction, escapeHtml, t } from "./model.js";
+import { direction, isWritable, planAction, escapeHtml, t, verifiedHelpUrl } from "./model.js";
 import {
   renderAnalysisStudio,
   renderBlockedStudio,
@@ -227,14 +227,20 @@ export async function mountWorkbench(options: MountOptions = {}): Promise<void> 
 
   function renderHelpPanel(): string {
     const studios = state.context?.studios ?? [];
+    const rows = studios
+      .map((studio) => {
+        const url = verifiedHelpUrl(studio.help_url) ?? "";
+        return `<li><strong>${escapeHtml(studio.id)}</strong> · ${escapeHtml(studio.status)}<br /><span>${escapeHtml(studio.help_topic)}</span> · <span>${escapeHtml(studio.help_status)}</span>${
+          url
+            ? ` · <a class="aiw-help-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t(state.locale, "Open official reference", "بازکردن مرجع رسمی"))}</a>`
+            : ""
+        }</li>`;
+      })
+      .join("");
     return `<h2>${escapeHtml(t(state.locale, "Help", "راهنما"))}</h2>
-      <p class="aiw-hint">${escapeHtml(t(state.locale, "A control is listed only with the service that backs it. Help topics are recorded for the official Engineering reference; an exact deep link is marked pending until verified.", "هر کنترل فقط همراه با سرویس پشتیبان آن فهرست می‌شود. موضوع‌های راهنما برای مرجع رسمی مهندسی ثبت شده‌اند؛ پیوند دقیق تا زمان تأیید، در انتظار علامت‌گذاری می‌شود."))}</p>
+      <p class="aiw-hint">${escapeHtml(t(state.locale, "A topic is linked only after the exact official page was opened and recorded. Topics without a verified page stay marked as pending, and no URL is guessed.", "موضوع فقط پس از بازشدن و ثبت صفحه رسمی دقیق پیوند می‌شود. موضوع‌های بدون صفحه تأییدشده در حالت در انتظار می‌مانند و هیچ نشانی حدس زده نمی‌شود."))}</p>
       <ul class="aiw-help-list">
-        ${studios
-          .map(
-            (studio) => `<li><strong>${escapeHtml(studio.id)}</strong> · ${escapeHtml(studio.status)}<br /><span>${escapeHtml(studio.help_topic)}</span> · <span>${escapeHtml(studio.help_status)}</span></li>`,
-          )
-          .join("")}
+        ${rows}
       </ul>
       <button type="button" data-workbench="help">${escapeHtml(t(state.locale, "Close", "بستن"))}</button>`;
   }

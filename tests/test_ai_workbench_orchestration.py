@@ -201,17 +201,24 @@ def test_plan_is_json_serializable_and_facts_exclude_calculations() -> None:
     assert "project=preview-rps-01" in payload["facts"]
 
 
-def test_every_studio_declares_a_help_topic_and_status() -> None:
+def test_every_studio_declares_a_verified_help_reference() -> None:
+    expected = {
+        "import-staging": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/48617.htm",
+        "schedule-scenario": (
+            "https://docs.oracle.com/cd/G48902_01/client_help/en_US/schedulingprojects.htm"
+        ),
+        "risk-analysis": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/risks.htm",
+        "project-analysis": (
+            "https://docs.oracle.com/cd/G48902_01/client_help/en_US/earned_value.htm"
+        ),
+        "decision-approval": "https://docs.oracle.com/cd/G48897_01/p6help/en/44036.htm",
+    }
     for studio in studios():
         assert studio.help_topic
-        assert studio.help_status == StudioStatus.HELP_REFERENCE_PENDING
-        assert studio.id in {
-            "import-staging",
-            "schedule-scenario",
-            "risk-analysis",
-            "project-analysis",
-            "decision-approval",
-        }
+        assert studio.help_status == StudioStatus.HELP_REFERENCE_VERIFIED
+        assert studio.help_url == expected[studio.id]
+        assert studio.help_url.startswith("https://docs.oracle.com/")
+        assert studio.id in expected
 
 
 def test_compare_and_export_reuse_an_analytical_studio() -> None:

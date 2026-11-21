@@ -17,6 +17,7 @@ export type WorkbenchStudio = {
   blocked_reason: string | null;
   help_topic: string;
   help_status: string;
+  help_url: string | null;
 };
 
 export type WorkbenchContext = {

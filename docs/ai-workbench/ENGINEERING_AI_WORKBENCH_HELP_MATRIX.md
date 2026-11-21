@@ -9,8 +9,10 @@ Binding sources:
 - P6 EPPM V26 HTML Help (Enterprise/approval semantics):
   <https://docs.oracle.com/cd/G48897_01/p6help/en/toc.htm>
 
-No Oracle/Primavera/P6 brand is displayed in CUBI. Exact topic URLs are marked
-`HELP_REFERENCE_PENDING` until the topic page itself is opened and recorded.
+No Oracle/Primavera/P6 brand is displayed in CUBI. Each studio now has one
+verified studio-level reference (see `HELP_CROSSWALK.md`); the per-control URLs
+below stay `HELP_REFERENCE_PENDING` until that exact control's page is opened
+and recorded.
 
 | Studio | Region / control | Behavior | Help topic | Exact URL | Origin | API | Permission | Test ID | Status |
 |---|---|---|---|---|---|---|---|---|---|
