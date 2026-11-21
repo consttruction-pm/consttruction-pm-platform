@@ -12,6 +12,8 @@ from ..activity_master_repository import PostgresActivityMasterRepository
 from ..enterprise_task_repository import PostgresEnterpriseTaskRepository
 from ..global_administration import PostgresGlobalAdministrationStore
 from ..enterprise_organization_access_repository import PostgresEnterpriseOrganizationAccessRepository
+from ..claim_party_membership_repository import PostgresClaimPartyMembershipRepository
+from ..change_claims import PostgresChangeClaimStore
 from ..identity_session import PostgresIdentityStore
 from ..p6_cost_account_repository import PostgresP6CostAccountRepository
 from ..p6_obs_repository import PostgresP6OBSRepository
@@ -38,6 +40,8 @@ def initialize_production_schema(connection: Any) -> None:
     PostgresGlobalAdministrationStore(connection).initialize()
     PostgresEnterpriseTaskRepository(connection).initialize()
     PostgresEnterpriseOrganizationAccessRepository(connection).initialize()
+    PostgresChangeClaimStore(connection).initialize()
+    PostgresClaimPartyMembershipRepository(connection).initialize()
     initialize_project_lifecycle_schema(connection)
     PostgresActivityMasterRepository(connection).initialize()
     PostgresP6CostAccountRepository(connection).initialize()
