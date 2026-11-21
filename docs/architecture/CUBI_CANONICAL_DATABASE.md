@@ -35,9 +35,9 @@ No destructive migration, MySQL deletion, production deployment or production cu
 
 ## Current verified state
 
-The Supabase project is active and accepts SQL connections. At the initial inventory, the public schema contained the existing knowledge/assistant and organization-binding tables, but not the production identity, sessions or complete Engineering/Enterprise application schema. Render had no managed PostgreSQL instance. The inspected Vercel Preview environment had an empty database URL and session secret and was intentionally using fixture runtime.
+The Supabase project is active and accepts SQL connections. At the initial inventory, the public schema contained the existing knowledge/assistant and organization-binding tables. The identity foundation has since been applied and verified in this same project: `identity_users`, `identity_sessions`, `identity_login_attempts` and `identity_password_reset_tokens` exist with case-insensitive username uniqueness and RLS enabled; `anon` and `authenticated` have no table privileges. The identity user count is currently zero. The complete Engineering/Enterprise application schema is still pending the versioned runtime bootstrap. Render has no managed PostgreSQL instance. The inspected Vercel Preview environment has an empty database URL and session secret and is intentionally using fixture runtime.
 
-Therefore, the database is selected and reachable, but **runtime convergence and historical data migration are not yet complete**. Do not enable public registration against a fixture deployment or claim durable production readiness until the runtime uses the canonical database and restart/read-after-write is proven.
+Therefore, the canonical database is selected, reachable, and has its initial identity schema, but **runtime convergence, full application schema bootstrap and historical data migration are not yet complete**. Do not enable public registration against a fixture deployment or claim durable production readiness until the runtime uses the canonical database and restart/read-after-write is proven.
 
 ## Migration ownership
 
