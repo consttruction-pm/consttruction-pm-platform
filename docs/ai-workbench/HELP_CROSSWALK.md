@@ -1,9 +1,18 @@
 # Help Crosswalk
 
 Every studio records a `help_topic` and `help_status` on the server. The
-Workbench does not fabricate a Help URL: until the Workbench document is added
-to the generated traceability registry, each studio is marked
-`HELP_REFERENCE_PENDING` and the Inspector lists the topic and status.
+Workbench does not fabricate a Help URL: each studio stays
+`HELP_REFERENCE_PENDING` until a real, verified page exists, and the Inspector
+lists the topic and status.
+
+## Document entry
+
+The Workbench document is now registered in `docs/traceability/engineering-v26.json`
+as `ENG-WS-AI-WORKBENCH` (`/ai-workbench/`, `CUBI_OWNED`). It intentionally has
+**no official Help topic** and a recorded rationale: the Workbench is CUBI-owned
+and no vendor page describes it. `resolveContextualHelp` therefore falls back to
+the internal documentation for this route instead of borrowing a P6 topic. The
+generated registry reports 84 entries (69 with an official topic).
 
 ## Recorded topics
 
@@ -29,14 +38,17 @@ wired as per-studio deep links.
 
 ## What must happen to clear the pending status
 
-1. Add `/ai-workbench/` (and the studio anchors) to the traceability source
-   used by `scripts/generate-assistant-registries.mjs`.
+1. ~~Add `/ai-workbench/` (and the studio anchors) to the traceability source
+   used by `scripts/generate-assistant-registries.mjs`.~~ Done: the document
+   entry `ENG-WS-AI-WORKBENCH` exists (`CUBI_OWNED`, no topic).
 2. Regenerate `help-registry.generated.ts` so the document and each studio have
-   a stable entry id.
+   a stable entry id. Done for the document entry.
 3. Change the server `help_status` from `HELP_REFERENCE_PENDING` to
-   `PUBLISHED`/`IMPLEMENTED` only for entries that resolve to a real page.
+   `PUBLISHED`/`IMPLEMENTED` only for entries that resolve to a real page. The
+   document entry intentionally has none, so the studios stay pending until a
+   verified CUBI Help page is published.
 4. Add a browser acceptance check that the Inspector link opens the registered
-   entry, not a guessed URL.
+   entry, not a guessed URL. Not applicable while no link is rendered.
 
 Until then, the Inspector shows the topic and `HELP_REFERENCE_PENDING`; no link
 is rendered.
