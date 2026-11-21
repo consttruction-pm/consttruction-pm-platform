@@ -87,8 +87,16 @@ export type DocumentRecord = {
   [key: string]: unknown;
 };
 
-export type EnterpriseRecord = {
-  record_id: string;
+export type ActivityEnvelope = {
+  activity?: {
+    activity_id?: string;
+    name?: string;
+    status?: string;
+    percent_complete?: number | null;
+  };
+};
+
+export type EnterpriseRecord = {  record_id: string;
   kind: string;
   tenant_id: string;
   revision: number;
@@ -294,6 +302,13 @@ export const api = {
       `/api/projects/${encodeURIComponent(projectId)}/p6/issues`,
     );
     return payload.issues ?? [];
+  },
+  /** Read-only Engineering activity master; Enterprise never writes here. */
+  listProjectActivities: async (projectId: string) => {
+    const payload = await request<{ activities?: ActivityEnvelope[] }>(
+      `/api/projects/${encodeURIComponent(projectId)}/p6/activities`,
+    );
+    return { activities: payload.activities ?? [] };
   },
   listRisks: async (projectId: string) => {
     const payload = await request<{ risks: Record<string, unknown>[] }>(

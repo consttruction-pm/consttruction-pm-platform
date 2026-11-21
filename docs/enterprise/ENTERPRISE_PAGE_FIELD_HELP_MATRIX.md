@@ -1,6 +1,6 @@
 # Enterprise Workbench — Page & Field Help Reference Matrix
 
-This hand-authored matrix is the **authoritative delivery matrix** for the 15
+This hand-authored matrix is the **authoritative delivery matrix** for the 25
 Enterprise pages. An earlier generated 16-row traceability table
 (`scripts/generate_master_page_matrices.py`, contract
 `cubi-enterprise-page-field-help-matrix.v1`) is preserved as
@@ -9,7 +9,7 @@ Enterprise pages. An earlier generated 16-row traceability table
 delivery status of record, and the generator now writes to those names so it
 cannot overwrite this file.
 
-Scope: the 15 Enterprise Workbench pages served under `/cubi/*` from
+Scope: the 25 initial-set Enterprise Workbench pages served under `/cubi/*` from
 `apps/web/enterprise.html` and `apps/web/src/enterprise/`.
 
 Help baseline: Oracle Primavera P6 EPPM Help Version 26.
@@ -31,7 +31,7 @@ Legend for **Permission**: `server` means the value is enforced by the server on
 the cited API; the page only explains it. `read` / `write` describe the action
 the control performs; they are never a client-side grant.
 
-## Delivery status (live, 2026-11-20)
+## Delivery status (live, 2026-11-21)
 
 Statuses follow the required vocabulary: **MISSING**, **IN_PROGRESS**,
 **WIRED_READ**, **WIRED_WRITE**, **VERIFIED**. `VERIFIED` is used only where all
@@ -47,7 +47,7 @@ green HTTP status alone is not enough.
 | 5 | Environment Selector | `/cubi/environments` → `/workbench/` | **VERIFIED** | Same canonical entry; no parallel workbench rendered | — |
 | 6 | Enterprise Dashboard & Portlets | `/cubi/enterprise/dashboard` | **WIRED_WRITE** | Layout create/update on `/api/enterprise/dashboards`, revision-checked, server badge after reload | Portlet values (schedule/EVM/capacity) return 503 until Engineering read models connect; visibility is metadata only |
 | 7 | Portfolio & Executive Center | `/cubi/enterprise/portfolio` | **WIRED_WRITE** | Decisions create/list on `/api/enterprise/decisions`; decision form persists after reload | KPI/trend/EVM routes 503 `ENGINEERING_SOURCE_NOT_CONNECTED`; no numbers are derived |
-| 8 | Enterprise Projects / Project Portal | `/cubi/enterprise/projects` | **WIRED_READ** | Projects from `GET /api/projects`; risks/issues/documents read from existing project routes | No Enterprise project write; EPS hierarchy page remains missing |
+| 8 | Enterprise Projects / Project Portal | `/cubi/enterprise/projects` | **WIRED_READ** | Projects from `GET /api/projects`; risks/issues/documents read from existing project routes | No Enterprise project write here; EPS hierarchy has its own page (#18) |
 | 9 | Organization & Access Center | `/cubi/enterprise/access` | **WIRED_WRITE** | Team, invitation and grant create; soft delete; tenant isolation, IDOR and admin gates covered by backend tests | Invitation acceptance not implemented; demo fixture rows are non-deletable |
 | 10 | Team & Task Center | `/cubi/enterprise/tasks` | **WIRED_WRITE** | Create/complete/PATCH with revision and idempotency; personal and project scope; register shows real rows | No task delete, team assignment or Engineering references by design |
 | 11 | Workflow Studio | `/cubi/enterprise/workflows` | **WIRED_WRITE** | Create draft and publish with server graph validation; `published_version` increments | No workflow approval/scheduling integration |
@@ -56,30 +56,31 @@ green HTTP status alone is not enough.
 | 14 | Reports & Operations | `/cubi/enterprise/reports` | **WIRED_READ** | Existing catalogue/definitions/jobs routes only; no parallel queue or worker | Report authoring/run from Enterprise is not opened |
 | 15 | Knowledge & PMBOK Center | `/cubi/enterprise/knowledge` | **WIRED_READ** | Real knowledge/forms routes | Seed is empty; no knowledge contribution write |
 
-## Initial-set pages not yet delivered (10)
+## Initial-set pages delivered (10)
 
-The original 25-page initial set contained ten pages that are **not** among the
-delivered 15. They are listed here with a disposition so that absence is
-explicit, not implied:
+These are the remaining pages of the original 25-page initial set. Each one is
+served from `/cubi/*` by the same Enterprise shell, uses a real tenant-scoped
+route, and carries a direct Help topic. Status vocabulary is unchanged.
 
-| # | Initial page | P6 EPPM V26 family | Status | Reason / next evidence |
-|---|--------------|--------------------|--------|------------------------|
-| 16 | Risk & Issue Management | Risks and issues | **MISSING** | Engineering exposes `/risks` and `/issues` read routes; an Enterprise risk workspace is not built. Next: authorized, revision-pinned read page with no schedule duplication. |
-| 17 | Document & Information Management | Project documents | **MISSING** | `/documents` read exists; no Enterprise document page or lifecycle actions. Next: document list/detail with access rules from the existing service. |
-| 18 | EPS / Project Hierarchy | Projects and EPS | **MISSING** | Projects page lists projects; EPS tree and rollups are not implemented. Next: authorized hierarchy view fed by Engineering project structure. |
-| 19 | Team Member My Activities | Team Member Web | **MISSING** | Requires an Engineering Activity Status contract; Enterprise must not read or write Engineering activity files. Next: versioned cross-environment contract, owned by Engineering. |
-| 20 | Timesheets & Time Reporting | Team Member timesheets | **MISSING** | Engineering-owned time/actuals; no contract exists. Must not be approximated by generic tasks. |
-| 21 | Notifications & Messaging | Workflow notifications | **MISSING** | No notification/messaging contract mounted. Next: reuse verified identity/team messaging contracts. |
-| 22 | Enterprise Administration Settings | Enterprise administration | **IN_PROGRESS** | Access center covers organizations, users, roles, teams, invitations, grants and audit; a dedicated settings surface is absent. |
-| 23 | Form Builder Integration | Administration | **MISSING** | `/api/forms/organization/overview` is mounted and referenced from Knowledge, but there is no Enterprise form-building page. |
-| 24 | Audit & Activity Log | Administration and security | **MISSING** | `GET /api/enterprise/audit` is mounted and append-only; no dedicated audit page, only the access register. |
-| 25 | Resource Directory & Assignments | Resources and resource administration | **IN_PROGRESS** | Capacity read-only view exists; directory, assignment and leveling actions are not built and must not duplicate Engineering. |
+| # | Page | Route | Status | Fields written | Help topic / direct URL | What is real | What remains |
+|---|------|-------|--------|----------------|-------------------------|--------------|--------------|
+| 16 | Risk & Issue Management | `/cubi/enterprise/risks` | **WIRED_WRITE** | title · risk_type · severity · owner · description · status | *About Risks* <https://docs.oracle.com/cd/G48897_01/p6help/en/6628.htm> | Create/edit/soft delete/restore on `/api/enterprise/risks`; server validates type and severity; audit recorded | Schedule and cost impact stay in Engineering; no risk score is calculated |
+| 17 | Document & Information Management | `/cubi/enterprise/documents` | **WIRED_WRITE** | title · category · owner · link · description · status | *About Documents* <https://docs.oracle.com/cd/G48897_01/p6help/en/6620.htm> | Register of document identity and review state with revisions and audit | Binary storage is out of scope; the page states that instead of implying upload |
+| 18 | EPS / Project Hierarchy | `/cubi/enterprise/eps` | **WIRED_WRITE** | name · code · parent_id · description · status | *About the Enterprise Project Structure (EPS)* <https://docs.oracle.com/cd/G48897_01/p6help/en/6621.htm> | CUBI-owned EPS register with parent reference, revision history and audit | No CPM rollup; project dates remain Engineering facts |
+| 19 | Team Member My Activities | `/cubi/enterprise/member-activities` | **WIRED_READ** | — (read-only by design) | *About P6 Team Member Status Updates* <https://docs.oracle.com/cd/G48897_01/p6help/en/50904.htm> | Reads the authoritative `GET /api/projects/{id}/p6/activities` route and links back to Engineering | No write control; status updates are performed in Engineering |
+| 20 | Timesheets & Time Reporting | `/cubi/enterprise/timesheets` | **WIRED_WRITE** | user_id · work_date · hours · project_id · note · status | *About Timesheets* <https://docs.oracle.com/cd/G48897_01/p6help/en/6610.htm> | Server validates hours (0 < h ≤ 24) and ISO dates on create and patch; soft delete and audit | P6 timesheet approval and actuals remain Engineering-owned |
+| 21 | Notifications & Messaging | `/cubi/enterprise/notifications` | **WIRED_WRITE** | title · message · audience · channel · status | *About email Notifications* <https://docs.oracle.com/cd/G48897_01/p6help/en/6605.htm> | Notification records with audience and channel, revisions and audit | No external delivery is claimed unless the server reports it |
+| 22 | Enterprise Administration Settings | `/cubi/enterprise/settings` | **WIRED_WRITE** | key · value · description · status | *About Application Settings* <https://docs.oracle.com/cd/G48897_01/p6help/en/36403.htm> | Admin-only writes; a non-administrator receives 403 `ENTERPRISE_ADMIN_REQUIRED` | Settings are tenant records; no application restart or provisioning action |
+| 23 | Form Builder Integration | `/cubi/enterprise/forms` | **WIRED_WRITE** | name · description · fields (JSON) · status | *About User Defined Fields* <https://docs.oracle.com/cd/G48897_01/p6help/en/6599.htm> | Server rejects an empty or unnamed field list; admin-only writes; JSON parsed in the client before send | Form rendering into other pages is not opened |
+| 24 | Audit & Activity Log | `/cubi/enterprise/audit` | **WIRED_READ** | — (append-only) | *About Table Auditing* <https://docs.oracle.com/cd/G48897_01/p6help/en/102813.htm> | Reads `GET /api/enterprise/audit`; `POST` answers 405 by design | No export or retention policy editor |
+| 25 | Resource Directory & Assignments | `/cubi/enterprise/directory` | **WIRED_WRITE** | display_name · email · role_title · team · capacity_hours · status | *About Resources* <https://docs.oracle.com/cd/G48897_01/p6help/en/6640.htm> | Tenant directory records with revision history and audit | Calendars, units and rates stay authoritative in Engineering; no leveling |
 
-Each of the ten remains open work. None is claimed as delivered, and none is
-counted toward the 15 verified pages.
+Live verification for all 25 pages: `65/65` browser checks, `49/49` API checks,
+`43/43` locale checks, screenshots `01`–`25` in
+`artifacts/enterprise-preview/`. The register pages share one config-driven
+component (`pages/records.ts`) so the field contract is visible in one place.
 
 ---
-
 
 ## Page 1 — CUBI Homepage
 

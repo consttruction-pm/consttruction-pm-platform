@@ -50,6 +50,18 @@ import { renderApprovals } from "./pages/approvals.js";
 import { renderResources } from "./pages/resources.js";
 import { renderReports } from "./pages/reports.js";
 import { renderKnowledge } from "./pages/knowledge.js";
+import {
+  renderRisks,
+  renderDocuments,
+  renderEps,
+  renderTimesheets,
+  renderNotifications,
+  renderSettings,
+  renderForms,
+  renderDirectory,
+} from "./pages/registers.js";
+import { renderAudit } from "./pages/audit.js";
+import { renderMemberActivities } from "./pages/member-activities.js";
 
 export type ToastKind = "info" | "error";
 
@@ -87,6 +99,16 @@ const RENDERERS: Record<Exclude<PageId, "login" | "not-found">, Renderer> = {
   resources: renderResources,
   reports: renderReports,
   knowledge: renderKnowledge,
+  risks: renderRisks,
+  documents: renderDocuments,
+  eps: renderEps,
+  timesheets: renderTimesheets,
+  notifications: renderNotifications,
+  settings: renderSettings,
+  forms: renderForms,
+  audit: renderAudit,
+  directory: renderDirectory,
+  memberActivities: renderMemberActivities,
 };
 
 type AppState = {
@@ -205,7 +227,7 @@ function renderShell(): void {
     nav.append(section);
   };
   group("nav.group.entry", ["roles", "workbench", "environments"]);
-  group("nav.group.enterprise", ["dashboard", "portfolio", "projects", "access", "tasks", "workflows", "approvals", "resources", "reports", "knowledge"]);
+  group("nav.group.enterprise", ["dashboard", "portfolio", "projects", "eps", "access", "directory", "tasks", "memberActivities", "timesheets", "workflows", "approvals", "risks", "documents", "resources", "reports", "notifications", "knowledge", "forms", "settings", "audit"]);
   sidebar.append(nav);
 
   const foot = el("div", { class: "cubi-sidebar-foot" });

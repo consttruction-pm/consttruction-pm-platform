@@ -535,6 +535,155 @@ class EnterpriseWorkbenchHttpTests(unittest.TestCase):
         self.assertTrue(status.startswith("404"))
         self.assertEqual(payload, {})  # The inner app answered, not this middleware.
 
+    # -- register kinds delivered with the initial-set pages --------------
+    REGISTER_PAYLOADS = {
+        "risks": {"title": "Excavation collapse", "risk_type": "risk", "severity": "high", "owner": "alice"},
+        "documents": {"title": "Method statement", "category": "procedure", "owner": "alice"},
+        "eps": {"name": "North region", "code": "NR", "parent_id": ""},
+        "timesheets": {"user_id": "alice", "work_date": "2026-11-16", "hours": 7.5},
+        "notifications": {"title": "Review due", "audience": "team-preview-delivery", "channel": "in_app"},
+        "settings": {"key": "timesheet.week_start", "value": "monday"},
+        "forms": {"name": "Site observation", "fields": [{"name": "title", "type": "text"}]},
+        "directory": {"display_name": "Alice", "role_title": "Planner", "capacity_hours": 40},
+    }
+
+    def test_register_kinds_support_full_crud_and_restore(self):
+        for kind, payload in self.REGISTER_PAYLOADS.items():
+            with self.subTest(kind=kind):
+                status, created = _request(self.app, "POST", f"/api/enterprise/{kind}", body=payload)
+                self.assertTrue(status.startswith("201"), (kind, status, created))
+                record = created["record"]
+                self.assertEqual(record["kind"], kind)
+                self.assertEqual(record["revision"], 1)
+
+                status, listed = _request(self.app, "GET", f"/api/enterprise/{kind}")
+                self.assertTrue(status.startswith("200"))
+                self.assertIn(record["record_id"], {item["record_id"] for item in listed["items"]})
+
+                status, updated = _request(
+                    self.app,
+                    "PATCH",
+                    f"/api/enterprise/{kind}/{record['record_id']}",
+                    body={"expected_revision": 1, "status": "archived"},
+                )
+                self.assertTrue(status.startswith("200"), (kind, status, updated))
+                self.assertEqual(updated["record"]["revision"], 2)
+                self.assertEqual(updated["record"]["status"], "archived")
+
+                status, deleted = _request(
+                    self.app,
+                    "DELETE",
+                    f"/api/enterprise/{kind}/{record['record_id']}",
+                    body={"expected_revision": 2},
+                )
+                self.assertTrue(status.startswith("200"))
+                self.assertIsNotNone(deleted["record"]["deleted_at"])
+
+                status, hidden = _request(self.app, "GET", f"/api/enterprise/{kind}")
+                self.assertNotIn(record["record_id"], {item["record_id"] for item in hidden["items"]})
+
+                status, with_deleted = _request(
+                    self.app, "GET", f"/api/enterprise/{kind}", query="include_deleted=1"
+                )
+                self.assertIn(record["record_id"], {item["record_id"] for item in with_deleted["items"]})
+
+                status, restored = _request(
+                    self.app,
+                    "POST",
+                    f"/api/enterprise/{kind}/{record['record_id']}/restore",
+                    body={"expected_revision": 3},
+                )
+                self.assertTrue(status.startswith("200"))
+                self.assertIsNone(restored["record"]["deleted_at"])
+
+    def test_register_records_are_tenant_isolated(self):
+        _, created = _request(self.app, "POST", "/api/enterprise/risks", body={"title": "Tenant A risk"})
+        risk_id = created["record"]["record_id"]
+        status, _ = _request(self.app, "GET", f"/api/enterprise/risks/{risk_id}", session="carol-session")
+        self.assertTrue(status.startswith("404"))
+        status, payload = _request(self.app, "GET", "/api/enterprise/risks", session="carol-session")
+        self.assertTrue(status.startswith("200"))
+        self.assertEqual(payload["items"], [])
+
+    def test_timesheet_hours_and_date_are_validated(self):
+        for body, code in (
+            ({"user_id": "alice", "work_date": "2026-11-16", "hours": 0}, "HOURS_INVALID"),
+            ({"user_id": "alice", "work_date": "2026-11-16", "hours": 25}, "HOURS_INVALID"),
+            ({"user_id": "alice", "work_date": "2026-11-16", "hours": "8"}, "HOURS_INVALID"),
+            ({"user_id": "alice", "work_date": "16/11/2026", "hours": 8}, "WORK_DATE_INVALID"),
+            ({"user_id": "alice", "work_date": "2026-02-30", "hours": 8}, "WORK_DATE_INVALID"),
+        ):
+            with self.subTest(code=code):
+                status, payload = _request(self.app, "POST", "/api/enterprise/timesheets", body=body)
+                self.assertTrue(status.startswith("400"))
+                self.assertEqual(payload["code"], code)
+
+        _, created = _request(
+            self.app, "POST", "/api/enterprise/timesheets",
+            body={"user_id": "alice", "work_date": "2026-11-16", "hours": 8},
+        )
+        record = created["record"]
+        status, payload = _request(
+            self.app,
+            "PATCH",
+            f"/api/enterprise/timesheets/{record['record_id']}",
+            body={"expected_revision": 1, "hours": 30},
+        )
+        self.assertTrue(status.startswith("400"))
+        self.assertEqual(payload["code"], "HOURS_INVALID")
+
+    def test_risk_type_and_severity_are_validated(self):
+        status, payload = _request(
+            self.app, "POST", "/api/enterprise/risks",
+            body={"title": "Bad type", "risk_type": "hazard"},
+        )
+        self.assertTrue(status.startswith("400"))
+        self.assertEqual(payload["code"], "RISK_TYPE_INVALID")
+        status, payload = _request(
+            self.app, "POST", "/api/enterprise/risks",
+            body={"title": "Bad severity", "severity": "extreme"},
+        )
+        self.assertTrue(status.startswith("400"))
+        self.assertEqual(payload["code"], "SEVERITY_INVALID")
+
+    def test_forms_require_named_fields(self):
+        status, payload = _request(
+            self.app, "POST", "/api/enterprise/forms", body={"name": "Empty"}
+        )
+        self.assertTrue(status.startswith("400"))
+        self.assertEqual(payload["code"], "FIELDS_REQUIRED")
+
+        status, payload = _request(
+            self.app, "POST", "/api/enterprise/forms",
+            body={"name": "Unnamed", "fields": [{"type": "text"}]},
+        )
+        self.assertTrue(status.startswith("400"))
+        self.assertEqual(payload["code"], "FORM_FIELD_INVALID")
+
+    def test_admin_register_kinds_reject_non_admins_but_stay_readable(self):
+        for kind in ("settings", "forms"):
+            with self.subTest(kind=kind):
+                status, payload = _request(
+                    self.app, "POST", f"/api/enterprise/{kind}",
+                    body={"key": "k", "value": "v", "name": "n", "fields": [{"name": "f"}]},
+                    session="dave-session",
+                )
+                self.assertTrue(status.startswith("403"))
+                self.assertEqual(payload["code"], "ENTERPRISE_ADMIN_REQUIRED")
+
+                status, payload = _request(
+                    self.app, "GET", f"/api/enterprise/{kind}", session="bob-session"
+                )
+                self.assertTrue(status.startswith("200"))
+                self.assertEqual(payload["items"], [])
+
+    def test_non_admin_registers_reject_viewers(self):
+        status, payload = _request(
+            self.app, "POST", "/api/enterprise/risks", body={"title": "Viewer write"}, session="bob-session"
+        )
+        self.assertTrue(status.startswith("403"))
+        self.assertEqual(payload["code"], "ENTERPRISE_WRITE_DENIED")
+
     def test_seed_is_idempotent(self):
         before = len(self.store.list("tenant-a", "teams"))
         self.store.seed_preview_fixtures(

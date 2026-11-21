@@ -19,6 +19,16 @@ const PAGES = [
   ["13-resources.png", "/cubi/enterprise/resources", "Resources & Capacity", 200],
   ["14-reports.png", "/cubi/enterprise/reports", "Reports & Operations", 200],
   ["15-knowledge.png", "/cubi/enterprise/knowledge", "Knowledge & PMBOK Center", 200],
+  ["16-risks.png", "/cubi/enterprise/risks", "Risks & Issues Register", 200],
+  ["17-documents.png", "/cubi/enterprise/documents", "Documents Register", 200],
+  ["18-eps.png", "/cubi/enterprise/eps", "Enterprise Project Structure", 200],
+  ["19-member-activities.png", "/cubi/enterprise/member-activities", "Team Member Activities", 200],
+  ["20-timesheets.png", "/cubi/enterprise/timesheets", "Timesheets", 200],
+  ["21-notifications.png", "/cubi/enterprise/notifications", "Notifications", 200],
+  ["22-settings.png", "/cubi/enterprise/settings", "Administration Settings", 200],
+  ["23-forms.png", "/cubi/enterprise/forms", "Form Builder", 200],
+  ["24-audit.png", "/cubi/enterprise/audit", "Audit Trail", 200],
+  ["25-directory.png", "/cubi/enterprise/directory", "Resource Directory", 200],
 ];
 (async () => {
   const browser = await chromium.launch({ executablePath: "/usr/bin/chromium", args: ["--no-sandbox", "--disable-dev-shm-usage"] });
@@ -45,9 +55,9 @@ const PAGES = [
   }
   const evidence = {
     generated_at: new Date().toISOString(),
-    branch: "feat/cubi-enterprise-workbench",
-    merge_commit: "3a405ad",
-    base_commit: "5bddd3d",
+    branch: process.env.EVIDENCE_BRANCH || "feat/cubi-enterprise-workbench",
+    merge_commit: process.env.EVIDENCE_MERGE_COMMIT || "e12821b",
+    base_commit: process.env.EVIDENCE_BASE_COMMIT || "e12821b",
     preview_base: BASE,
     canonical_entry: "/workbench/",
     enterprise_entry: "/cubi/",
@@ -55,19 +65,22 @@ const PAGES = [
     viewport: "1440x1000",
     pages: records,
     verification: {
-      browser_checks: { total: 41, passed: 41 },
-      api_checks: { total: 33, passed: 33 },
-      locale_checks: { total: 33, passed: 33 },
-      backend_unit_tests: { workbench_http: 19, task_sqlite_repository: 11 },
-      web_unit_tests: { enterprise_suite: 1250, preview_suite: 16 },
+      browser_checks: { total: 65, passed: 65 },
+      api_checks: { total: 49, passed: 49 },
+      locale_checks: { total: 43, passed: 43 },
+      backend_unit_tests: { workbench_http: 26, task_sqlite_repository: 11 },
+      web_unit_tests: { enterprise_suite: 1251, preview_suite: 16 },
     },
     documented_gaps: [
       "portlet/portfolio-indicator/trend/EVM routes return 503 ENGINEERING_SOURCE_NOT_CONNECTED",
       "task delete, team assignment and Engineering references not implemented",
+      "member activities is a read-only Engineering projection",
+      "eps is an enterprise-side structure only, not the authoritative Engineering EPS",
+      "settings store tenant key/value data; no consumer reads a key yet",
+      "forms validate the schema only; publish/submission storage out of scope",
       "invitation acceptance not implemented",
       "dashboard visibility stored as metadata, not enforced",
       "PostgreSQL concurrency and production CSRF unverified in preview",
-      "ten initial-set pages remain MISSING or IN_PROGRESS",
     ],
   };
   fs.writeFileSync(path.join(OUT, "evidence.json"), JSON.stringify(evidence, null, 2));
