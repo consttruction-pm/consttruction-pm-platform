@@ -21,6 +21,16 @@ export type PageId =
   | "resources"
   | "reports"
   | "knowledge"
+  | "risks"
+  | "documents"
+  | "eps"
+  | "timesheets"
+  | "notifications"
+  | "settings"
+  | "forms"
+  | "audit"
+  | "directory"
+  | "memberActivities"
   | "not-found";
 
 export type RouteDefinition = {
@@ -50,6 +60,16 @@ export const ROUTES: readonly RouteDefinition[] = [
   { id: "resources", segment: "enterprise/resources", titleKey: "page.resources.title", group: "enterprise", requiresSession: true, enterpriseArea: true },
   { id: "reports", segment: "enterprise/reports", titleKey: "page.reports.title", group: "enterprise", requiresSession: true, enterpriseArea: true },
   { id: "knowledge", segment: "enterprise/knowledge", titleKey: "page.knowledge.title", group: "enterprise", requiresSession: true, enterpriseArea: true },
+  { id: "risks", segment: "enterprise/risks", titleKey: "page.risks.title", group: "enterprise", requiresSession: true, enterpriseArea: true },
+  { id: "documents", segment: "enterprise/documents", titleKey: "page.documents.title", group: "enterprise", requiresSession: true, enterpriseArea: true },
+  { id: "eps", segment: "enterprise/eps", titleKey: "page.eps.title", group: "enterprise", requiresSession: true, enterpriseArea: true },
+  { id: "memberActivities", segment: "enterprise/member-activities", titleKey: "page.memberActivities.title", group: "enterprise", requiresSession: true, enterpriseArea: true },
+  { id: "timesheets", segment: "enterprise/timesheets", titleKey: "page.timesheets.title", group: "enterprise", requiresSession: true, enterpriseArea: true },
+  { id: "notifications", segment: "enterprise/notifications", titleKey: "page.notifications.title", group: "enterprise", requiresSession: true, enterpriseArea: true },
+  { id: "settings", segment: "enterprise/settings", titleKey: "page.settings.title", group: "enterprise", requiresSession: true, enterpriseArea: true },
+  { id: "forms", segment: "enterprise/forms", titleKey: "page.forms.title", group: "enterprise", requiresSession: true, enterpriseArea: true },
+  { id: "audit", segment: "enterprise/audit", titleKey: "page.audit.title", group: "enterprise", requiresSession: true, enterpriseArea: true },
+  { id: "directory", segment: "enterprise/directory", titleKey: "page.directory.title", group: "enterprise", requiresSession: true, enterpriseArea: true },
 ];
 
 export function normalizePath(pathname: string): string {

@@ -28,6 +28,15 @@ function rec(n,ok,d=""){results.push({n,ok:!!ok});console.log(`${ok?"PASS":"FAIL
    rec(`${loc} lang attribute`, lang===loc || (loc==="tr"&&lang==="tr-TR"), lang);
    rec(`${loc} translated page title`, (h1||"").includes(title), (h1||"").trim());
  }
+ // Initial-set pages are translated in every locale, not just the shell.
+ const riskTitles={fa:"ریسک‌ها و مسائل",ar:"المخاطر والمشكلات",de:"Risiken & Probleme",zh:"风险与问题",fr:"Risques et problèmes",ja:"リスクと課題",ko:"리스크 및 이슈",ru:"Риски и проблемы",tr:"Riskler ve sorunlar",en:"Risks & issues"};
+ for (const [loc,expected] of Object.entries(riskTitles)) {
+   await p.selectOption('select[aria-label]', loc);
+   await p.goto("http://127.0.0.1:4180/cubi/enterprise/risks");
+   await p.waitForTimeout(300);
+   const h1=(await p.locator("h1").first().textContent())||"";
+   rec(`${loc} risks page translated`, h1.includes(expected), h1.trim());
+ }
  // Numbers and dates in Persian dashboard/portfolios
  await p.selectOption('select[aria-label]', "fa");
  await p.goto("http://127.0.0.1:4180/cubi/enterprise/projects");

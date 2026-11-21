@@ -60,6 +60,16 @@ async function toast(page, pattern, timeout = 5000) {
     ["enterprise/resources", "Resources & capacity"],
     ["enterprise/reports", "Reports & operations"],
     ["enterprise/knowledge", "Knowledge & PMBOK"],
+    ["enterprise/risks", "Risks & issues"],
+    ["enterprise/documents", "Documents"],
+    ["enterprise/eps", "Enterprise project structure"],
+    ["enterprise/member-activities", "Team member activities"],
+    ["enterprise/timesheets", "Timesheets"],
+    ["enterprise/notifications", "Notifications"],
+    ["enterprise/settings", "Administration"],
+    ["enterprise/forms", "Form builder"],
+    ["enterprise/audit", "Audit trail"],
+    ["enterprise/directory", "Resource directory"],
   ];
 
   for (const [route, expected] of routes) {
@@ -106,6 +116,32 @@ async function toast(page, pattern, timeout = 5000) {
   await page.waitForTimeout(300);
   const taskRow = await page.getByText(taskTitle).count();
   record("tasks create shows real row", taskRow > 0, String(taskRow));
+
+  // -- risk register: create through the real form ----------------------
+  await page.goto(`${BASE}/cubi/enterprise/risks`);
+  await settle(page);
+  const riskTitle = `Browser risk ${stamp}`;
+  await page.locator('[data-testid="risks-form"] input').first().fill(riskTitle);
+  await page.getByRole("button", { name: "Create record" }).click();
+  await toast(page, "Record created on the server.");
+  await page.reload();
+  await settle(page);
+  const riskRow = await page.locator('[data-testid="risks-table"]').getByText(riskTitle).count();
+  record("risks create persists in the server register", riskRow > 0, String(riskRow));
+
+  // -- member activities: read-only Engineering projection --------------
+  await page.goto(`${BASE}/cubi/enterprise/member-activities`);
+  await settle(page);
+  const projectSelect = page.locator('[data-testid="member-activities-list"] select');
+  const projectValues = await projectSelect.locator("option").evaluateAll((options) => options.map((option) => option.value).filter(Boolean));
+  record("member activities offers real projects", projectValues.length > 0, String(projectValues.length));
+  if (projectValues.length) {
+    await projectSelect.selectOption(projectValues[0]);
+    await settle(page);
+    const rows = await page.locator('[data-testid="member-activities-table"] tbody tr').count();
+    record("member activities reads Engineering records", rows > 0, String(rows));
+    record("member activities offers no write control", (await page.getByRole("button", { name: /create|delete|save/i }).count()) === 0);
+  }
 
   // -- approvals: queue, fill from Review, submit decision --------------
   await page.goto(`${BASE}/cubi/enterprise/approvals`);

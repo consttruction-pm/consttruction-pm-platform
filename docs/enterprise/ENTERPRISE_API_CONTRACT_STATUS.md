@@ -1,8 +1,9 @@
 # Enterprise Workbench — API Contract & Connection Status
 
-Status date: 2026-11-20. Branch: `feat/cubi-enterprise-workbench` (merged with
-`main` after PR #2085). This supersedes the first-delivery status where the
-`/api/enterprise/*` routes were described as unmounted.
+Status date: 2026-11-21. Branch: `feat/cubi-enterprise-workbench`. This supersedes
+the first-delivery status where the `/api/enterprise/*` routes were described as
+unmounted. It now covers all **25 initial-set pages** delivered on the preview
+runtime.
 
 This document separates **mounted server capability** from **contracts the UI is
 ready to consume**. A route is *mounted* only after it answered on the running
@@ -83,24 +84,48 @@ until membership persistence and the authorized resolver exist.
 
 Kinds: `organizations`, `users`, `teams`, `memberships`, `invitations`, `roles`,
 `grants`, `workflows`, `approvals`, `feedback`, `portfolios`, `decisions`,
-`dashboards`.
+`dashboards`, `risks`, `documents`, `eps`, `timesheets`, `notifications`,
+`settings`, `forms`, `directory`.
 
 | Method | Path | Behaviour |
 | --- | --- | --- |
-| GET | `/api/enterprise/{kind}` | tenant-scoped list; filters `status`, `project_id`, `q`, `limit` |
-| POST | `/api/enterprise/{kind}` | create with optional `Idempotency-Key`; required fields validated |
+| GET | `/api/enterprise/{kind}` | tenant-scoped list; filters `status`, `project_id`, `q`, `limit`, `include_deleted` (`1`/`true`/`yes`) |
+| POST | `/api/enterprise/{kind}` | create with optional `Idempotency-Key`; required fields and kind-specific rules validated |
 | GET | `/api/enterprise/{kind}/{id}` | 404 for unknown, deleted or cross-tenant records |
 | PATCH | `/api/enterprise/{kind}/{id}` | `expected_revision`; immutable identity fields rejected with `400 IMMUTABLE_FIELDS`; stale → `409 REVISION_CONFLICT` |
 | DELETE | `/api/enterprise/{kind}/{id}` | soft delete with `expected_revision`; row stays for audit |
 | POST | `/api/enterprise/{kind}/{id}/restore` | restores a soft-deleted record; `409 RECORD_NOT_DELETED` otherwise |
 | GET | `/api/enterprise/audit` | append-only audit events; write methods → `405` |
 
+Required fields per kind: `risks.title`, `documents.title`, `eps.name`,
+`timesheets.user_id` + `work_date` + `hours`, `notifications.title`,
+`settings.key`, `forms.name` + `fields`, `directory.display_name`.
+
+Kind-specific validation (applied on both create and PATCH):
+
+| Kind | Rule | Error |
+| --- | --- | --- |
+| `risks` | `risk_type` ∈ `risk`, `issue` | `400 RISK_TYPE_INVALID` |
+| `risks` | `severity` (when present) ∈ `low`, `medium`, `high`, `critical` | `400 SEVERITY_INVALID` |
+| `timesheets` | `hours` numeric, `0 < hours ≤ 24` | `400 HOURS_INVALID` |
+| `timesheets` | `work_date` matches `YYYY-MM-DD` | `400 WORK_DATE_INVALID` |
+| `forms` | `fields` non-empty array of objects with a non-blank `name` | `400 FORM_FIELDS_REQUIRED` / `400 FORM_FIELD_INVALID` |
+
 Role gates are server-side:
 
 - read: `enterprise_viewer`, `enterprise_user` or `enterprise_admin`;
 - write: `enterprise_user` or `enterprise_admin`;
 - `organizations`, `users`, `teams`, `memberships`, `invitations`, `roles`,
-  `grants`: `enterprise_admin` only.
+  `grants`, `settings`, `forms`: `enterprise_admin` only.
+
+Admin-only kinds stay readable by every enterprise tier and answer
+`403 ENTERPRISE_ADMIN_REQUIRED` on write, so the access/settings pages can show
+the record without inventing a mutation.
+
+`directory` is the tenant contact directory backing the Directory page;
+`audit` is read-only and has no create/edit/delete control in the client.
+`eps` stores an Enterprise-side EPS structure only; the authoritative project
+hierarchy stays in Engineering and is not duplicated here.
 
 Preview fixtures seed only the tenant organization, the demo users, the role
 catalogue and one `demo: true` team. Tasks, approvals, workflows, invitations,
@@ -201,6 +226,18 @@ state on its own.
   not connected. No value is calculated in Enterprise.
 - Task delete, team assignment and Engineering object references are not
   implemented; the API rejects them rather than faking support.
+- Member Activities (page 19) is a **read-only** projection of
+  `/api/projects/{id}/p6/activities`. It offers no create/edit/delete control and
+  links out to Engineering for any change; it never writes activity data.
+- `eps` records are an Enterprise-side structure only. They do not create,
+  reorder or reorganize the authoritative Engineering EPS, which remains owned
+  by Engineering.
+- `directory` and `settings` are tenant-scoped collaboration data. `settings`
+  stores key/value configuration for the tenant; it does not change server
+  behaviour until a consumer reads the key, and no page claims otherwise.
+- `forms` validates the field schema only (non-empty, named fields). Schema
+  versioning, published-form immutability and submission storage are not part of
+  this delivery.
 - Invitation acceptance is not implemented; the access page marks that row
   *pending server route*.
 - Dashboard visibility is stored but not enforced as access control in preview.

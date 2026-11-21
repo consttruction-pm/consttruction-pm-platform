@@ -47,8 +47,19 @@ _KINDS = {
     "portfolios",
     "decisions",
     "dashboards",
+    "risks",
+    "documents",
+    "eps",
+    "timesheets",
+    "notifications",
+    "settings",
+    "forms",
+    "directory",
 }
-_ADMIN_KINDS = {"organizations", "users", "teams", "memberships", "invitations", "roles", "grants"}
+_ADMIN_KINDS = {
+    "organizations", "users", "teams", "memberships", "invitations", "roles", "grants",
+    "settings", "forms",
+}
 _IMMUTABLE_FIELDS = {"record_id", "tenant_id", "kind", "created_at", "created_by_user_id", "revision"}
 _REQUIRED_FIELDS = {
     "organizations": ("name",),
@@ -64,6 +75,14 @@ _REQUIRED_FIELDS = {
     "portfolios": ("name",),
     "decisions": ("title",),
     "dashboards": ("title",),
+    "risks": ("title",),
+    "documents": ("title",),
+    "eps": ("name",),
+    "timesheets": ("user_id", "work_date", "hours"),
+    "notifications": ("title",),
+    "settings": ("key",),
+    "forms": ("name", "fields"),
+    "directory": ("display_name",),
 }
 _ID_PREFIX = {
     "organizations": "org",
@@ -79,6 +98,14 @@ _ID_PREFIX = {
     "portfolios": "pf",
     "decisions": "dec",
     "dashboards": "dash",
+    "risks": "risk",
+    "documents": "doc",
+    "eps": "eps",
+    "timesheets": "ts",
+    "notifications": "ntf",
+    "settings": "set",
+    "forms": "form",
+    "directory": "dir",
 }
 
 
@@ -711,6 +738,7 @@ class EnterpriseWorkbenchHttpMiddleware:
                     project_id=_one(query, "project_id"),
                     search=_one(query, "q"),
                     limit=int(_one(query, "limit") or 100),
+                    include_deleted=_one(query, "include_deleted") in {"1", "true", "yes"},
                 )
                 return 200, {"contract_version": f"cubi-enterprise-{kind}.v1", "items": list(items), "next_cursor": None}
             if method == "POST":
@@ -777,6 +805,7 @@ class EnterpriseWorkbenchHttpMiddleware:
                 expected = payload.pop("expected_revision", None)
                 if isinstance(expected, bool) or not isinstance(expected, int):
                     raise EnterpriseApiError(400, "EXPECTED_REVISION_REQUIRED")
+                self._validate_kind_fields(kind, payload)
                 record = self._store.update(
                     session.tenant_id, kind, record_id, payload, actor_id=session.user_id, expected_revision=expected
                 )
@@ -842,6 +871,41 @@ class EnterpriseWorkbenchHttpMiddleware:
         email = payload.get("email")
         if email is not None and (not isinstance(email, str) or not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email)):
             raise EnterpriseApiError(400, "EMAIL_INVALID")
+        EnterpriseWorkbenchHttpMiddleware._validate_kind_fields(kind, payload)
+
+    @staticmethod
+    def _validate_kind_fields(kind: str, payload: Mapping[str, object]) -> None:
+        """Validate the fields that would corrupt a record if written.
+
+        Called for both create and patch, so an edit cannot bypass a rule that
+        creation enforces.
+        """
+        if kind == "risks":
+            risk_type = str(payload.get("risk_type", "risk"))
+            if risk_type not in {"risk", "issue"}:
+                raise EnterpriseApiError(400, "RISK_TYPE_INVALID")
+            severity = payload.get("severity")
+            if severity is not None and str(severity) not in {"low", "medium", "high", "critical"}:
+                raise EnterpriseApiError(400, "SEVERITY_INVALID")
+        if kind == "timesheets":
+            if "hours" in payload:
+                hours = payload.get("hours")
+                if isinstance(hours, bool) or not isinstance(hours, (int, float)) or not 0 < float(hours) <= 24:
+                    raise EnterpriseApiError(400, "HOURS_INVALID")
+            if "work_date" in payload:
+                work_date = str(payload.get("work_date", ""))
+                if not re.match(r"^\d{4}-\d{2}-\d{2}$", work_date):
+                    raise EnterpriseApiError(400, "WORK_DATE_INVALID")
+                try:
+                    datetime.strptime(work_date, "%Y-%m-%d")
+                except ValueError:
+                    raise EnterpriseApiError(400, "WORK_DATE_INVALID") from None
+        if kind == "forms" and "fields" in payload:
+            fields = payload.get("fields")
+            if not isinstance(fields, list) or not fields:
+                raise EnterpriseApiError(400, "FORM_FIELDS_REQUIRED")
+            if any(not isinstance(field, dict) or not str(field.get("name", "")).strip() for field in fields):
+                raise EnterpriseApiError(400, "FORM_FIELD_INVALID")
 
     @staticmethod
     def _body(environ: Mapping[str, object]) -> dict[str, object]:

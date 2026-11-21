@@ -33,6 +33,16 @@ test("every Enterprise page resolves to exactly one route", () => {
     ["/cubi/enterprise/resources/", "resources"],
     ["/cubi/enterprise/reports/", "reports"],
     ["/cubi/enterprise/knowledge/", "knowledge"],
+    ["/cubi/enterprise/risks/", "risks"],
+    ["/cubi/enterprise/documents/", "documents"],
+    ["/cubi/enterprise/eps/", "eps"],
+    ["/cubi/enterprise/member-activities/", "memberActivities"],
+    ["/cubi/enterprise/timesheets/", "timesheets"],
+    ["/cubi/enterprise/notifications/", "notifications"],
+    ["/cubi/enterprise/settings/", "settings"],
+    ["/cubi/enterprise/forms/", "forms"],
+    ["/cubi/enterprise/audit/", "audit"],
+    ["/cubi/enterprise/directory/", "directory"],
   ];
   for (const [path, page] of expectations) {
     assert.equal(resolvePage(path), page, path);
@@ -102,6 +112,27 @@ test("all ten locales are addressable and right-to-left is explicit", () => {
   }
   // Missing keys fall back to English instead of leaking a raw key.
   assert.equal(translator("de")("page.tasks.subtitle"), translator("en")("page.tasks.subtitle"));
+});
+
+test("every initial-set page is titled in all ten locales, never leaking a raw key", () => {
+  const pages = [
+    "risks", "documents", "eps", "memberActivities", "timesheets",
+    "notifications", "settings", "forms", "audit", "directory",
+  ];
+  for (const locale of ENTERPRISE_LOCALES) {
+    const t = translator(locale);
+    for (const page of pages) {
+      const title = t(`page.${page}.title`);
+      assert.ok(title.length > 0, `${locale}/${page}`);
+      assert.notEqual(title, `page.${page}.title`, `${locale}/${page} leaked a raw key`);
+    }
+  }
+  // Non-English locales must carry a real translation, not the English copy.
+  for (const locale of ["fa", "de", "zh", "ar", "fr", "ja", "ko", "ru", "tr"] as const) {
+    const t = translator(locale);
+    assert.notEqual(t("page.risks.title"), translator("en")("page.risks.title"), locale);
+    assert.notEqual(t("page.audit.title"), translator("en")("page.audit.title"), locale);
+  }
 });
 
 test("workflow validation rejects structural defects and accepts a sound draft", () => {
