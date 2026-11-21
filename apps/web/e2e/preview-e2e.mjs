@@ -1298,7 +1298,7 @@ async function main() {
   const unauthenticatedApp = await fetch(`${baseUrl}/app`, { redirect: "manual" });
   assert(unauthenticatedApp.status === 302, "unauthenticated /app must redirect");
   assert(
-    unauthenticatedApp.headers.get("location") === "/preview/login?next=%2Fapp%3Fview%3Dlive",
+    unauthenticatedApp.headers.get("location") === "/login?next=%2Fapp%3Fview%3Dlive",
     "unauthenticated /app redirect target",
   );
   const unauthenticatedSession = await fetchJson(`${baseUrl}/api/session`);
@@ -1971,7 +1971,7 @@ async function main() {
         requestedProjectUrl,
         'form[action="/preview/login"]',
         "first visit through project deep link",
-        `${baseUrl}/preview/login`,
+        `${baseUrl}/login`,
       );
       const deepLinkLogin = await deepLinkPage.evaluate(`(() => ({
         pathname: location.pathname,
@@ -1979,7 +1979,7 @@ async function main() {
         project: new URLSearchParams(location.search).get("project"),
       }))()`);
       assert(
-        deepLinkLogin.pathname === "/preview/login" &&
+        deepLinkLogin.pathname === "/login" &&
           deepLinkLogin.next === `/app?project=${PROJECT_ID}&view=live` &&
           deepLinkLogin.project === null,
         "login must preserve the requested project and canonical live mode: " +
@@ -2068,7 +2068,7 @@ async function main() {
       await deepLinkPage.setSelect('select[data-workspace-language]', "en");
 
       await deepLinkPage.click("#cubi-preview-banner button");
-      await deepLinkPage.waitFor(`location.pathname === "/"`, "sign out returns to public home");
+      await deepLinkPage.waitFor(`location.pathname === "/login"`, "sign out returns to sign-in");
       const liveSignOutSession = await deepLinkPage.evaluate(
         `fetch("/api/session").then((response) => response.status)`,
         { awaitPromise: true },
@@ -2120,7 +2120,7 @@ async function main() {
     });
 
     await page.click('button[name="role"][value="planner"]');
-    await page.waitFor(`location.pathname === "/app"`, "planner redirect to /app");
+    await page.waitFor(`location.pathname === "/workbench/"`, "planner redirect to /workbench");
     // The canonical /app route is now always the authenticated workspace.
     // The project picker is the first step when no project is in the URL.
     await page.navigate(
@@ -5211,23 +5211,29 @@ async function main() {
     );
 
     await page.click("#cubi-preview-banner button");
-    await page.waitFor(`location.pathname === "/"`, "logout returns to public home");
+    await page.waitFor(`location.pathname === "/login"`, "logout returns to sign-in");
     await page.navigate(
       `${baseUrl}/app?view=live`,
       'form[action="/preview/login"]',
       "guarded live /app after sign out",
-      `${baseUrl}/preview/login`,
+      `${baseUrl}/login`,
     );
     assert(
-      (await page.evaluate("location.pathname")) === "/preview/login",
-      "unauthenticated /app must land on the preview login",
+      (await page.evaluate("location.pathname")) === "/login",
+      "unauthenticated /app must land on the canonical login",
     );
     record("session logout and /app guard work in the browser", {
       path: await page.evaluate("location.pathname"),
     });
 
     await page.click('button[name="role"][value="viewer"]');
-    await page.waitFor(`location.pathname === "/app"`, "viewer redirect to /app");
+    // The guard above asked for `/app?view=live`, so signing in must return to
+    // that exact deep link instead of silently replacing it with the workbench.
+    await page.waitFor(
+      `location.pathname === "/app" &&
+       new URLSearchParams(location.search).get("view") === "live"`,
+      "viewer returns to the requested live workspace",
+    );
     await page.navigate(
       `${baseUrl}/app?view=live`,
       ".cp-project-selection",
@@ -5504,16 +5510,22 @@ async function main() {
       result_rows: viewerRunRows,
     });
     await page.click("#cubi-preview-banner button");
-    await page.waitFor(`location.pathname === "/"`, "final logout returns to public Home");
+    await page.waitFor(`location.pathname === "/login"`, "final logout returns to sign-in");
     await page.navigate(
       `${baseUrl}/app?view=live`,
       'form[action="/preview/login"]',
       "admin login after final sign out",
-      `${baseUrl}/preview/login`,
+      `${baseUrl}/login`,
     );
 
     await page.click('button[name="role"][value="admin"]');
-    await page.waitFor(`location.pathname === "/app"`, "admin redirect to /app");
+    // The previous `/app?view=live` guard is the requested destination; it must
+    // survive the sign-in round trip unchanged.
+    await page.waitFor(
+      `location.pathname === "/app" &&
+       new URLSearchParams(location.search).get("view") === "live"`,
+      "admin returns to the requested live workspace",
+    );
     await page.navigate(
       `${baseUrl}/app?view=live`,
       ".cp-project-selection",
@@ -7009,15 +7021,19 @@ async function main() {
     // not a mocked state: the newcomer session, the empty project list and the
     // created project all go through the same preview API and SQLite store.
     await page.click("#cubi-preview-banner button");
-    await page.waitFor(`location.pathname === "/"`, "logout before newcomer login returns Home");
+    await page.waitFor(`location.pathname === "/login"`, "logout before newcomer login returns sign-in");
     await page.navigate(
       `${baseUrl}/app?view=live`,
       'form[action="/preview/login"]',
       "newcomer login after sign out",
-      `${baseUrl}/preview/login`,
+      `${baseUrl}/login`,
     );
     await page.click('button[name="role"][value="newcomer"]');
-    await page.waitFor(`location.pathname === "/app"`, "newcomer redirect to /app");
+    await page.waitFor(
+      `location.pathname === "/app" &&
+       new URLSearchParams(location.search).get("view") === "live"`,
+      "newcomer returns to the requested live workspace",
+    );
     await page.navigate(
       `${baseUrl}/app?view=live`,
       ".cp-project-selection",
@@ -7247,12 +7263,12 @@ async function main() {
       const restarted = await startManagedRuntime({ database, reset: false });
       managed = restarted;
       await page.navigate(
-        `${restarted.baseUrl}/preview/login`,
+        `${restarted.baseUrl}/login`,
         'form[action="/preview/login"]',
         "login after service restart",
       );
       await page.click('button[name="role"][value="admin"]');
-      await page.waitFor(`location.pathname === "/app"`, "admin redirect after restart");
+      await page.waitFor(`location.pathname === "/workbench/"`, "admin redirect after restart to /workbench");
       await page.navigate(
         `${restarted.baseUrl}/app?view=live`,
         ".cp-project-selection",
