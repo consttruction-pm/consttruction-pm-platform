@@ -431,6 +431,8 @@ class ProductionWebApp:
             return _json(200 if ready else 503, report, cache="no-store")
         if path == "/api/session" and method == "POST":
             return self._login(environ)
+        if path == "/api/signup" and method == "POST":
+            return self._signup(environ)
         if path == "/api/session" and method == "DELETE":
             return self._logout(environ)
         if path.startswith(API_PREFIX):
@@ -470,7 +472,7 @@ class ProductionWebApp:
             return _json(400, {"code": "LOGIN_REQUEST_INVALID"}, cache="no-store")
         if not isinstance(payload, dict):
             return _json(400, {"code": "LOGIN_REQUEST_INVALID"}, cache="no-store")
-        email = payload.get("email")
+        email = payload.get("username", payload.get("email"))
         password = payload.get("password")
         if not isinstance(email, str) or not isinstance(password, str):
             return _json(400, {"code": "LOGIN_REQUEST_INVALID"}, cache="no-store")
@@ -512,6 +514,41 @@ class ProductionWebApp:
             cache="no-store",
             extra=headers,
         )
+
+    def _signup(
+        self, environ: Mapping[str, Any]
+    ) -> tuple[int, list[tuple[str, str]], bytes]:
+        if not self._origin_allowed(environ):
+            return _json(403, {"code": "ORIGIN_NOT_ALLOWED"}, cache="no-store")
+        if _header(environ, "content-type").split(";")[0].strip().lower() != "application/json":
+            return _json(400, {"code": "SIGNUP_REQUEST_INVALID"}, cache="no-store")
+        try:
+            payload = json.loads(_read_body(environ, LOGIN_BODY_LIMIT).decode("utf-8") or "{}")
+        except (IdentityError, UnicodeDecodeError, json.JSONDecodeError):
+            return _json(400, {"code": "SIGNUP_REQUEST_INVALID"}, cache="no-store")
+        if not isinstance(payload, dict):
+            return _json(400, {"code": "SIGNUP_REQUEST_INVALID"}, cache="no-store")
+        username, password = payload.get("username"), payload.get("password")
+        if not isinstance(username, str) or not isinstance(password, str):
+            return _json(400, {"code": "SIGNUP_REQUEST_INVALID"}, cache="no-store")
+        try:
+            issued = self.identity.register(
+                username, password, display_name=str(payload.get("display_name") or "")
+            )
+        except IdentityError as error:
+            if error.code == "USERNAME_TAKEN":
+                return _json(409, {"code": error.code}, cache="no-store")
+            return _json(400, {"code": error.code}, cache="no-store")
+        max_age = max(1, int((issued.expires_at - issued.created_at).total_seconds()))
+        headers = [
+            ("Set-Cookie", session_cookie_header(name=SESSION_COOKIE_NAME, value=issued.token,
+                max_age=max_age, secure=self.secure_cookies)),
+            ("Set-Cookie", csrf_cookie_header(name=CSRF_COOKIE_NAME, value=issued.csrf_token,
+                max_age=max_age, secure=self.secure_cookies)),
+        ]
+        return _json(201, {"user_id": issued.user_id, "tenant_id": issued.tenant_id,
+            "roles": sorted(issued.roles), "expires_at": issued.expires_at.isoformat()},
+            cache="no-store", extra=headers)
 
     def _logout(
         self, environ: Mapping[str, Any]
