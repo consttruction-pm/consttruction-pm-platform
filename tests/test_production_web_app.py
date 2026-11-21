@@ -49,7 +49,12 @@ class StubApi:
             ],
         )
         session_id = environ.get("HTTP_COOKIE", "")
-        return [json.dumps({"ok": True, "seen": environ["PATH_INFO"]}).encode()]
+        payload = (
+            {"projects": [{"project_id": "p1"}], "seen": "/api/projects"}
+            if environ["PATH_INFO"] == "/api/projects"
+            else {"ok": True, "seen": environ["PATH_INFO"]}
+        )
+        return [json.dumps(payload).encode()]
 
 
 @pytest.fixture()
@@ -233,6 +238,19 @@ def test_login_sets_hardened_cookies_and_never_returns_the_token(app):
     assert payload["tenant_id"] == "tenant-a"
     assert payload["roles"] == ["planner"]
     assert "token" not in payload
+
+
+def test_engineering_shell_requires_a_server_authorized_project(app):
+    cookie, _ = login(app)
+    status, headers, _ = call(app, "GET", "/app", cookie=cookie)
+    assert status == 303
+    assert headers["location"] == ["/workbench/"]
+
+    status, headers, _ = call(
+        app, "GET", "/app", cookie=cookie, query="project=not-authorized&view=live"
+    )
+    assert status == 303
+    assert headers["location"] == ["/workbench/"]
 
 
 def test_session_survives_across_requests_and_app_serves_shell(app):
@@ -571,3 +589,30 @@ def test_safe_next_defaults_to_the_personal_workbench_and_preserves_real_deep_li
     )
     assert _safe_next("/ai-workbench?project=alpha&redirect=//evil.test") == "/ai-workbench"
     assert _safe_next("/ai-workbench?project=a/b") == "/ai-workbench"
+
+
+
+def test_signup_creates_persisted_viewer_session(app):
+    status, headers, body = call(
+        app, "POST", "/api/signup",
+        body={"username": "fresh.planner", "password": PASSWORD, "display_name": "Fresh Planner"},
+    )
+    assert status == 201, body
+    payload = json.loads(body)
+    assert payload["roles"] == ["viewer"]
+    assert len(headers["set-cookie"]) == 2
+    session_cookie = next(value for value in headers["set-cookie"] if value.startswith("cp_session="))
+    token = session_cookie.split(";", 1)[0].split("=", 1)[1]
+    session = app.identity.resolve(token)
+    assert session is not None
+    assert session.user_id == payload["user_id"]
+
+
+def test_signup_rejects_foreign_origin(app):
+    status, _, body = call(
+        app, "POST", "/api/signup",
+        body={"username": "hostile.user", "password": PASSWORD},
+        origin="https://evil.example",
+    )
+    assert status == 403
+    assert json.loads(body)["code"] == "ORIGIN_NOT_ALLOWED"

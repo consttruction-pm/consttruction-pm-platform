@@ -46,6 +46,24 @@ def _preview_selected() -> bool:
     return value("VERCEL_ENV") == "preview"
 
 
+def _canonical_preview_selected() -> bool:
+    """Opt a non-production Preview into the canonical PostgreSQL runtime.
+
+    This is deliberately explicit: ordinary Preview deployments continue to
+    use isolated fixtures. When enabled, missing database/session settings
+    fail closed through the production runtime instead of silently falling
+    back to demo data.
+    """
+    enabled = os.environ.get("CUBI_PREVIEW_USE_CANONICAL_DATABASE", "").strip().lower()
+    if enabled not in {"1", "true", "yes"}:
+        return False
+    if os.environ.get("VERCEL_ENV", "").strip().lower() == "production":
+        return False
+    if os.environ.get("VERCEL_TARGET_ENV", "").strip().lower() == "production":
+        return False
+    return True
+
+
 def _json(start_response, status: int, payload: dict[str, object]):
     body = json.dumps(payload).encode("utf-8")
     start_response(
@@ -98,6 +116,19 @@ def _preview(environ, start_response):
 
 
 def app(environ, start_response):
+    # Canonical PostgreSQL Preview is an explicit opt-in and takes precedence
+    # over the fixture-backed Preview adapter. Production selection remains
+    # unchanged; this flag can never redirect a production deployment.
+    if _canonical_preview_selected():
+        if get_runtime is None:
+            print(f"cubi: runtime import failed ({_IMPORT_FAILURE})", file=sys.stderr)
+            return _unavailable(environ, start_response)
+        try:
+            runtime = get_runtime()
+        except Exception as error:  # noqa: BLE001 - fail closed, never use fixtures
+            print(f"cubi: canonical preview runtime unavailable ({type(error).__name__})", file=sys.stderr)
+            return _unavailable(environ, start_response)
+        return runtime(environ, start_response)
     if _preview_selected():
         return _preview(environ, start_response)
     if get_runtime is None:
