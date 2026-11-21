@@ -34,7 +34,7 @@ let searchState: SearchState = { status: "idle" };
 export function renderKnowledge(ctx: PageContext, host: HTMLElement): void {
   const intro = section(
     "CUBI Knowledge & PMBOK",
-    "CUBI-owned guidance, P6 method material and PMBOK references. Content is read from the platform knowledge service; form authoring stays in the shared Form Builder.",
+    "CUBI-owned guidance, method material and PMBOK references. Content is read from the platform knowledge service; form authoring stays in the shared Form Builder.",
   );
   sectionBody(intro,
     note("No second form engine exists here. Forms are opened in the Engineering workspace, where the shared Form Builder is mounted.", "info"),

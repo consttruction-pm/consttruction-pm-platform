@@ -100,7 +100,7 @@ export function renderLogin(ctx: PublicPageContext, host: HTMLElement): void {
       securityLine("Audited decisions", "Approvals and access changes record actor and source revision."),
     ),
     el("p", { class: "cubi-field-hint" },
-      el("a", { text: "P6 EPPM Help — About Security", attrs: { href: SECURITY_HELP, target: "_blank", rel: "noopener noreferrer" } }),
+      el("a", { text: "Product Help — About Security", attrs: { href: SECURITY_HELP, target: "_blank", rel: "noopener noreferrer" } }),
       " · ",
       el("a", { text: "Help contents", attrs: { href: HELP_TOC, target: "_blank", rel: "noopener noreferrer" } }),
     ),

@@ -16,7 +16,7 @@ export function renderMemberActivities(ctx: PageContext, host: HTMLElement): voi
   const help = el("a", { class: "cubi-btn cubi-btn-ghost", text: "Open the Help topic", attrs: { target: "_blank", rel: "noopener noreferrer" } });
   help.href = "https://docs.oracle.com/cd/G48897_01/p6help/en/50904.htm";
   sectionBody(intro,
-    el("p", { class: "cubi-field-hint", text: "Help topic: About P6 Team Member Status Updates" }),
+    el("p", { class: "cubi-field-hint", text: "Help topic: About Team Member Status Updates" }),
     note("This page has no create, edit or delete control. Writing progress here would duplicate the Engineering calculation, so it is not offered.", "warning"),
     el("div", { class: "cubi-row" }, help),
   );
