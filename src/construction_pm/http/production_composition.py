@@ -13,6 +13,7 @@ from construction_pm.ai_action_boundary import AIToolPermissionAdapter
 from construction_pm.ai_action_activity_tools import build_activity_create_runtime
 from construction_pm.backend_p0.api import BackendP0API
 from construction_pm.backend_p0.authoritative_schedule_query import AuthoritativeScheduleQueryProvider
+from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.schedule_query import ScheduleQueryAPI, ScheduleQueryApplicationService
 from construction_pm.activity_master_repository import ActivityMasterRepository
 from construction_pm.activity_progress_history import ActivityProgressHistoryRepository
@@ -118,7 +119,8 @@ def build_project_lifecycle_wsgi_app(
     *,
     lifecycle_api: ProjectLifecycleAPI,
     snapshot_repository: ScheduleInputSnapshotRepository,
-    calendar_registry_factory: Callable[[], CalendarResolverRegistry],
+    calendar_registry_factory: Callable[[], CalendarResolverRegistry] | None = None,
+    scoped_calendar_registry_factory: Callable[[BackendScope], CalendarResolverRegistry] | None = None,
     calculation_context_repository: CalculationContextRepository,
     authorization_policy: AuthorizationPolicy,
     activity_master_repository: ActivityMasterRepository | None = None,
@@ -248,6 +250,7 @@ def build_project_lifecycle_wsgi_app(
     provider = AuthoritativeScheduleQueryProvider(
         snapshot_repository=snapshot_repository,
         calendar_registry_factory=calendar_registry_factory,
+        scoped_calendar_registry_factory=scoped_calendar_registry_factory,
         calculation_context_repository=calculation_context_repository,
         leveling_input_resolver=leveling_input_resolver,
         cost_inputs_resolver=cost_inputs_resolver,

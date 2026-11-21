@@ -1,0 +1,48 @@
+## mode=thread activities=1000
+{"stage": "submitted", "mode": "thread", "tenant": "T-p0n2-7ae4dfb9dd", "job_id": "e203804893fa3be23a3f702a5a9da43d35632b8345cc49c8a7c586fcd155aa80", "state": "QUEUED"}
+{"stage": "finished", "mode": "thread", "job_id": "e203804893fa3be23a3f702a5a9da43d35632b8345cc49c8a7c586fcd155aa80", "state": "SUCCEEDED", "attempts": 1, "submit_to_succeeded_ms": 523.1, "activity_count": 1000, "drain": {"claimed": 1, "succeeded": 1, "failed": 0, "cancelled": 0, "retried": 0, "lease_lost": 0, "process_starts": 0, "inline_fallbacks": 0, "cache_hits": 0, "cache_misses": 0, "peak_slots": 0, "stopped": false}, "output_hash": "99beba1a83427bdf3d837e2f7bfe719061f7af562a9ea94b31332bad11e0882b", "calculation_run_identity": "99beba1a83427bdf3d837e2f7bfe719061f7af562a9ea94b31332bad11e0882b", "hash_equal": true, "last_error": null}
+## mode=process activities=1000
+{"stage": "submitted", "mode": "process", "tenant": "T-p0n2-f0ba2621a1", "job_id": "3a8b4f0837f95a1551a120c4ef5ea26e0c7c2240491096d4b019d412367f2a37", "state": "QUEUED"}
+Traceback (most recent call last):
+  File "/data/work/repo/src/construction_pm/scheduling_job_api.py", line 272, in result_payload
+    stored = self._service.get_result(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/work/repo/src/construction_pm/scheduling_job_lifecycle.py", line 582, in get_result
+    raise SchedulingJobResultError("SCHEDULING_JOB_NOT_SUCCEEDED")
+construction_pm.scheduling_job_lifecycle.SchedulingJobResultError: SCHEDULING_JOB_NOT_SUCCEEDED
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/tmp/live_p0n2_run.py", line 44, in <module>
+    run(sys.argv[1] if len(sys.argv) > 1 else "thread", int(sys.argv[2]) if len(sys.argv) > 2 else 5)
+  File "/tmp/live_p0n2_run.py", line 29, in run
+    result = api.result_payload(t._job_scope(scope), view.job.job_id)["result"]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/work/repo/src/construction_pm/scheduling_job_api.py", line 279, in result_payload
+    raise self._map_error(error) from error
+construction_pm.scheduling_job_api.SchedulingJobAPIError: SCHEDULING_JOB_NOT_SUCCEEDED
+## mode=thread activities=5000
+{"stage": "submitted", "mode": "thread", "tenant": "T-p0n2-2771f894cf", "job_id": "744e3712ede6e992d6aa494adc9f231215198ed327e0dc7c5bfbd5e85b4ac7c2", "state": "QUEUED"}
+{"stage": "finished", "mode": "thread", "job_id": "744e3712ede6e992d6aa494adc9f231215198ed327e0dc7c5bfbd5e85b4ac7c2", "state": "SUCCEEDED", "attempts": 1, "submit_to_succeeded_ms": 1370.9, "activity_count": 5000, "drain": {"claimed": 2, "succeeded": 2, "failed": 0, "cancelled": 0, "retried": 0, "lease_lost": 0, "process_starts": 0, "inline_fallbacks": 0, "cache_hits": 0, "cache_misses": 0, "peak_slots": 0, "stopped": false}, "output_hash": "b914fe19f6618a2c3c50c0ed923c007f10c90bb1c11f5d461c7db0cc260d9629", "calculation_run_identity": "b914fe19f6618a2c3c50c0ed923c007f10c90bb1c11f5d461c7db0cc260d9629", "hash_equal": true, "last_error": null}
+## mode=process activities=5000
+{"stage": "submitted", "mode": "process", "tenant": "T-p0n2-21c107bc34", "job_id": "d01b78540e4839cffa92bc03e8b8054ea294a832c547c3f94914f4fc2251dae8", "state": "QUEUED"}
+Traceback (most recent call last):
+  File "/data/work/repo/src/construction_pm/scheduling_job_api.py", line 272, in result_payload
+    stored = self._service.get_result(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/work/repo/src/construction_pm/scheduling_job_lifecycle.py", line 582, in get_result
+    raise SchedulingJobResultError("SCHEDULING_JOB_NOT_SUCCEEDED")
+construction_pm.scheduling_job_lifecycle.SchedulingJobResultError: SCHEDULING_JOB_NOT_SUCCEEDED
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/tmp/live_p0n2_run.py", line 44, in <module>
+    run(sys.argv[1] if len(sys.argv) > 1 else "thread", int(sys.argv[2]) if len(sys.argv) > 2 else 5)
+  File "/tmp/live_p0n2_run.py", line 29, in run
+    result = api.result_payload(t._job_scope(scope), view.job.job_id)["result"]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/work/repo/src/construction_pm/scheduling_job_api.py", line 279, in result_payload
+    raise self._map_error(error) from error
+construction_pm.scheduling_job_api.SchedulingJobAPIError: SCHEDULING_JOB_NOT_SUCCEEDED
