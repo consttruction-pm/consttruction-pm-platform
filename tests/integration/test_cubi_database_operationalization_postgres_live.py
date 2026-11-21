@@ -364,7 +364,7 @@ def test_runtime_readiness_uses_the_migrated_schema(runtime):
     readiness = json.loads(body)
     assert readiness["status"] == "ready"
     assert readiness["schema"]["version"] == 13
-    assert readiness["schema"]["tables"] == 58
+    assert readiness["schema"]["tables"] == 59
 
 
 # ---------------------------------------------------------------------------
