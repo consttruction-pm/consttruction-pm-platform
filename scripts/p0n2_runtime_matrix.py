@@ -96,7 +96,7 @@ CELL_SLACK_S = 90.0
 CAPACITY_SIZE = 25000
 CAPACITY_SHAPE = "mixed"
 CAPACITY_SLOTS = (1, 2, 4, 8, 16)
-CAPACITY_BUDGET_S = 300.0
+CAPACITY_BUDGET_S = 600.0
 
 PROJECT_SIZE = 5000
 PROJECT_SHAPE = "mixed"
@@ -984,8 +984,36 @@ def ordered_cells() -> list[tuple[int, str]]:
     return [(size, shape) for size in SIZES for shape in SHAPES]
 
 
+def parse_mode_budgets(values: list[str]) -> dict[int, float]:
+    """Parse ``--mode-budget SIZE=SECONDS`` overrides."""
+    overrides: dict[int, float] = {}
+    for value in values:
+        size_text, _, budget_text = value.partition("=")
+        try:
+            size, budget = int(size_text), float(budget_text)
+        except ValueError as error:
+            raise SystemExit(f"invalid --mode-budget {value!r}: {error}") from error
+        if size <= 0 or budget <= 0:
+            raise SystemExit(f"invalid --mode-budget {value!r}: values must be positive")
+        overrides[size] = budget
+    return overrides
+
+
 def orchestrate(arguments: argparse.Namespace) -> int:
     from construction_pm.scheduling.benchmark_fixtures import environment_fingerprint
+
+    phase_deadline = (
+        MATRIX_PHASE_DEADLINE_S
+        if getattr(arguments, "phase_deadline", None) is None
+        else float(arguments.phase_deadline)
+    )
+    capacity_slots = (
+        CAPACITY_SLOTS
+        if not getattr(arguments, "capacity_slots", None)
+        else tuple(int(part) for part in str(arguments.capacity_slots).split(",") if part.strip())
+    )
+    budget_overrides = parse_mode_budgets(getattr(arguments, "mode_budget", []) or [])
+    effective_budget = {size: budget_overrides.get(size, MODE_BUDGET_S[size]) for size in SIZES}
 
     started_at = datetime.now(timezone.utc)
     stamp = started_at.strftime("%Y%m%dT%H%M%SZ")
@@ -1039,8 +1067,10 @@ def orchestrate(arguments: argparse.Namespace) -> int:
             ),
             "repeats": {"small": REPEATS_SMALL, "large": REPEATS_LARGE,
                         "small_sizes": list(SMALL_SIZES)},
-            "mode_budget_s": {str(k): v for k, v in MODE_BUDGET_S.items()},
-            "matrix_phase_deadline_s": MATRIX_PHASE_DEADLINE_S,
+            "mode_budget_s": {str(k): v for k, v in effective_budget.items()},
+            "mode_budget_override_s": {str(k): v for k, v in sorted(budget_overrides.items())},
+            "matrix_phase_deadline_s": phase_deadline,
+            "capacity_slots": list(capacity_slots),
             "timeout_policy": (
                 "each cell runs in its own subprocess; every mode is bounded by "
                 "signal.setitimer(ITIMER_REAL) inside the child and a hard subprocess "
@@ -1049,19 +1079,18 @@ def orchestrate(arguments: argparse.Namespace) -> int:
             ),
             "engine_module": "construction_pm.scheduling.time_schedule.time_schedule",
             "notes": [
-                "Measurement only: this harness adds scripts/p0n2_runtime_matrix.py and "
-                "the four evidence files under "
-                "docs/workspace/evidence/p0n-runtime-activation-2026-11-20/ and changes no "
-                "product code, test, or configuration.",
-                "The worker process-mode path runs against "
-                "src/construction_pm/scheduling_job_executor.py as it stands in this working "
-                "tree, which carries an uncommitted fix from another work item: the parent now "
-                "drains the result pipe (non-blocking poll/recv) before joining the child. "
-                "Before that fix, two exploratory 5000-activity process-mode runs started by "
-                "this harness deadlocked with the job child blocked in pipe_write once the "
-                "pickled SchedulingJobResult exceeded the ~64 KB pipe buffer; those runs were "
-                "terminated, are not part of this evidence, and their job rows were left as "
-                "found (expired LEASED, cancelled by the fixing work item).",
+                "Measurement only: this harness adds scripts/p0n2_runtime_matrix.py, writes "
+                f"the evidence files under `{Path(arguments.out_dir).as_posix()}/`, and changes "
+                "no product code, test, or configuration.",
+                "The worker process-mode path runs against the committed "
+                "`src/construction_pm/scheduling_job_executor.py` of this build, which contains "
+                "the pipe-drain fix (commit 5b4cfb71 on the P0-N.2 branch, merged into this "
+                "integration head): the parent drains the result pipe (non-blocking poll/recv) "
+                "before joining the child. Before that fix, two exploratory 5000-activity "
+                "process-mode runs deadlocked with the job child blocked in pipe_write once the "
+                "pickled SchedulingJobResult exceeded the ~64 KB pipe buffer; those exploratory "
+                "runs were terminated, are not part of this measurement, and their job rows "
+                "were cancelled.",
                 "constraint-heavy cells pass the fixture's own (unconstrained) project_finish "
                 "to time_schedule, exactly like "
                 "scripts/p0n_multi_project_benchmark.py::run_project. Because the "
@@ -1093,9 +1122,9 @@ def orchestrate(arguments: argparse.Namespace) -> int:
     matrix_start = time.monotonic()
     cells = ordered_cells()
     for index, (size, shape) in enumerate(cells):
-        phase_remaining = MATRIX_PHASE_DEADLINE_S - (time.monotonic() - matrix_start)
+        phase_remaining = phase_deadline - (time.monotonic() - matrix_start)
         must = (size, shape) in MATRIX_MUST_RUN
-        budget = MODE_BUDGET_S[size]
+        budget = effective_budget[size]
         if phase_remaining <= 20.0 and not must:
             record = {
                 "size": size,
@@ -1104,7 +1133,7 @@ def orchestrate(arguments: argparse.Namespace) -> int:
                 "seed": SEED,
                 "status": "SKIPPED_BUDGET",
                 "error": (
-                    f"SKIPPED_BUDGET: matrix phase budget {MATRIX_PHASE_DEADLINE_S:.0f}s exhausted; "
+                    f"SKIPPED_BUDGET: matrix phase budget {phase_deadline:.0f}s exhausted; "
                     f"remaining {phase_remaining:.1f}s at cell ({size},{shape})"
                 ),
                 "modes": {},
@@ -1121,11 +1150,10 @@ def orchestrate(arguments: argparse.Namespace) -> int:
             allowance = min(allowance, max(30.0, phase_remaining + 20.0))
         deadline = time.time() + allowance
         hard_timeout = allowance + 15.0
-        record, run_info = spawn(
-            ["_cell", "--size", str(size), "--shape", shape, "--deadline", f"{deadline:.3f}"],
-            f"cell-{index:02d}-{size}-{shape}",
-            hard_timeout,
-        )
+        unit = ["_cell", "--size", str(size), "--shape", shape, "--deadline", f"{deadline:.3f}"]
+        if size in budget_overrides:
+            unit += ["--mode-budget", f"{budget_overrides[size]:.1f}"]
+        record, run_info = spawn(unit, f"cell-{index:02d}-{size}-{shape}", hard_timeout)
         if record is None:
             record = {
                 "size": size, "shape": shape,
@@ -1145,7 +1173,7 @@ def orchestrate(arguments: argparse.Namespace) -> int:
         if cell.get("size") == CAPACITY_SIZE and cell.get("shape") == CAPACITY_SHAPE:
             parallel = (cell.get("modes") or {}).get("parallel") or {}
             reference_hash = parallel.get("hash")
-    for slots in CAPACITY_SLOTS:
+    for slots in capacity_slots:
         record, run_info = spawn(
             ["_capacity", "--slots", str(slots),
              "--deadline", f"{time.time() + CAPACITY_BUDGET_S:.3f}"],
@@ -1160,7 +1188,7 @@ def orchestrate(arguments: argparse.Namespace) -> int:
             record.get("hash") == reference_hash if record.get("hash") and reference_hash else None
         )
         record["phase"] = "capacity_sweep"
-        if slots == CAPACITY_SLOTS[0]:
+        if slots == capacity_slots[0]:
             record["speedup_vs_slots_1"] = 1.0
         document["capacity_sweep"].append(record)
         document["runs"].append({"unit": "capacity", **run_info})
@@ -1253,6 +1281,19 @@ def main(argv: list[str] | None = None) -> int:
     run = sub.add_parser("run", help="orchestrate the whole evidence run")
     run.add_argument("--out-dir", required=True)
     run.add_argument("--dsn", default=DEFAULT_DSN)
+    run.add_argument(
+        "--phase-deadline", type=float, default=None,
+        help=f"matrix phase deadline in seconds (default {MATRIX_PHASE_DEADLINE_S:.0f})",
+    )
+    run.add_argument(
+        "--capacity-slots", default=None,
+        help=f"comma separated slot counts, e.g. 1,2,4,8,16,32 (default {CAPACITY_SLOTS})",
+    )
+    run.add_argument(
+        "--mode-budget", action="append", default=[], metavar="SIZE=SECONDS",
+        help="override the per-mode budget for one size, repeatable "
+             "(e.g. --mode-budget 100000=1800)",
+    )
 
     for name, help_text in (
         ("_cell", "one matrix cell"),
@@ -1447,7 +1488,9 @@ def render_report(arguments: argparse.Namespace) -> int:
                 f"{', '.join(str(run.get('max_total_float_hours')) for run in runs) or 'n/a'} |"
             )
     add("")
-    add("## Capacity sweep: 25000 mixed at slots 1/2/4/8/16")
+    capacity_slots = [entry.get("slots") for entry in matrix["capacity_sweep"]]
+    add(f"## Capacity sweep: {CAPACITY_SIZE} mixed at slots "
+        f"{'/'.join(str(slot) for slot in capacity_slots)}")
     add("")
     add("| slots | float_workers | wall ms | CPU s | speedup vs slots=1 | hash | matches matrix cell |")
     add("| --- | --- | --- | --- | --- | --- | --- |")
@@ -1582,8 +1625,8 @@ def render_report(arguments: argparse.Namespace) -> int:
     add("## Scope note")
     add("")
     add("This document and the harness are measurement only. No product code, test, "
-        "configuration or committed artifact outside `docs/workspace/evidence/"
-        "p0n-runtime-activation-2026-11-20/` was changed, and nothing was deleted from "
+        "configuration or committed artifact outside "
+        f"`{Path(arguments.md).parent.as_posix()}/` was changed, and nothing was deleted from "
         "the shared PostgreSQL tables: each worker run seeds its own unique tenant scope, "
         "exactly like the integration test it mirrors.")
     add("")

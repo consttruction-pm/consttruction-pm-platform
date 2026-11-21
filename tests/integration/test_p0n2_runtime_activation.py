@@ -465,6 +465,32 @@ def test_production_runtime_source_no_longer_contains_the_wiring_blocker():
     assert "build_calendar_registry_for_scope" in source
 
 
+def test_production_composition_keeps_every_http_surface_wired(runtime):
+    """Merging P0-N.2 must not shadow the AI Workbench, Enterprise or admin surfaces.
+
+    The runtime builds the P6 app first and then wraps it; the workbench is the
+    outermost middleware so its own routes win. Walking ``_app`` proves the whole
+    chain is present in the assembled production object, not just imported.
+    """
+    from construction_pm.ai_workbench.http import AIWorkbenchHttpMiddleware
+    from construction_pm.enterprise_task_http import EnterpriseTaskHttpMiddleware
+    from construction_pm.global_administration_http import (
+        GlobalAdministrationHttpMiddleware,
+    )
+
+    chain = []
+    app = runtime.api_app
+    while app is not None:
+        chain.append(app)
+        app = getattr(app, "_app", None)
+    assert isinstance(chain[0], AIWorkbenchHttpMiddleware)
+    assert isinstance(chain[1], EnterpriseTaskHttpMiddleware)
+    assert isinstance(chain[2], GlobalAdministrationHttpMiddleware)
+    # The fourth entry is the innermost P6 app built with the calendar registry
+    # and the durable job repository.
+    assert len(chain) == 4
+
+
 # ---------------------------------------------------------------------------
 # HTTP submit -> real worker -> retrieval
 # ---------------------------------------------------------------------------

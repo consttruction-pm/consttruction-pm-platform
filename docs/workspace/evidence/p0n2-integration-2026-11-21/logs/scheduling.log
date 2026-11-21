@@ -1,0 +1,5 @@
+$ pytest -q tests/scheduling
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+1671 passed, 1 warning in 33.65s
+wall=34s
