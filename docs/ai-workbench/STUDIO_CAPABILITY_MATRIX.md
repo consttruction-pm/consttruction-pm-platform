@@ -13,7 +13,7 @@ full studio contract does not. `BLOCKED` — the canonical service is absent.
 |---|---|---|---|---|---|
 | Project Import Review & Staging | `PARTIAL` | register datasets (`exchange`) | register import only | `exchange_api.py` | honest partial panel; no project-import controls |
 | Schedule Scenario Studio | `BLOCKED` | schedule read exists but no scenario contract | none | none | blocked panel: service, reason, Help topic; zero controls |
-| Risk Analysis Studio | `WIRED_WRITE` | `GET /api/projects/{id}/risks` | `POST /api/projects/{id}/risks` | `risk_api.py` / `risk_application.py` | table, 5×5 matrix, inspector, create form |
+| Risk Analysis Studio | `WIRED_WRITE` | `GET /api/projects/{id}/risks` (+ `/history`) | `POST` create, `PUT` update with `expected_revision` | `risk_api.py` / `risk_application.py` | table, 5×5 matrix, inspector, create and edit forms, audit history |
 | Project Analysis Studio | `WIRED_READ` | workspace read v2 + control metrics | none | `http/project_lifecycle_routes.py` | record counts, stored metric bars, source refs |
 | Decision & Approval Workspace | `PARTIAL` | Enterprise approvals exist | no Engineering proposal contract | `enterprise` approvals | partial panel; no proposal control |
 
@@ -28,6 +28,12 @@ full studio contract does not. `BLOCKED` — the canonical service is absent.
   presence and 1–5 bounds only; the server validates the domain contract.
 - Each draft risk carries one idempotency key; a conflict triggers a fresh read
   rather than a duplicate write.
+- The inspector edits an existing risk through `PUT` with the rendered
+  `expected_revision`; a `409` re-reads the register instead of overwriting a
+  newer record. A success notice reports the revision the server returned.
+- The inspector's history view reads `GET …/risks/{id}/history` and renders the
+  stored audit events (create, update or status change) with actor, time and
+  reason. It never synthesises an event.
 - Empty state: "No risk is stored for this project revision. Nothing is
   generated for display."
 

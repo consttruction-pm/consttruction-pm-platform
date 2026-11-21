@@ -199,6 +199,31 @@ h1, h2, h3, p { margin: 0; }
 }
 .aiw-history-item:hover { border-color: var(--aiw-blue); }
 .aiw-history-item em { font-size: .68rem; color: var(--aiw-muted); font-style: normal; }
+.aiw-inspector-actions { display: flex; flex-wrap: wrap; gap: .35rem; margin: .5rem 0; }
+.aiw-inspector-actions button,
+.aiw-history + button,
+.aiw-form-actions button {
+  border: 1px solid var(--aiw-border);
+  background: #fff;
+  border-radius: 6px;
+  padding: .3rem .65rem;
+  font-size: .78rem;
+  cursor: pointer;
+}
+.aiw-inspector-actions button:hover,
+.aiw-history + button:hover { border-color: var(--aiw-blue); color: var(--aiw-blue); }
+ul.aiw-history { list-style: none; margin: .5rem 0; padding: 0; }
+ul.aiw-history li {
+  display: flex;
+  flex-direction: column;
+  gap: .1rem;
+  padding: .4rem .5rem;
+  border: 1px solid var(--aiw-border);
+  border-radius: 6px;
+  background: #fff;
+  font-size: .76rem;
+  margin-bottom: .3rem;
+}
 
 /* ---------- plan ---------- */
 .aiw-plan-region:empty { display: none; }

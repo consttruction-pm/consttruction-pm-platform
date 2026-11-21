@@ -50,7 +50,7 @@ blocked. It is not proof that a studio works.
 | 1 | Workbench shell, command panel, inspector, status bar | WIRED (preview browser journey) | `apps/web/src/workbench/`, `apps/web/ai-workbench.html` |
 | 2 | Import staging (7 tabs) | PARTIAL: register exchange only; project ingestion still absent | `exchange_*` |
 | 3 | Schedule Scenario Studio | BLOCKED by #1989 backend contract | none |
-| 4 | Risk Analysis Studio | WIRED_WRITE: table, matrix, create form, read-back | `risk_*` |
+| 4 | Risk Analysis Studio | WIRED_WRITE: table, matrix, create/edit forms with `expected_revision`, audit history, read-back | `risk_*` |
 | 5 | Project Analysis Studio | WIRED_READ: stored counts and control metrics | schedule read models |
 | 6 | Decision & Approval | PARTIAL: Enterprise approvals exist, proposal execution absent | `enterprise` approvals |
 | 7 | Enterprise reuse | PLANNED after shared contracts stabilise | Enterprise shell |

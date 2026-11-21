@@ -89,6 +89,18 @@ export type RiskRecord = {
   revision: number;
 };
 
+export type RiskHistoryEvent = {
+  contract_version: string;
+  entity_type: string;
+  entity_id: string;
+  revision: number;
+  event_type: string;
+  actor_id: string;
+  occurred_at: string;
+  reason: string | null;
+};
+
+
 export type WorkspaceReadSnapshot = {
   contract_version: string;
   context: { tenant_id: string; project_id: string; revision: number };
@@ -174,6 +186,30 @@ export class WorkbenchApi {
       body,
       context,
       idempotencyKey,
+    );
+  }
+
+  updateRisk(
+    projectId: string,
+    riskId: string,
+    body: Record<string, unknown>,
+    context: ProjectContext,
+  ): Promise<ApiResult<RiskRecord>> {
+    return this.transport.put<Record<string, unknown>, RiskRecord>(
+      `/api/projects/${encodeURIComponent(projectId)}/risks/${encodeURIComponent(riskId)}`,
+      body,
+      context,
+    );
+  }
+
+  riskHistory(
+    projectId: string,
+    riskId: string,
+    context: ProjectContext,
+  ): Promise<ApiResult<{ contract_version: string; events: RiskHistoryEvent[] }>> {
+    return this.transport.get(
+      `/api/projects/${encodeURIComponent(projectId)}/risks/${encodeURIComponent(riskId)}/history`,
+      context,
     );
   }
 
