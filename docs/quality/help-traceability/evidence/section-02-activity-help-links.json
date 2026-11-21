@@ -1,0 +1,209 @@
+{
+  "verified_at": "2026-11-21",
+  "section": 2,
+  "document": "docs/quality/help-traceability/ENGINEERING_WORKSPACE_ACTIVITIES.md",
+  "official_baselines": {
+    "engineering_html_help_toc": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm",
+    "engineering_toc_topics": 982,
+    "user_guide_toc": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/toc.htm"
+  },
+  "help_topics": [
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/add_activities_in_the_activity_table.htm",
+      "title": "Add activities in the Activity Table",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/apply_a_filter.htm",
+      "title": "Apply a filter",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/change_activity_information_in_the_activity_table.htm",
+      "title": "Change activity information in the Activity Table",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/combine_filters.htm",
+      "title": "Combine filters",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_filter.htm",
+      "title": "Create a filter",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_new_activity_layout.htm",
+      "title": "Create a new activity layout",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/customize_activity_column_titles.htm",
+      "title": "Customize activity column titles",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/define_activity_table_columns.htm",
+      "title": "Define Activity Table columns",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/export_a_tracking_layout.htm",
+      "title": "Export a tracking layout",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/find_toolbar.htm",
+      "title": "Find Toolbar",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/grouping_activities_by_field.htm",
+      "title": "Grouping activities by field",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/open_a_layout.htm",
+      "title": "Open a layout",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/save_a_layout_in_the_activities_or_rsrc_assignments_window.htm",
+      "title": "Save a layout in the Activities or Resource Assignments window",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/select_multiple_items.htm",
+      "title": "Select multiple items",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/sort_activity_information_in_the_activity_table.htm",
+      "title": "Sort activity information in the Activity Table",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/the_activity_table.htm",
+      "title": "The Activity Table",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/using_main_windows.htm",
+      "title": "Using main windows",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/using_the_status_bar_and_display_layout_options_bar.htm",
+      "title": "Using the Status Bar and Layout Options bar",
+      "http": 200,
+      "in_official_toc": true
+    }
+  ],
+  "user_guide_topics": [
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/addactivitiesintheactivitytable-19495a.html",
+      "title": "Add activities in the Activity Table",
+      "http": 200
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/applyafilter-19457a.html",
+      "title": "Apply a filter",
+      "http": 200
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/changeactivityinformationintheactivitytable-19697a.html",
+      "title": "Change activity information in the Activity Table",
+      "http": 200
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/combinefilters-19665a.html",
+      "title": "Combine filters",
+      "http": 200
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/createanewactivitylayout-19653a.html",
+      "title": "Create a new activity layout",
+      "http": 200
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/defineactivitytablecolumns-19061a.html",
+      "title": "Define Activity Table columns",
+      "http": 200
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/exportatrackinglayout-20193a.html",
+      "title": "Export a tracking layout",
+      "http": 200
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/filteringdata-19459a.html",
+      "title": "Filtering data",
+      "http": 200
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/groupingactivitiesbyfield-19469a.html",
+      "title": "Grouping activities by field",
+      "http": 200
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/openalayout-19651a.html",
+      "title": "Open a layout",
+      "http": 200
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/savealayoutasaprojectlayout-19659a.html",
+      "title": "Save a layout as a project layout",
+      "http": 200
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/selectmultipleitems-21036a.html",
+      "title": "Select multiple items",
+      "http": 200
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/sortactivityinformationintheactivitytable-19707a.html",
+      "title": "Sort activity information in the Activity Table",
+      "http": 200
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/theactivitytable-19431a.html",
+      "title": "The Activity Table",
+      "http": 200
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/usingmainwindows-20501a.html",
+      "title": "Using main windows",
+      "http": 200
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/usingthestatusbarandlayoutoptionsbar-21127a.html",
+      "title": "Using the Status Bar and Layout Options bar",
+      "http": 200
+    }
+  ],
+  "summary": {
+    "help_total": 18,
+    "help_ok": 18,
+    "user_guide_total": 16,
+    "user_guide_ok": 16,
+    "failures": 0
+  }
+}
