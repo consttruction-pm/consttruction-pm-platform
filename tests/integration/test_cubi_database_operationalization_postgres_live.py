@@ -295,24 +295,24 @@ def test_migration_ledger_is_versioned_idempotent_and_reports_drift():
     schema = _schema_name("cubi_mig")
     connection, first = _apply_drift_free_schema(schema)
     try:
-        assert first.ledger_version == 12
-        assert len(first.applied) == 12
+        assert first.ledger_version == 13
+        assert len(first.applied) == 13
         assert first.already_applied == ()
-        assert first.table_count == 58
+        assert first.table_count == 59
         assert first.drift is None
 
         second = apply_migrations(connection)
         assert second.applied == ()
-        assert second.already_applied == tuple(range(1, 13))
+        assert second.already_applied == tuple(range(1, 14))
         assert second.drift is None
-        assert second.table_count == 58
+        assert second.table_count == 59
 
         rows = connection.execute(
             f"SELECT version, name, checksum, step_revision, runtime_version "
             f"FROM {LEDGER_TABLE} ORDER BY version"
         ).fetchall()
-        assert [row[0] for row in rows] == list(range(1, 13))
-        assert all(row[2] and row[3] >= 1 and row[4] == 12 for row in rows)
+        assert [row[0] for row in rows] == list(range(1, 14))
+        assert all(row[2] and row[3] >= 1 and row[4] == 13 for row in rows)
 
         # An edited history is reported, never silently accepted.
         connection.execute(
@@ -363,7 +363,7 @@ def test_runtime_readiness_uses_the_migrated_schema(runtime):
     assert status == 200
     readiness = json.loads(body)
     assert readiness["status"] == "ready"
-    assert readiness["schema"]["version"] == 12
+    assert readiness["schema"]["version"] == 13
     assert readiness["schema"]["tables"] == 58
 
 
