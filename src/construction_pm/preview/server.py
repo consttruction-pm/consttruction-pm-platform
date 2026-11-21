@@ -297,12 +297,20 @@ class PreviewApplication:
                 # Health checks read the same SQLite connection as the API.
                 with self._runtime_lock:
                     status, headers, body = _json(200, self._health())
-            elif path == LOGIN_PATH:
+            elif path in {LOGIN_PATH, "/login"}:
+                # `/login` is the canonical product path the shared shell and
+                # the Personal Workbench redirect to. The preview-only
+                # `/preview/login` stays as a compatibility alias.
                 status, headers, body = self._login(method, environ, session)
             elif path == PRIVATE_LOGIN_PATH:
                 status, headers, body = self._private_login(method, environ)
-            elif path == LOGOUT_PATH:
+            elif path in {LOGOUT_PATH, "/logout"}:
                 status, headers, body = self._logout(method, environ, session)
+            elif path == "/api/session" and method == "DELETE":
+                # The product contract signs out with DELETE /api/session. The
+                # preview runtime has no password/CSRF handshake, so the demo
+                # session is revoked directly and the cookie is cleared.
+                status, headers, body = self._api_logout(session)
             elif path.startswith("/api/"):
                 status, headers, body = self._delegate(environ)
                 if status == 404 and body.strip() == b'{"code":"ROUTE_NOT_FOUND"}':
@@ -559,10 +567,21 @@ class PreviewApplication:
             self.runtime.sessions.revoke(session.session_id)
         headers = {
             "Content-Type": "text/html; charset=utf-8",
-            "Location": "/",
+            "Location": "/login",
             "Set-Cookie": _clear_cookie_header()[1],
         }
         return 303, headers, b""
+
+    def _api_logout(
+        self, session: AuthenticatedSession | None
+    ) -> tuple[int, dict[str, str], bytes]:
+        if session is not None:
+            self.runtime.sessions.revoke(session.session_id)
+        headers = {
+            "Set-Cookie": _clear_cookie_header()[1],
+            "Cache-Control": "no-store",
+        }
+        return 204, headers, b""
 
     def _delegate(self, environ: dict[str, object]) -> tuple[int, dict[str, str], bytes]:
         captured: dict[str, object] = {}
@@ -605,7 +624,7 @@ class PreviewApplication:
             next_path = _safe_next(requested_next)
             headers = {
                 "Content-Type": "text/html; charset=utf-8",
-                "Location": f"{LOGIN_PATH}?{urlencode({'next': next_path})}",
+                "Location": f"/login?{urlencode({'next': next_path})}",
                 "Set-Cookie": _clear_cookie_header()[1],
             }
             return 302, headers, b""
@@ -651,7 +670,7 @@ class PreviewApplication:
                 302,
                 {
                     "Content-Type": "text/html; charset=utf-8",
-                    "Location": f"{LOGIN_PATH}?{urlencode({'next': next_path})}",
+                    "Location": f"/login?{urlencode({'next': next_path})}",
                     "Set-Cookie": _clear_cookie_header()[1],
                 },
                 b"",

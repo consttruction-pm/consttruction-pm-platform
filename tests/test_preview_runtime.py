@@ -618,13 +618,13 @@ def test_preview_project_deep_link_survives_login_and_rejects_external_redirects
         )
         assert status == 302
         assert headers["location"] == (
-            "/preview/login?next=%2Fapp%3Fproject%3Dpreview-rps-01%26view%3Dlive"
+            "/login?next=%2Fapp%3Fproject%3Dpreview-rps-01%26view%3Dlive"
         )
 
         status, _, body = _request(
             app,
             "GET",
-            "/preview/login?next=%2Fapp%3Fproject%3Dpreview-rps-01%26view%3Dlive",
+            "/login?next=%2Fapp%3Fproject%3Dpreview-rps-01%26view%3Dlive",
         )
         assert status == 200
         assert (
@@ -688,17 +688,22 @@ def test_cubi_documents_are_gated_and_public_entry_pages_are_anonymous(
     try:
         app = build_preview_application(runtime)
 
-        # The public entry documents render without a session.
+        # The public entry documents render without a session. `/login` is the
+        # canonical sign-in path used by the shared shell and the workbench.
         for path in ("/cubi", "/cubi/", "/cubi/login"):
             status, _, body = _request(app, "GET", path)
             assert status == 200, path
             assert b'id="cubi-app"' in body
 
+        status, _, body = _request(app, "GET", "/login")
+        assert status == 200
+        assert b'name="role"' in body
+
         # Every other Enterprise document redirects to the sign-in card with
         # the requested document preserved.
         status, headers, _ = _request(app, "GET", "/cubi/enterprise/dashboard")
         assert status == 302
-        assert headers["location"].startswith("/preview/login?next=%2Fcubi%2Fenterprise%2Fdashboard")
+        assert headers["location"].startswith("/login?next=%2Fcubi%2Fenterprise%2Fdashboard")
 
         status, headers, _ = _request(
             app,
@@ -757,7 +762,7 @@ def test_preview_server_guards_login_banner_static_files_and_logout(
 
         status, headers, _ = _request(app, "GET", "/app")
         assert status == 302
-        assert headers["location"] == "/preview/login?next=%2Fapp%3Fview%3Dlive"
+        assert headers["location"] == "/login?next=%2Fapp%3Fview%3Dlive"
 
         status, _, body = _request(app, "GET", "/preview/health")
         assert status == 200
@@ -809,9 +814,26 @@ def test_preview_server_guards_login_banner_static_files_and_logout(
         status, _, _ = _request(app, "GET", "/api/session")
         assert status == 401
 
+        # The product sign-out contract is DELETE /api/session; the preview
+        # revokes the demo session and clears the cookie.
+        status, headers, _ = _request(app, "DELETE", "/api/session", cookie=cookie)
+        assert status == 204
+        assert "Max-Age=0" in headers["set-cookie"]
+        status, _, _ = _request(app, "GET", "/api/session", cookie=cookie)
+        assert status == 401
+
+        status, headers, _ = _request(
+            app,
+            "POST",
+            "/preview/login",
+            body=b"role=planner",
+            content_type="application/x-www-form-urlencoded",
+        )
+        cookie = _session_cookie(headers)
+
         status, headers, _ = _request(app, "POST", "/preview/logout", cookie=cookie)
         assert status == 303
-        assert headers["location"] == "/"
+        assert headers["location"] == "/login"
 
         status, _, _ = _request(app, "GET", "/api/session", cookie=cookie)
         assert status == 401
@@ -1774,7 +1796,7 @@ def test_expired_preview_session_recovers_through_login_and_clears_stale_cookie(
         )
         assert status == 302
         assert headers["location"] == (
-            "/preview/login?next=%2Fapp%3Fproject%3Dpreview-rps-01%26view%3Dlive"
+            "/login?next=%2Fapp%3Fproject%3Dpreview-rps-01%26view%3Dlive"
         )
         assert "Max-Age=0" in headers["set-cookie"]
 

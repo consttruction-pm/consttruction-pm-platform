@@ -41,6 +41,7 @@ type Copy = {
   breadcrumb: string;
   language: string;
   signedOut: string;
+  signOut: string;
 };
 
 export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
@@ -75,6 +76,7 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     breadcrumb: "Workbench",
     language: "Language",
     signedOut: "Your session has expired. Sign in to continue.",
+    signOut: "Sign out",
   },
   fa: {
     title: "میزکار شخصی",
@@ -107,6 +109,7 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     breadcrumb: "میزکار",
     language: "زبان",
     signedOut: "نشست شما پایان یافته است. برای ادامه وارد شوید.",
+    signOut: "خروج",
   },
   de: {
     title: "Persönliche Werkbank",
@@ -139,6 +142,7 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     breadcrumb: "Werkbank",
     language: "Sprache",
     signedOut: "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.",
+    signOut: "Abmelden",
   },
   zh: {
     title: "个人工作台",
@@ -171,6 +175,7 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     breadcrumb: "工作台",
     language: "语言",
     signedOut: "会话已过期，请重新登录。",
+    signOut: "退出登录",
   },
   ar: {
     title: "مساحة العمل الشخصية",
@@ -203,6 +208,7 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     breadcrumb: "مساحة العمل",
     language: "اللغة",
     signedOut: "انتهت جلستك. سجّل الدخول للمتابعة.",
+    signOut: "تسجيل الخروج",
   },
   fr: {
     title: "Bureau personnel",
@@ -235,6 +241,7 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     breadcrumb: "Bureau",
     language: "Langue",
     signedOut: "Votre session a expiré. Veuillez vous reconnecter.",
+    signOut: "Se déconnecter",
   },
   ja: {
     title: "パーソナルワークベンチ",
@@ -267,6 +274,7 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     breadcrumb: "ワークベンチ",
     language: "言語",
     signedOut: "セッションの有効期限が切れました。再度ログインしてください。",
+    signOut: "サインアウト",
   },
   ko: {
     title: "개인 워크벤치",
@@ -299,6 +307,7 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     breadcrumb: "워크벤치",
     language: "언어",
     signedOut: "세션이 만료되었습니다. 다시 로그인하세요.",
+    signOut: "로그아웃",
   },
   ru: {
     title: "Личное рабочее место",
@@ -331,6 +340,7 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     breadcrumb: "Рабочее место",
     language: "Язык",
     signedOut: "Сеанс истёк. Войдите снова.",
+    signOut: "Выйти",
   },
   tr: {
     title: "Kişisel Çalışma Tezgahı",
@@ -363,6 +373,7 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     breadcrumb: "Çalışma tezgahı",
     language: "Dil",
     signedOut: "Oturumunuz sona erdi. Devam etmek için giriş yapın.",
+    signOut: "Çıkış yap",
   },
 };
 
@@ -541,7 +552,9 @@ export async function mountPersonalWorkbench(container: HTMLElement, requestedLo
     window.location.assign(url.toString());
   });
   localeLabel.append(select);
-  header.append(brand, crumb, localeLabel);
+  const signOut = element("button", "cp-wb-signout", copy.signOut) as HTMLButtonElement;
+  signOut.type = "button";
+  header.append(brand, crumb, localeLabel, signOut);
   shell.append(header);
 
   const hero = element("section", "cp-wb-hero");
@@ -557,6 +570,16 @@ export async function mountPersonalWorkbench(container: HTMLElement, requestedLo
   container.append(shell);
 
   const sessionApi = new FetchSessionApi(window.location.origin);
+  signOut.addEventListener("click", () => {
+    signOut.disabled = true;
+    void sessionApi.logout().then(async (result) => {
+      if (!result.ok) {
+        // The preview runtime exposes a POST logout with the same effect.
+        await fetch("/preview/logout", { method: "POST", credentials: "same-origin" }).catch(() => undefined);
+      }
+      window.location.assign("/login");
+    });
+  });
   const session = await sessionApi.getSession();
   if (!session.ok) {
     if (session.error.code === "UNAUTHENTICATED" || session.error.code === "SESSION_REQUIRED") {

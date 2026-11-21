@@ -10433,6 +10433,9 @@ body.cp-toolbar-dragging .cp-tool-btn { cursor: grabbing; }
 .cp-wb-crumbs a:hover { text-decoration:underline; }
 .cp-wb-locale { margin-inline-start:auto; display:flex; align-items:center; gap:.45rem; font-size:.8rem; color:#667085; }
 .cp-wb-locale select { min-height:34px; border:1px solid #d9e0e7; border-radius:8px; background:#fff; color:var(--wb-navy); font:inherit; padding:0 .5rem; }
+.cp-wb-signout { min-height:34px; border:1px solid #d9e0e7; border-radius:8px; background:#fff; color:var(--wb-navy); font:inherit; font-weight:650; padding:0 .8rem; cursor:pointer; }
+.cp-wb-signout:hover:not(:disabled) { background:#eef3f8; }
+.cp-wb-signout:disabled { opacity:.55; cursor:not-allowed; }
 .cp-wb-hero { padding:2.2rem 0 1.4rem; }
 .cp-wb-eyebrow { margin:0; color:var(--wb-copper); font-size:.7rem; font-weight:800; letter-spacing:.14em; }
 .cp-wb-hero h1 { margin:.45rem 0 .3rem; color:var(--wb-navy); font-size:clamp(1.8rem,4vw,2.5rem); letter-spacing:-.03em; }

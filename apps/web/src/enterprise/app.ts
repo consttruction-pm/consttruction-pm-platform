@@ -565,7 +565,9 @@ async function doSignOut(): Promise<void> {
     // A missing session is already signed out; still clear local state.
   }
   state.session = null;
-  navigate(`${BASE_PATH}/`, { replace: true });
+  // Sign-out returns to the canonical sign-in page, not the public home, so the
+  // next step is always a deliberate re-authentication.
+  window.location.assign("/login");
 }
 
 async function loadProjects(): Promise<void> {
