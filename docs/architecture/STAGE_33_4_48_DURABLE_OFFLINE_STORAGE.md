@@ -29,3 +29,11 @@ Storage never recalculates Scheduling/P6, Calendar, Progress/EVM, Resource/Cost 
 ## Remaining synchronization work
 
 Retry policy, network transport, server acknowledgement, conflict handling, and end-to-end synchronization remain subsequent stages.
+
+## Installed-client transaction ownership — 2026-11-03
+
+The SQLite offline mutation queue must not commit a caller-owned transaction during schema initialization. The constructor now records whether the supplied connection already has an active transaction and commits schema setup only when it owns the boundary.
+
+This preserves the host's ability to place local domain writes and outbox append under one `SQLiteTransactionManager.transaction()` boundary. A rollback must undo both the domain write and the queued mutation. See Issue #1685 and PR #1686 for the regression and exact-head evidence.
+
+This is a transaction-ownership correction only; the existing offline storage contract, FIFO ordering, mutation identity and retry semantics are unchanged.
