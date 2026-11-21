@@ -21,7 +21,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterator, Mapping
+from typing import Any, Callable, Iterator, Mapping
 from urllib.parse import parse_qs
 
 from ..activity_master_repository import PostgresActivityMasterRepository
@@ -274,7 +274,7 @@ def _calendar_registry_for_scope_factory(
     snapshot_repository: PostgresCalendarSnapshotRepository,
     exception_repository: PostgresCalendarExceptionRepository,
     work_hours_repository: PostgresCalendarWorkHourRepository,
-) -> Any:
+) -> Callable[[BackendScope], CalendarResolverRegistry]:
     """Return the request-scoped calendar registry factory.
 
     The returned callable resolves persisted calendars for exactly the

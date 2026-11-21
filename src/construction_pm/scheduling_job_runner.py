@@ -9,9 +9,9 @@ engine instead of two divergent ones.
 
 Safety rules kept explicit here
 -------------------------------
-* ``thread`` is the default. ``process`` is only selectable when the caller
-  supplies a ``provider_factory`` that builds its own repositories, because a
-  forked child must never reuse a parent database connection.
+* ``thread`` is the default. ``process`` requires either a provider factory or a
+  ``child_database_url`` so the forked child builds its own repositories; a child
+  must never reuse a parent database connection.
 * A job without stored run parameters fails closed; it is never guessed from
   the latest snapshot.
 * The worker never widens the job's authorization scope: the calculation runs
