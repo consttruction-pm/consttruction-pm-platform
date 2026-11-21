@@ -16,6 +16,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import re
 import secrets
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -154,6 +155,16 @@ def validate_role_tokens(roles: Any) -> frozenset[str]:
     return frozenset(normalized)
 
 
+def normalize_username(username: Any) -> str:
+    """Canonicalize a public login name without accepting email-shaped values."""
+    if not isinstance(username, str):
+        raise IdentityError("USERNAME_REQUIRED")
+    value = username.strip().casefold()
+    if not 3 <= len(value) <= 32 or not re.fullmatch(r"[a-z0-9][a-z0-9._-]*", value):
+        raise IdentityError("USERNAME_INVALID")
+    return value
+
+
 def normalize_email(email: Any) -> str:
     if not isinstance(email, str):
         raise IdentityError("EMAIL_REQUIRED")
@@ -207,6 +218,7 @@ class IdentityUser:
     expires_at: datetime | None = None
     must_change_password: bool = False
     last_login_at: datetime | None = None
+    username: str = ""
 
 
 @dataclass(frozen=True)
@@ -306,9 +318,9 @@ class IdentityService:
     def login(self, email: str, password: str, *, ip_hash: str = "") -> IssuedSession:
         attempted_at = _as_utc(self._clock())
         try:
-            normalized = normalize_email(email)
+            is_email = isinstance(email, str) and "@" in email
+            normalized = normalize_email(email) if is_email else normalize_username(email)
         except IdentityError:
-            # Never reveal whether the address exists or is malformed.
             verify_password(password if isinstance(password, str) else "", _DUMMY_HASH)
             raise IdentityError("AUTHENTICATION_FAILED") from None
         since = attempted_at - self._failure_window
@@ -317,7 +329,8 @@ class IdentityService:
         )
         if email_failures >= self._max_email_failures or ip_failures >= self._max_ip_failures:
             raise IdentityError("AUTHENTICATION_THROTTLED")
-        user = self._store.find_user_by_email(normalized)
+        finder = getattr(self._store, "find_user_by_email" if is_email else "find_user_by_username", None)
+        user = finder(normalized) if callable(finder) else None
         valid = False
         if user is not None and user.active and self._account_open(user, attempted_at):
             valid = verify_password(password, user.password_hash)
@@ -451,8 +464,17 @@ class _SqlIdentityStore:
         row = self._one(
             "SELECT user_id, tenant_id, email, display_name, roles_json, "
             "password_hash, active, locked_at, expires_at, must_change_password, "
-            f"last_login_at FROM identity_users WHERE lower(email)={self.placeholder}",
+            f"last_login_at, username FROM identity_users WHERE lower(email)={self.placeholder}",
             (email.lower(),),
+        )
+        return self._user_from_row(row)
+
+    def find_user_by_username(self, username: str) -> IdentityUser | None:
+        row = self._one(
+            "SELECT user_id, tenant_id, email, display_name, roles_json, "
+            "password_hash, active, locked_at, expires_at, must_change_password, "
+            f"last_login_at, username FROM identity_users WHERE lower(username)={self.placeholder}",
+            (username.casefold(),),
         )
         return self._user_from_row(row)
 
@@ -467,7 +489,7 @@ class _SqlIdentityStore:
         row = self._one(
             "SELECT user_id, tenant_id, email, display_name, roles_json, "
             "password_hash, active, locked_at, expires_at, must_change_password, "
-            f"last_login_at FROM identity_users WHERE user_id={self.placeholder}",
+            f"last_login_at, username FROM identity_users WHERE user_id={self.placeholder}",
             (user_id,),
         )
         return self._user_from_row(row)
@@ -491,6 +513,7 @@ class _SqlIdentityStore:
             expires_at=_parse_time(row[8]) if row[8] is not None else None,
             must_change_password=bool(row[9]),
             last_login_at=_parse_time(row[10]) if row[10] is not None else None,
+            username=str(row[11] or "") if len(row) > 11 else "",
         )
 
     def record_attempt(
@@ -617,6 +640,7 @@ class SQLiteIdentityStore(_SqlIdentityStore):
                 display_name TEXT NOT NULL DEFAULT '',
                 roles_json TEXT NOT NULL,
                 password_hash TEXT NOT NULL,
+                username TEXT,
                 active INTEGER NOT NULL DEFAULT 1,
                 locked_at TEXT,
                 expires_at TEXT,
@@ -627,6 +651,8 @@ class SQLiteIdentityStore(_SqlIdentityStore):
             );
             CREATE UNIQUE INDEX IF NOT EXISTS identity_users_email_unique
                 ON identity_users (lower(email));
+            CREATE UNIQUE INDEX IF NOT EXISTS identity_users_username_unique
+                ON identity_users (lower(username)) WHERE username IS NOT NULL;
             CREATE TABLE IF NOT EXISTS identity_sessions (
                 token_hash TEXT PRIMARY KEY,
                 user_id TEXT NOT NULL,
@@ -652,6 +678,7 @@ class SQLiteIdentityStore(_SqlIdentityStore):
             """
         )
         for column, ddl in (
+            ("username", "ALTER TABLE identity_users ADD COLUMN username TEXT"),
             ("locked_at", "ALTER TABLE identity_users ADD COLUMN locked_at TEXT"),
             ("expires_at", "ALTER TABLE identity_users ADD COLUMN expires_at TEXT"),
             (
@@ -671,13 +698,13 @@ class SQLiteIdentityStore(_SqlIdentityStore):
     def upsert_user(self, user: IdentityUser) -> None:
         self.connection.execute(
             "INSERT INTO identity_users "
-            "(user_id, tenant_id, email, display_name, roles_json, password_hash, "
+            "(user_id, tenant_id, email, display_name, roles_json, password_hash, username, "
             "active, created_at, password_changed_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now')) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now')) "
             "ON CONFLICT(user_id) DO UPDATE SET tenant_id=excluded.tenant_id, "
             "email=excluded.email, display_name=excluded.display_name, "
             "roles_json=excluded.roles_json, password_hash=excluded.password_hash, "
-            "active=excluded.active, password_changed_at=datetime('now')",
+            "active=excluded.active, username=excluded.username, password_changed_at=datetime('now')",
             (
                 user.user_id,
                 user.tenant_id,
@@ -685,6 +712,7 @@ class SQLiteIdentityStore(_SqlIdentityStore):
                 user.display_name,
                 json.dumps(sorted(user.roles), separators=(",", ":")),
                 user.password_hash,
+                user.username or None,
                 1 if user.active else 0,
             ),
         )
@@ -759,12 +787,12 @@ class PostgresIdentityStore(_SqlIdentityStore):
     def upsert_user(self, user: IdentityUser) -> None:
         self.connection.execute(
             "INSERT INTO identity_users "
-            "(user_id, tenant_id, email, display_name, roles_json, password_hash, active) "
-            "VALUES (%s, %s, %s, %s, %s, %s, %s) "
+            "(user_id, tenant_id, email, display_name, roles_json, password_hash, username, active) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s) "
             "ON CONFLICT(user_id) DO UPDATE SET tenant_id=excluded.tenant_id, "
             "email=excluded.email, display_name=excluded.display_name, "
             "roles_json=excluded.roles_json, password_hash=excluded.password_hash, "
-            "active=excluded.active, password_changed_at=now()",
+            "active=excluded.active, username=excluded.username, password_changed_at=now()",
             (
                 user.user_id,
                 user.tenant_id,
@@ -772,6 +800,7 @@ class PostgresIdentityStore(_SqlIdentityStore):
                 user.display_name,
                 json.dumps(sorted(user.roles), separators=(",", ":")),
                 user.password_hash,
+                user.username or None,
                 user.active,
             ),
         )
