@@ -104,10 +104,24 @@ worker e2e (submit -> retrieve):   1000 thread 528.0 ms, 1000 process 546.4 ms,
 
 ## 5. CI
 
-CI on the exact final SHA is recorded below once the branch is pushed and checks run.
-Local evidence is complete independently and does not depend on CI.
+All required checks passed on the code head `78bd3aac` (branch
+`feat/p0n2-runtime-activation`, PR #2068), run on 2026-11-21:
 
-<!-- CI_STATUS -->
+| Check | Result | Duration | Run |
+| --- | --- | --- | --- |
+| postgres | success | 44 s | [44861097611](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/44861097611) |
+| test (3.11) | success | 2 m 57 s | [44861097562](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/44861097562) |
+| test (3.12) | success | 2 m 23 s | [44861097562](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/44861097562) |
+| test (3.13) | success | 2 m 59 s | [44861097562](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/44861097562) |
+| typecheck (apps/web) | success | 39 s | [44861097599](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/44861097599) |
+| typecheck (apps/desktop) | success | 20 s | [44861097599](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/44861097599) |
+| typecheck (apps/mobile) | success | 17 s | [44861097599](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/44861097599) |
+| typecheck (apps/client-sync) | success | 19 s | [44861097599](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/44861097599) |
+| Vercel – cubi-web-preview | success | — | preview deployment |
+
+The commit that adds this section is documentation-only and runs the same
+workflow; its checks are visible on the PR's commit list. Local evidence above was
+produced independently of CI and does not depend on it.
 
 ## 6. Honest boundaries
 
