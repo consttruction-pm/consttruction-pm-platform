@@ -39,7 +39,7 @@ export function renderEnvironments(ctx: PageContext, host: HTMLElement): void {
       access.engineering.allowed ? "Your session can enter Engineering." : access.engineering.reason,
       access.engineering.allowed,
       "Open Engineering workspace",
-      "/app/",
+      "/app?view=live",
       false,
     ),
     envCard(
@@ -50,7 +50,7 @@ export function renderEnvironments(ctx: PageContext, host: HTMLElement): void {
       access.enterprise.allowed ? access.enterprise.reason : access.enterprise.reason,
       access.enterprise.allowed,
       "Open Enterprise dashboard",
-      `${BASE_PATH}/enterprise/dashboard/`,
+      `${BASE_PATH}/enterprise/dashboard`,
       true,
     ),
   );
@@ -83,7 +83,7 @@ export function renderEnvironments(ctx: PageContext, host: HTMLElement): void {
     pageActions(
       linkButton("Personal workbench", `${BASE_PATH}/workbench/`),
       linkButton("Role & access", `${BASE_PATH}/roles/`),
-      linkButton("Engineering workspace", "/app/"),
+      linkButton("Engineering workspace", "/app?view=live"),
     ),
   );
 }
@@ -108,12 +108,23 @@ function envCard(
       el("span", { text: enterprise ? "Enterprise permissions are separate from project roles." : "Project permissions are evaluated by the Engineering server." }),
     ),
   );
-  const anchor = el("a", { class: "cubi-btn cubi-btn-primary", text: actionText });
-  anchor.href = href;
-  anchor.addEventListener("click", () => rememberLastEnvironment(id));
-  card.append(el("div", { class: "cubi-env-actions" }, anchor));
+  if (allowed) {
+    const anchor = el("a", { class: "cubi-btn cubi-btn-primary", text: actionText });
+    anchor.href = href;
+    anchor.addEventListener("click", () => rememberLastEnvironment(id));
+    card.append(el("div", { class: "cubi-env-actions" }, anchor));
+  } else {
+    // A denied environment has no entry button: the server gate is the
+    // authority, and the UI must not offer a link that cannot succeed.
+    const denied = el("p", { class: "cubi-field-hint", text: reasonText(status) });
+    card.append(el("div", { class: "cubi-env-actions" }, denied));
+  }
   testId(card, `environment-${id}`);
   return card;
+}
+
+function reasonText(status: string): string {
+  return `Entry denied by the server: ${status}`;
 }
 
 function linkButton(text: string, href: string): HTMLElement {

@@ -73,9 +73,9 @@ export function renderRoles(ctx: PageContext, host: HTMLElement): void {
   const continueButton = el("button", { class: "cubi-btn cubi-btn-primary", text: "Continue", attrs: { type: "button" } });
   continueButton.addEventListener("click", () => {
     const view = readView();
-    if (view === "engineering") window.location.assign("/app/");
-    else if (view === "enterprise") ctx.navigate(`${BASE_PATH}/enterprise/dashboard/`);
-    else ctx.navigate(`${BASE_PATH}/workbench/`);
+    if (view === "engineering") window.location.assign("/app?view=live");
+    else if (view === "enterprise") window.location.assign(`${BASE_PATH}/enterprise/dashboard/`);
+    else window.location.assign("/workbench/");
   });
   sectionBody(
     viewCard,

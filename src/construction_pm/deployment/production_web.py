@@ -20,7 +20,7 @@ import os
 import traceback
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping
-from urllib.parse import parse_qs, quote, unquote, urlsplit
+from urllib.parse import parse_qs, quote, unquote, urlencode, urlsplit
 
 from ..identity_session import (
     CSRF_COOKIE_NAME,
@@ -41,8 +41,19 @@ LOGIN_PATH = "/login"
 APP_PATH = "/app"
 ADMIN_PATH = "/admin"
 ENTERPRISE_PATH = "/enterprise"
+CUBI_PATH = "/cubi"
 WORKBENCH_PATH = "/workbench"
-WORKSPACE_PATHS = frozenset({APP_PATH, ADMIN_PATH, ENTERPRISE_PATH, WORKBENCH_PATH})
+WORKSPACE_PATHS = frozenset({APP_PATH, ADMIN_PATH, WORKBENCH_PATH})
+# Public (unauthenticated) documents of the Enterprise application. The login
+# card and the public home page must render before a session exists; every
+# other /cubi/* document is a signed-in surface.
+CUBI_PUBLIC_PATHS = frozenset(
+    {CUBI_PATH, CUBI_PATH + "/", CUBI_PATH + "/login", CUBI_PATH + "/login/"}
+)
+CUBI_ENTERPRISE_PREFIX = CUBI_PATH + "/enterprise"
+ENTERPRISE_ACCESS_ROLES = frozenset(
+    {"enterprise_admin", "enterprise_user", "enterprise_viewer", "global_admin"}
+)
 API_PREFIX = "/api/"
 LOGIN_BODY_LIMIT = 8_192
 API_BODY_LIMIT = 1_048_576
@@ -114,11 +125,17 @@ class StaticSite:
             return _file(self.root / "index.html")
         if segments in (["app"], ["app", "index.html"]):
             return _file(self.root / "app.html")
-        # CUBI Enterprise is the same application shell document; the client
-        # chooses the environment surface from the URL. Serving the identical
-        # HTML here keeps one canonical shell instead of a second app.
+        # The Enterprise application is its own document (`enterprise.html`).
+        # It is never served as the Engineering shell. Every /cubi/* path is
+        # owned by the Enterprise client router, so all of them resolve to the
+        # same document; the HTTP boundary applies the session gate.
+        if segments and segments[0] == "cubi":
+            return _file(self.root / "enterprise.html")
+        # The retired /enterprise address is redirected by the HTTP boundary;
+        # mapping it here as well means an accidental static fallthrough can
+        # still never expose the Engineering shell.
         if segments in (["enterprise"], ["enterprise", "index.html"]):
-            return _file(self.root / "app.html")
+            return _file(self.root / "enterprise.html")
         if segments[0] == "dist":
             rest = segments[1:]
             if not rest:
@@ -204,14 +221,55 @@ def _client_ip(environ: Mapping[str, Any]) -> str:
 
 
 def _safe_next(value: str | None) -> str:
-    if not isinstance(value, str) or not value.startswith("/") or value.startswith("//"):
+    """Return a same-origin destination, defaulting to the Personal Workbench.
+
+    Sign-in must not drop an ordinary account into the Engineering workspace.
+    The Personal Workbench is the single signed-in entry that lets the caller
+    choose an environment. Two explicit destinations survive the round trip:
+
+    * ``/app?view=live`` (optionally with a project id) — a requested
+      Engineering deep link;
+    * ``/cubi/*`` — a requested Enterprise document.
+
+    Everything else resolves to the Workbench.
+    """
+    fallback = f"{WORKBENCH_PATH}/"
+    if not isinstance(value, str):
+        return fallback
+    candidate = value.strip()
+    if not candidate.startswith("/") or candidate.startswith("//"):
+        return fallback
+    if "\\" in candidate or any(ord(char) < 0x20 for char in candidate):
+        return fallback
+    split = urlsplit(candidate)
+    if split.scheme or split.netloc or split.fragment:
+        return fallback
+    path = split.path
+    if path in (CUBI_PATH, CUBI_PATH + "/") or path.startswith(CUBI_PATH + "/"):
+        return candidate
+    if path in (WORKBENCH_PATH, WORKBENCH_PATH + "/", ADMIN_PATH, ADMIN_PATH + "/"):
+        return candidate
+    if path not in (APP_PATH, APP_PATH + "/"):
+        return fallback
+    query = parse_qs(split.query, keep_blank_values=True)
+    if set(query) - {"project", "view"}:
         return f"{APP_PATH}?view=live"
-    if "\\" in value or any(ord(char) < 0x20 for char in value):
+    project_values = query.get("project", [])
+    if len(project_values) > 1:
         return f"{APP_PATH}?view=live"
-    split = urlsplit(value)
-    if split.scheme or split.netloc:
+    project_id = project_values[0].strip() if project_values else ""
+    if project_values and (
+        not project_id
+        or len(project_id) > 200
+        or any(ord(char) < 0x20 or char in "/\\" for char in project_id)
+    ):
         return f"{APP_PATH}?view=live"
-    return value
+    view_values = query.get("view", [])
+    if len(view_values) > 1 or (view_values and view_values[0] not in {"live", "visual"}):
+        return f"{APP_PATH}?view=live"
+    if project_id:
+        return f"{APP_PATH}?" + urlencode({"project": project_id, "view": "live"})
+    return f"{APP_PATH}?view=live"
 
 
 def _read_body(environ: Mapping[str, Any], limit: int) -> bytes:
@@ -350,6 +408,15 @@ class ProductionWebApp:
             return self._logout(environ)
         if path.startswith(API_PREFIX):
             return self._api(method, path, environ)
+        if path in (ENTERPRISE_PATH, ENTERPRISE_PATH + "/"):
+            # The legacy /enterprise path used to serve the Engineering shell.
+            # It now resolves to the canonical Enterprise document so no
+            # Enterprise link can be mistaken for the Engineering workspace.
+            query = environ.get("QUERY_STRING", "")
+            target = CUBI_PATH + "/" + (f"?{query}" if query else "")
+            return 308, [("Location", target), ("Cache-Control", "no-store")], b""
+        if path == CUBI_PATH or path.startswith(CUBI_PATH + "/"):
+            return self._cubi(method, environ)
         if path in WORKSPACE_PATHS or path.rstrip("/") in WORKSPACE_PATHS:
             return self._app(method, environ)
         if path == LOGIN_PATH:
@@ -510,6 +577,48 @@ class ProductionWebApp:
             ("Cache-Control", "no-store"),
         ], page.read_bytes()
 
+    def _cubi(
+        self, method: str, environ: Mapping[str, Any]
+    ) -> tuple[int, list[tuple[str, str]], bytes]:
+        """Serve the Enterprise document under /cubi/* with a session gate.
+
+        The public home page and the sign-in card are anonymous. Every other
+        Enterprise document requires a session; the API still authorizes each
+        call independently, so this gate is only the document boundary.
+        """
+        if method not in {"GET", "HEAD"}:
+            return _json(405, {"code": "METHOD_NOT_ALLOWED"}, cache="no-store")
+        path = str(environ.get("PATH_INFO", CUBI_PATH))
+        query = str(environ.get("QUERY_STRING", "") or "")
+        normalized = path if path in CUBI_PUBLIC_PATHS else path.rstrip("/")
+        if normalized not in CUBI_PUBLIC_PATHS:
+            cookies = _cookie_values(environ)
+            session = self.identity.resolve(cookies.get(SESSION_COOKIE_NAME, ""))
+            if session is None:
+                target = CUBI_PATH + "/" + (f"?{query}" if query else "")
+                return 302, [
+                    ("Location", f"{LOGIN_PATH}?{quote('next')}={quote(target)}"),
+                    ("Cache-Control", "no-store"),
+                ], b""
+            roles = frozenset(getattr(session, "roles", ()) or ())
+            if path.startswith(CUBI_ENTERPRISE_PREFIX) and not roles.intersection(
+                ENTERPRISE_ACCESS_ROLES
+            ):
+                # The Enterprise data area requires an Enterprise entitlement.
+                # The Workbench explains both environments and never pretends
+                # the environment is available.
+                return 303, [
+                    ("Location", f"{WORKBENCH_PATH}/"),
+                    ("Cache-Control", "no-store"),
+                ], b""
+        page = self.site.resolve(CUBI_PATH + "/")
+        if page is None:
+            return _json(503, {"code": "ENTERPRISE_SHELL_MISSING"}, cache="no-store")
+        return 200, [
+            ("Content-Type", "text/html; charset=utf-8"),
+            ("Cache-Control", "no-store"),
+        ], page.read_bytes()
+
     def _login_page(
         self, method: str, environ: Mapping[str, Any]
     ) -> tuple[int, list[tuple[str, str]], bytes]:
@@ -584,8 +693,10 @@ __all__ = [
     "APP_PATH",
     "ADMIN_PATH",
     "ENTERPRISE_PATH",
+    "CUBI_PATH",
     "WORKBENCH_PATH",
     "WORKSPACE_PATHS",
+    "CUBI_PUBLIC_PATHS",
     "LOGIN_PATH",
     "ProductionWebApp",
     "StaticSite",

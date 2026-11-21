@@ -24,6 +24,9 @@ type Copy = {
   enterpriseNote: string;
   open: string;
   restricted: string;
+  enterpriseUnverified: string;
+  enterpriseUnverifiedNote: string;
+  enterpriseRestrictedNote: string;
   projects: string;
   projectsEmpty: string;
   tasks: string;
@@ -38,6 +41,7 @@ type Copy = {
   breadcrumb: string;
   language: string;
   signedOut: string;
+  signOut: string;
 };
 
 export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
@@ -55,6 +59,9 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     enterpriseNote: "Organization, teams, tasks, approvals, workflows and portfolio.",
     open: "Open environment",
     restricted: "Not authorized for this account",
+    enterpriseUnverified: "Enterprise access could not be verified",
+    enterpriseUnverifiedNote: "The server did not answer the access check. This is not a denial; retry before assuming the environment is unavailable.",
+    enterpriseRestrictedNote: "The server reported no Enterprise entitlement for this account.",
     projects: "Authorized projects",
     projectsEmpty: "No projects are authorized for this account yet.",
     tasks: "Assigned tasks",
@@ -69,6 +76,7 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     breadcrumb: "Workbench",
     language: "Language",
     signedOut: "Your session has expired. Sign in to continue.",
+    signOut: "Sign out",
   },
   fa: {
     title: "میزکار شخصی",
@@ -84,6 +92,9 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     enterpriseNote: "سازمان، تیم‌ها، وظایف، تأییدها، گردش‌کار و پرتفولیو.",
     open: "ورود به محیط",
     restricted: "برای این حساب مجاز نیست",
+    enterpriseUnverified: "دسترسی به محیط سازمانی تأیید نشد",
+    enterpriseUnverifiedNote: "سرور به بررسی دسترسی پاسخ نداد. این وضعیت به معنای رد دسترسی نیست؛ پیش از نتیجه‌گیری دوباره تلاش کنید.",
+    enterpriseRestrictedNote: "سرور اعلام کرد این حساب مجوز محیط سازمانی ندارد.",
     projects: "پروژه‌های مجاز",
     projectsEmpty: "هنوز هیچ پروژه‌ای برای این حساب مجاز نشده است.",
     tasks: "وظایف واگذارشده",
@@ -98,6 +109,7 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     breadcrumb: "میزکار",
     language: "زبان",
     signedOut: "نشست شما پایان یافته است. برای ادامه وارد شوید.",
+    signOut: "خروج",
   },
   de: {
     title: "Persönliche Werkbank",
@@ -113,6 +125,9 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     enterpriseNote: "Organisation, Teams, Aufgaben, Freigaben, Workflows und Portfolio.",
     open: "Umgebung öffnen",
     restricted: "Für dieses Konto nicht freigegeben",
+    enterpriseUnverified: "Enterprise-Zugriff konnte nicht geprüft werden",
+    enterpriseUnverifiedNote: "Der Server hat die Zugriffsprüfung nicht beantwortet. Das ist keine Ablehnung; bitte erneut versuchen.",
+    enterpriseRestrictedNote: "Der Server meldet für dieses Konto keine Enterprise-Berechtigung.",
     projects: "Freigegebene Projekte",
     projectsEmpty: "Für dieses Konto sind noch keine Projekte freigegeben.",
     tasks: "Zugewiesene Aufgaben",
@@ -127,6 +142,7 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     breadcrumb: "Werkbank",
     language: "Sprache",
     signedOut: "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.",
+    signOut: "Abmelden",
   },
   zh: {
     title: "个人工作台",
@@ -142,6 +158,9 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     enterpriseNote: "组织、团队、任务、审批、工作流和项目组合。",
     open: "进入环境",
     restricted: "此账户未获授权",
+    enterpriseUnverified: "无法验证企业环境访问权限",
+    enterpriseUnverifiedNote: "服务器未响应访问检查。这并不表示拒绝；请重试后再判断。",
+    enterpriseRestrictedNote: "服务器报告此账户没有企业环境授权。",
     projects: "已授权项目",
     projectsEmpty: "此账户尚未获得任何项目授权。",
     tasks: "已分配任务",
@@ -156,6 +175,7 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     breadcrumb: "工作台",
     language: "语言",
     signedOut: "会话已过期，请重新登录。",
+    signOut: "退出登录",
   },
   ar: {
     title: "مساحة العمل الشخصية",
@@ -171,6 +191,9 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     enterpriseNote: "المؤسسة والفرق والمهام والموافقات وسير العمل والمحفظة.",
     open: "الدخول إلى البيئة",
     restricted: "غير مصرح لهذا الحساب",
+    enterpriseUnverified: "تعذّر التحقق من الوصول إلى البيئة المؤسسية",
+    enterpriseUnverifiedNote: "لم يستجب الخادم لفحص الوصول. هذا ليس رفضًا؛ أعد المحاولة قبل الاستنتاج.",
+    enterpriseRestrictedNote: "أبلغ الخادم بعدم وجود تصريح مؤسسي لهذا الحساب.",
     projects: "المشاريع المصرح بها",
     projectsEmpty: "لا توجد مشاريع مصرح بها لهذا الحساب بعد.",
     tasks: "المهام المسندة",
@@ -185,6 +208,7 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     breadcrumb: "مساحة العمل",
     language: "اللغة",
     signedOut: "انتهت جلستك. سجّل الدخول للمتابعة.",
+    signOut: "تسجيل الخروج",
   },
   fr: {
     title: "Bureau personnel",
@@ -200,6 +224,9 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     enterpriseNote: "Organisation, équipes, tâches, approbations, workflows et portefeuille.",
     open: "Ouvrir l’environnement",
     restricted: "Non autorisé pour ce compte",
+    enterpriseUnverified: "L'accès Enterprise n'a pas pu être vérifié",
+    enterpriseUnverifiedNote: "Le serveur n'a pas répondu au contrôle d'accès. Ce n'est pas un refus ; réessayez avant de conclure.",
+    enterpriseRestrictedNote: "Le serveur indique que ce compte ne dispose d'aucune autorisation Enterprise.",
     projects: "Projets autorisés",
     projectsEmpty: "Aucun projet n’est encore autorisé pour ce compte.",
     tasks: "Tâches assignées",
@@ -214,6 +241,7 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     breadcrumb: "Bureau",
     language: "Langue",
     signedOut: "Votre session a expiré. Veuillez vous reconnecter.",
+    signOut: "Se déconnecter",
   },
   ja: {
     title: "パーソナルワークベンチ",
@@ -229,6 +257,9 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     enterpriseNote: "組織、チーム、タスク、承認、ワークフロー、ポートフォリオ。",
     open: "環境を開く",
     restricted: "このアカウントには許可されていません",
+    enterpriseUnverified: "エンタープライズへのアクセスを確認できませんでした",
+    enterpriseUnverifiedNote: "サーバーがアクセス確認に応答しませんでした。拒否ではありません。再試行してから判断してください。",
+    enterpriseRestrictedNote: "このアカウントにはエンタープライズ権限がないとサーバーが報告しました。",
     projects: "許可されたプロジェクト",
     projectsEmpty: "このアカウントに許可されたプロジェクトはまだありません。",
     tasks: "割り当てられたタスク",
@@ -243,6 +274,7 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     breadcrumb: "ワークベンチ",
     language: "言語",
     signedOut: "セッションの有効期限が切れました。再度ログインしてください。",
+    signOut: "サインアウト",
   },
   ko: {
     title: "개인 워크벤치",
@@ -258,6 +290,9 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     enterpriseNote: "조직, 팀, 작업, 승인, 워크플로 및 포트폴리오.",
     open: "환경 열기",
     restricted: "이 계정에는 권한이 없습니다",
+    enterpriseUnverified: "엔터프라이즈 접근을 확인하지 못했습니다",
+    enterpriseUnverifiedNote: "서버가 접근 확인에 응답하지 않았습니다. 거부가 아니므로 다시 시도한 후 판단하세요.",
+    enterpriseRestrictedNote: "서버가 이 계정에 엔터프라이즈 권한이 없다고 보고했습니다.",
     projects: "권한이 부여된 프로젝트",
     projectsEmpty: "이 계정에 아직 권한이 부여된 프로젝트가 없습니다.",
     tasks: "할당된 작업",
@@ -272,6 +307,7 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     breadcrumb: "워크벤치",
     language: "언어",
     signedOut: "세션이 만료되었습니다. 다시 로그인하세요.",
+    signOut: "로그아웃",
   },
   ru: {
     title: "Личное рабочее место",
@@ -287,6 +323,9 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     enterpriseNote: "Организация, команды, задачи, согласования, процессы и портфель.",
     open: "Открыть среду",
     restricted: "Нет доступа для этой учётной записи",
+    enterpriseUnverified: "Не удалось проверить доступ к Enterprise",
+    enterpriseUnverifiedNote: "Сервер не ответил на проверку доступа. Это не отказ; повторите попытку, прежде чем делать вывод.",
+    enterpriseRestrictedNote: "Сервер сообщил, что у этой учётной записи нет прав Enterprise.",
     projects: "Разрешённые проекты",
     projectsEmpty: "Для этой учётной записи пока нет разрешённых проектов.",
     tasks: "Назначенные задачи",
@@ -301,6 +340,7 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     breadcrumb: "Рабочее место",
     language: "Язык",
     signedOut: "Сеанс истёк. Войдите снова.",
+    signOut: "Выйти",
   },
   tr: {
     title: "Kişisel Çalışma Tezgahı",
@@ -316,6 +356,9 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     enterpriseNote: "Organizasyon, ekipler, görevler, onaylar, iş akışları ve portföy.",
     open: "Ortamı aç",
     restricted: "Bu hesap için yetkili değil",
+    enterpriseUnverified: "Kurumsal erişim doğrulanamadı",
+    enterpriseUnverifiedNote: "Sunucu erişim denetimine yanıt vermedi. Bu bir ret değildir; sonuç çıkarmadan önce yeniden deneyin.",
+    enterpriseRestrictedNote: "Sunucu bu hesabın Kurumsal yetkisi olmadığını bildirdi.",
     projects: "Yetkili projeler",
     projectsEmpty: "Bu hesap için henüz yetkili proje yok.",
     tasks: "Atanan görevler",
@@ -330,6 +373,7 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     breadcrumb: "Çalışma tezgahı",
     language: "Dil",
     signedOut: "Oturumunuz sona erdi. Devam etmek için giriş yapın.",
+    signOut: "Çıkış yap",
   },
 };
 
@@ -387,13 +431,19 @@ export type EnvironmentState = {
 export type EnvironmentSignals = {
   /** GET /api/projects succeeded — the server released the authorized register. */
   projectsOk: boolean;
-  /** GET /api/enterprise/tasks succeeded (200) — enterprise scope is granted. */
-  enterpriseOk: boolean | null;
+  /** Enterprise access probe. Never inferred from an Engineering project. */
+  enterpriseOk: EnterpriseProbe;
 };
+/** Result of the Enterprise access probe; only a 2xx is a grant. */
+export type EnterpriseProbe = "granted" | "denied" | "unknown";
 
 /**
  * Environment availability is decided from server responses, never from a
  * hard-coded role list: a denied endpoint means the account has no grant.
+ *
+ * A network failure, a 5xx or a 401 is *not* a denial. Enterprise must stay
+ * visible with an honest "unverified" state and a retry, so a temporary
+ * server fault cannot silently remove an entitlement.
  */
 export function resolveEnvironments(signals: EnvironmentSignals): EnvironmentState[] {
   return [
@@ -404,8 +454,13 @@ export function resolveEnvironments(signals: EnvironmentSignals): EnvironmentSta
     },
     {
       id: "enterprise",
-      available: signals.enterpriseOk === true,
-      reason: signals.enterpriseOk === true ? "authorized" : signals.enterpriseOk === null ? "server_unknown" : "no_server_grant",
+      available: signals.enterpriseOk === "granted",
+      reason:
+        signals.enterpriseOk === "granted"
+          ? "authorized"
+          : signals.enterpriseOk === "denied"
+            ? "no_server_grant"
+            : "server_unknown",
     },
   ];
 }
@@ -423,17 +478,27 @@ export function environmentHref(id: EnvironmentId, projectId?: string): string {
     : "/cubi/enterprise/dashboard";
 }
 
-async function probeEnterprise(): Promise<boolean | null> {
+/**
+ * Probe the Enterprise entitlement with a normal read call.
+ *
+ * 2xx is a grant, 403 is a server-side denial. Anything else — 401 (no
+ * session), 404 (endpoint absent), 5xx, or a transport failure — is
+ * "unknown" and must not be presented as a denial.
+ */
+export async function probeEnterprise(
+  request: typeof fetch = (input, init) => fetch(input, init),
+): Promise<EnterpriseProbe> {
   try {
-    const response = await fetch("/api/enterprise/tasks?limit=1", {
+    const response = await request("/api/enterprise/tasks?limit=1", {
       credentials: "same-origin",
       headers: { Accept: "application/json" },
       cache: "no-store",
     });
-    if (response.status === 401) return null;
-    return response.ok;
+    if (response.ok) return "granted";
+    if (response.status === 403) return "denied";
+    return "unknown";
   } catch {
-    return null;
+    return "unknown";
   }
 }
 
@@ -487,7 +552,9 @@ export async function mountPersonalWorkbench(container: HTMLElement, requestedLo
     window.location.assign(url.toString());
   });
   localeLabel.append(select);
-  header.append(brand, crumb, localeLabel);
+  const signOut = element("button", "cp-wb-signout", copy.signOut) as HTMLButtonElement;
+  signOut.type = "button";
+  header.append(brand, crumb, localeLabel, signOut);
   shell.append(header);
 
   const hero = element("section", "cp-wb-hero");
@@ -503,6 +570,16 @@ export async function mountPersonalWorkbench(container: HTMLElement, requestedLo
   container.append(shell);
 
   const sessionApi = new FetchSessionApi(window.location.origin);
+  signOut.addEventListener("click", () => {
+    signOut.disabled = true;
+    void sessionApi.logout().then(async (result) => {
+      if (!result.ok) {
+        // The preview runtime exposes a POST logout with the same effect.
+        await fetch("/preview/logout", { method: "POST", credentials: "same-origin" }).catch(() => undefined);
+      }
+      window.location.assign("/login");
+    });
+  });
   const session = await sessionApi.getSession();
   if (!session.ok) {
     if (session.error.code === "UNAUTHENTICATED" || session.error.code === "SESSION_REQUIRED") {
@@ -554,8 +631,22 @@ export async function mountPersonalWorkbench(container: HTMLElement, requestedLo
       const link = element("a", "cp-wb-button cp-wb-button-primary", copy.open) as HTMLAnchorElement;
       link.href = environmentHref(environment.id, environment.id === "engineering" ? projects[0]?.project_id : undefined);
       card.append(link);
+    } else if (environment.reason === "server_unknown") {
+      // A failed probe is not a denial. Keep the environment visible, explain
+      // what happened and offer a real retry.
+      const blocked = element("p", "cp-wb-restricted", copy.enterpriseUnverified);
+      blocked.setAttribute("role", "note");
+      const explanation = element("p", "cp-wb-empty", copy.enterpriseUnverifiedNote);
+      const retry = element("button", "cp-wb-button", copy.retry);
+      retry.type = "button";
+      retry.addEventListener("click", () => window.location.reload());
+      card.append(blocked, explanation, retry);
     } else {
-      const blocked = element("p", "cp-wb-restricted", copy.restricted);
+      const blocked = element(
+        "p",
+        "cp-wb-restricted",
+        environment.id === "enterprise" ? copy.enterpriseRestrictedNote : copy.restricted,
+      );
       blocked.setAttribute("role", "note");
       card.append(blocked);
     }
@@ -582,11 +673,12 @@ export async function mountPersonalWorkbench(container: HTMLElement, requestedLo
   }
   shell.append(projectSection);
 
-  if (enterpriseOk === true) {
+  if (enterpriseOk === "granted") {
     const taskSection = element("section", "cp-wb-tasks");
     taskSection.append(element("h2", "", copy.tasks));
     const taskLink = element("a", "cp-wb-inline-link", copy.enterprise) as HTMLAnchorElement;
-    taskLink.href = "/enterprise/";
+    // Canonical Enterprise task center, never the retired /enterprise/ route.
+    taskLink.href = "/cubi/enterprise/tasks/";
     taskSection.append(element("p", "cp-wb-empty", copy.tasksNone), taskLink);
     shell.append(taskSection);
   }

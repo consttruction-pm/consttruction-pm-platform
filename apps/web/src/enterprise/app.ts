@@ -250,7 +250,9 @@ function renderShell(): void {
   crumbs.append(
     link(`${BASE_PATH}/`, "CUBI"),
     el("span", { class: "sep", text: "/" }),
-    link(pageHref("workbench"), state.t("nav.workbench")),
+    // The Personal Workbench is one canonical document at /workbench/; the
+    // Enterprise application must not mount a second copy of it.
+    link("/workbench/", state.t("nav.workbench")),
     el("span", { class: "sep", text: "/" }),
     el("span", { text: state.t(route.titleKey) }),
   );
@@ -258,10 +260,19 @@ function renderShell(): void {
   const access = environmentAccess(session);
   topActions.append(
     el("span", { class: "cubi-env-pill", text: access.enterprise.allowed ? state.t("brand.enterprise") : state.t("brand.enterprise") + " · " + state.t("common.restricted") }),
+  );
+  topActions.append(searchBox(), notificationsBell(), link("/workbench/", state.t("nav.workbench"), false, "cubi-btn cubi-btn-ghost"));
+  if (access.engineering.allowed) {
+    // Switching environments uses the same session; the Engineering server
+    // re-authorizes every project request.
+    topActions.append(link("/app?view=live", state.t("nav.engineering"), false, "cubi-btn cubi-btn-ghost"));
+  }
+  topActions.append(
     languageSelect(),
     link(publicHelpUrl(), "?", true, "cubi-btn cubi-btn-ghost"),
   );
   topbar.append(crumbs, topActions);
+  installTopbarShortcuts();
 
   const content = el("main", { class: "cubi-content", attrs: { id: "cubi-main", tabindex: "-1" } });
   main.append(topbar, content);
@@ -339,8 +350,172 @@ function languageSelect(): HTMLElement {
   return wrapper;
 }
 
-function renderPublic(): void {
-  const root = document.getElementById("cubi-app");
+type SearchHit = { label: string; detail: string; href: string };
+
+function searchHits(raw: string): SearchHit[] {
+  const needle = raw.trim().toLocaleLowerCase();
+  if (!needle) return [];
+  const hits: SearchHit[] = [];
+  for (const route of ROUTES) {
+    if (!route.requiresSession || route.id === "login" || route.id === "not-found") continue;
+    const label = state.t(route.titleKey);
+    if (`${label} ${route.segment}`.toLocaleLowerCase().includes(needle)) {
+      hits.push({ label, detail: `Enterprise · ${pageHref(route.id)}`, href: pageHref(route.id) });
+    }
+  }
+  for (const project of state.projects) {
+    if (`${project.name} ${project.project_id}`.toLocaleLowerCase().includes(needle)) {
+      hits.push({ label: project.name, detail: `Project · ${project.project_id}`, href: pageHref("projects", { project: project.project_id }) });
+    }
+  }
+  return hits.slice(0, 8);
+}
+
+/**
+ * Topbar search over the routes this deployment actually serves and the
+ * projects the session can read. It navigates; it does not fabricate results
+ * from pages the router does not know about.
+ */
+function searchBox(): HTMLElement {
+  const wrap = el("div", { class: "cubi-search" });
+  const input = el("input", {
+    class: "cubi-search-input",
+    attrs: {
+      type: "search",
+      id: "cubi-global-search",
+      placeholder: state.t("common.search"),
+      "aria-label": `${state.t("common.search")} — pages and projects`,
+      "aria-controls": "cubi-search-results",
+      "aria-expanded": "false",
+      autocomplete: "off",
+      spellcheck: "false",
+    },
+  });
+  const results = el("div", { class: "cubi-search-results", attrs: { id: "cubi-search-results", role: "listbox" } });
+  results.hidden = true;
+  let hits: SearchHit[] = [];
+  let active = -1;
+
+  const close = (): void => {
+    results.hidden = true;
+    results.replaceChildren();
+    hits = [];
+    active = -1;
+    input.setAttribute("aria-expanded", "false");
+    input.removeAttribute("aria-activedescendant");
+  };
+
+  const paint = (): void => {
+    results.replaceChildren();
+    if (!hits.length) {
+      results.append(el("div", { class: "cubi-search-empty", text: state.t("common.noResults") }));
+      results.hidden = false;
+      input.setAttribute("aria-expanded", "true");
+      return;
+    }
+    hits.forEach((hit, index) => {
+      const item = el("a", { class: `cubi-search-hit${index === active ? " is-active" : ""}`, attrs: { href: hit.href, role: "option", id: `cubi-search-hit-${index}`, "aria-selected": index === active ? "true" : "false" } });
+      item.append(el("strong", { text: hit.label }), el("span", { text: hit.detail }));
+      results.append(item);
+    });
+    results.hidden = false;
+    input.setAttribute("aria-expanded", "true");
+    input.setAttribute("aria-activedescendant", `cubi-search-hit-${Math.max(active, 0)}`);
+  };
+
+  input.addEventListener("input", () => {
+    hits = searchHits(input.value);
+    active = hits.length ? 0 : -1;
+    if (input.value.trim()) paint();
+    else close();
+  });
+  input.addEventListener("focus", () => {
+    if (input.value.trim()) {
+      hits = searchHits(input.value);
+      active = hits.length ? 0 : -1;
+      paint();
+    }
+  });
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      close();
+      input.blur();
+      return;
+    }
+    if (event.key === "ArrowDown" && hits.length) {
+      event.preventDefault();
+      active = (active + 1) % hits.length;
+      paint();
+      return;
+    }
+    if (event.key === "ArrowUp" && hits.length) {
+      event.preventDefault();
+      active = (active - 1 + hits.length) % hits.length;
+      paint();
+      return;
+    }
+    if (event.key === "Enter" && active >= 0 && hits[active]) {
+      event.preventDefault();
+      const href = hits[active].href;
+      close();
+      navigate(href);
+    }
+  });
+  wrap.append(input, results);
+  return wrap;
+}
+
+/**
+ * Notification indicator. The count comes from the notification register this
+ * session can read; an unread count is shown only for records the server marks
+ * as `unread`. A read failure is reported in the tooltip, never as zero.
+ */
+function notificationsBell(): HTMLElement {
+  const title = state.t("page.notifications.title");
+  const anchor = el("a", { class: "cubi-bell", attrs: { href: pageHref("notifications"), "aria-label": title, title } });
+  anchor.append(el("span", { class: "cubi-bell-glyph", attrs: { "aria-hidden": "true" } }));
+  const count = el("span", { class: "cubi-bell-count", attrs: { hidden: "hidden" } });
+  anchor.append(count);
+  void api.enterpriseList("notifications", { limit: "50" }).then((payload) => {
+    const items = payload.items ?? [];
+    const unread = items.filter((item) => String(item.status ?? "").toLowerCase() === "unread").length;
+    anchor.title = `${title}: ${items.length} record(s), ${unread} unread`;
+    if (unread > 0) {
+      count.textContent = String(unread);
+      count.removeAttribute("hidden");
+    }
+  }).catch((error: unknown) => {
+    const detail = error instanceof ApiError ? `${error.code} (HTTP ${error.status})` : "unavailable";
+    anchor.title = `${title} — ${detail}`;
+  });
+  return anchor;
+}
+
+let shortcutsInstalled = false;
+
+function installTopbarShortcuts(): void {
+  if (shortcutsInstalled) return;
+  shortcutsInstalled = true;
+  document.addEventListener("keydown", (event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+      const input = document.getElementById("cubi-global-search");
+      if (input instanceof HTMLInputElement) {
+        event.preventDefault();
+        input.focus();
+        input.select();
+      }
+    }
+  });
+  document.addEventListener("mousedown", (event) => {
+    const wrap = document.querySelector(".cubi-search");
+    if (wrap instanceof HTMLElement && event.target instanceof Node && !wrap.contains(event.target)) {
+      const results = document.getElementById("cubi-search-results");
+      if (results instanceof HTMLElement) results.hidden = true;
+    }
+  });
+}
+
+function renderPublic(): void {  const root = document.getElementById("cubi-app");
   if (!root) return;
   const page = el("div", { class: "cubi-public" });
   page.append(publicNav());
@@ -390,7 +565,9 @@ async function doSignOut(): Promise<void> {
     // A missing session is already signed out; still clear local state.
   }
   state.session = null;
-  navigate(`${BASE_PATH}/`, { replace: true });
+  // Sign-out returns to the canonical sign-in page, not the public home, so the
+  // next step is always a deliberate re-authentication.
+  window.location.assign("/login");
 }
 
 async function loadProjects(): Promise<void> {

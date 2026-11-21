@@ -102,11 +102,17 @@ export function pageHref(id: PageId, params?: Record<string, string | null | und
   return text ? `${path}?${text}` : path;
 }
 
-/** Only same-application paths may be used as a post-login destination. */
+/**
+ * Only same-application paths may be used as a post-login destination.
+ *
+ * The fallback is the canonical Personal Workbench at ``/workbench/`` — never
+ * the Engineering workspace. Enterprise documents under ``/cubi/*`` survive
+ * the round trip intact.
+ */
 export function safeNextPath(raw: string | null | undefined): string {
   const value = String(raw ?? "").trim();
-  if (!value.startsWith(`${BASE_PATH}/`) || value.startsWith("//")) return pageHref("workbench");
-  if (/[\u0000-\u001f]/.test(value)) return pageHref("workbench");
+  if (!value.startsWith(`${BASE_PATH}/`) || value.startsWith("//")) return "/workbench/";
+  if (/[\u0000-\u001f]/.test(value)) return "/workbench/";
   return value;
 }
 

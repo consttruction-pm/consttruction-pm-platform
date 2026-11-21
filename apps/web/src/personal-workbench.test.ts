@@ -6,6 +6,7 @@ import {
   WORKBENCH_LOCALES,
   environmentHref,
   formatWorkbenchDate,
+  probeEnterprise,
   formatWorkbenchNumber,
   resolveEnvironments,
   resolveWorkbenchLocale,
@@ -49,18 +50,30 @@ test("locale resolution normalizes regional tags and falls back to English", () 
 });
 
 test("environment availability follows server responses, not a role list", () => {
-  const granted = resolveEnvironments({ projectsOk: true, enterpriseOk: true });
+  const granted = resolveEnvironments({ projectsOk: true, enterpriseOk: "granted" });
   assert.deepEqual(granted, [
     { id: "engineering", available: true, reason: "authorized" },
     { id: "enterprise", available: true, reason: "authorized" },
   ]);
-  const engineeringOnly = resolveEnvironments({ projectsOk: true, enterpriseOk: false });
+  const engineeringOnly = resolveEnvironments({ projectsOk: true, enterpriseOk: "denied" });
   assert.equal(engineeringOnly[0].available, true);
   assert.equal(engineeringOnly[1].available, false);
   assert.equal(engineeringOnly[1].reason, "no_server_grant");
-  const unknown = resolveEnvironments({ projectsOk: false, enterpriseOk: null });
+  const unknown = resolveEnvironments({ projectsOk: false, enterpriseOk: "unknown" });
   assert.equal(unknown[0].available, false);
+  assert.equal(unknown[1].available, false);
   assert.equal(unknown[1].reason, "server_unknown");
+});
+
+test("the enterprise probe treats only a 2xx as a grant and never hides on a fault", async () => {
+  const respond = (status: number) => async () => new Response("{}", { status });
+  assert.equal(await probeEnterprise(respond(200)), "granted");
+  assert.equal(await probeEnterprise(respond(201)), "granted");
+  assert.equal(await probeEnterprise(respond(403)), "denied");
+  assert.equal(await probeEnterprise(respond(401)), "unknown");
+  assert.equal(await probeEnterprise(respond(404)), "unknown");
+  assert.equal(await probeEnterprise(respond(503)), "unknown");
+  assert.equal(await probeEnterprise(async () => { throw new TypeError("offline"); }), "unknown");
 });
 
 test("environment links stay inside the two real product entries", () => {

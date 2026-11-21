@@ -7,6 +7,16 @@
 **Owner:** single agent execution (no delegation in the audited revision)
 **Machine-readable twin:** `CUBI_MASTER_PAGE_COMPONENT_MATRIX.csv` / `.json` (86 rows)
 
+> **Correction (2026-11-21).** The audit below is a snapshot at `0014928bf`.
+> Since then the Enterprise Workbench was delivered on `/cubi/*` (PRs #2085–#2088)
+> and the entry path was corrected on PR #2089: `/login` is the canonical sign-in,
+> `/workbench/` is the post-login default, `/enterprise` answers `308` to `/cubi/`,
+> and all 20 Enterprise data routes are served by `enterprise.html`. The
+> statement in the table that "15 of 16 Enterprise pages have no route" is no
+> longer true; see
+> `docs/enterprise/ENTERPRISE_V26_ENTRY_ROUTING_AND_OPERATIONS.md`.
+
+
 ## 1. What this plan is and is not
 
 This plan records the **real** state of every registered page, the inheritance it must respect, and the work that remains. It deliberately separates four things the order treats as different:

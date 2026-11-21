@@ -33,17 +33,17 @@ The V26 HTML topic “Working with P6” explicitly lists seven main sections: D
 
 | P6 EPPM V26 capability family | CUBI Enterprise destination / work package | Current evidence / state |
 |---|---|---|
-| Dashboards and configurable portlets | Portfolio & Executive Center; role-based dashboards and portlet catalog | Planned; existing reporting/read-model infrastructure must be verified before reuse |
-| Portfolios, portfolio analysis, scorecards and project grouping | Portfolio & Executive Center | Planned; portfolio control read model and decision boundary exist as foundations, not full UI parity |
+| Dashboards and configurable portlets | Portfolio & Executive Center; role-based dashboards and portlet catalog | Partial — `WIRED_WRITE`: dashboard selector, portlet catalog, designer (add/remove/reorder/resize/visibility) and layout create/update on `/api/enterprise/dashboards`; Engineering portlets answer `503 ENGINEERING_SOURCE_NOT_CONNECTED` and no value is derived |
+| Portfolios, portfolio analysis, scorecards and project grouping | Portfolio & Executive Center | Partial — `WIRED_WRITE`: project register with search/status/sort, domain grouping and revision-pinned decisions; KPI/trend/EVM read models not connected (`503`) |
 | Projects, EPS, project lifecycle, WBS and project overview | Project Portal and Engineering-linked project context | Partial across CUBI platform; authoritative schedule structures remain Engineering-owned |
 | Resources, resource administration, analysis and capacity | Organization & Access / Resource and Capacity views | Partial foundations; verify resource and team membership semantics separately |
-| Approvals for timesheets and configured activity status updates | Feedback & Approval Center with Engineering Activity Status review integration | Planned; approval authority must stay with the owning Engineering/team workflow and role grants |
+| Approvals for timesheets and configured activity status updates | Feedback & Approval Center with Engineering Activity Status review integration | Partial — `WIRED_WRITE`: approval records, queue, revision-pinned decisions and stale/duplicate handling; reviewer assignment and Engineering timesheet approval are not implemented |
 | Team Member Web, My Activities, status updates and timesheets | Team & Task Center plus future Engineering Activity Status surface | Separate concepts: current Enterprise Task is an organizational task, not a P6 schedule Activity or a timesheet |
-| Risks and issues | Project Portal / Risk & Issue Management | Partial in Engineering; Enterprise must consume authorized, revision-pinned records rather than duplicate authoritative risk/schedule data |
-| Reports and performance status | Portfolio & Executive Center / Reporting | Existing reporting capabilities require end-to-end parity verification |
-| Enterprise administration, user security, access and privileges | Organization & Access Center | Partial; authenticated task API exists, full organization/team membership and administration are not complete |
-| Project documents and information | Project Portal / Document & Information Management | Partial; use existing document service and access rules where verified |
-| Workflow, notifications and approvals | Workflow Studio / Feedback & Approval Center | Planned; status updates/approval semantics from Team Member V26 are a specific acceptance input |
+| Risks and issues | Project Portal / Risk & Issue Management | Implemented as a CUBI register — `WIRED_WRITE`: create/edit/soft delete/restore with revisions and audit on `/api/enterprise/risks`; schedule and cost impact stay in Engineering |
+| Reports and performance status | Portfolio & Executive Center / Reporting | Partial — `WIRED_READ`: catalogue, definitions and runs read from the existing reporting service; no parallel queue or worker, and no Enterprise authoring |
+| Enterprise administration, user security, access and privileges | Organization & Access Center | Partial — `WIRED_WRITE`: organizations, teams, memberships, roles, grants and settings have admin-gated registers with tenant isolation; invitation acceptance is not implemented |
+| Project documents and information | Project Portal / Document & Information Management | Partial — `WIRED_WRITE`: document identity/review register with revisions; binary storage is explicitly not offered |
+| Workflow, notifications and approvals | Workflow Studio / Feedback & Approval Center | Partial — `WIRED_WRITE`: workflow draft and publish with server graph validation; notification records with audience/channel; no external delivery or scheduling integration is claimed |
 
 ## 4. Team Member V26 — workflow-specific acceptance requirements
 

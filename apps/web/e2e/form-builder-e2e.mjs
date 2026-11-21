@@ -411,7 +411,7 @@ async function launchChrome() {
 }
 
 async function openLogin(page, baseUrl) {
-  await page.cdp.send("Page.navigate", { url: `${baseUrl}/preview/login` });
+  await page.cdp.send("Page.navigate", { url: `${baseUrl}/login` });
   await sleep(600);
   for (let attempt = 0; attempt < 4; attempt += 1) {
     // Free HTTPS relays such as Serveo put a one-time browser warning in front
@@ -441,7 +441,10 @@ async function openLogin(page, baseUrl) {
 async function login(page, baseUrl, role) {
   await openLogin(page, baseUrl);
   await page.click(`button[name="role"][value="${role}"]`);
-  await page.waitFor(`location.pathname === "/app"`, `${role} redirect`);
+  // A plain sign-in always lands on the Personal Workbench: the caller chooses
+  // the environment there. This Form Builder journey deliberately opens the
+  // Engineering workspace next through an explicit deep link.
+  await page.waitFor(`location.pathname === "/workbench/"`, `${role} workbench redirect`);
   // The product's default /app route is the visual preview shell. This
   // Form Builder journey exercises the authenticated data-backed workspace,
   // so it explicitly selects that route after the session is established.

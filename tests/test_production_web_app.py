@@ -16,7 +16,12 @@ from wsgiref.util import setup_testing_defaults
 
 import pytest
 
-from construction_pm.deployment.production_web import ProductionWebApp, StaticSite, _client_ip
+from construction_pm.deployment.production_web import (
+    ProductionWebApp,
+    StaticSite,
+    _client_ip,
+    _safe_next,
+)
 from construction_pm.identity_session import (
     IdentityService,
     IdentityUser,
@@ -51,6 +56,7 @@ class StubApi:
 def site_root(tmp_path: Path) -> Path:
     (tmp_path / "index.html").write_text("<!doctype html><title>CUBI</title>", encoding="utf-8")
     (tmp_path / "app.html").write_text("<!doctype html><title>CUBI Workspace</title>", encoding="utf-8")
+    (tmp_path / "enterprise.html").write_text("<!doctype html><title>CUBI Enterprise Workbench</title>", encoding="utf-8")
     (tmp_path / "login.html").write_text("<!doctype html><title>CUBI Login</title>", encoding="utf-8")
     public = tmp_path / "public"
     public.mkdir()
@@ -240,7 +246,8 @@ def test_login_page_redirects_an_authenticated_user_to_the_next_target(app):
     cookie, _ = login(app)
     status, headers, _ = call(app, "GET", "/login", cookie=cookie, query="next=%2Fapp%3Fproject%3Dp1")
     assert status == 303
-    assert headers["location"] == ["/app?project=p1"]
+    # Engineering deep links are canonicalised to explicit live mode.
+    assert headers["location"] == ["/app?project=p1&view=live"]
 
 
 def test_login_page_sanitizes_open_redirect_targets(app):
@@ -248,7 +255,8 @@ def test_login_page_sanitizes_open_redirect_targets(app):
     for hostile in ("//evil.example/app", "https://evil.example/", "/\\evil", "/app\nX"):
         status, headers, _ = call(app, "GET", "/login", cookie=cookie, query=f"next={hostile}")
         if status == 303:
-            assert headers["location"][0] == "/app?view=live"
+            # Unknown or hostile destinations never become Engineering.
+            assert headers["location"][0] == "/workbench/"
 
 
 def test_unsafe_api_requests_require_origin_and_csrf(app):
@@ -454,30 +462,66 @@ def test_client_ip_prefers_the_platform_single_value_header():
     assert _client_ip({"REMOTE_ADDR": "203.0.113.7"}) == "203.0.113.7"
 
 
-def test_enterprise_workspace_is_gated_like_app(app):
-    status, headers, _ = call(app, "GET", "/enterprise", query="project=alpha&view=live")
-    assert status == 302
-    location = headers["location"][0]
-    assert location.startswith("/login?next=/enterprise")
-    assert "project%3Dalpha" in location
-    status, headers, _ = call(app, "GET", "/enterprise/")
-    assert status == 302
-    assert headers["location"][0].startswith("/login?next=/enterprise/")
-
-
-def test_enterprise_workspace_serves_the_single_canonical_shell(app):
-    cookie, _ = login(app)
+def test_the_retired_enterprise_route_redirects_to_the_canonical_document(app):
     for path in ("/enterprise", "/enterprise/"):
-        status, headers, body = call(app, "GET", path, cookie=cookie)
+        status, headers, _ = call(app, "GET", path, query="project=alpha&view=live")
+        assert status == 308
+        location = headers["location"][0]
+        # The retired address must never serve, or redirect into, the
+        # Engineering shell.
+        assert location.startswith("/cubi/")
+        assert "/app" not in location
+
+
+def test_enterprise_documents_are_gated_by_the_session(app):
+    status, headers, _ = call(app, "GET", "/cubi/enterprise/dashboard")
+    assert status == 302
+    assert headers["location"][0].startswith("/login?next=/cubi/")
+
+
+def test_enterprise_public_entry_pages_render_without_a_session(app):
+    for path in ("/cubi/", "/cubi", "/cubi/login"):
+        status, headers, body = call(app, "GET", path)
         assert status == 200, (path, body)
         assert headers["content-type"] == ["text/html; charset=utf-8"]
         assert headers["cache-control"] == ["no-store"]
-        # The same app.html document serves both environments; the route
-        # selects the surface in the client, never a second shell.
-        assert b"CUBI Workspace" in body
+        assert b"CUBI Enterprise Workbench" in body
 
 
-def test_static_site_maps_enterprise_to_the_canonical_shell(site_root: Path):
+def test_a_session_without_an_enterprise_entitlement_cannot_open_the_data_area(app):
+    cookie, _ = login(app)
+    status, headers, body = call(app, "GET", "/cubi/enterprise/dashboard", cookie=cookie)
+    assert status == 303
+    assert headers["location"][0] == "/workbench/"
+
+    # The session keeps working inside the Enterprise document itself: the
+    # public entry page is a signed-in document, not Engineering.
+    status, headers, body = call(app, "GET", "/cubi/login", cookie=cookie)
+    assert status == 200
+    assert headers["content-type"] == ["text/html; charset=utf-8"]
+    assert headers["cache-control"] == ["no-store"]
+    assert b"CUBI Enterprise Workbench" in body
+    assert b"CUBI Workspace" not in body
+
+
+def test_static_site_maps_the_enterprise_document_not_the_engineering_shell(site_root: Path):
     site = StaticSite(site_root)
-    assert site.resolve("/enterprise") == (site_root / "app.html").resolve()
-    assert site.resolve("/enterprise/") == (site_root / "app.html").resolve()
+    for path in ("/cubi", "/cubi/", "/cubi/enterprise/dashboard", "/enterprise", "/enterprise/"):
+        assert site.resolve(path) == (site_root / "enterprise.html").resolve()
+
+
+def test_safe_next_defaults_to_the_personal_workbench_and_preserves_real_deep_links():
+    assert _safe_next(None) == "/workbench/"
+    assert _safe_next("") == "/workbench/"
+    assert _safe_next("/") == "/workbench/"
+    assert _safe_next("/unknown") == "/workbench/"
+    assert _safe_next("/workbench") == "/workbench"
+    assert _safe_next("/workbench/") == "/workbench/"
+    assert _safe_next("/cubi/enterprise/dashboard") == "/cubi/enterprise/dashboard"
+    assert _safe_next("/app") == "/app?view=live"
+    assert _safe_next("/app?view=live") == "/app?view=live"
+    assert _safe_next("/app?project=alpha&view=live") == "/app?project=alpha&view=live"
+    assert _safe_next("/app?view=live&next=//evil.test") == "/app?view=live"
+    assert _safe_next("//evil.test/cubi/") == "/workbench/"
+    assert _safe_next("https://evil.test/cubi/") == "/workbench/"
+    assert _safe_next("/app?project=a/b") == "/app?view=live"

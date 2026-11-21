@@ -68,11 +68,11 @@ test("pageHref builds stable /cubi links and drops empty parameters", () => {
 
 test("safeNextPath refuses anything outside the Enterprise application", () => {
   assert.equal(safeNextPath("/cubi/enterprise/tasks/"), "/cubi/enterprise/tasks/");
-  assert.equal(safeNextPath("//evil.example"), `${BASE_PATH}/workbench/`);
-  assert.equal(safeNextPath("/app/"), `${BASE_PATH}/workbench/`);
-  assert.equal(safeNextPath("https://evil.example/cubi/"), `${BASE_PATH}/workbench/`);
-  assert.equal(safeNextPath("/cubi/\u0000"), `${BASE_PATH}/workbench/`);
-  assert.equal(safeNextPath(null), `${BASE_PATH}/workbench/`);
+  assert.equal(safeNextPath("//evil.example"), "/workbench/");
+  assert.equal(safeNextPath("/app/"), "/workbench/");
+  assert.equal(safeNextPath("https://evil.example/cubi/"), "/workbench/");
+  assert.equal(safeNextPath("/cubi/\u0000"), "/workbench/");
+  assert.equal(safeNextPath(null), "/workbench/");
 });
 
 test("enterprise tier is independent from project roles", () => {

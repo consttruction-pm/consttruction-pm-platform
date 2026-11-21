@@ -48,7 +48,9 @@ export function resolveRequestFile(requestPath) {
   if (pathname === "/") {
     candidate = join(root, "index.html");
   } else if (pathname === "/enterprise" || pathname === "/enterprise/") {
-    candidate = join(root, "app.html");
+    // The retired address resolves to the Enterprise document. It must never
+    // resolve to the Engineering shell; the HTTP boundary redirects it.
+    candidate = join(root, "enterprise.html");
   } else if (pathname === "/app" || pathname === "/app/" || pathname === "/app/index.html") {
     // The workspace entry is a real application shell, not the marketing
     // landing page. It uses absolute asset URLs so it also works at /app/.
