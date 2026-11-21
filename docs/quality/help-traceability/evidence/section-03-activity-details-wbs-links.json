@@ -1,0 +1,422 @@
+{
+  "verified_at": "2026-11-21",
+  "section": 3,
+  "document": "docs/quality/help-traceability/ENGINEERING_ACTIVITY_DETAILS_WBS.md",
+  "official_baselines": {
+    "engineering_html_help_toc": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm",
+    "user_guide_toc": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/toc.htm"
+  },
+  "help_topics": [
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/activity_steps.htm",
+      "title": "Activity steps",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/add_a_wbs_element.htm",
+      "title": "Add a WBS element",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/add_expenses_from_the_activities_window.htm",
+      "title": "Add expenses from the Activities window",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/add_steps_to_activities.htm",
+      "title": "Add steps to activities",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/add_weights_to_steps.htm",
+      "title": "Add weights to steps",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/assign_activity_codes_and_values_to_activities.htm",
+      "title": "Assign activity codes and values to activities",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/assign_an_issue_to_an_activity.htm",
+      "title": "Assign an issue to an activity",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/assign_notebooks_to_activities.htm",
+      "title": "Assign notebooks to activities",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/assign_resources_to_activities.htm",
+      "title": "Assign resources to activities",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/assign_wbs_weighted_milestones.htm",
+      "title": "Assign WBS weighted milestones",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/48839.htm",
+      "title": "Assigning a risk to an activity (P6 Professional Only)",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/change_an_activitys_work_breakdown_structure_assignment.htm",
+      "title": "Change an activity's work breakdown structure assignment",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/change_expenses_tab_columns.htm",
+      "title": "Change expenses tab columns",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/change_predecessors_tab_columns.htm",
+      "title": "Change Predecessors tab columns",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/change_resources_tab_columns.htm",
+      "title": "Change Resources tab columns",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/change_the_work_breakdown_structure_chart_display.htm",
+      "title": "Change the work breakdown structure chart display",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/change_the_work_breakdown_structure_table_display.htm",
+      "title": "Change the work breakdown structure table display",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/copy_and_paste_a_work_breakdown_structure_element.htm",
+      "title": "Copy and paste a work breakdown structure element",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/customize_activity_details.htm",
+      "title": "Customize Activity Details",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/cut_and_paste_a_work_breakdown_structure_element.htm",
+      "title": "Cut and paste a work breakdown structure element",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/define_general_activity_information.htm",
+      "title": "Define general activity information",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/delete_a_work_breakdown_structure_element.htm",
+      "title": "Delete a work breakdown structure element",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/determine_a_wbs_elements_status.htm",
+      "title": "Determine a WBS element's status",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/display_window_details.htm",
+      "title": "Display window details",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/display_work_breakdown_structure_details.htm",
+      "title": "Display work breakdown structure details",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/display_work_product_and_doc_details_in_the_activities_window.htm",
+      "title": "Display work product and document details in the Activities window",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/edit_a_work_breakdown_structure_element.htm",
+      "title": "Edit a work breakdown structure element",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/expenses.htm",
+      "title": "Expenses",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/group_activities_by_wbs_path.htm",
+      "title": "Group activities by WBS path",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/move_around_the_wbs_chart.htm",
+      "title": "Move around the WBS chart",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/48842.htm",
+      "title": "Removing risk assignments from activities (P6 Professional Only)",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/update_activity_steps.htm",
+      "title": "Update activity steps",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/update_progress_for_individual_activities_manually.htm",
+      "title": "Update progress for individual activities",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/user_defined_fields.htm",
+      "title": "User-defined fields",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/using_a_wbs_for_top_down_planning.htm",
+      "title": "Using a WBS for top-down planning",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/using_weighted_milestones_in_the_wbs.htm",
+      "title": "Using weighted milestones in the work breakdown structure",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/19567.htm",
+      "title": "View activity relationships in Activity Details",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/view_the_wbs.htm",
+      "title": "View the WBS",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/wbs_status_types.htm",
+      "title": "WBS status types",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/work_breakdown_structure.htm",
+      "title": "Work Breakdown Structure",
+      "http": 200,
+      "in_official_toc": true
+    }
+  ],
+  "user_guide_topics": [
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/activitycodesandvalues-18851a.html",
+      "title": "Activity codes and values",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/activitysteps-19435a.html",
+      "title": "Activity steps",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/addawbselement-19113a.html",
+      "title": "Add a WBS element",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/addexpensesfromtheactivitieswindow-19597a.html",
+      "title": "Add expenses from the Activities window",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/addstepstoactivities-19589a.html",
+      "title": "Add steps to activities",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/assignnotebookstoactivities-19605a.html",
+      "title": "Assign notebooks to activities",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/assignresourcestoactivities-18731a.html",
+      "title": "Assign resources to activities",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/assigningarisktoanactivityp6professionalonly-48839a.html",
+      "title": "Assigning a risk to an activity (P6 Professional Only)",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/changetheworkbreakdownstructurechartdisplay-19127a.html",
+      "title": "Change the work breakdown structure chart display",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/changetheworkbreakdownstructuretabledisplay-19129a.html",
+      "title": "Change the work breakdown structure table display",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/copyandpasteaworkbreakdownstructureelement-19131a.html",
+      "title": "Copy and paste a work breakdown structure element",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/definegeneralactivityinformation-19531a.html",
+      "title": "Define general activity information",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/deleteaworkbreakdownstructureelement-19139a.html",
+      "title": "Delete a work breakdown structure element",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/displaywindowdetails-18627a.html",
+      "title": "Display window details",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/displayworkbreakdownstructuredetails-19121a.html",
+      "title": "Display work breakdown structure details",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/displayworkproductanddocumentdetailsintheactivitieswindow-19615a.html",
+      "title": "Display work product and document details in the Activities window",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/editaworkbreakdownstructureelement-19137a.html",
+      "title": "Edit a work breakdown structure element",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/expenses-20786a.html",
+      "title": "Expenses",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/groupactivitiesbywbspath-19471a.html",
+      "title": "Group activities by WBS path",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/updateactivitysteps-19595a.html",
+      "title": "Update activity steps",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/updateprogressforindividualactivities-19629a.html",
+      "title": "Update progress for individual activities",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/user-definedfields-21123a.html",
+      "title": "User-defined fields",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/usingawbsfortop-downplanning-19101a.html",
+      "title": "Using a WBS for top-down planning",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/usingweightedmilestonesintheworkbreakdownstructure-19105a.html",
+      "title": "Using weighted milestones in the work breakdown structure",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/viewactivityrelationshipsinactivitydetails-19567a.html",
+      "title": "View activity relationships in Activity Details",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/wbsstatustypes-19111a.html",
+      "title": "WBS status types",
+      "http": 200,
+      "in_official_toc": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/workbreakdownstructure-18683a.html",
+      "title": "Work Breakdown Structure",
+      "http": 200,
+      "in_official_toc": true
+    }
+  ],
+  "summary": {
+    "help_total": 40,
+    "help_ok": 40,
+    "user_guide_total": 27,
+    "user_guide_ok": 27,
+    "failures": 0
+  }
+}
