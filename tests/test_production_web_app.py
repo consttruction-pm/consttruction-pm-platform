@@ -476,7 +476,17 @@ def test_the_retired_enterprise_route_redirects_to_the_canonical_document(app):
 def test_enterprise_documents_are_gated_by_the_session(app):
     status, headers, _ = call(app, "GET", "/cubi/enterprise/dashboard")
     assert status == 302
-    assert headers["location"][0].startswith("/login?next=/cubi/")
+    assert headers["location"][0] == "/login?next=/cubi/enterprise/dashboard"
+
+    # A requested deep link with a query survives the sign-in round trip
+    # instead of being replaced by the bare Enterprise entry document.
+    status, headers, _ = call(
+        app, "GET", "/cubi/enterprise/tasks", query="project=alpha&status=open"
+    )
+    assert status == 302
+    assert headers["location"][0] == (
+        "/login?next=/cubi/enterprise/tasks%3Fproject%3Dalpha%26status%3Dopen"
+    )
 
 
 def test_enterprise_public_entry_pages_render_without_a_session(app):
