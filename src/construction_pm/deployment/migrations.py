@@ -203,6 +203,28 @@ def _initialize_ai_actions(connection: Any) -> None:
     AIActionExecutionIdempotencyStore(connection, placeholder="%s")
 
 
+def _initialize_username_identity(connection: Any) -> None:
+    """Add username login and single-use password-reset storage, without data loss."""
+    connection.execute("ALTER TABLE identity_users ADD COLUMN IF NOT EXISTS username TEXT")
+    connection.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS identity_users_username_unique "
+        "ON identity_users (lower(username)) WHERE username IS NOT NULL"
+    )
+    connection.execute(
+        """CREATE TABLE IF NOT EXISTS identity_password_reset_tokens (
+            token_hash TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL REFERENCES identity_users(user_id) ON DELETE CASCADE,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            expires_at TIMESTAMPTZ NOT NULL,
+            consumed_at TIMESTAMPTZ
+        )"""
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS identity_password_reset_expiry "
+        "ON identity_password_reset_tokens (expires_at)"
+    )
+
+
 PRODUCTION_STEPS: tuple[MigrationStep, ...] = (
     MigrationStep(1, "identity", 1, _initialize_identity),
     MigrationStep(2, "global-administration", 1, _initialize_global_administration),
@@ -219,6 +241,7 @@ PRODUCTION_STEPS: tuple[MigrationStep, ...] = (
     MigrationStep(10, "forms-library", 1, _initialize_forms),
     MigrationStep(11, "knowledge-assistant", 1, _initialize_knowledge),
     MigrationStep(12, "ai-action-runtime", 1, _initialize_ai_actions),
+    MigrationStep(13, "username-identity-and-password-reset", 1, _initialize_username_identity),
 )
 
 
