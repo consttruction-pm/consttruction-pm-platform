@@ -9,7 +9,8 @@ heading, survived a browser refresh and deep link, and produced no uncaught page
 error.
 
 - Date: 2026-11-21
-- Branch: `feat/cubi-enterprise-workbench` (merged to `main` as `e12821b`, PR #2086)
+- Branch: `feat/cubi-enterprise-workbench` → `feat/cubi-enterprise-initial-set-pages`
+  (merged to `main` as `6ea2e42`, PR #2087; earlier second delivery merged as `e12821b`, PR #2086)
 - Preview base: `http://127.0.0.1:4180`
 - Canonical signed-in entry: `/workbench/` (Personal Workbench)
 - Enterprise entry: `/cubi/`

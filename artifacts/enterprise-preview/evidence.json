@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-11-21T00:03:24.406Z",
+  "generated_at": "2026-11-21T00:20:12.714Z",
   "branch": "feat/cubi-enterprise-workbench",
-  "merge_commit": "e12821b",
-  "base_commit": "e12821b",
+  "merge_commit": "6ea2e42",
+  "base_commit": "6ea2e42",
   "preview_base": "http://127.0.0.1:4180",
   "canonical_entry": "/workbench/",
   "enterprise_entry": "/cubi/",

@@ -56,8 +56,8 @@ const PAGES = [
   const evidence = {
     generated_at: new Date().toISOString(),
     branch: process.env.EVIDENCE_BRANCH || "feat/cubi-enterprise-workbench",
-    merge_commit: process.env.EVIDENCE_MERGE_COMMIT || "e12821b",
-    base_commit: process.env.EVIDENCE_BASE_COMMIT || "e12821b",
+    merge_commit: process.env.EVIDENCE_MERGE_COMMIT || "6ea2e42",
+    base_commit: process.env.EVIDENCE_BASE_COMMIT || "6ea2e42",
     preview_base: BASE,
     canonical_entry: "/workbench/",
     enterprise_entry: "/cubi/",
