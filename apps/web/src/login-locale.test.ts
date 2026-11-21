@@ -38,6 +38,7 @@ const KEYS = [
   "password",
   "submit",
   "signup",
+  "usernameTaken",
   "working",
   "footer",
   "failed",
