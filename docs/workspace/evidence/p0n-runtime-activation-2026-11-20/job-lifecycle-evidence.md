@@ -147,12 +147,23 @@ old code: 1 failed in 60.34s  (succeeded=0, retried=1, job_timeout=60)
 new code: 12 passed in 5.11s
 ```
 
+Post-fix runs at real workload size (same script, real PostgreSQL, real child process,
+`logs/live-job-run-process.log`):
+
+| Activities | Slots | Payload in `scheduling_job_results` | `process_starts` | `submit_to_succeeded_ms` | `hash_equal` |
+| --- | --- | --- | --- | --- | --- |
+| 1,000 | 2 | 751,031 bytes | 1 | 798.9 | true |
+| 5,000 | 4 | 3,751,033 bytes | 1 | 1,137.4 | true |
+
+Both payloads are one to two orders of magnitude above the 64 KiB pipe buffer, which
+is exactly the regime that used to deadlock.
+
 ## 5. Targeted suite
 
-`logs/targeted.log` (commit `8fdb06a9`):
+`logs/targeted.log` (commit `5b4cfb71`):
 
 ```
-114 passed, 2 warnings in 5.51s
+126 passed, 2 warnings in 10.43s
 ```
 
 Command:
@@ -168,7 +179,8 @@ PYTHONPATH=src python -m pytest -q \
   tests/test_production_web_app.py \
   tests/test_production_readiness.py \
   tests/scheduling/test_scheduling_job_production_api.py \
-  tests/scheduling/test_scheduling_job_authoritative_path.py
+  tests/scheduling/test_scheduling_job_authoritative_path.py \
+  tests/scheduling/test_scheduling_job_executor_process.py
 ```
 
 ## 6. GitHub references
@@ -181,4 +193,4 @@ PYTHONPATH=src python -m pytest -q \
 * `src/construction_pm/schedule_evaluator.py`
 * `tests/integration/test_p0n2_runtime_activation.py`
 
-Published on `feat/p0n2-runtime-activation` at `8fdb06a9`.
+Published on `feat/p0n2-runtime-activation` at `5b4cfb71`.

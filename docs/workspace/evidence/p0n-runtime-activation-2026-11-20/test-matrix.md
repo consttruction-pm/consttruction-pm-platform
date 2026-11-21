@@ -1,7 +1,7 @@
 # Test matrix — P0-N.2
 
 All results below were produced on this host (4 logical CPUs, CPython 3.12.13,
-PostgreSQL 14.24 at `127.0.0.1:55432`) at feature commit `8fdb06a9` unless stated.
+PostgreSQL 14.24 at `127.0.0.1:55432`) at feature commit `5b4cfb71` unless stated.
 
 Commands use the repository `pytest` configuration (`testpaths=["tests"]`,
 `pythonpath=["src"]`). Environment:
@@ -36,10 +36,13 @@ P6_TEST_POSTGRES_DSN=... PYTHONPATH=src python -m pytest -q \
   tests/test_production_web_app.py \
   tests/test_production_readiness.py \
   tests/scheduling/test_scheduling_job_production_api.py \
-  tests/scheduling/test_scheduling_job_authoritative_path.py
+  tests/scheduling/test_scheduling_job_authoritative_path.py \
+  tests/scheduling/test_scheduling_job_executor_process.py
 ```
 
-Result: **114 passed, 2 warnings** (5.51 s).
+Result: **126 passed, 2 warnings** (10.43 s). The extra 12 over the first pass are
+`tests/scheduling/test_scheduling_job_executor_process.py`, including the new
+`test_result_larger_than_the_pipe_buffer_does_not_deadlock`.
 
 ## 3. Full suite
 
@@ -50,7 +53,7 @@ P6_TEST_POSTGRES_DSN=... CONSTRUCTION_PM_POSTGRES_DSN=... \
 PYTHONPATH=src python -m pytest -q -p no:cacheprovider
 ```
 
-Result: **5381 passed, 1 skipped, 6 warnings** (77.98 s).
+Result: **5382 passed, 1 skipped, 6 warnings** (80.16 s).
 
 The single skip is environmental and pre-existing:
 

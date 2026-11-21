@@ -1,5 +1,7 @@
-........................................................................ [ 63%]
-..........................................                               [100%]
+# targeted suite, commit 5b4cfb71, 2026-11-21T03:23:45Z
+# command: pytest -q -p no:cacheprovider tests/integration/test_p0n2_runtime_activation.py tests/test_calendar_registry_production_builder.py tests/test_scheduling_job_postgres.py tests/test_scheduling_job_http_routes.py tests/test_schedule_query_production_composition.py tests/test_production_web_app.py tests/test_production_readiness.py tests/scheduling/test_scheduling_job_production_api.py tests/scheduling/test_scheduling_job_authoritative_path.py tests/scheduling/test_scheduling_job_executor_process.py
+........................................................................ [ 57%]
+......................................................                   [100%]
 =============================== warnings summary ===============================
 tests/integration/test_p0n2_runtime_activation.py:42
   /data/work/repo/tests/integration/test_p0n2_runtime_activation.py:42: PytestUnknownMarkWarning: Unknown pytest.mark.postgres - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
@@ -10,4 +12,4 @@ tests/test_scheduling_job_postgres.py:25
     pytestmark = pytest.mark.postgres
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-114 passed, 2 warnings in 5.51s
+126 passed, 2 warnings in 10.43s

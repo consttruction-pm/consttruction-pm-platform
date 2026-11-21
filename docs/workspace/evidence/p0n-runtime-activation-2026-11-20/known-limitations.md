@@ -16,6 +16,7 @@ unfinished acceptance criterion; the criteria that are met are marked in
 | Leveling in jobs | Leveling engine and persisted resolver exist, but leveling is not part of the durable job execution path. | No leveling result is claimed for worker jobs. | `professional-help-traceability.md` |
 | Recurring scheduled services | Durable jobs are one-shot; there is no cron/trigger definition or recurrence UI. | Execution semantics (exactly once, lease, recovery) are proven; recurrence is honestly absent. | `eppm-help-traceability.md` |
 | Schedule checker / summarization / cross-project allocation profile / budgeting workflow | Not implemented. | Listed as `MISSING`; not used to claim parity. | both traceability files |
+| Constraint-heavy scaling | The `START_NO_EARLIER_THAN` path is superlinear in the number of constrained activities: 25,000 activities / 3,572 constraints = 68.9 s, 50,000 / 7,143 = 290.1 s, 100,000 / 14,286 = 1,168.6 s (sequential, measured). | Results stay correct and deterministic at every size (hash equality PASS); a durable job is bounded by `job_timeout` and fails closed with `SCHEDULING_JOB_TIMEOUT` instead of hanging, so the cost is visible rather than silent. | `performance-benchmarks.md` matrix table, `results/matrix-*.json` |
 
 ## 2. Evidence limitations
 

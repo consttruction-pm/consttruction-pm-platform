@@ -68,7 +68,7 @@ Rows are the capabilities in scope for P0-N.2. Full columns and statuses are in
 
 ## 4. Evidence pointers
 
-* `professional-help-traceability.md` — 22-row Professional matrix with PDF pages.
+* `professional-help-traceability.md` — 21-row Professional matrix with PDF pages.
 * `eppm-help-traceability.md` — 21-row EPPM matrix with exact HTML URLs.
 * `environment.json` — PDF hash, page count, host fingerprint.
 * `logs/full-suite.log`, `logs/targeted.log` — executed test evidence.

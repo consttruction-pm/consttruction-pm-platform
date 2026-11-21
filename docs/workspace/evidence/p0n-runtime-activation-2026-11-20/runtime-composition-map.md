@@ -2,7 +2,7 @@
 
 Branch: `feat/p0n2-runtime-activation`
 Base: `ae6e72e4` (`main`)
-Feature head at measurement time: `8fdb06a9`
+Feature head at measurement time: `5b4cfb71`
 Environment: `environment.json` in this directory.
 
 ## 1. Web runtime (request path)
@@ -70,9 +70,11 @@ deployment/scheduling_worker.py
 
 Entry points: `python -m construction_pm.deployment.scheduling_worker --once|--drain|--forever`.
 Settings come from `CONSTRUCTION_PM_DATABASE_URL`,
-`CONSTRUCTION_PM_WORKER_MODE` (`thread|process`), `CONSTRUCTION_PM_WORKER_OWNER`,
-`CONSTRUCTION_PM_WORKER_SLOTS`, `CONSTRUCTION_PM_WORKER_POLL`,
-`CONSTRUCTION_PM_WORKER_JOB_TIMEOUT`.
+`CONSTRUCTION_PM_SCHEDULING_WORKER_MODE` (`thread|process`),
+`CONSTRUCTION_PM_SCHEDULING_WORKER_OWNER`,
+`CONSTRUCTION_PM_SCHEDULING_WORKER_SLOTS`,
+`CONSTRUCTION_PM_SCHEDULING_WORKER_POLL`,
+`CONSTRUCTION_PM_SCHEDULING_WORKER_JOB_TIMEOUT`.
 
 Process mode crosses the process boundary with only a picklable DSN and job:
 `run_scheduled_job_in_child(dsn, job, slots)` reconnects and rebuilds every repository
