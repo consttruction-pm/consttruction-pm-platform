@@ -3,7 +3,7 @@ from __future__ import annotations
 import io
 import json
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from types import SimpleNamespace
 from typing import Mapping
 
@@ -12,10 +12,15 @@ from construction_pm.ai_workbench.http import (
     CONTRACT_VERSION,
     AIWorkbenchHttpMiddleware,
 )
+from construction_pm.application.authorization import default_project_policy
 from construction_pm.application.project_lifecycle import (
+    AuthenticatedSession,
     ProjectLifecycleError,
+    ProjectLifecycleService,
+    ProjectSummary,
     SessionError,
 )
+from construction_pm.application.project_lifecycle_api import ProjectLifecycleAPI
 
 NOW = datetime(2026, 11, 21, 9, 0, tzinfo=timezone.utc)
 
@@ -377,3 +382,188 @@ def test_unknown_workbench_action_is_not_found():
     status, payload = _call(app, "GET", "/api/projects/alpha/workbench/execute")
     assert status == 404
     assert payload["code"] == "ROUTE_NOT_FOUND"
+
+
+# -- Phase 7 security acceptance -------------------------------------------
+
+class _TenantSessions:
+    def __init__(self, sessions: Mapping[str, AuthenticatedSession]) -> None:
+        self._sessions = sessions
+
+    def get(self, session_id: str):
+        return self._sessions.get(session_id)
+
+
+class _TenantProjects:
+    def __init__(self, items: Mapping[tuple[str, str, str], ProjectSummary]) -> None:
+        self._items = items
+
+    def list_for_user(self, tenant_id: str, user_id: str):
+        return tuple(
+            project
+            for (tenant, user, _), project in self._items.items()
+            if tenant == tenant_id and user == user_id
+        )
+
+    def get_for_user(self, tenant_id: str, project_id: str, user_id: str):
+        return self._items.get((tenant_id, user_id, project_id))
+
+
+def _tenant_workbench(items, *, provider=None):
+    sessions = {
+        "session-a": AuthenticatedSession(
+            "session-a",
+            "user-a",
+            "tenant-a",
+            frozenset({"planner"}),
+            NOW + timedelta(hours=1),
+        ),
+        "session-b": AuthenticatedSession(
+            "session-b",
+            "user-b",
+            "tenant-b",
+            frozenset({"planner"}),
+            NOW + timedelta(hours=1),
+        ),
+    }
+    service = ProjectLifecycleService(
+        _TenantSessions(sessions),
+        _TenantProjects(items),
+        default_project_policy(),
+    )
+    def downstream(environ, start_response):
+        start_response("200 OK", [("Content-Type", "application/json")])
+        return [b'{"delegated":true}']
+
+    return AIWorkbenchHttpMiddleware(
+        downstream,
+        lifecycle_api=ProjectLifecycleAPI(service),
+        clock=_clock,
+        data_date_provider=provider,
+    )
+
+
+def test_project_owned_by_another_tenant_is_not_disclosed():
+    app = _tenant_workbench(
+        {
+            ("tenant-a", "user-a", "alpha-only"): ProjectSummary(
+                "alpha-only", "tenant-a", "Alpha Substation", 7
+            ),
+            ("tenant-b", "user-b", "beta-only"): ProjectSummary(
+                "beta-only", "tenant-b", "Beta Refinery", 3
+            ),
+        }
+    )
+    status, payload = _call(
+        app,
+        "GET",
+        "/api/projects/alpha-only/workbench/context",
+        cookie="cp_session=session-b",
+    )
+    assert status == 403
+    assert payload == {"code": "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"}
+
+
+def test_same_project_id_resolves_to_each_tenants_own_record():
+    app = _tenant_workbench(
+        {
+            ("tenant-a", "user-a", "shared"): ProjectSummary(
+                "shared", "tenant-a", "Alpha Substation", 7
+            ),
+            ("tenant-b", "user-b", "shared"): ProjectSummary(
+                "shared", "tenant-b", "Beta Refinery", 3
+            ),
+        }
+    )
+    status, alpha = _call(
+        app, "GET", "/api/projects/shared/workbench/context",
+        cookie="cp_session=session-a",
+    )
+    assert status == 200
+    assert alpha["project"]["name"] == "Alpha Substation"
+    assert alpha["project"]["revision"] == 7
+
+    status, beta = _call(
+        app, "GET", "/api/projects/shared/workbench/context",
+        cookie="cp_session=session-b",
+    )
+    assert status == 200
+    assert beta["project"]["name"] == "Beta Refinery"
+    assert beta["project"]["revision"] == 3
+
+
+def test_data_date_provider_receives_the_session_tenant():
+    seen: list[tuple[str, str, int]] = []
+
+    def provider(tenant: str, project: str, revision: int):
+        seen.append((tenant, project, revision))
+        return date(2026, 11, 1)
+
+    app = _tenant_workbench(
+        {
+            ("tenant-a", "user-a", "alpha-only"): ProjectSummary(
+                "alpha-only", "tenant-a", "Alpha Substation", 7
+            ),
+        },
+        provider=provider,
+    )
+    status, _ = _call(
+        app, "GET", "/api/projects/alpha-only/workbench/context",
+        cookie="cp_session=session-a",
+    )
+    assert status == 200
+    assert seen == [("tenant-a", "alpha-only", 7)]
+
+
+def test_command_body_cannot_override_server_scope():
+    app, lifecycle = _app()
+    status, payload = _call(
+        app,
+        "POST",
+        "/api/projects/alpha/workbench/command",
+        body={
+            "command": "Review project risk register",
+            "locale": "en",
+            "correlation_id": "cmd-0009-abcd",
+            "tenant_id": "tenant-z",
+            "project_id": "forbidden",
+            "revision": 999,
+            "actor_id": "u-admin",
+            "roles": ["global_admin"],
+        },
+    )
+    assert status == 200
+    assert payload["project"] == {"project_id": "alpha", "revision": 7}
+    assert lifecycle.opened == ["alpha"]
+
+
+def test_encoded_path_separator_is_rejected():
+    app, lifecycle = _app()
+    status, payload = _call(
+        app, "GET", "/api/projects/alpha%2Fbeta/workbench/context"
+    )
+    assert status == 400
+    assert payload["code"] == "PROJECT_ID_INVALID"
+    assert lifecycle.opened == []
+
+
+def test_dot_segment_project_id_is_rejected():
+    app, lifecycle = _app()
+    for path in (
+        "/api/projects/../workbench/context",
+        "/api/projects/%2E%2E/workbench/context",
+    ):
+        status, payload = _call(app, "GET", path)
+        assert status == 400, path
+        assert payload["code"] == "PROJECT_ID_INVALID"
+    assert lifecycle.opened == []
+
+
+def test_control_character_project_id_is_rejected():
+    app, lifecycle = _app()
+    status, payload = _call(
+        app, "GET", "/api/projects/alpha%00/workbench/context"
+    )
+    assert status == 400
+    assert payload["code"] == "PROJECT_ID_INVALID"
+    assert lifecycle.opened == []

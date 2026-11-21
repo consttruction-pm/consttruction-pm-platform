@@ -1,6 +1,6 @@
 # Implementation Status
 
-Updated: Phase 1 integration, 2026-11-21.
+Updated: Phase 7 security acceptance, 2026-11-21.
 
 - Repository: `consttruction-pm/consttruction-pm-platform`
 - Base: `eed937de1` (PR #2093, command foundation)
@@ -19,7 +19,7 @@ Updated: Phase 1 integration, 2026-11-21.
 | 4 | Import staging (7 tabs) | PARTIAL | register exchange only; no project import engine |
 | 5 | Schedule Scenario Studio | BLOCKED | no revision-bound scenario service (#1989) |
 | 6 | Decision & Approval | PARTIAL | no Engineering proposal/execution contract |
-| 7 | Integrated acceptance | PENDING | cross-phase gates not yet run |
+| 7 | Integrated acceptance | PARTIAL | workbench boundary security gates proven; cross-phase (import, scenario, approval) acceptance waits on their contracts |
 | 8 | Enterprise reuse | PLANNED | after shared contracts stabilise |
 
 ## Phase 1 delivered
@@ -65,6 +65,25 @@ The browser journey drives the real preview runtime: document gate, planner
 sign-in, empty risk state, risk create and read-back across a full reload,
 deterministic command plan, blocked scenario studio with zero controls, stored
 analysis counts, and Persian RTL / English LTR switching.
+
+## Phase 7 security acceptance
+
+Implemented in this change:
+
+- the workbench router validates the project id after percent-decoding and
+  rejects separators, `.`/`..` segments, control characters and over-long ids
+  with `400 PROJECT_ID_INVALID` before any lifecycle lookup;
+- `tests/test_ai_workbench_http.py` now runs 27 tests, including real
+  `ProjectLifecycleService` cross-tenant cases (foreign project hidden, shared
+  id resolved per tenant, provider receives the session tenant) and a
+  body-override test proving the envelope is built only from the session and
+  URL scope;
+- `SECURITY_AND_AUTHORIZATION.md` and `TEST_AND_ACCEPTANCE.md` record the gates
+  and the tests that prove them.
+
+Still open in Phase 7: end-to-end acceptance for import staging, schedule
+scenarios and decision/approval. Those studios have no write contract yet, so
+there is no cross-phase flow to accept without inventing a parallel engine.
 
 ## Honest gaps
 
