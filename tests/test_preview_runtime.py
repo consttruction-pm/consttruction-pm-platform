@@ -43,6 +43,11 @@ def _web_root(tmp_path: Path) -> Path:
         encoding="utf-8",
     )
     (root / "styles.css").write_text("body { margin: 0; }\n", encoding="utf-8")
+    (root / "ai-workbench.html").write_text(
+        '<!doctype html><html><body><div id="aiw-root"></div></body></html>',
+        encoding="utf-8",
+    )
+    (root / "ai-workbench.css").write_text(".aiw-shell { min-height: 100vh; }\n", encoding="utf-8")
     (root / "cubi-platform-logo-primary.svg").write_text(
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"></svg>\n',
         encoding="utf-8",
@@ -2319,5 +2324,73 @@ def test_preview_checkout_blocks_every_write_domain_for_other_users(
             body=json.dumps(writes[0][1]).encode(),
         )
         assert status == 201, body
+    finally:
+        runtime.close()
+
+
+def test_ai_workbench_shell_is_gated_and_never_served_as_the_workspace(
+    tmp_path: Path,
+) -> None:
+    runtime = open_preview_runtime(
+        tmp_path / "ai-workbench-route.sqlite3",
+        web_root=_web_root(tmp_path),
+        reset=True,
+    )
+    try:
+        app = build_preview_application(runtime)
+
+        status, headers, _ = _request(
+            app, "GET", "/ai-workbench?project=preview-rps-01&lang=fa"
+        )
+        assert status == 302
+        location = headers["location"]
+        assert location.startswith("/login?next=%2Fai-workbench")
+        # The requested project and interface language survive sign-in.
+        assert "project%3Dpreview-rps-01" in location
+        assert "lang%3Dfa" in location
+
+        status, headers, _ = _request(
+            app,
+            "POST",
+            "/preview/login",
+            body=(
+                b"role=planner&next=%2Fai-workbench%3Fproject%3Dpreview-rps-01"
+                b"%26lang%3Dfa"
+            ),
+            content_type="application/x-www-form-urlencoded",
+        )
+        assert status == 303
+        assert headers["location"] == "/ai-workbench?lang=fa&project=preview-rps-01"
+        cookie = _session_cookie(headers)
+
+        status, headers, body = _request(
+            app,
+            "GET",
+            "/ai-workbench?project=preview-rps-01&lang=fa",
+            cookie=cookie,
+        )
+        assert status == 200
+        assert b'id="aiw-root"' in body
+        # The Workbench is never the general Engineering workspace document.
+        assert b'id="app"' not in body
+
+        status, headers, body = _request(app, "GET", "/ai-workbench.css", cookie=cookie)
+        assert status == 200
+        assert b".aiw-shell" in body
+
+        # An undocumented query parameter is dropped instead of being
+        # reflected into the post-login destination.
+        status, headers, _ = _request(
+            app,
+            "POST",
+            "/preview/login",
+            body=(
+                b"role=planner&next=%2Fai-workbench%3Fproject%3Dp1"
+                b"%26redirect%3D%2F%2Fevil.test"
+            ),
+            content_type="application/x-www-form-urlencoded",
+        )
+        assert status == 303
+        assert headers["location"] == "/ai-workbench"
     finally:
         runtime.close()

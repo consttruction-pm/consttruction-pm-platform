@@ -55,7 +55,7 @@ _RULES: tuple[tuple[str, re.Pattern[str]], ...] = (
         re.compile(
             r"\b(import|stage|ingest|staging)\b"
             + "|(?<![\u0600-\u06FF])"
-            + _fa("وارد", "بارگذاری", "ایمپورت", "مرحله")
+            + _fa("وارد", "ورود", "بارگذاری", "ایمپورت", "مرحله")
             + r"\s*(?:کردن|کن|کنید)?"
         ),
     ),

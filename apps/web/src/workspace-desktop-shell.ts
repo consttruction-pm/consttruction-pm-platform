@@ -24,6 +24,7 @@ export type LocalizedLabel = { en: string; fa: string };
 
 export type DesktopCommand =
   | "forms.open"
+  | "workbench.open"
   | "project.settings"
   | "project.close"
   | "project.interchange"
@@ -587,6 +588,7 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
         { id: "enterprise.calendars", label: { en: "Calendars…", fa: "تقویم‌ها…" }, window: "calendars" },
         { id: "enterprise.udfs", label: { en: "User defined fields…", fa: "فیلدهای سفارشی…" }, disabledReason: unavailable(REASONS.udfs, locale) },
         { id: "enterprise.forms", label: { en: "Forms & Workflows…", fa: "فرم‌ها و گردش‌کار…" }, command: "forms.open" },
+        { id: "enterprise.ai-workbench", label: { en: "AI Workbench", fa: "کارگاه هوشمند" }, command: "workbench.open" },
       ],
     },
     {

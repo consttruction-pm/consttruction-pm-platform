@@ -15,6 +15,7 @@ from .envelope import (
     WRITE_ROLES,
     envelope_from_session,
 )
+from .http import AIWorkbenchHttpMiddleware, WorkbenchRequestError
 from .intents import Intent, IntentMatch, normalize_command, resolve_intent
 from .orchestrator import CommandPlan, Question, Refusal, plan_command
 from .studios import (
@@ -27,6 +28,7 @@ from .studios import (
 )
 
 __all__ = [
+    "AIWorkbenchHttpMiddleware",
     "Capabilities",
     "CommandEnvelope",
     "CommandPlan",
@@ -41,6 +43,7 @@ __all__ = [
     "StudioId",
     "StudioStatus",
     "WRITE_ROLES",
+    "WorkbenchRequestError",
     "envelope_from_session",
     "normalize_command",
     "plan_command",

@@ -59,6 +59,7 @@ from construction_pm.backend_p0.workspace_read_provider import (
     PersistedWorkspaceReadProvider,
     WorkspaceScheduleFactsProvider,
 )
+from construction_pm.ai_workbench.http import AIWorkbenchHttpMiddleware
 from construction_pm.enterprise_task_application import EnterpriseTaskApplicationService
 from construction_pm.enterprise_task_http import EnterpriseTaskHttpMiddleware
 from construction_pm.enterprise_task_sqlite_repository import (
@@ -2112,6 +2113,27 @@ def open_preview_runtime(
         ],
     )
     app = EnterpriseWorkbenchHttpMiddleware(app, lifecycle_api, enterprise_store)
+
+    def _workbench_data_date(tenant_id: str, project_id: str, revision: int):
+        """Read the published data date for the exact pinned revision.
+
+        The Workbench header never derives a data date from today's clock or
+        from the newest row; when settings do not exist the header shows that
+        no data date is published.
+        """
+        settings = repositories.settings.get(
+            BackendScope(tenant_id, project_id, revision)
+        )
+        if settings is None:
+            return None
+        return settings.schedule_options.data_date
+
+    app = AIWorkbenchHttpMiddleware(
+        app,
+        lifecycle_api=lifecycle_api,
+        clock=PreviewClock().now,
+        data_date_provider=_workbench_data_date,
+    )
     return PreviewRuntime(
         database=database,
         web_root=None if web_root is None else Path(web_root).expanduser().resolve(),

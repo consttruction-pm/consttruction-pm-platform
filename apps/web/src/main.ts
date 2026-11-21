@@ -2019,6 +2019,15 @@ function renderApp(
       case "forms.open":
         openFormsSurface(container, state);
         return;
+      case "workbench.open": {
+        // The AI Workbench is the same project scope in a dedicated shell;
+        // the command never leaves the authenticated Engineering document.
+        const target = new URL("/ai-workbench", window.location.origin);
+        target.searchParams.set("project", state.context.project_id);
+        target.searchParams.set("lang", state.locale);
+        window.location.assign(target.pathname + target.search);
+        return;
+      }
       case "project.settings":
         openProjectSettings(container, state, persistence);
         return;

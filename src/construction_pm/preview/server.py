@@ -44,6 +44,7 @@ HEALTH_PATH = "/preview/health"
 _ALLOWED_ROOT_FILES = {
     "index.html",
     "styles.css",
+    "ai-workbench.css",
     "cubi-platform-logo-primary.svg",
     "cubi-hero-field.svg",
     "favicon.ico",
@@ -109,6 +110,24 @@ def _safe_next(raw: object) -> str:
         # The Personal Workbench is the single signed-in entry to both
         # environments; ignore any query it was not asked to carry.
         return value
+    if parsed.path in {"/ai-workbench", "/ai-workbench/"}:
+        # The AI Workbench keeps the project and interface language it was
+        # opened with; no other query is carried through sign-in.
+        query = parse_qs(parsed.query, keep_blank_values=True)
+        if set(query) - {"project", "lang", "studio"}:
+            return "/ai-workbench"
+        project_values = query.get("project", [])
+        project_id = project_values[0].strip() if len(project_values) == 1 else ""
+        if project_values and (
+            not project_id
+            or len(project_id) > 200
+            or any(ord(char) < 0x20 or char in "/\\" for char in project_id)
+        ):
+            return "/ai-workbench"
+        preserved = {key: [query[key][0]] for key in ("lang", "studio") if key in query}
+        if project_id:
+            preserved["project"] = [project_id]
+        return "/ai-workbench" + ("?" + urlencode(preserved, doseq=True) if preserved else "")
     if parsed.path not in {"/app", "/app/"}:
         return fallback
     query = parse_qs(parsed.query, keep_blank_values=True)
@@ -221,6 +240,8 @@ class PreviewFrontend:
             return self._file(self.root / "app.html")
         if segments == ["app.html"]:
             return self._file(self.root / "app.html")
+        if segments in (["ai-workbench"], ["ai-workbench", "index.html"], ["ai-workbench.html"]):
+            return self._file(self.root / "ai-workbench.html")
         if segments and segments[0] == "cubi":
             # The Enterprise Workbench is its own document and bundle. Every
             # /cubi/* route is resolved by the client router, so all of them
@@ -347,6 +368,11 @@ class PreviewApplication:
                 # The Personal Workbench is the single signed-in entry to both
                 # environments; it is the same application shell as /app.
                 status, headers, body = self._app_shell(environ, session)
+            elif path == "/ai-workbench" or path.startswith("/ai-workbench/"):
+                # The AI Workbench is a dedicated shell inside the Engineering
+                # environment. It requires a session and is never served as the
+                # general workspace document.
+                status, headers, body = self._workbench_shell(environ, session)
             elif path == "/cubi" or path.startswith("/cubi/"):
                 status, headers, body = self._cubi_shell(path, environ, session)
             else:
@@ -395,7 +421,7 @@ class PreviewApplication:
             "no-store"
             if path.startswith(("/api/", "/preview/"))
             or path in {"/app", "/app.html"}
-            or path.startswith(("/app/", "/workbench", "/cubi"))
+            or path.startswith(("/app/", "/workbench", "/cubi", "/ai-workbench"))
             or status in {301, 302, 303, 307, 308}
             else "public, max-age=60"
         )
@@ -652,6 +678,34 @@ class PreviewApplication:
             shell = shell.replace("</body>", f"{banner}\n  </body>", 1)
         else:
             shell = shell + banner
+        return 200, {"Content-Type": "text/html; charset=utf-8"}, shell.encode("utf-8")
+
+    def _workbench_shell(
+        self,
+        environ: Mapping[str, object],
+        session: AuthenticatedSession | None,
+    ) -> tuple[int, dict[str, str], bytes]:
+        if session is None:
+            path = urlsplit(str(environ.get("PATH_INFO", "/ai-workbench"))).path
+            query = str(environ.get("QUERY_STRING", "") or "")
+            requested_next = path + ("?" + query if query else "")
+            next_path = _safe_next(requested_next)
+            headers = {
+                "Content-Type": "text/html; charset=utf-8",
+                "Location": f"/login?{urlencode({'next': next_path})}",
+                "Set-Cookie": _clear_cookie_header()[1],
+            }
+            return 302, headers, b""
+        shell_path = self.frontend.root / "ai-workbench.html"
+        if not shell_path.is_file():
+            return _json(503, {"code": "AI_WORKBENCH_SHELL_MISSING"})
+        shell = shell_path.read_text(encoding="utf-8")
+        if self.asset_base:
+            for asset, remote in (
+                ("/ai-workbench.css", "/apps/web/ai-workbench.css"),
+                ("/dist/ai-workbench-entry.bundle.js", "/apps/web/dist/ai-workbench-entry.bundle.js"),
+            ):
+                shell = shell.replace(f'"{asset}"', f'"{self.asset_base}{remote}"')
         return 200, {"Content-Type": "text/html; charset=utf-8"}, shell.encode("utf-8")
 
     def _cubi_shell(

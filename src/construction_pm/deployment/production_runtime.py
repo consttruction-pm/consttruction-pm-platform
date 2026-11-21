@@ -20,11 +20,13 @@ import threading
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator, Mapping
 from urllib.parse import parse_qs
 
 from ..activity_master_repository import PostgresActivityMasterRepository
+from ..ai_workbench.http import AIWorkbenchHttpMiddleware
 from ..enterprise_task_application import EnterpriseTaskApplicationService
 from ..enterprise_task_http import EnterpriseTaskHttpMiddleware
 from ..enterprise_task_repository import PostgresEnterpriseTaskRepository
@@ -71,6 +73,9 @@ from ..p6_user_defined_fields_repository import (
     PostgresP6UserDefinedFieldRepository,
 )
 from ..postgres_project_lifecycle import PostgresProjectRepository
+from ..project_schedule_settings_repository import (
+    PostgresProjectScheduleSettingsRepository,
+)
 from ..relationship_master_repository import PostgresRelationshipMasterRepository
 from ..schedule_calculation_context_repository import (
     PostgresCalculationContextRepository,
@@ -378,6 +383,20 @@ class ProductionRuntime:
                 PostgresEnterpriseTaskRepository(connection),
                 lifecycle_api,
             ),
+        )
+        workbench_settings = PostgresProjectScheduleSettingsRepository(connection)
+
+        def _workbench_data_date(tenant_id: str, project_id: str, revision: int):
+            settings = workbench_settings.get(
+                BackendScope(tenant_id, project_id, revision)
+            )
+            return None if settings is None else settings.schedule_options.data_date
+
+        self.api_app = AIWorkbenchHttpMiddleware(
+            self.api_app,
+            lifecycle_api=lifecycle_api,
+            clock=lambda: datetime.now(timezone.utc),
+            data_date_provider=_workbench_data_date,
         )
         self.web_app = ProductionWebApp(
             api_app=self.api_app,

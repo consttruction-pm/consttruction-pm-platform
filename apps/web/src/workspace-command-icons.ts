@@ -119,6 +119,7 @@ const MENU_ITEM_ICONS: Readonly<Record<string, WorkspaceIconName>> = {
   "enterprise.calendars": "calendar",
   "enterprise.udfs": "columns",
   "enterprise.forms": "forms",
+  "enterprise.ai-workbench": "control",
   // Tools
   "tools.forms": "forms",
   "tools.search": "find",
