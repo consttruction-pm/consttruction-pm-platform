@@ -18,6 +18,7 @@ import hmac
 import json
 import re
 import secrets
+import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping, Protocol
@@ -374,6 +375,37 @@ class IdentityService:
             expires_at=session.expires_at,
         )
 
+    def register(self, username: str, password: str, *, display_name: str = "") -> IssuedSession:
+        """Create a least-privilege account and issue its first persisted session."""
+        normalized = normalize_username(username)
+        policy_error = password_policy_error(password)
+        if policy_error:
+            raise IdentityError(policy_error)
+        creator = getattr(self._store, "create_registered_user", None)
+        if not callable(creator):
+            raise IdentityError("SIGNUP_UNAVAILABLE")
+        now = _as_utc(self._clock())
+        user = creator(
+            user_id=str(uuid.uuid4()),
+            tenant_id=str(uuid.uuid4()),
+            username=normalized,
+            display_name=(display_name.strip()[:120] if isinstance(display_name, str) else "") or normalized,
+            password_hash=hash_password(password),
+            created_at=now,
+        )
+        token = new_session_token()
+        session = StoredSession(
+            token_hash=token_hash(token), user_id=user.user_id, tenant_id=user.tenant_id,
+            roles=user.roles, created_at=now, last_seen_at=now,
+            expires_at=now + self._session_ttl,
+        )
+        self._store.save_session(session)
+        return IssuedSession(
+            token=token, csrf_token=csrf_token(self._csrf_secret, token),
+            user_id=user.user_id, tenant_id=user.tenant_id, roles=user.roles,
+            created_at=now, expires_at=session.expires_at,
+        )
+
     @staticmethod
     def _account_open(user: IdentityUser, now: datetime) -> bool:
         """A locked or expired account cannot log in even with the right password."""
@@ -694,6 +726,42 @@ class SQLiteIdentityStore(_SqlIdentityStore):
             if column not in existing:
                 self.connection.execute(ddl)
         self.connection.commit()
+
+    def create_registered_user(self, *, user_id: str, tenant_id: str, username: str,
+                              display_name: str, password_hash: str, created_at: datetime) -> IdentityUser:
+        email = f"{username}@accounts.cubi.invalid"
+        try:
+            self.connection.execute(
+                "INSERT INTO identity_users (user_id, tenant_id, email, display_name, roles_json, password_hash, username, active, created_at, password_changed_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)",
+                (user_id, tenant_id, email, display_name, '["viewer"]', password_hash,
+                 username, created_at.isoformat(), created_at.isoformat()),
+            )
+            self.connection.commit()
+        except Exception as error:
+            self.connection.rollback()
+            if "unique" in str(error).lower():
+                raise IdentityError("USERNAME_TAKEN") from None
+            raise
+        return IdentityUser(user_id, tenant_id, email, display_name, frozenset({"viewer"}),
+                            password_hash, username=username)
+
+    def create_registered_user(self, *, user_id: str, tenant_id: str, username: str,
+                              display_name: str, password_hash: str, created_at: datetime) -> IdentityUser:
+        email = f"{username}@accounts.cubi.invalid"
+        try:
+            self.connection.execute(
+                "INSERT INTO identity_users (user_id, tenant_id, email, display_name, roles_json, password_hash, username, active, created_at, password_changed_at) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, TRUE, %s, %s)",
+                (user_id, tenant_id, email, display_name, '["viewer"]', password_hash,
+                 username, created_at, created_at),
+            )
+        except Exception as error:
+            if getattr(error, "sqlstate", None) == "23505":
+                raise IdentityError("USERNAME_TAKEN") from None
+            raise
+        return IdentityUser(user_id, tenant_id, email, display_name, frozenset({"viewer"}),
+                            password_hash, username=username)
 
     def upsert_user(self, user: IdentityUser) -> None:
         self.connection.execute(
