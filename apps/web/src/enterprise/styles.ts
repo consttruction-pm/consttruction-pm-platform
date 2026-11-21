@@ -184,6 +184,22 @@ p { margin: 0; }
 .cubi-table tbody tr:hover { background: var(--cubi-slate-50); }
 .cubi-row-action { cursor: pointer; }
 .cubi-table-empty { text-align: center; color: var(--cubi-slate-500); padding: 24px !important; }
+.cubi-table tbody tr:focus-visible { outline: 2px solid var(--cubi-blue, #0a4ea3); outline-offset: -2px; }
+.cubi-table tbody tr.is-selected { background: color-mix(in srgb, var(--cubi-blue, #0a4ea3) 9%, #fff); }
+.cubi-table tbody tr.is-deleted td { text-decoration: line-through; color: #8a94a3; }
+.cubi-table th[aria-sort] { cursor: pointer; user-select: none; }
+.cubi-sort { color: #94a3b8; font-size: 10px; }
+.cubi-select-col { width: 34px; }
+.cubi-toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 10px 12px; border: 1px solid var(--cubi-slate-200); border-radius: var(--cubi-radius-sm); background: var(--cubi-slate-50); margin-bottom: 10px; }
+.cubi-toolbar .cubi-input { min-width: 160px; }
+.cubi-toolbar-group { display: flex; gap: 8px; margin-inline-start: auto; }
+.cubi-detail-panel { margin-top: 12px; padding: 14px 16px; border: 1px solid var(--cubi-slate-200); border-left: 3px solid #b87333; border-radius: var(--cubi-radius-sm); background: #fff; }
+.cubi-detail-panel[hidden] { display: none; }
+.cubi-detail-panel h3 { margin: 0 0 10px; font-size: 15px; }
+.cubi-context-menu { z-index: 80; min-width: 190px; padding: 6px; border-radius: 10px; border: 1px solid var(--cubi-slate-200); background: #fff; box-shadow: 0 18px 44px rgba(8, 26, 47, .22); }
+.cubi-context-item { display: block; width: 100%; text-align: start; border: 0; background: transparent; padding: 8px 10px; border-radius: 6px; font: inherit; font-size: 13px; color: inherit; cursor: pointer; }
+.cubi-context-item:hover, .cubi-context-item:focus-visible { background: var(--cubi-slate-100, #eef2f7); outline: none; }
+.cubi-empty-inline { padding: 18px 8px; text-align: center; color: var(--cubi-slate-500); }
 .cubi-table .cubi-strong { font-weight: 650; }
 .cubi-mono { font-family: "SFMono-Regular", ui-monospace, Menlo, monospace; font-size: 12px; }
 
