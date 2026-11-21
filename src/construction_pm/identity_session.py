@@ -683,8 +683,6 @@ class SQLiteIdentityStore(_SqlIdentityStore):
             );
             CREATE UNIQUE INDEX IF NOT EXISTS identity_users_email_unique
                 ON identity_users (lower(email));
-            CREATE UNIQUE INDEX IF NOT EXISTS identity_users_username_unique
-                ON identity_users (lower(username)) WHERE username IS NOT NULL;
             CREATE TABLE IF NOT EXISTS identity_sessions (
                 token_hash TEXT PRIMARY KEY,
                 user_id TEXT NOT NULL,
