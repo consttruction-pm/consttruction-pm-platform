@@ -49,7 +49,12 @@ class StubApi:
             ],
         )
         session_id = environ.get("HTTP_COOKIE", "")
-        return [json.dumps({"ok": True, "seen": environ["PATH_INFO"]}).encode()]
+        payload = (
+            {"projects": [{"project_id": "p1"}]}
+            if environ["PATH_INFO"] == "/api/projects"
+            else {"ok": True, "seen": environ["PATH_INFO"]}
+        )
+        return [json.dumps(payload).encode()]
 
 
 @pytest.fixture()
@@ -233,6 +238,19 @@ def test_login_sets_hardened_cookies_and_never_returns_the_token(app):
     assert payload["tenant_id"] == "tenant-a"
     assert payload["roles"] == ["planner"]
     assert "token" not in payload
+
+
+def test_engineering_shell_requires_a_server_authorized_project(app):
+    cookie, _ = login(app)
+    status, headers, _ = call(app, "GET", "/app", cookie=cookie)
+    assert status == 303
+    assert headers["location"] == ["/workbench/"]
+
+    status, headers, _ = call(
+        app, "GET", "/app", cookie=cookie, query="project=not-authorized&view=live"
+    )
+    assert status == 303
+    assert headers["location"] == ["/workbench/"]
 
 
 def test_session_survives_across_requests_and_app_serves_shell(app):
