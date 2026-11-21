@@ -1,0 +1,127 @@
+# ENT-06 Dashboard & Portlet Help Parity Crosswalk (v1)
+
+**Review owner:** Product / Help-parity workstream  
+**Implementation owner:** Hasan — see #2028  
+**Related work:** #2039 (this review), #2028 (isolated backend), #2037 (isolated UI), #2038 (HTTP boundary), #1990 (capability and Help parity program)  
+**Baseline reviewed:** `main` at `20e8b6509704c8225bba81e722a835b5b1bb1ea0` (2026-11-17)  
+**Scope:** Official Oracle HTML Help source review and implementation/acceptance guidance only. This document does not implement or certify the dashboard feature.
+
+## 1. Source hierarchy and review method
+
+1. **Normative source:** Oracle Primavera P6 EPPM Version 26 HTML Help. EPPM behavior is the compatibility baseline.
+2. **Additive source:** Oracle Primavera Cloud Help. Use only for useful capabilities not defined by EPPM; never use Cloud behavior to weaken, replace, or silently reinterpret EPPM behavior.
+3. Each source behavior below is classified as:
+   - **Required parity:** preserve the documented EPPM behavior.
+   - **V1 boundary / Deferred:** intentionally not included in the bounded backend slice; must remain explicit and must not be represented as complete.
+   - **Cloud extension candidate:** optional additive behavior requiring separate capability/contract and security review.
+   - **Needs evidence:** repository/runtime implementation must be inspected and tested before claiming implementation.
+4. This is a source-to-requirement crosswalk, not a claim that CUBI already implements any listed behavior. No implementation status is promoted to Implemented without exact-head code, tests, and runtime evidence.
+
+## 2. P6 EPPM V26 topic-level crosswalk
+
+| Oracle EPPM V26 topic | Documented behavior | CUBI requirement / acceptance evidence | Disposition |
+|---|---|---|---|
+| [TOC — Dashboards and About Portlets](https://docs.oracle.com/cd/G48897_01/p6help/en/toc.htm) | The TOC groups dashboard lifecycle, content, access, filters, layout, showing/hiding, portlet catalog/customization, custom portlets, and project drill-through as related topics. | Maintain topic-level traceability, not a single generic “dashboard parity” checkbox. Link each behavior to contract fields, application authorization, tests, and UI acceptance. | Required parity |
+| [Working with Dashboards](https://docs.oracle.com/cd/G48897_01/p6help/en/6665.htm) | P6 exposes private user dashboards plus global and multi-user dashboards; availability is also shaped by assigned UI view. Dashboard visibility does not supersede module access, security privileges, or the user's project relationship. Default maximum is 12 portlets, configurable by an administrator. Users distinguish Displayed and Available dashboards. | Model dashboard existence, visibility/sharing, and per-user display preference as distinct concepts. Do not conflate “not displayed” with “no access.” Enforce the current actor's source-data permissions on every portlet read. Treat the portlet limit as a configurable policy, not an arbitrary hard-coded value. | Required parity |
+| [Creating Dashboards](https://docs.oracle.com/cd/G48897_01/p6help/en/7826.htm) | Users can create dashboards from a default or existing dashboard template; multi-user dashboards and global dashboards are supported. Creation starts with title/content and can then be customized for layout and access. | Support create and duplicate/template-derived create without copying source records or grants. New dashboard owner/tenant must derive from authenticated context. The copy operation must create fresh dashboard and portlet-instance IDs and must not copy privileged sharing unless explicitly re-authorized. | Required parity |
+| [Customizing Dashboards](https://docs.oracle.com/cd/G48897_01/p6help/en/7827.htm) | Customization is separated into Content, Layout, and Access. Owners can customize private dashboards and multi-user dashboards they created; another user's multi-user dashboard is not editable by them. Global dashboard edits require the relevant security privilege. A viewer may have an overridable user filter if the owner has not restricted filter changes. | Keep content/layout/access as distinct validated updates and authorization decisions. Enforce owner/admin/security privilege boundaries server-side. A user-specific filter override must be separate from the shared dashboard definition and must not mutate another user's configuration. | Required parity |
+| [Configuring Dashboard Content](https://docs.oracle.com/cd/G48897_01/p6help/en/7831.htm) | Content controls which portlets appear, general dashboard title/filters/maximum rows, portlet-specific options/fields/lists, and custom or portfolio-view portlets. Changes apply to all users of the current dashboard. Default maximum is 12, administrator configurable. | Persist ordered portlet instances, registered type/version, validated typed configuration, and explicit dashboard-wide vs actor-specific filter settings. Updates to shared content must increment revision and be visible to all authorized viewers. Enforce a configurable maximum. Reject unregistered types and unknown config fields. | Required parity |
+| [Configuring Dashboard Access](https://docs.oracle.com/cd/G48897_01/p6help/en/32010.htm) | Dashboard access may be restricted to the current user, made global, or assigned to a specified list of users. Changing access requires the appropriate security privilege; a user cannot change access for a multi-user dashboard created by someone else. | Represent private, explicitly assigned-user, and broadly shared/admin-governed visibility as distinct modes. Sharing is not a grant to underlying project/claim/document records. Test owner, authorized administrator, listed user, unlisted user, revocation, and cross-tenant denial. Confirm whether the exact V26 user-list behavior is still the active access UI in the deployment profile before claiming UI parity. | Required parity; verify deployed profile |
+| [Configuring Dashboard Filters](https://docs.oracle.com/cd/G48897_01/p6help/en/32012.htm) | Dashboard filters constrain which project/portfolio data portlets display. On shared dashboards a viewer may be able to override the owner's filter unless the owner restricts filter changes. | Use typed allow-listed filters, with owner-defined defaults and optional actor-scoped overrides. Validate filters against the selected portlet/source contract. A filter must never widen authorization scope; authorization is applied independently after filtering. Persist the “restrict user filter changes” policy. | Required parity |
+| [Configuring Dashboard Layout](https://docs.oracle.com/cd/G48897_01/p6help/en/32008.htm) | Portlets can be reordered using arrows or drag-and-drop and sized Narrow/Wide (one or two columns). | Persist deterministic order and bounded layout values per portlet instance. Reject negative/out-of-range positions, duplicate order keys where not normalized, invalid widths, and references to nonexistent instances. Layout must not affect data authorization. | Required parity |
+| [Showing and Hiding Dashboards](https://docs.oracle.com/cd/G48897_01/p6help/en/44266.htm) | Users select which accessible dashboards appear as tabs; dashboards move between Displayed and Available, order can be changed, and these changes are automatically applied. Deletion is separate and warns about impact on other users. | Separate actor-scoped display/order preferences from dashboard archive/delete lifecycle. Hiding must not revoke access or delete a shared definition. Archive/delete needs ownership/privilege checks and an impact-aware lifecycle. | Required parity |
+| [Portfolio Analysis Page](https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-help/5989.html) | Portfolio Analysis compares two project groups side-by-side (vertical or horizontal), supports waterline analysis, and displays latest summarized data using a selected portfolio view. Published/summarized earned value may differ from live data because summarization uses the project baseline. | Portfolio dashboard data must identify source mode, source snapshot/revision and summarized-at timestamp. Never label summarized data as live/current without evidence. Where EVM is displayed, explain the baseline/source semantics and preserve Engineering as calculation owner. Side-by-side analysis and waterline are broader portfolio-analysis capabilities, not implied by the dashboard-definition backend alone. | Required parity for freshness/semantics; analysis UI deferred |
+| [Portfolio Analysis Settings Area](https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-help/portfolioanalysissettingsarea-9110a.html) | Filter by portfolio, project code, or project; select view type including bubble, histogram, pie, scorecard, side-by-side histogram, and stacked histogram. Additional settings depend on view. | Treat view type and filter configuration as typed, allow-listed source/view parameters. The v1 registry may expose only source types with existing stable read contracts; unsupported view families must be explicitly Deferred, not approximated with a new KPI engine. | Required semantic mapping; view families phased |
+| [Portfolio View Portlet](https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-help/5959.html) | Portfolio views can be charts or scorecards; scorecards expose fields/columns, grouping, totals and export. Some scorecard operations can add/delete projects or edit project data and require Save. Up to 50 Portfolio View portlets may be added. Data is summarized; Last Summarized Date can be displayed. Opening a project is a separate action. | Dashboard v1 is deliberately read-only. Do not accidentally expose scorecard mutation, project add/delete, or project-field editing through a read portlet. Preserve source freshness and source revision. Treat the P6 maximum of 50 portfolio-view portlets as a distinct P6 rule; the overall dashboard cap remains administrator-configurable (default 12). Any write-capable portfolio scorecard requires a separate authorized Engineering/portfolio command contract and explicit approval. | Read projection required; write behaviors deferred |
+| [Assigning Projects to a Portfolio](https://docs.oracle.com/cd/G48897_01/p6help/en/7856.htm) | Projects can be assigned to the selected portfolio in Portfolio Analysis; assignment is not available when displaying a scenario (Latest Data is required). | Portfolio membership remains owned by the authoritative portfolio/project domain. A dashboard filter or portlet configuration cannot create membership. Any membership mutation must use the existing authorized portfolio service, not dashboard persistence. | Required ownership boundary |
+| [Opening Projects from Dashboard Portlets](https://docs.oracle.com/cd/G48897_01/p6help/en/43796.htm) | Only certain project-related portlets support opening projects. The actor must have OBS access, be project owner, or be assigned as a resource/activity owner. Other portlets provide detail without project navigation. | Every drill-through reference must be typed and explicitly supported by its registry entry. Re-authorize the current actor against the target project at click/read time. Dashboard share must never grant OBS/project access. Do not offer drill-through for a portlet whose source contract does not support it. | Required parity |
+| [P6 EPPM Portfolio Reports](https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-reports/portfolioreports-63041a.html) | Portfolio reporting is a related reporting capability with its own report definitions and execution lifecycle. | Dashboards/portlets are not a substitute for a report catalog, report engine, report scheduling, or report subscriptions. Reuse existing report contracts where present; do not introduce a parallel report engine in ENT-06A. | Boundary / not applicable to v1 |
+
+### Important EPPM semantic distinctions
+
+- **Access vs display:** a dashboard can be available to a user but not displayed; a dashboard displayed to a user still does not grant access to its source records.
+- **Shared definition vs personal override:** shared content/layout/access is governed at dashboard level; a permitted user filter override is actor-scoped.
+- **Dashboard share vs source grant:** a shared dashboard never bypasses OBS/project/resource/module/source-level authorization.
+- **Summary vs live:** summarized portfolio/EVM data has a freshness boundary and baseline semantics; expose provenance and freshness instead of presenting it as live.
+- **Read-only v1 vs P6 editable scorecard:** P6 scorecard editing exists, but the ENT-06A bounded backend is a read projection. Mutating project data from a dashboard is a separate capability and must not be simulated in the dashboard repository.
+- **Deletion vs hiding:** hide/display preference is not deletion, revocation, or archive.
+
+## 3. Primavera Cloud additive comparison
+
+These topics are additive design references only. They do not override the EPPM behavior above.
+
+| Cloud Help topic | Additional documented behavior | CUBI recommendation | Disposition |
+|---|---|---|---|
+| [Manage Dashboards](https://primavera.oraclecloud.com/help/en/user/144444.htm) | Dashboard lifecycle includes editor, sharing, assignment, duplication, organization and owning-workspace transfer. | Evaluate assignment/ownership lifecycle after EPPM baseline; do not implement workspace inheritance until Enterprise tenant/org semantics and owner-transfer audit are explicit. | Cloud extension candidate |
+| [Add a Dashboard](https://primavera.oraclecloud.com/help/en/user/91076.htm) | Dashboards exist in Workspace, Project, Portfolio and Program contexts; unique name, title, description, Display in Viewer, at least one tile; tile-specific width/height can range from 1/8 screen to full screen; charts must be owned by or assigned to the current workspace. | Context-scoped dashboard definitions and tile configuration are useful, but current ENT-06A explicitly supports Enterprise Home/authorized portfolio context only. Add further contexts only with explicit owner and authorization contracts. Use a stable registry and source ownership checks for charts. | Partially relevant; broader contexts deferred |
+| [Add a Tile to a Dashboard](https://primavera.oraclecloud.com/help/en/user/91079.htm) | Available tile types are searchable/filterable; adding a tile requires permission to edit the dashboard; chart ownership/assignment is checked. | Registry discovery can be searchable, but it must return only tile types allowed in the dashboard context and by actor permission. | Cloud extension candidate |
+| [Working with Portfolio Dashboard Tile Types](https://primavera.oraclecloud.com/help/en/user/99151.htm) | Portfolio tile types include Overview, Chart, Gantt, Map Viewer, Photo, Text, List, Count, Measure and External Content. | Do not register arbitrary external URL, arbitrary text/html, map, photo or user-authored executable content in v1. Chart/Gantt/list/count/measure candidates require canonical typed source contracts, permission mapping, and freshness behavior. | Selective extensions; external content deferred |
+| [View a Dashboard](https://primavera.oraclecloud.com/help/en/user/102753_2.htm) | Tiles may drill into chart subcharts, maximize/minimize, refresh, navigate to object pages, and print. External content may not allow embedding; unsupported pages open in a new tab. | Refresh/drill-through must re-authorize; navigation is limited to typed source references. Printing/export must follow the source permission and data-classification policy. External content is not accepted as an arbitrary URL capability. | Selective extensions |
+| [Customize the Layout of a Dashboard](https://primavera.oraclecloud.com/help/en/user/93546.htm) | Responsive tiles can be moved and resized; width and height range from 1/8 screen to full screen, with row packing and no empty spaces. | Consider responsive grid layout in a later UI slice. Keep backend layout schema versioned and bounded so it can evolve without changing source contracts. | Cloud extension candidate |
+| [Configure Dashboard Sharing](https://docs.oracle.com/cd/E80480_01/help/en/user/178503.htm) | Workspace-level sharing can be Manual (child workspace assigns) or Automatic (pushed to child workspaces); project/program/portfolio dashboards can also be shared to newly created objects automatically or manually. | This is not equivalent to EPPM private/user-list/global visibility. Treat inheritance and automatic propagation as a separate sharing policy requiring explicit tenant/workspace hierarchy, revocation propagation, audit, and source-data authorization. | Deferred; separate capability |
+| [Security Permissions for Dashboards](https://docs.oracle.com/cd/E80480_01/help/en/user/213345.htm) | Dashboard app access permits viewing dashboard pages for accessible objects, but add/edit/delete requires object-specific workspace/project/portfolio/program privileges. Access to dashboard app does not grant access to the data displayed in a tile. | Adopt the strict separation of app/page permission, dashboard-definition permission, and source-data permission. Enforce all three server-side on every read and drill-through. | Required security principle |
+| [Organize Dashboards](https://primavera.oraclecloud.com/help/en/user/96011.htm) | Dashboard tab ordering and display/hide are scoped to the currently selected workspace/project/portfolio/program; default Overview dashboard cannot be edited/deleted. | Actor display preferences should be context-scoped. A protected system/default dashboard concept may be useful later but requires explicit owner/admin policy. | Cloud extension candidate |
+| [Update the Owning Workspace of a Dashboard](https://primavera.oraclecloud.com/help/en/user/100788.htm) | Dashboard can be moved to another assigned workspace; moving upward in hierarchy can make it available to more workspaces. | Owner transfer changes audience and potentially data exposure. Defer until there is a complete authorization impact analysis, transaction/audit model, and revocation behavior. | Deferred |
+
+## 4. Implications for the ENT-06A backend contract (#2028)
+
+The existing bounded backend plan is directionally sound. The following are binding review notes for implementation and acceptance:
+
+1. **Identity and tenant are server-derived.** Caller-supplied actor or tenant identifiers are never authoritative.
+2. **Three independent authorization checks are required:**
+   - access to the Enterprise Dashboard feature/context;
+   - permission to read or modify the dashboard definition (owner, explicitly shared user/role, or authorized admin);
+   - permission to read the source records represented by each portlet.
+3. **Reauthorize on every portlet read and drill-through.** A prior dashboard read, share, cached payload, or UI visibility decision is not an authorization grant.
+4. **Source contracts are allow-listed.** A portlet registry entry declares source owner, contract/version, supported context, required read permission, validated configuration schema, and typed drill-through references. Do not accept arbitrary SQL, URLs, HTML, scripts, formulas, or caller-selected data providers.
+5. **Filters are not security boundaries.** Apply source authorization independently of user filters. Reject unknown filter fields/operators and cross-tenant identifiers.
+6. **Revision and concurrency:** shared dashboard content/configuration changes use optimistic revision checks; actor-scoped display/filter preferences have their own scope and version. Duplicate/create must be idempotent where the application contract requires it.
+7. **Freshness is explicit:** portlet read models expose source snapshot/revision, generated-at/last-summarized timestamp, freshness state and source mode. Stale/missing/partial data must never silently appear current.
+8. **Read-only boundary:** v1 portlets are projections. P6 scorecard edit/add/delete/export behavior must not be implied by the read-only v1 portlet contract. Export, if later added, needs a separate permission/data-loss review.
+9. **Audit:** record create/update/duplicate/share/revoke/archive and policy-relevant changes atomically with persistence. Hiding/showing and actor filter overrides are actor-scoped preferences and must not mutate the shared dashboard.
+10. **Deletion safety:** distinguish hide, archive, and permanent delete. Shared dashboards require ownership/privilege checks and an impact-aware policy.
+11. **No Enterprise calculation ownership:** portfolio control, project schedule, cost, progress, EVM, risk and other Engineering facts are read from authoritative source services. Enterprise dashboard code may aggregate/present authorized read models but must not reimplement calculations.
+12. **No new report engine:** dashboard portlets consume existing versioned read contracts; report generation/scheduling/subscriptions remain in the report capability.
+
+## 5. Acceptance test matrix for Hasan
+
+| ID | Scenario | Expected result |
+|---|---|---|
+| ENT06-SEC-01 | User guesses a dashboard ID from another tenant | Not found/denied; no metadata leakage |
+| ENT06-SEC-02 | User can view a shared dashboard but lacks source-project access | Dashboard definition may be visible if shared; protected source data is omitted/denied according to contract, never leaked |
+| ENT06-SEC-03 | Dashboard is shared, then source access is revoked | Next portlet read and drill-through deny the source; no stale authorized payload |
+| ENT06-SEC-04 | User attempts to update another owner's multi-user dashboard | Denied unless an explicit admin/security privilege applies |
+| ENT06-SEC-05 | Non-owner attempts to change sharing/access | Denied |
+| ENT06-FILTER-01 | Shared dashboard allows user filter override | Override is actor-scoped and does not change shared dashboard revision/content |
+| ENT06-FILTER-02 | Owner restricts filter changes | User override is rejected |
+| ENT06-FILTER-03 | Filter attempts to widen tenant/project access | Source authorization still limits result; cross-tenant identifiers rejected |
+| ENT06-CONTENT-01 | Unknown portlet type/config field | Schema/application validation rejects it |
+| ENT06-CONTENT-02 | Portlet count exceeds configured maximum | Rejected with actionable validation error |
+| ENT06-LAYOUT-01 | Portlet order/width is changed | Deterministic persisted layout; invalid bounds rejected |
+| ENT06-LIFECYCLE-01 | User hides a shared dashboard | Only actor's display preference changes; dashboard remains accessible to other users |
+| ENT06-LIFECYCLE-02 | User archives/deletes a shared dashboard without privilege | Denied |
+| ENT06-DUP-01 | Dashboard is duplicated | Fresh IDs/revision/owner; no unintended inherited shares or data grants |
+| ENT06-DRILL-01 | User clicks a supported project drill-through without OBS/owner/resource/activity-owner access | Denied even if dashboard is shared |
+| ENT06-DRILL-02 | Portlet type has no drill-through contract | No project link/action is emitted |
+| ENT06-FRESH-01 | Source snapshot is stale | Response marks stale with source timestamp/revision |
+| ENT06-FRESH-02 | Source is missing or partially available | Explicit missing/partial state; no fabricated zero/current values |
+| ENT06-PORT-01 | Portfolio/EVM value comes from summarized data | Response identifies summarized source mode and timestamp; no false live-data label |
+| ENT06-READ-01 | Read-only v1 dashboard client attempts scorecard project mutation | No mutation route/command is available in this capability slice |
+| ENT06-AUD-01 | Share/revoke/update operation fails mid-transaction | Dashboard mutation and audit are atomic; no partial authorization state |
+| ENT06-CONC-01 | Two editors update the same revision | One succeeds; stale writer receives conflict and must reload |
+
+## 6. Repository preflight and non-interference record
+
+- Current `main` SHA verified from Git ref: `20e8b6509704c8225bba81e722a835b5b1bb1ea0`.
+- Recursive Git tree at that SHA contains no root or nested `AGENTS.md` paths.
+- Open PR changed-file checks:
+  - PR #2038 owns `src/construction_pm/enterprise_dashboard_http.py` and `tests/test_enterprise_dashboard_http.py`.
+  - PR #2037 owns `apps/web/src/enterprise-dashboard.test.ts`, `apps/web/src/enterprise-dashboard.ts`, and `docs/enterprise/ENT06_DASHBOARDS_PORTLETS_IMPLEMENTATION_V1.md`.
+  - PR #2008 owns architecture/governance/Engineering documentation paths, not this crosswalk path.
+- This review writes only `docs/enterprise/ENT06_DASHBOARD_HELP_PARITY_CROSSWALK_V1.md` on branch `docs/ent06-dashboard-help-parity-crosswalk-v1`.
+- No application code, API, schema/migration, UI, production composition, authorization, shared contract, or Hasan-owned implementation path is modified.
+- This crosswalk is a research/acceptance artifact. It does not authorize merge, deployment, or a parity-complete claim.
+
+## 7. Review completion gate
+
+This document is ready for Hasan to consume as source guidance. The implementation remains **Needs Verification** until #2028 supplies exact-head code/tests, PostgreSQL evidence, source-authorization negative tests, and runtime/browser evidence for the implemented slice. Any capability not implemented in the bounded slice must remain explicitly Deferred/Partial in the master capability register and UI claims.
