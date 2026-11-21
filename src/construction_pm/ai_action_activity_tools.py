@@ -43,11 +43,16 @@ class AIActionExecutionIdempotencyStore:
     connection and application-owned transaction as the authoritative use case.
     """
 
-    def __init__(self, connection: object, *, placeholder: str) -> None:
+    def __init__(
+        self, connection: object, *, placeholder: str, initialize: bool = True
+    ) -> None:
         if placeholder not in {"?", "%s"}:
             raise ValueError("UNSUPPORTED_SQL_PLACEHOLDER")
         self.connection = connection
         self.placeholder = placeholder
+        if not initialize:
+            # The schema migration registry already created this table.
+            return
         was_in_transaction = bool(getattr(connection, "in_transaction", False))
         self.connection.execute(
             """CREATE TABLE IF NOT EXISTS ai_action_tool_idempotency (

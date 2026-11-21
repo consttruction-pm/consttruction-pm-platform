@@ -454,6 +454,26 @@ class _SqlIdentityStore:
             f"last_login_at FROM identity_users WHERE lower(email)={self.placeholder}",
             (email.lower(),),
         )
+        return self._user_from_row(row)
+
+    def find_user_by_id(self, user_id: str) -> IdentityUser | None:
+        """Resolve an identity by its stable id.
+
+        Permission checks that receive a subject id (for example an AI action
+        approval) need the stored roles, not the roles copied into an earlier
+        session, so they read the authoritative user row.
+        """
+
+        row = self._one(
+            "SELECT user_id, tenant_id, email, display_name, roles_json, "
+            "password_hash, active, locked_at, expires_at, must_change_password, "
+            f"last_login_at FROM identity_users WHERE user_id={self.placeholder}",
+            (user_id,),
+        )
+        return self._user_from_row(row)
+
+    @staticmethod
+    def _user_from_row(row: Any) -> IdentityUser | None:
         if row is None:
             return None
         roles = json.loads(row[4])

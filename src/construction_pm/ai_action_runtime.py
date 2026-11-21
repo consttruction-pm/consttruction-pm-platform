@@ -195,9 +195,10 @@ def _decode_proposal(raw_value: object) -> AIActionProposal:
 class _SqlAIActionRuntimeStore:
     placeholder = "?"
 
-    def __init__(self, connection: object) -> None:
+    def __init__(self, connection: object, *, initialize: bool = True) -> None:
         self.connection = connection
-        self.initialize()
+        if initialize:
+            self.initialize()
 
     def initialize(self) -> None:
         p = self.placeholder

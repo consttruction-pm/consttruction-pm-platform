@@ -63,8 +63,8 @@ from .form_builder import (
     validate_template,
 )
 from .form_builder_repository import (
+    FormBuilderRepository,
     FormPersistenceError,
-    SQLiteFormBuilderRepository,
 )
 from .form_builder_templates import (
     ORGANIZATION_LIBRARY_PROJECT,
@@ -162,7 +162,7 @@ def _has_errors(issues: Iterable[Any]) -> bool:
 class FormBuilderAPI:
     def __init__(
         self,
-        repository: SQLiteFormBuilderRepository,
+        repository: FormBuilderRepository,
         authorization_policy: AuthorizationPolicy,
         *,
         binding_provider: FormBindingProvider | None = None,
