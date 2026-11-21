@@ -50,7 +50,7 @@ class StubApi:
         )
         session_id = environ.get("HTTP_COOKIE", "")
         payload = (
-            {"projects": [{"project_id": "p1"}]}
+            {"projects": [{"project_id": "p1"}], "seen": "/api/projects"}
             if environ["PATH_INFO"] == "/api/projects"
             else {"ok": True, "seen": environ["PATH_INFO"]}
         )
