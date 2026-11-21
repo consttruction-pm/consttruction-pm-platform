@@ -571,3 +571,30 @@ def test_safe_next_defaults_to_the_personal_workbench_and_preserves_real_deep_li
     )
     assert _safe_next("/ai-workbench?project=alpha&redirect=//evil.test") == "/ai-workbench"
     assert _safe_next("/ai-workbench?project=a/b") == "/ai-workbench"
+
+
+
+def test_signup_creates_persisted_viewer_session(app):
+    status, headers, body = call(
+        app, "POST", "/api/signup",
+        body={"username": "fresh.planner", "password": PASSWORD, "display_name": "Fresh Planner"},
+    )
+    assert status == 201, body
+    payload = json.loads(body)
+    assert payload["roles"] == ["viewer"]
+    assert len(headers["set-cookie"]) == 2
+    session_cookie = next(value for value in headers["set-cookie"] if value.startswith("cp_session="))
+    token = session_cookie.split(";", 1)[0].split("=", 1)[1]
+    session = app.identity.resolve(token)
+    assert session is not None
+    assert session.user_id == payload["user_id"]
+
+
+def test_signup_rejects_foreign_origin(app):
+    status, _, body = call(
+        app, "POST", "/api/signup",
+        body={"username": "hostile.user", "password": PASSWORD},
+        origin="https://evil.example",
+    )
+    assert status == 403
+    assert json.loads(body)["code"] == "ORIGIN_NOT_ALLOWED"
