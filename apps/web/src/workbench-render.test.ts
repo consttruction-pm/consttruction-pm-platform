@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { BaselineRecord, EarnedValueSnapshot, RiskHistoryEvent, RiskRecord } from "./workbench/api.js";
+import type { AIActionProposal, BaselineRecord, EarnedValueSnapshot, RiskHistoryEvent, RiskRecord } from "./workbench/api.js";
 import {
   renderAnalysisStudio,
+  renderDecisionStudio,
   renderInspector,
   renderRiskEditForm,
   renderRiskHistory,
@@ -72,6 +73,10 @@ function state(overrides: Partial<ShellState> = {}): ShellState {
     evmBaselineId: "",
     evmCurrency: "",
     evmDataDate: "",
+    proposals: [],
+    proposalError: null,
+    proposalNotice: null,
+    proposalBusy: null,
     loading: null,
     lastUpdated: null,
     connected: true,
@@ -210,4 +215,93 @@ test("an authoritative EVM error is surfaced verbatim with no fabricated metrics
   assert.match(html, /data-evm-error/);
   assert.match(html, /EVM_BASELINE_ACTIVITIES_EMPTY:BL-1/);
   assert.ok(!html.includes("Planned value"));
+});
+
+function proposal(overrides: Partial<AIActionProposal> = {}): AIActionProposal {
+  return {
+    proposal_id: "AIA-1",
+    tool_name: "activity.create",
+    action: "create",
+    status: "proposed",
+    requires_human_approval: true,
+    requested_by: "u-planner",
+    evidence_refs: ["workspace:7"],
+    project_revision_id: "7",
+    resource_domain: "schedule",
+    payload: { activity_id: "AIW-1", wbs_id: "WBS-1", name: "<New>" },
+    result: null,
+    created_at: "2026-11-21T09:00:00+00:00",
+    updated_at: "2026-11-21T09:00:00+00:00",
+    decided_by: null,
+    is_stale: false,
+    ...overrides,
+  };
+}
+
+test("a read-only session sees no proposal list at all", () => {
+  const html = renderDecisionStudio(
+    state({
+      context: { ...state().context!, permissions: { can_read: true, can_propose: false } },
+      proposals: [proposal()],
+    }),
+  );
+  assert.match(html, /data-decision-readonly/);
+  assert.ok(!html.includes("data-proposal="));
+  assert.ok(!html.includes("data-workbench=\"decide-proposal\""));
+});
+
+test("an empty proposal store is stated honestly without inventing a row", () => {
+  const html = renderDecisionStudio(state());
+  assert.match(html, /data-decision-empty/);
+  assert.match(html, /No proposal is stored/);
+  assert.ok(!html.includes("data-proposal="));
+});
+
+test("a pending proposal exposes approve and reject with the escaped payload", () => {
+  const html = renderDecisionStudio(state({ proposals: [proposal()] }));
+  assert.match(html, /data-decision-list/);
+  assert.match(html, /activity\.create/);
+  assert.match(html, /data-proposal="AIA-1"/);
+  assert.match(html, /data-approved="true"/);
+  assert.match(html, /data-approved="false"/);
+  assert.ok(!html.includes("data-workbench=\"execute-proposal\""));
+  assert.ok(html.includes("&lt;New&gt;"));
+});
+
+test("an approved proposal offers execution and no further decision", () => {
+  const html = renderDecisionStudio(state({ proposals: [proposal({ status: "approved" })] }));
+  assert.match(html, /data-workbench="execute-proposal"/);
+  assert.ok(!html.includes("data-workbench=\"decide-proposal\""));
+});
+
+test("a stale proposal cannot be approved or executed", () => {
+  const html = renderDecisionStudio(
+    state({ proposals: [proposal({ is_stale: true })] }),
+  );
+  assert.match(html, /data-proposal-stale/);
+  assert.ok(!html.includes("data-workbench=\"decide-proposal\""));
+  assert.ok(!html.includes("data-workbench=\"execute-proposal\""));
+});
+
+test("an executed proposal shows the canonical result and decision maker", () => {
+  const html = renderDecisionStudio(
+    state({
+      proposals: [
+        proposal({
+          status: "executed",
+          decided_by: "u-planner",
+          result: { activity: { activity_id: "AIW-1" } },
+        }),
+      ],
+    }),
+  );
+  assert.match(html, /u-planner/);
+  assert.match(html, /AIW-1/);
+  assert.ok(!html.includes("data-workbench=\"decide-proposal\""));
+});
+
+test("a proposal read error is surfaced with its stable code", () => {
+  const html = renderDecisionStudio(state({ proposalError: "AUTHORIZATION_DENIED" }));
+  assert.match(html, /data-decision-error/);
+  assert.match(html, /AUTHORIZATION_DENIED/);
 });

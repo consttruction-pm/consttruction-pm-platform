@@ -19,6 +19,7 @@ import {
   renderAnalysisStudio,
   renderBlockedStudio,
   renderCommandPlan,
+  renderDecisionStudio,
   renderFallbackNotice,
   renderHeader,
   renderInspector,
@@ -75,6 +76,10 @@ function initialState(locale: string, projectId: string | null): ShellState {
     evmBaselineId: "",
     evmCurrency: "",
     evmDataDate: "",
+    proposals: [],
+    proposalError: null,
+    proposalNotice: null,
+    proposalBusy: null,
     loading: null,
     lastUpdated: null,
     connected: typeof navigator === "undefined" ? true : navigator.onLine,
@@ -171,6 +176,8 @@ export async function mountWorkbench(options: MountOptions = {}): Promise<void> 
       el("aiw-studio").innerHTML = renderRiskStudio(state);
     } else if (state.activeStudio === "project-analysis") {
       el("aiw-studio").innerHTML = renderAnalysisStudio(state);
+    } else if (state.activeStudio === "decision-approval") {
+      el("aiw-studio").innerHTML = renderDecisionStudio(state);
     } else {
       el("aiw-studio").innerHTML = renderPartialStudio(studio);
     }
@@ -280,6 +287,9 @@ export async function mountWorkbench(options: MountOptions = {}): Promise<void> 
     renderAll();
     if (state.activeStudio === "risk-analysis") await loadRisks();
     if (state.activeStudio === "project-analysis") await loadAnalysis();
+    if (state.activeStudio === "decision-approval" && state.context.permissions.can_propose) {
+      await loadDecisions();
+    }
   }
 
   async function loadRisks(): Promise<void> {
@@ -392,6 +402,88 @@ export async function mountWorkbench(options: MountOptions = {}): Promise<void> 
     state.evmError = null;
     state.evm = result.data;
     renderAll();
+  }
+
+  async function loadDecisions(): Promise<void> {
+    if (!projectId || !state.context?.permissions.can_propose) return;
+    state.proposalError = null;
+    const result = await api.proposals(projectId, {
+      tenant_id: sessionTenant,
+      project_id: projectId,
+      revision: projectRevision,
+    });
+    if (!result.ok) {
+      state.proposalError = `${result.error.code}`;
+      state.connected =
+        result.error.code === "NETWORK_ERROR" || result.error.code === "NETWORK_TIMEOUT"
+          ? false
+          : state.connected;
+      renderAll();
+      return;
+    }
+    state.proposals = result.data.proposals;
+    state.lastUpdated = new Date().toISOString();
+    renderAll();
+  }
+
+  async function decideProposal(proposalId: string, approved: boolean): Promise<void> {
+    if (!projectId || !state.context) return;
+    state.proposalBusy = proposalId;
+    state.proposalNotice = null;
+    renderAll();
+    const result = await api.decideProposal(
+      projectId,
+      proposalId,
+      { expected_revision: projectRevision, approved },
+      { tenant_id: sessionTenant, project_id: projectId, revision: projectRevision },
+    );
+    state.proposalBusy = null;
+    if (!result.ok) {
+      state.proposalNotice = `${result.error.code}`;
+      if (isRevisionConflict(result.error.code)) {
+        // The project advanced behind this tab: re-read the pinned context and
+        // the proposal list instead of resubmitting with a stale revision.
+        await loadContext();
+        return;
+      }
+      renderAll();
+      return;
+    }
+    state.proposalNotice =
+      t(state.locale, "Decision recorded", "تصمیم ثبت شد") + `: ${result.data.status}.`;
+    await loadDecisions();
+  }
+
+  async function executeProposal(proposalId: string): Promise<void> {
+    if (!projectId || !state.context) return;
+    state.proposalBusy = proposalId;
+    state.proposalNotice = null;
+    renderAll();
+    const result = await api.executeProposal(
+      projectId,
+      proposalId,
+      { expected_revision: projectRevision },
+      { tenant_id: sessionTenant, project_id: projectId, revision: projectRevision },
+    );
+    state.proposalBusy = null;
+    if (!result.ok) {
+      state.proposalNotice = `${result.error.code}`;
+      if (isRevisionConflict(result.error.code)) {
+        await loadContext();
+        return;
+      }
+      renderAll();
+      return;
+    }
+    state.proposalNotice =
+      t(state.locale, "Execution result", "نتیجهٔ اجرا") + `: ${result.data.status}.`;
+    // Execution can advance the project revision; refresh the pinned context
+    // before offering another action. loadContext also re-reads this studio.
+    await loadContext();
+  }
+
+  function isRevisionConflict(code: string): boolean {
+    return code.includes("STALE_REVISION") || code.includes("REVISION_CONFLICT");
   }
 
   async function submitCommand(text: string): Promise<void> {
@@ -614,11 +706,15 @@ export async function mountWorkbench(options: MountOptions = {}): Promise<void> 
     state.editingRisk = null;
     state.historyRisk = null;
     state.riskNotice = null;
+    state.proposalNotice = null;
     renderAll();
     // Navigation always re-reads the authoritative service; the studio never
     // presents a cached write as current.
     if (id === "risk-analysis") void loadRisks();
     if (id === "project-analysis") void loadAnalysis();
+    if (id === "decision-approval" && state.context?.permissions.can_propose) {
+      void loadDecisions();
+    }
   }
 
   root.addEventListener("click", (event) => {
@@ -714,6 +810,17 @@ export async function mountWorkbench(options: MountOptions = {}): Promise<void> 
       case "retry-baselines":
         state.baselineError = null;
         void loadBaselines().then(() => renderAll());
+        break;
+      case "retry-decisions":
+        void loadDecisions();
+        break;
+      case "decide-proposal":
+        if (target.dataset.proposal) {
+          void decideProposal(target.dataset.proposal, target.dataset.approved === "true");
+        }
+        break;
+      case "execute-proposal":
+        if (target.dataset.proposal) void executeProposal(target.dataset.proposal);
         break;
       case "reload":
         window.location.reload();

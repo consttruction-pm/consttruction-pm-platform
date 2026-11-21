@@ -63,6 +63,9 @@ See `COMMAND_CONTRACT.md`. The response always includes `contract_version`,
 | Analysis read | `GET /api/v2/workspace/control-room/read` + `X-Tenant-Id`, `X-Project-Id`, `X-Project-Revision` | workspace rows + `control_intelligence` |
 | Baselines | `GET /api/projects/{id}/p6/baselines` | `p6-baseline-api.v1` entries (`baseline.baseline_id` …) |
 | Earned value | `POST /api/projects/{id}/p6/earned-value` | baseline, data date, currency; values from persisted facts |
+| Proposals | `GET /api/projects/{id}/ai/actions/proposals` | `ai-action-runtime.v1`; requires project write access |
+| Decision | `POST /api/projects/{id}/ai/actions/proposals/{pid}/decision` + `expected_revision` | `approved` boolean; canonical approval policy and audit |
+| Execution | `POST /api/projects/{id}/ai/actions/proposals/{pid}/execute` + `expected_revision` | reauthorizes the exact tool grant, then applies atomically |
 | Register exchange | `GET/POST /api/projects/{id}/exchange/*` | not surfaced as project import |
 
 All requests use the shared `FetchApiTransport`, which sends
@@ -76,6 +79,7 @@ mutations, and a bounded timeout.
 | Risk | `SQLiteRiskStore` (preview) / PostgreSQL risk store (production) | revisioned, audited, idempotent |
 | Project / revision | `ProjectLifecycleAPI` | the Workbench never writes it |
 | Workspace read | read-only composition of schedule rows | no Workbench write path |
+| Proposal / approval | canonical `AIActionRuntime` store (preview SQLite; production composition when mounted) | proposals, decisions, executions and their audit are owned by the runtime |
 | Command plan | none | computed per request; never persisted as project fact |
 | Studio statuses | code registry (`studios.py`) | a capability flag, not tenant data |
 

@@ -18,7 +18,7 @@ Updated: Phase 7 security acceptance, 2026-11-21.
 | 3 | Project Analysis Studio | WIRED_READ | workspace read v2 + baseline register + canonical earned-value read; `INSUFFICIENT_DATA` when no baseline |
 | 4 | Import staging (7 tabs) | PARTIAL | register exchange only; no project import engine |
 | 5 | Schedule Scenario Studio | BLOCKED | no revision-bound scenario service (#1989) |
-| 6 | Decision & Approval | PARTIAL | no Engineering proposal/execution contract |
+| 6 | Decision & Approval | WIRED_WRITE in the preview composition; PARTIAL elsewhere | canonical proposal list + approve/reject + execute with `expected_revision`; scenario-specific approvals still wait on #1989 |
 | 7 | Integrated acceptance | PARTIAL | workbench boundary security gates proven; cross-phase (import, scenario, approval) acceptance waits on their contracts |
 | 8 | Enterprise reuse | PLANNED | after shared contracts stabilise |
 
@@ -65,6 +65,28 @@ The browser journey drives the real preview runtime: document gate, planner
 sign-in, empty risk state, risk create and read-back across a full reload,
 deterministic command plan, blocked scenario studio with zero controls, stored
 analysis counts, and Persian RTL / English LTR switching.
+
+## Phase 6 Decision & Approval
+
+Implemented in this change wherever the canonical runtime is mounted:
+
+- the studio reads `GET /api/projects/{id}/ai/actions/proposals` through the
+  shared transport; a read-only session sees an explicit read-only state and no
+  list;
+- approve/reject calls `POST .../proposals/{pid}/decision` and execution calls
+  `POST .../proposals/{pid}/execute`, both with the pinned `expected_revision`;
+- a stale revision re-reads the context and list instead of resubmitting; a
+  proposal the server marks `is_stale` shows a warning and no control;
+- the preview runtime passes `Capabilities(proposal_execution=True)` because it
+  mounts the canonical `AIActionRuntime`; a composition without the runtime
+  reports `PARTIAL` with the missing-service reason;
+- the browser acceptance creates one `activity.create` proposal, rejects it in
+  the studio, reloads and confirms the rejection persisted without creating the
+  activity. Execution is covered by the existing canonical assistant journey on
+  a separate project.
+
+Scenario-specific approvals are still pending with the scenario service
+(#1989); the studio does not invent a scenario proposal model.
 
 ## Phase 7 security acceptance
 

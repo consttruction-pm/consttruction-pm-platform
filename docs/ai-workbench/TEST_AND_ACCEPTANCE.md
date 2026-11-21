@@ -13,7 +13,7 @@
 
 ## 2. Python coverage
 
-`tests/test_ai_workbench_http.py` (27 tests) covers:
+`tests/test_ai_workbench_http.py` (29 tests) covers:
 
 - delegation of non-owned paths;
 - missing and unknown session → 401;
@@ -33,7 +33,9 @@
   tenant's own record; the data-date provider receives the session tenant;
   scope fields in the command body cannot override the URL project or server
   revision; encoded separators, `.`/`..` segments and control characters in the
-  project id are rejected with `PROJECT_ID_INVALID` before any lookup.
+  project id are rejected with `PROJECT_ID_INVALID` before any lookup;
+- the decision studio reports `WIRED_WRITE` only when the canonical proposal
+  runtime is mounted and stays `PARTIAL` with a reason otherwise.
 
 `tests/test_ai_workbench_orchestration.py` (27 tests) covers the envelope,
 intent rules, objective/constraint extraction, studio registry and the pure
@@ -69,7 +71,7 @@ planner.
 - stored metrics keep their values and stable order; source refs are unique;
 - query/project helpers preserve only the intended parameters.
 
-`apps/web/src/workbench-render.test.ts` (10 tests):
+`apps/web/src/workbench-render.test.ts` (17 tests):
 
 - the edit form pre-fills stored values and the rendered revision;
 - stored values are escaped in the edit form;
@@ -79,7 +81,13 @@ planner.
 - without a baseline the EVM section states `INSUFFICIENT_DATA` with no control;
 - a stored baseline exposes baseline, currency and data-date inputs;
 - earned-value values are shown exactly as the server returned them;
-- an authoritative EVM error is surfaced verbatim with no fabricated metrics.
+- an authoritative EVM error is surfaced verbatim with no fabricated metrics;
+- a read-only session sees no proposal list; an empty store is stated without a
+  fabricated row;
+- a pending proposal offers approve/reject and never execution, with the payload
+  escaped; an approved proposal offers execution only;
+- a stale proposal shows a warning and no control; an executed proposal shows
+  the canonical result and decision maker; a read error shows its stable code.
 
 ## 4. Browser acceptance (real preview)
 
@@ -103,7 +111,11 @@ the real WSGI runtime, real SQLite stores and the real API composition:
 11. a baseline is captured through the canonical service; the EVM form appears;
     submitting it surfaces the server refusal (`EVM_`/`EARNED_VALUE_`) and draws
     no fabricated figure;
-12. switching to Persian flips direction while keeping five studios, then back
+12. the decision studio starts empty; a canonical `activity.create` proposal is
+    created through the runtime, listed as proposed with approve/reject and no
+    execute control; rejecting records the decision; a reload shows the rejected
+    proposal with no live control and the activity was never created;
+13. switching to Persian flips direction while keeping five studios, then back
     to English.
 
 Screenshots: `ai-workbench-en.png`, `ai-workbench-fa.png` under
@@ -120,6 +132,7 @@ Screenshots: `ai-workbench-en.png`, `ai-workbench-fa.png` under
 | No fake data | empty/failed reads show explicit states; no sample records |
 | Determinism | the same command with the same envelope yields the same intent/studio |
 | Writes | idempotent, revision-checked, audited, read back |
+| Approvals | proposal read, decision and execution use the canonical runtime with the pinned revision; a stale proposal has no control |
 | Blocked studios | zero working controls |
 | Localization | document `lang`/`dir` from the shared system; fallback announced |
 | Responsive | three columns at desktop; stacked at ≤ 980 px |
@@ -145,7 +158,9 @@ those contracts do not exist yet (see `IMPLEMENTATION_STATUS.md`).
 
 ## 7. What is not yet proven
 
-- Cross-phase acceptance (Phases 4–7) for import, scenario and approval.
+- Cross-phase acceptance for import and scenario stays pending because those
+  contracts do not exist yet. Proposal/approval is exercised end to end where
+  the canonical runtime is mounted; scenario-specific approvals await #1989.
 - Per-studio Help deep links (see `HELP_CROSSWALK.md`).
 - Production PostgreSQL composition is wired but only preview SQLite is
   exercised by the browser journey; the deployment path is covered by the

@@ -60,6 +60,7 @@ from construction_pm.backend_p0.workspace_read_provider import (
     WorkspaceScheduleFactsProvider,
 )
 from construction_pm.ai_workbench.http import AIWorkbenchHttpMiddleware
+from construction_pm.ai_workbench.studios import Capabilities as WorkbenchCapabilities
 from construction_pm.enterprise_task_application import EnterpriseTaskApplicationService
 from construction_pm.enterprise_task_http import EnterpriseTaskHttpMiddleware
 from construction_pm.enterprise_task_sqlite_repository import (
@@ -2133,6 +2134,9 @@ def open_preview_runtime(
         lifecycle_api=lifecycle_api,
         clock=PreviewClock().now,
         data_date_provider=_workbench_data_date,
+        # The preview composition mounts the canonical AI action runtime, so
+        # proposal review, decision and execution are backed by a real service.
+        capabilities=WorkbenchCapabilities(proposal_execution=True),
     )
     return PreviewRuntime(
         database=database,

@@ -69,6 +69,10 @@ services:
   from `/risks/{risk_id}/history`;
 - risk delete is not exposed in the studio; the canonical endpoint remains the
   only authority if it is added later;
+- proposal decision/execution: the canonical `AIActionRuntime` re-checks
+  `expected_revision`, the exact tool grant and the approval policy at decision
+  time and again immediately before execution; a stale revision returns
+  `409 AI_ACTION_PROPOSAL_STALE_REVISION`;
 - analysis is read-only and sends the pinned `X-Project-Revision`; a stale
   revision returns `409 STALE_WORKSPACE_READ_SCOPE`.
 
