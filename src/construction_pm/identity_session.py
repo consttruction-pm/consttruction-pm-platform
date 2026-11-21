@@ -725,6 +725,10 @@ class SQLiteIdentityStore(_SqlIdentityStore):
             }
             if column not in existing:
                 self.connection.execute(ddl)
+        self.connection.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS identity_users_username_unique "
+            "ON identity_users (lower(username)) WHERE username IS NOT NULL"
+        )
         self.connection.commit()
 
     def create_registered_user(self, *, user_id: str, tenant_id: str, username: str,
@@ -741,23 +745,6 @@ class SQLiteIdentityStore(_SqlIdentityStore):
         except Exception as error:
             self.connection.rollback()
             if "unique" in str(error).lower():
-                raise IdentityError("USERNAME_TAKEN") from None
-            raise
-        return IdentityUser(user_id, tenant_id, email, display_name, frozenset({"viewer"}),
-                            password_hash, username=username)
-
-    def create_registered_user(self, *, user_id: str, tenant_id: str, username: str,
-                              display_name: str, password_hash: str, created_at: datetime) -> IdentityUser:
-        email = f"{username}@accounts.cubi.invalid"
-        try:
-            self.connection.execute(
-                "INSERT INTO identity_users (user_id, tenant_id, email, display_name, roles_json, password_hash, username, active, created_at, password_changed_at) "
-                "VALUES (%s, %s, %s, %s, %s, %s, %s, TRUE, %s, %s)",
-                (user_id, tenant_id, email, display_name, '["viewer"]', password_hash,
-                 username, created_at, created_at),
-            )
-        except Exception as error:
-            if getattr(error, "sqlstate", None) == "23505":
                 raise IdentityError("USERNAME_TAKEN") from None
             raise
         return IdentityUser(user_id, tenant_id, email, display_name, frozenset({"viewer"}),
@@ -851,6 +838,23 @@ class PostgresIdentityStore(_SqlIdentityStore):
             "ON identity_login_attempts (ip_hash, attempted_at)",
         ):
             self.connection.execute(statement)
+
+    def create_registered_user(self, *, user_id: str, tenant_id: str, username: str,
+                              display_name: str, password_hash: str, created_at: datetime) -> IdentityUser:
+        email = f"{username}@accounts.cubi.invalid"
+        try:
+            self.connection.execute(
+                "INSERT INTO identity_users (user_id, tenant_id, email, display_name, roles_json, password_hash, username, active, created_at, password_changed_at) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, TRUE, %s, %s)",
+                (user_id, tenant_id, email, display_name, '["viewer"]', password_hash,
+                 username, created_at, created_at),
+            )
+        except Exception as error:
+            if getattr(error, "sqlstate", None) == "23505":
+                raise IdentityError("USERNAME_TAKEN") from None
+            raise
+        return IdentityUser(user_id, tenant_id, email, display_name, frozenset({"viewer"}),
+                            password_hash, username=username)
 
     def upsert_user(self, user: IdentityUser) -> None:
         self.connection.execute(
