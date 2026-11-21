@@ -794,6 +794,70 @@ async function runAiWorkbenchJourney(page, baseUrl) {
     cards: analysis.cards,
   });
 
+  const evmEmpty = await page.evaluate(`(() => ({
+    empty: Boolean(document.querySelector("[data-analysis-evm][data-evm-empty]")),
+    text: document.querySelector("[data-analysis-evm]")?.textContent ?? "",
+    form: Boolean(document.querySelector('[data-workbench="evm-form"]')),
+  }))()`);
+  assert(evmEmpty.empty, "without a stored baseline the EVM section must say so");
+  assert(/INSUFFICIENT_DATA/.test(evmEmpty.text), "the EVM section must name INSUFFICIENT_DATA");
+  assert(!evmEmpty.form, "no EVM control may appear without a baseline");
+  record("analysis declares INSUFFICIENT_DATA when no baseline is stored", {});
+
+  const captured = await page.evaluate(`(async () => {
+    const revision = Number(document.querySelector(".aiw-header .aiw-chip strong")?.textContent ?? "0");
+    const response = await fetch("/api/projects/${PROJECT_ID}/p6/baselines/capture", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({
+        baseline_id: "BL-AIW-CAP",
+        name: "Acceptance capture",
+        baseline_type: "USER_SELECTED",
+        expected_revision: revision,
+        currency: "USD",
+      }),
+    });
+    return { status: response.status, body: await response.json().catch(() => ({})) };
+  })()`, { awaitPromise: true });
+  assert(
+    captured.status === 201 || captured.status === 200,
+    "capturing a baseline must be accepted by the canonical service: " +
+      JSON.stringify(captured),
+  );
+
+  await page.click('#aiw-tabs button[data-studio="risk-analysis"]');
+  await page.waitForSelector('[data-risk="R-AIW-1"]', "risk studio after baseline capture", 30000);
+  await page.click('#aiw-tabs button[data-studio="project-analysis"]');
+  await page.waitForSelector('form[data-workbench="evm-form"]', "EVM form for the stored baseline", 30000);
+  const evmFields = await page.evaluate(`(() => {
+    const form = document.querySelector('form[data-workbench="evm-form"]');
+    const field = (name) => form.querySelector('[name="' + name + '"]')?.value ?? null;
+    return { baseline: field("baseline_id"), currency: field("currency"), data_date: field("data_date"), options: form.querySelectorAll('[name="baseline_id"] option').length };
+  })()`);
+  assert(evmFields.baseline, "the EVM form must select a stored baseline: " + JSON.stringify(evmFields));
+  await page.evaluate(`(() => {
+    const form = document.querySelector('form[data-workbench="evm-form"]');
+    const set = (name, value) => {
+      const field = form.querySelector('[name="' + name + '"]');
+      if (field) field.value = value;
+    };
+    set("currency", "USD");
+    set("data_date", "2026-10-01");
+    form.requestSubmit();
+    return true;
+  })()`);
+  await page.waitForSelector("[data-evm-error]", "authoritative EVM response", 30000);
+  const evm = await page.evaluate(`(() => ({
+    error: document.querySelector("[data-evm-error]")?.textContent ?? "",
+    cards: document.querySelectorAll("[data-analysis-evm] .aiw-card").length,
+  }))()`);
+  assert(/EVM_|EARNED_VALUE_/.test(evm.error), "the EVM error must be the server code: " + evm.error);
+  assert(evm.cards === 0, "no earned-value figure may be fabricated when the read model refuses");
+  record("canonical earned-value read is called and its refusal surfaced", {
+    error: evm.error,
+  });
+
   await page.setSelect('[data-workbench="locale"]', "fa");
   await page.waitFor(
     `document.documentElement.dir === "rtl" && document.querySelectorAll("#aiw-tabs button").length === 5`,

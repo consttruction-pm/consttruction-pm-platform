@@ -68,6 +68,13 @@ function initialState(locale: string, projectId: string | null): ShellState {
     workspace: null,
     riskError: null,
     analysisError: null,
+    baselines: [],
+    baselineError: null,
+    evm: null,
+    evmError: null,
+    evmBaselineId: "",
+    evmCurrency: "",
+    evmDataDate: "",
     loading: null,
     lastUpdated: null,
     connected: typeof navigator === "undefined" ? true : navigator.onLine,
@@ -304,26 +311,86 @@ export async function mountWorkbench(options: MountOptions = {}): Promise<void> 
   async function loadAnalysis(): Promise<void> {
     if (!projectId) return;
     state.analysisError = null;
+    const baselinesPromise = loadBaselines();
     const result = await api.readWorkspace(projectId, {
       tenant_id: sessionTenant,
       project_id: projectId,
       revision: projectRevision,
     });
     if (!result.ok) {
-      state.analysisError =
-        result.error.code === "STALE_WORKSPACE_READ_SCOPE" || result.error.code === "WORKSPACE_READ_NOT_FOUND"
-          ? `${result.error.code}`
-          : `${result.error.code}`;
+      state.analysisError = `${result.error.code}`;
       state.connected =
         result.error.code === "NETWORK_ERROR" || result.error.code === "NETWORK_TIMEOUT"
           ? false
           : state.connected;
+      await baselinesPromise;
       renderAll();
       return;
     }
     state.workspace = result.data as WorkspaceReadSnapshot;
     analysisLoaded = true;
     state.lastUpdated = new Date().toISOString();
+    await baselinesPromise;
+    renderAll();
+  }
+
+  async function loadBaselines(): Promise<void> {
+    if (!projectId) return;
+    state.baselineError = null;
+    const result = await api.baselines(projectId, {
+      tenant_id: sessionTenant,
+      project_id: projectId,
+      revision: projectRevision,
+    });
+    if (!result.ok) {
+      state.baselineError = `${result.error.code}`;
+      return;
+    }
+    state.baselines = result.data.baselines.map((entry) => entry.baseline);
+    if (
+      !state.evmBaselineId ||
+      !state.baselines.some((baseline) => baseline.baseline_id === state.evmBaselineId)
+    ) {
+      state.evmBaselineId = state.baselines[0]?.baseline_id ?? "";
+    }
+    if (!state.evmDataDate) {
+      state.evmDataDate = state.context?.data_date ?? "";
+    }
+  }
+
+  async function readEarnedValue(): Promise<void> {
+    if (!projectId) return;
+    const form = root.querySelector<HTMLFormElement>('[data-workbench="evm-form"]');
+    if (!form) return;
+    const data = new FormData(form);
+    const baselineId = String(data.get("baseline_id") ?? "").trim();
+    const currency = String(data.get("currency") ?? "").trim().toUpperCase();
+    const dataDate = String(data.get("data_date") ?? "").trim();
+    if (!baselineId || !/^[A-Z]{3}$/.test(currency) || !dataDate) {
+      state.evmError = t(
+        state.locale,
+        "Select a baseline and enter a three-letter currency and a data date.",
+        "یک مبنا انتخاب کنید و واحد پول سه‌حرفی و تاریخ داده را وارد کنید.",
+      );
+      renderAll();
+      return;
+    }
+    state.evmBaselineId = baselineId;
+    state.evmCurrency = currency;
+    state.evmDataDate = dataDate;
+    const result = await api.earnedValue(
+      projectId,
+      { baseline_id: baselineId, data_date: dataDate, currency },
+      { tenant_id: sessionTenant, project_id: projectId, revision: projectRevision },
+    );
+    if (!result.ok) {
+      state.evm = null;
+      state.evmError = `${result.error.code}`;
+      renderAll();
+      return;
+    }
+    state.evmError = null;
+    state.evm = result.data;
     renderAll();
   }
 
@@ -548,8 +615,10 @@ export async function mountWorkbench(options: MountOptions = {}): Promise<void> 
     state.historyRisk = null;
     state.riskNotice = null;
     renderAll();
-    if (id === "risk-analysis" && !risksLoaded) void loadRisks();
-    if (id === "project-analysis" && !analysisLoaded) void loadAnalysis();
+    // Navigation always re-reads the authoritative service; the studio never
+    // presents a cached write as current.
+    if (id === "risk-analysis") void loadRisks();
+    if (id === "project-analysis") void loadAnalysis();
   }
 
   root.addEventListener("click", (event) => {
@@ -642,6 +711,10 @@ export async function mountWorkbench(options: MountOptions = {}): Promise<void> 
       case "retry-analysis":
         void loadAnalysis();
         break;
+      case "retry-baselines":
+        state.baselineError = null;
+        void loadBaselines().then(() => renderAll());
+        break;
       case "reload":
         window.location.reload();
         break;
@@ -679,6 +752,11 @@ export async function mountWorkbench(options: MountOptions = {}): Promise<void> 
     if (form.matches('[data-workbench="risk-edit-form"]')) {
       event.preventDefault();
       void saveRiskEdit();
+      return;
+    }
+    if (form.matches('[data-workbench="evm-form"]')) {
+      event.preventDefault();
+      void readEarnedValue();
     }
   });
 
