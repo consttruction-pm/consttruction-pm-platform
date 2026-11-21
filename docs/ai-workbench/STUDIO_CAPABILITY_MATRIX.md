@@ -14,7 +14,7 @@ full studio contract does not. `BLOCKED` — the canonical service is absent.
 | Project Import Review & Staging | `PARTIAL` | register datasets (`exchange`) | register import only | `exchange_api.py` | honest partial panel; no project-import controls |
 | Schedule Scenario Studio | `BLOCKED` | schedule read exists but no scenario contract | none | none | blocked panel: service, reason, Help topic; zero controls |
 | Risk Analysis Studio | `WIRED_WRITE` | `GET /api/projects/{id}/risks` (+ `/history`) | `POST` create, `PUT` update with `expected_revision` | `risk_api.py` / `risk_application.py` | table, 5×5 matrix, inspector, create and edit forms, audit history |
-| Project Analysis Studio | `WIRED_READ` | workspace read v2 + control metrics | none | `http/project_lifecycle_routes.py` | record counts, stored metric bars, source refs |
+| Project Analysis Studio | `WIRED_READ` | workspace read v2 + control metrics + `GET .../p6/baselines` + `POST .../p6/earned-value` | none | `project_lifecycle_routes.py`, `p6_earned_value_read_model_api.py` | record counts, stored metric bars, source refs, baseline-driven EVM |
 | Decision & Approval Workspace | `PARTIAL` | Enterprise approvals exist | no Engineering proposal contract | `enterprise` approvals | partial panel; no proposal control |
 
 ## Risk Analysis Studio (WIRED_WRITE)
@@ -50,8 +50,14 @@ Accepted categories: `technical`, `commercial`, `schedule`, `cost`, `quality`,
   index.
 - Displays control-intelligence metrics exactly as stored, with result id,
   generation time and source references.
-- Cost/EVM and resource/forecast sections are declared `PLANNED`; no baseline
-  or currency is selected and no value is calculated in the browser.
+- Lists the stored baselines through `GET .../p6/baselines`. When none exists it
+  shows `INSUFFICIENT_DATA` and renders no EVM control.
+- When a baseline exists, the operator selects it and states the currency and
+  data date; the studio calls `POST .../p6/earned-value` and renders the
+  returned snapshot (PV, EV, AC, CV, SV, CPI, SPI, EAC, VAC, ETC method)
+  verbatim. A refusal is shown as the server code; no value is ever estimated
+  in the browser.
+- Resource/forecast remains `PLANNED`; no baseline or currency is guessed.
 - `409 STALE_WORKSPACE_READ_SCOPE` is shown as the server code with a retry.
 
 ## Import Staging (PARTIAL)

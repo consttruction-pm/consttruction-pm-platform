@@ -61,6 +61,8 @@ See `COMMAND_CONTRACT.md`. The response always includes `contract_version`,
 | Risk update | `PUT /api/projects/{id}/risks/{risk_id}` + `expected_revision` | single risk DTO |
 | Risk history | `GET /api/projects/{id}/risks/{risk_id}/history` | audit events, newest revision included |
 | Analysis read | `GET /api/v2/workspace/control-room/read` + `X-Tenant-Id`, `X-Project-Id`, `X-Project-Revision` | workspace rows + `control_intelligence` |
+| Baselines | `GET /api/projects/{id}/p6/baselines` | `p6-baseline-api.v1` entries (`baseline.baseline_id` …) |
+| Earned value | `POST /api/projects/{id}/p6/earned-value` | baseline, data date, currency; values from persisted facts |
 | Register exchange | `GET/POST /api/projects/{id}/exchange/*` | not surfaced as project import |
 
 All requests use the shared `FetchApiTransport`, which sends

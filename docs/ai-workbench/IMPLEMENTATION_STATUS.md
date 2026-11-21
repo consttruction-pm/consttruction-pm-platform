@@ -15,7 +15,7 @@ Updated: Phase 1 integration, 2026-11-21.
 | 0 | Audit, ownership, command layer | DONE | PR #2093 merged as `eed937de1` |
 | 1 | Workbench shell, document route, command panel, HTTP endpoint, context resolver, inspector, status bar, states, authorization, audit log | IMPLEMENTED — see verification below | this branch |
 | 2 | Risk Analysis Studio | WIRED_WRITE | create + edit (`expected_revision`) + audit history against `risk_api.py` |
-| 3 | Project Analysis Studio | WIRED_READ | workspace read v2 + control-intelligence metrics |
+| 3 | Project Analysis Studio | WIRED_READ | workspace read v2 + baseline register + canonical earned-value read; `INSUFFICIENT_DATA` when no baseline |
 | 4 | Import staging (7 tabs) | PARTIAL | register exchange only; no project import engine |
 | 5 | Schedule Scenario Studio | BLOCKED | no revision-bound scenario service (#1989) |
 | 6 | Decision & Approval | PARTIAL | no Engineering proposal/execution contract |
@@ -56,10 +56,10 @@ Routing:
 | `pytest tests/test_ai_workbench_http.py tests/test_ai_workbench_orchestration.py` | 47 passed |
 | `pytest tests/test_production_web_app.py` | 34 passed |
 | `pytest tests/test_preview_runtime.py` | 26 passed |
-| `npm test` (web) | 1272 + 16 passed, 0 failed |
+| `npm test` (web) | 1276 + 16 passed, 0 failed |
 | `npm run typecheck` | clean |
 | `npm run build` | bundles emitted |
-| `node e2e/preview-e2e.mjs` | 110 recorded checks (see the run log attached to the PR) |
+| `node e2e/preview-e2e.mjs` | 112 recorded checks (see the run log attached to the PR) |
 
 The browser journey drives the real preview runtime: document gate, planner
 sign-in, empty risk state, risk create and read-back across a full reload,
@@ -77,20 +77,21 @@ analysis counts, and Persian RTL / English LTR switching.
    fallback notice for non-English locales.
 6. Risk delete, scenario promotion and approval execution are not exposed;
    risk create and update are wired.
-7. Production PostgreSQL is wired and compiles, but the browser journey runs
+7. The EVM studio requires an explicit baseline, currency and data date. The
+   preview seed has no cost-loaded baseline, so the canonical read returns
+   `EARNED_VALUE_REMAINING_COST_REQUIRED`; the studio shows that code rather
+   than inventing figures. Resource/forecast remains `PLANNED`.
+8. Production PostgreSQL is wired and compiles, but the browser journey runs
    against the preview SQLite runtime.
 
 ## Next executable tasks
 
-1. Phase 3: connect a canonical EVM read (`POST /api/projects/{id}/p6/earned-value`)
-   behind an explicit baseline/currency selector; show `INSUFFICIENT_DATA` when
-   no baseline exists instead of estimating.
-2. Phase 4: implement the seven-tab import review against the project exchange
+1. Phase 4: implement the seven-tab import review against the project exchange
    contract once #1799 exposes project-level ingestion; keep register exchange
    as the only write today.
-3. Phase 5: design the revision-bound scenario store with #1989; do not add a
+2. Phase 5: design the revision-bound scenario store with #1989; do not add a
    parallel scheduler.
-4. Phase 6: proposal contract bound to scenario revision with reauthorization,
+3. Phase 6: proposal contract bound to scenario revision with reauthorization,
    atomic apply, audit and read-back.
-5. Help: register `/ai-workbench/` in the traceability source and regenerate the
+4. Help: register `/ai-workbench/` in the traceability source and regenerate the
    Help registry.

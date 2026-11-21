@@ -63,13 +63,17 @@ planner.
 - stored metrics keep their values and stable order; source refs are unique;
 - query/project helpers preserve only the intended parameters.
 
-`apps/web/src/workbench-render.test.ts` (6 tests):
+`apps/web/src/workbench-render.test.ts` (10 tests):
 
 - the edit form pre-fills stored values and the rendered revision;
 - stored values are escaped in the edit form;
 - the history panel renders server events and an honest empty state;
 - the inspector offers edit and history; a read-only session gets no edit;
-- the inspector swaps to the edit form while editing.
+- the inspector swaps to the edit form while editing;
+- without a baseline the EVM section states `INSUFFICIENT_DATA` with no control;
+- a stored baseline exposes baseline, currency and data-date inputs;
+- earned-value values are shown exactly as the server returned them;
+- an authoritative EVM error is surfaced verbatim with no fabricated metrics.
 
 ## 4. Browser acceptance (real preview)
 
@@ -88,9 +92,12 @@ the real WSGI runtime, real SQLite stores and the real API composition:
 8. a typed command returns a plan with four separated blocks and names the
    canonical studio;
 9. the scenario studio renders `BLOCKED` with zero controls;
-10. the analysis studio shows four stored counts and declares EVM/resources
-    `PLANNED`;
-11. switching to Persian flips direction while keeping five studios, then back
+10. the analysis studio shows four stored counts and states
+    `INSUFFICIENT_DATA` for EVM with no control when no baseline exists;
+11. a baseline is captured through the canonical service; the EVM form appears;
+    submitting it surfaces the server refusal (`EVM_`/`EARNED_VALUE_`) and draws
+    no fabricated figure;
+12. switching to Persian flips direction while keeping five studios, then back
     to English.
 
 Screenshots: `ai-workbench-en.png`, `ai-workbench-fa.png` under

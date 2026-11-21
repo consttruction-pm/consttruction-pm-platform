@@ -6,6 +6,8 @@
  * service and the acceptance gate instead.
  */
 import type {
+  BaselineRecord,
+  EarnedValueSnapshot,
   RiskHistoryEvent,
   RiskRecord,
   WorkbenchCommandPlan,
@@ -44,6 +46,13 @@ export type ShellState = {
   workspace: WorkspaceReadSnapshot | null;
   riskError: string | null;
   analysisError: string | null;
+  baselines: readonly BaselineRecord[];
+  baselineError: string | null;
+  evm: EarnedValueSnapshot | null;
+  evmError: string | null;
+  evmBaselineId: string;
+  evmCurrency: string;
+  evmDataDate: string;
   loading: string | null;
   lastUpdated: string | null;
   connected: boolean;
@@ -392,6 +401,73 @@ export function renderRiskHistory(
     <button type="button" data-workbench="close-history">${escapeHtml(t(locale, "Close", "بستن"))}</button>`;
 }
 
+function earnedValueMetric(
+  label: string,
+  value: string | null,
+  currency: string,
+): string {
+  const shown = value === null ? "—" : value;
+  return `<div class="aiw-card"><span>${escapeHtml(label)}</span><strong>${escapeHtml(shown)}${value !== null && currency ? ` ${escapeHtml(currency)}` : ""}</strong></div>`;
+}
+
+function renderEarnedValue(state: ShellState): string {
+  const { locale } = state;
+  if (state.baselineError) {
+    return `<section class="aiw-panel aiw-error" data-analysis-evm data-evm-error>
+      <h2>${escapeHtml(t(locale, "Cost and earned value", "هزینه و ارزش کسب‌شده"))}</h2>
+      <p>${escapeHtml(t(locale, "The baseline register could not be read.", "فهرست مبناها خوانده نشد."))}</p>
+      <p>${escapeHtml(state.baselineError)}</p>
+      <button type="button" data-workbench="retry-baselines">${escapeHtml(t(locale, "Retry", "تلاش دوباره"))}</button>
+    </section>`;
+  }
+  if (state.baselines.length === 0) {
+    return `<section class="aiw-panel aiw-empty" data-analysis-evm data-evm-empty>
+      <h2>${escapeHtml(t(locale, "Cost and earned value", "هزینه و ارزش کسب‌شده"))}</h2>
+      <p class="aiw-status-line"><span class="aiw-status is-blocked">${escapeHtml(statusLabel(locale, "INSUFFICIENT_DATA"))}</span></p>
+      <p>${escapeHtml(t(locale, "No baseline is stored for this project revision. The earned-value read model is not called with guessed inputs, and nothing is calculated in the browser.", "هیچ مبنایی برای این نسخه از پروژه ذخیره نشده است. مدل خواندن ارزش کسب‌شده با ورودی حدسی فراخوانی نمی‌شود و هیچ‌چیز در مرورگر محاسبه نمی‌شود."))}</p>
+    </section>`;
+  }
+  const snapshot = state.evm;
+  const card = snapshot
+    ? `<div class="aiw-cards">
+        ${earnedValueMetric(t(locale, "Planned value", "ارزش برنامه‌ای"), snapshot.earned_value.planned_value, snapshot.currency)}
+        ${earnedValueMetric(t(locale, "Earned value", "ارزش کسب‌شده"), snapshot.earned_value.earned_value, snapshot.currency)}
+        ${earnedValueMetric(t(locale, "Actual cost", "هزینه واقعی"), snapshot.earned_value.actual_cost, snapshot.currency)}
+        ${earnedValueMetric(t(locale, "Cost variance", "انحراف هزینه"), snapshot.earned_value.cost_variance, snapshot.currency)}
+        ${earnedValueMetric(t(locale, "Schedule variance", "انحراف زمان‌بندی"), snapshot.earned_value.schedule_variance, "")}
+        ${earnedValueMetric(t(locale, "CPI", "شاخص عملکرد هزینه"), snapshot.earned_value.cost_performance_index, "")}
+        ${earnedValueMetric(t(locale, "SPI", "شاخص عملکرد زمان‌بندی"), snapshot.earned_value.schedule_performance_index, "")}
+        ${earnedValueMetric(t(locale, "EAC", "برآورد هزینه نهایی"), snapshot.earned_value.estimate_at_completion, snapshot.currency)}
+        ${earnedValueMetric(t(locale, "VAC", "انحراف در تکمیل"), snapshot.earned_value.variance_at_completion, snapshot.currency)}
+      </div>
+      <dl class="aiw-facts">
+        <dt>${escapeHtml(t(locale, "Baseline", "مبنا"))}</dt><dd>${escapeHtml(snapshot.baseline_id)}</dd>
+        <dt>${escapeHtml(t(locale, "Data date", "تاریخ داده"))}</dt><dd>${escapeHtml(formatDate(locale, snapshot.data_date))}</dd>
+        <dt>${escapeHtml(t(locale, "Currency", "واحد پول"))}</dt><dd>${escapeHtml(snapshot.currency)}</dd>
+        <dt>${escapeHtml(t(locale, "ETC method", "روش برآورد تا تکمیل"))}</dt><dd>${escapeHtml(snapshot.earned_value.etc_method)}</dd>
+      </dl>`
+    : "";
+  return `<section class="aiw-panel" data-analysis-evm>
+    <h2>${escapeHtml(t(locale, "Cost and earned value", "هزینه و ارزش کسب‌شده"))}</h2>
+    <p class="aiw-hint">${escapeHtml(t(locale, "Select the stored baseline and state the currency and data date. Values are returned by the canonical earned-value read model; the browser does not calculate.", "مبنای ذخیره‌شده را انتخاب و واحد پول و تاریخ داده را مشخص کنید. مقادیر از مدل خواندن ارزش کسب‌شدهٔ معتبر بازگردانده می‌شوند و مرورگر محاسبه نمی‌کند."))}</p>
+    <form class="aiw-form" data-workbench="evm-form" novalidate>
+      <label>${escapeHtml(t(locale, "Baseline", "مبنا"))}
+        <select name="baseline_id">${state.baselines
+          .map(
+            (baseline) =>
+              `<option value="${escapeHtml(baseline.baseline_id)}"${baseline.baseline_id === state.evmBaselineId ? " selected" : ""}>${escapeHtml(`${baseline.name} (${baseline.baseline_id})`)}</option>`,
+          )
+          .join("")}</select>
+      </label>
+      <label>${escapeHtml(t(locale, "Currency", "واحد پول"))}<input name="currency" maxlength="3" value="${escapeHtml(state.evmCurrency)}" required autocomplete="off" /></label>
+      <label>${escapeHtml(t(locale, "Data date", "تاریخ داده"))}<input name="data_date" type="date" value="${escapeHtml(state.evmDataDate)}" required /></label>
+      <button type="submit">${escapeHtml(t(locale, "Read earned value", "خواندن ارزش کسب‌شده"))}</button>
+    </form>
+    ${state.evmError ? `<p class="aiw-form-error" data-evm-error role="alert">${escapeHtml(state.evmError)}</p>` : ""}
+    ${card}
+  </section>`;
+}
+
 export function renderAnalysisStudio(state: ShellState): string {
   const { locale, workspace } = state;
   if (state.analysisError) {
@@ -454,11 +530,7 @@ export function renderAnalysisStudio(state: ShellState): string {
             : `<p class="aiw-empty-line">${escapeHtml(t(locale, "The control-intelligence read model returned no metrics for this revision.", "مدل خواندن هوش کنترل برای این نسخه سنجه‌ای برنگرداند."))}</p>`
         }
       </section>
-      <section class="aiw-panel aiw-partial" data-analysis-evm>
-        <h2>${escapeHtml(t(locale, "Cost and earned value", "هزینه و ارزش کسب‌شده"))}</h2>
-        <p class="aiw-status-line"><span class="aiw-status is-planned">${escapeHtml(statusLabel(locale, "PLANNED"))}</span></p>
-        <p>${escapeHtml(t(locale, "Earned-value figures are not shown here. The studio does not select a baseline or currency yet, and no value is calculated in the browser.", "ارقام ارزش کسب‌شده در اینجا نمایش داده نمی‌شوند. این کارگاه هنوز مبنا و واحد پول را انتخاب نمی‌کند و هیچ مقداری در مرورگر محاسبه نمی‌شود."))}</p>
-      </section>
+      ${renderEarnedValue(state)}
       <section class="aiw-panel aiw-partial" data-analysis-resources>
         <h2>${escapeHtml(t(locale, "Resources and forecast", "منابع و پیش‌بینی"))}</h2>
         <p class="aiw-status-line"><span class="aiw-status is-planned">${escapeHtml(statusLabel(locale, "PLANNED"))}</span></p>

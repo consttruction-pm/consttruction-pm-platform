@@ -101,8 +101,48 @@ export type RiskHistoryEvent = {
 };
 
 
-export type WorkspaceReadSnapshot = {
+export type BaselineRecord = {
+  baseline_id: string;
+  name: string;
+  baseline_type: string;
+  source_revision: number;
+  created_at: string;
+  notes: string | null;
+};
+
+export type BaselineListEntry = {
   contract_version: string;
+  kind: string;
+  scope: { tenant_id: string; project_id: string; project_revision: number };
+  baseline: BaselineRecord;
+};
+
+export type EarnedValueSnapshot = {
+  contract_version: string;
+  kind: string;
+  scope: { tenant_id: string; project_id: string; project_revision: number };
+  baseline_id: string;
+  data_date: string;
+  currency: string;
+  pv_method: string;
+  earned_value: {
+    planned_value: string;
+    earned_value: string;
+    actual_cost: string;
+    cost_variance: string;
+    schedule_variance: string;
+    cost_performance_index: string | null;
+    schedule_performance_index: string | null;
+    etc_method: string;
+    budget_at_completion: string | null;
+    estimate_to_complete: string;
+    estimate_at_completion: string;
+    variance_at_completion: string | null;
+    performance_factor: string | null;
+  };
+};
+
+export type WorkspaceReadSnapshot = {  contract_version: string;
   context: { tenant_id: string; project_id: string; revision: number };
   workspace: {
     activities?: unknown[];
@@ -213,11 +253,35 @@ export class WorkbenchApi {
     );
   }
 
+  baselines(
+    projectId: string,
+    context: ProjectContext,
+  ): Promise<ApiResult<{ contract_version: string; baselines: BaselineListEntry[] }>> {
+    return this.transport.get(
+      `/api/projects/${encodeURIComponent(projectId)}/p6/baselines`,
+      context,
+    );
+  }
+
+  earnedValue(
+    projectId: string,
+    body: { baseline_id: string; data_date: string; currency: string },
+    context: ProjectContext,
+  ): Promise<ApiResult<EarnedValueSnapshot>> {
+    return this.transport.post<
+      { baseline_id: string; data_date: string; currency: string },
+      EarnedValueSnapshot
+    >(
+      `/api/projects/${encodeURIComponent(projectId)}/p6/earned-value`,
+      body,
+      context,
+    );
+  }
+
   readWorkspace(
     projectId: string,
     context: ProjectContext,
-  ): Promise<ApiResult<WorkspaceReadSnapshot>> {
-    return this.transport.get<WorkspaceReadSnapshot>(
+  ): Promise<ApiResult<WorkspaceReadSnapshot>> {    return this.transport.get<WorkspaceReadSnapshot>(
       "/api/v2/workspace/control-room/read",
       { ...context, project_id: projectId },
     );
