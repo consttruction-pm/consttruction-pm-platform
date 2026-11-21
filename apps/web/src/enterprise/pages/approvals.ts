@@ -30,8 +30,37 @@ export function renderApprovals(ctx: PageContext, host: HTMLElement): void {
   host.append(intro);
 
   const queue = section("Pending approvals", "The queue is read from the approval service. No item is listed unless the server returned it.");
+  const newApproval = el("form", { class: "cubi-toolbar" });
+  const newTitle = testId(textInput({ placeholder: "Approval title", required: true }), "approvals-create-title");
+  const newProject = selectControl(
+    [{ value: "", label: "No project" }, ...ctx.projects.map((project) => ({ value: project.project_id, label: project.name }))],
+    "",
+    () => {},
+  );
+  const newSubmit = testId(el("button", { class: "cubi-btn cubi-btn-primary", text: "New approval", attrs: { type: "submit" } }), "approvals-create-submit");
+  newApproval.append(newTitle, newProject, newSubmit);
   const queueHost = el("div", {}, el("div", { class: "cubi-loading" }, el("div", { class: "cubi-spinner" }), el("span", { text: ctx.t("common.loading") })));
-  sectionBody(queue, queueHost);
+  newApproval.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!newTitle.value.trim()) {
+      ctx.toast("A title is required.", "error");
+      return;
+    }
+    newSubmit.disabled = true;
+    const key = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `approval-${Date.now()}`;
+    void api.enterpriseCreate("approvals", {
+      title: newTitle.value.trim(),
+      project_id: newProject.value || null,
+      status: "pending",
+    }, key).then(() => {
+      ctx.toast("Approval created on the server.", "info");
+      window.location.reload();
+    }).catch((error: unknown) => {
+      newSubmit.disabled = false;
+      ctx.toast(error instanceof Error ? error.message : String(error), "error");
+    });
+  });
+  sectionBody(queue, newApproval, queueHost);
   testId(queue, "approvals-queue");
   host.append(queue);
 

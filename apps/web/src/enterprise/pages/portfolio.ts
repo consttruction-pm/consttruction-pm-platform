@@ -14,6 +14,7 @@ import {
   sourceStamp,
   sourceState,
   labelled,
+  selectControl,
   testId,
   textInput,
 } from "./shared.js";
@@ -45,33 +46,75 @@ export function renderPortfolio(ctx: PageContext, host: HTMLElement): void {
   if (projects.length === 0) {
     sectionBody(register, emptyLine("No accessible project is in this portfolio. Project access is granted in the Engineering environment."));
   } else {
-    const table = el("div", { class: "cubi-table-wrap" });
-    const node = el("table", { class: "cubi-table" });
-    node.append(el("thead", {}, el("tr", {},
-      el("th", { text: "Project" }),
-      el("th", { text: "Business domain" }),
-      el("th", { text: "Status" }),
-      el("th", { text: "Revision" }),
-      el("th", { text: "Start" }),
-      el("th", { text: "Finish" }),
-      el("th", { text: "" }),
-    )));
-    const body = el("tbody");
-    for (const project of projects) {
-      const open = el("a", { class: "cubi-btn cubi-btn-ghost", text: "Open", attrs: { href: pageHref("projects", { project: project.project_id }) } });
-      body.append(el("tr", {},
-        el("td", {}, el("strong", { text: project.name }), el("div", { class: "cubi-field-hint", text: project.project_id })),
-        el("td", { text: project.business_domain || "—" }),
-        el("td", {}, badge(project.status || "unknown", project.status === "active" ? "success" : "neutral")),
-        el("td", { text: String(project.revision) }),
-        el("td", { text: formatDate(project.start_date, ctx.locale) }),
-        el("td", { text: formatDate(project.finish_date, ctx.locale) }),
-        el("td", {}, open),
-      ));
-    }
-    node.append(body);
-    table.append(node);
-    sectionBody(register, table, sourceStamp("/api/projects", "per project", null, ctx.locale));
+    const toolbar = el("div", { class: "cubi-toolbar" });
+    const search = testId(textInput({ placeholder: "Search project, id or domain" }), "portfolio-search");
+    const statuses = [...new Set(projects.map((project) => project.status || "unknown"))].sort();
+    let statusFilter = "all";
+    let sortKey = "name";
+    const statusControl = testId(selectControl(
+      [{ value: "all", label: "All statuses" }, ...statuses.map((status) => ({ value: status, label: status }))],
+      "all",
+      (value) => { statusFilter = value; paintTable(); },
+    ), "portfolio-status-filter");
+    const sortControl = testId(selectControl([
+      { value: "name", label: "Sort: name" },
+      { value: "revision", label: "Sort: revision (high first)" },
+      { value: "start", label: "Sort: start date" },
+      { value: "finish", label: "Sort: finish date" },
+    ], "name", (value) => { sortKey = value; paintTable(); }), "portfolio-sort");
+    const count = el("span", { class: "cubi-field-hint", attrs: { "aria-live": "polite" } });
+    const tableHost = el("div");
+    toolbar.append(search, statusControl, sortControl, count);
+    search.addEventListener("input", () => paintTable());
+
+    const paintTable = (): void => {
+      const needle = search.value.trim().toLocaleLowerCase();
+      const rows = projects
+        .filter((project) => {
+          if (statusFilter !== "all" && (project.status || "unknown") !== statusFilter) return false;
+          if (!needle) return true;
+          return `${project.name} ${project.project_id} ${project.business_domain ?? ""}`.toLocaleLowerCase().includes(needle);
+        })
+        .sort((left, right) => {
+          if (sortKey === "revision") return right.revision - left.revision;
+          if (sortKey === "start") return String(left.start_date ?? "").localeCompare(String(right.start_date ?? ""));
+          if (sortKey === "finish") return String(left.finish_date ?? "").localeCompare(String(right.finish_date ?? ""));
+          return left.name.localeCompare(right.name, ctx.locale);
+        });
+      count.textContent = `${rows.length} of ${projects.length} projects returned by the server`;
+      const table = el("div", { class: "cubi-table-wrap" });
+      const node = el("table", { class: "cubi-table" });
+      node.append(el("thead", {}, el("tr", {},
+        el("th", { text: "Project" }),
+        el("th", { text: "Business domain" }),
+        el("th", { text: "Status" }),
+        el("th", { text: "Revision" }),
+        el("th", { text: "Start" }),
+        el("th", { text: "Finish" }),
+        el("th", { text: "" }),
+      )));
+      const body = el("tbody");
+      if (rows.length === 0) {
+        body.append(el("tr", {}, el("td", { class: "cubi-table-empty", text: "No project matches the current filter.", attrs: { colspan: "7" } })));
+      }
+      for (const project of rows) {
+        const open = el("a", { class: "cubi-btn cubi-btn-ghost", text: "Open", attrs: { href: pageHref("projects", { project: project.project_id }) } });
+        body.append(el("tr", {},
+          el("td", {}, el("strong", { text: project.name }), el("div", { class: "cubi-field-hint", text: project.project_id })),
+          el("td", { text: project.business_domain || "—" }),
+          el("td", {}, badge(project.status || "unknown", project.status === "active" ? "success" : "neutral")),
+          el("td", { text: String(project.revision) }),
+          el("td", { text: formatDate(project.start_date, ctx.locale) }),
+          el("td", { text: formatDate(project.finish_date, ctx.locale) }),
+          el("td", {}, open),
+        ));
+      }
+      node.append(body);
+      table.append(node);
+      tableHost.replaceChildren(table, sourceStamp("/api/projects", "per project", null, ctx.locale));
+    };
+    paintTable();
+    sectionBody(register, toolbar, tableHost);
   }
   testId(register, "portfolio-register");
   host.append(register);

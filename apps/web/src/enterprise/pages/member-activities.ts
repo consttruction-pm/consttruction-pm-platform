@@ -9,7 +9,7 @@
 import type { PageContext } from "../app.js";
 import { api, ApiError, probe, type ActivityEnvelope } from "../api.js";
 import { badge, el } from "../ui.js";
-import { connectionRow, note, section, sectionBody, selectControl, sourceState, testId } from "./shared.js";
+import { connectionRow, note, section, sectionBody, selectControl, sourceState, testId, textInput } from "./shared.js";
 
 export function renderMemberActivities(ctx: PageContext, host: HTMLElement): void {
   const intro = section("Engineering-owned activity records", "Activities, their status and their progress are maintained in Engineering; Enterprise reads them and links back.");
@@ -26,11 +26,20 @@ export function renderMemberActivities(ctx: PageContext, host: HTMLElement): voi
   const list = section("Project activities", "Read from the Engineering activity route for the selected project.");
   const picker = selectControl(
     [{ value: "", label: "Select a project" }, ...ctx.projects.map((project) => ({ value: project.project_id, label: project.name }))],
-    "",
+    ctx.projects[0]?.project_id ?? "",
     (value) => { void load(value); },
   );
+  let currentProject = "";
+  let lastRows: { activity_id?: string; name?: string; status?: string; percent_complete?: number | null }[] = [];
+  const search = textInput({ placeholder: "Search activity id or name" });
+  search.disabled = true;
+  search.addEventListener("input", () => {
+    const needle = search.value.trim().toLocaleLowerCase();
+    const rows = !needle ? lastRows : lastRows.filter((row) => `${row.activity_id ?? ""} ${row.name ?? ""}`.toLocaleLowerCase().includes(needle));
+    listHost.replaceChildren(rows.length ? activityTable(currentProject, rows) : el("p", { class: "cubi-field-hint", text: "No activity matches the current search." }));
+  });
   const listHost = el("div", { class: "cubi-field-hint", text: "Select a project to read its activities." });
-  sectionBody(list, el("div", { class: "cubi-form-grid" }, el("label", { class: "cubi-field" }, el("span", { class: "cubi-field-label", text: "Project" }), picker)), listHost);
+  sectionBody(list, el("div", { class: "cubi-toolbar" }, el("label", { class: "cubi-field" }, el("span", { class: "cubi-field-label", text: "Project" }), picker), search), listHost);
   testId(list, "member-activities-list");
   host.append(list);
 
@@ -64,13 +73,17 @@ export function renderMemberActivities(ctx: PageContext, host: HTMLElement): voi
     try {
       const payload = await api.listProjectActivities(projectId);
       const rows = (payload.activities ?? []).map((entry) => entry.activity).filter((activity): activity is NonNullable<ActivityEnvelope["activity"]> => Boolean(activity));
+      currentProject = projectId;
+      lastRows = rows;
+      search.value = "";
+      search.disabled = rows.length === 0;
       listHost.replaceChildren(rows.length ? activityTable(projectId, rows) : el("p", { class: "cubi-field-hint", text: "Engineering answered with zero activities for this project." }));
     } catch (error) {
       listHost.replaceChildren(el("p", { class: "cubi-alert cubi-alert-error", text: error instanceof ApiError ? `${error.code} (HTTP ${error.status})` : String(error) }));
     }
   };
 
-  if (ctx.projects.length === 1) {
+  if (ctx.projects.length >= 1) {
     picker.value = ctx.projects[0].project_id;
     void load(ctx.projects[0].project_id);
   }
