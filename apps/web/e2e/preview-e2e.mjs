@@ -858,6 +858,132 @@ async function runAiWorkbenchJourney(page, baseUrl) {
     error: evm.error,
   });
 
+  // Decision & Approval must read the canonical proposal store and record a
+  // real decision. A rejection proves the write path without mutating the
+  // schedule, so it cannot disturb later workspace assertions.
+  await page.click('#aiw-tabs button[data-studio="decision-approval"]');
+  await page.waitForSelector(
+    "[data-decision-empty], [data-decision-readonly], [data-decision-list]",
+    "decision studio",
+    30000,
+  );
+  const decisionEmpty = await page.evaluate(`(() => ({
+    empty: Boolean(document.querySelector("[data-decision-empty]")),
+    list: Boolean(document.querySelector("[data-decision-list]")),
+    readonly: Boolean(document.querySelector("[data-decision-readonly]")),
+  }))()`);
+  assert(
+    decisionEmpty.empty && !decisionEmpty.list && !decisionEmpty.readonly,
+    "with no proposal stored the studio must show an empty planner state: " +
+      JSON.stringify(decisionEmpty),
+  );
+
+  const proposedDecision = await page.evaluate(`(async () => {
+    const revision = Number(document.querySelector(".aiw-header .aiw-chip strong")?.textContent ?? "0");
+    const response = await fetch("/api/projects/${PROJECT_ID}/ai/actions/proposals", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({
+        expected_revision: revision,
+        tool_name: "activity.create",
+        payload: {
+          activity_id: "AIW-DECISION-1",
+          name: "Approval acceptance",
+          duration_value: "1",
+          duration_unit: "working-day",
+          wbs_id: "WBS-RPS-CIVIL",
+        },
+        evidence_refs: ["wbs:WBS-RPS-CIVIL"],
+      }),
+    });
+    return { status: response.status, body: await response.json().catch(() => null) };
+  })()`, { awaitPromise: true });
+  assert(
+    proposedDecision.status === 201,
+    "the canonical service must accept a proposal without writing: " +
+      JSON.stringify(proposedDecision),
+  );
+  const decisionProposalId = proposedDecision.body?.proposal?.proposal_id;
+  assert(
+    typeof decisionProposalId === "string" && decisionProposalId.length > 0,
+    "the canonical proposal id must be returned",
+  );
+
+  await page.click('#aiw-tabs button[data-studio="risk-analysis"]');
+  await page.waitForSelector('[data-risk="R-AIW-1"]', "risk studio before returning to decisions", 30000);
+  await page.click('#aiw-tabs button[data-studio="decision-approval"]');
+  await page.waitForSelector(
+    `[data-decision-list] [data-proposal="${decisionProposalId}"]`,
+    "canonical proposal in the decision studio",
+    30000,
+  );
+  const pendingDecision = await page.evaluate(`(() => {
+    const row = document.querySelector('[data-proposal="${decisionProposalId}"]');
+    return {
+      status: row?.dataset.proposalStatus ?? null,
+      tool: row?.querySelector("strong")?.textContent ?? null,
+      approve: Boolean(row?.querySelector('[data-workbench="decide-proposal"][data-approved="true"]')),
+      reject: Boolean(row?.querySelector('[data-workbench="decide-proposal"][data-approved="false"]')),
+      execute: Boolean(row?.querySelector('[data-workbench="execute-proposal"]')),
+    };
+  })()`);
+  assert(
+    pendingDecision.status === "proposed" && pendingDecision.tool === "activity.create",
+    "the studio must show the canonical pending proposal: " + JSON.stringify(pendingDecision),
+  );
+  assert(
+    pendingDecision.approve && pendingDecision.reject && !pendingDecision.execute,
+    "a pending proposal must offer approve/reject and never execution: " +
+      JSON.stringify(pendingDecision),
+  );
+
+  await page.evaluate(`(() => {
+    const button = document.querySelector('[data-proposal="${decisionProposalId}"] [data-workbench="decide-proposal"][data-approved="false"]');
+    if (!button) throw new Error("REJECT_CONTROL_MISSING");
+    button.click();
+    return true;
+  })()`);
+  await page.waitFor(
+    `document.querySelector('[data-proposal="${decisionProposalId}"]')?.dataset.proposalStatus === "rejected" && /rejected/i.test(document.querySelector("[data-decision-notice]")?.textContent ?? "")`,
+    "decision recorded by the canonical runtime",
+    30000,
+  );
+
+  await page.reload('[data-risk-table], [data-risk-empty]', "workbench reload after the decision");
+  await page.click('#aiw-tabs button[data-studio="decision-approval"]');
+  await page.waitForSelector(`[data-proposal="${decisionProposalId}"]`, "rejected proposal after reload", 30000);
+  const afterDecision = await page.evaluate(`(async () => {
+    const row = document.querySelector('[data-proposal="${decisionProposalId}"]');
+    const session = await fetch("/api/session").then((response) => response.json());
+    const revision = Number(document.querySelector(".aiw-header .aiw-chip strong")?.textContent ?? "0");
+    const workspaceResponse = await fetch("/api/v2/workspace/control-room/read", {
+      headers: {
+        "X-Tenant-Id": session.tenant_id,
+        "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+        "X-Project-Revision": String(revision),
+      },
+    });
+    const workspace = await workspaceResponse.json().catch(() => ({}));
+    return {
+      status: row?.dataset.proposalStatus ?? null,
+      controls: row?.querySelectorAll("[data-workbench]").length ?? 0,
+      activities: (workspace.workspace?.activities || []).map((activity) => activity.id),
+    };
+  })()`, { awaitPromise: true });
+  assert(
+    afterDecision.status === "rejected" && afterDecision.controls === 0,
+    "the rejected decision must persist with no live control: " + JSON.stringify(afterDecision),
+  );
+  assert(
+    !afterDecision.activities.includes("AIW-DECISION-1"),
+    "a rejected proposal must never create the activity: " + JSON.stringify(afterDecision.activities),
+  );
+  record("decision studio reads the canonical proposal store and records a rejection without a write", {
+    proposal_id: decisionProposalId,
+    status: afterDecision.status,
+  });
+
   await page.setSelect('[data-workbench="locale"]', "fa");
   await page.waitFor(
     `document.documentElement.dir === "rtl" && document.querySelectorAll("#aiw-tabs button").length === 5`,

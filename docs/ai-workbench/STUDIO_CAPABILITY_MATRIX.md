@@ -1,7 +1,7 @@
 # Studio Capability Matrix
 
-Status at this change: Phase 1 integrated; Risk and Project Analysis advanced in
-parallel.
+Status at this change: Phase 7 security gates and Phase 6 Decision & Approval
+wired where the canonical runtime is mounted.
 
 Legend: `LIVE_VERIFIED` — read/write exercised end to end against the real
 runtime. `WIRED_WRITE` — canonical read and write service connected and tested;
@@ -15,7 +15,7 @@ full studio contract does not. `BLOCKED` — the canonical service is absent.
 | Schedule Scenario Studio | `BLOCKED` | schedule read exists but no scenario contract | none | none | blocked panel: service, reason, Help topic; zero controls |
 | Risk Analysis Studio | `WIRED_WRITE` | `GET /api/projects/{id}/risks` (+ `/history`) | `POST` create, `PUT` update with `expected_revision` | `risk_api.py` / `risk_application.py` | table, 5×5 matrix, inspector, create and edit forms, audit history |
 | Project Analysis Studio | `WIRED_READ` | workspace read v2 + control metrics + `GET .../p6/baselines` + `POST .../p6/earned-value` | none | `project_lifecycle_routes.py`, `p6_earned_value_read_model_api.py` | record counts, stored metric bars, source refs, baseline-driven EVM |
-| Decision & Approval Workspace | `PARTIAL` | Enterprise approvals exist | no Engineering proposal contract | `enterprise` approvals | partial panel; no proposal control |
+| Decision & Approval Workspace | `WIRED_WRITE` when the canonical runtime is mounted, otherwise `PARTIAL` | `GET .../ai/actions/proposals` | `POST .../decision`, `POST .../execute` with `expected_revision` | `ai_action_runtime.py` / `ai_action_boundary.py` | proposal list, approve/reject, execute-if-approved, stale guard, canonical result |
 
 ## Risk Analysis Studio (WIRED_WRITE)
 
@@ -76,12 +76,23 @@ Accepted categories: `technical`, `commercial`, `schedule`, `cost`, `quality`,
 - The studio renders `BLOCKED` with the canonical service name and reason and
   renders no control. Returning a blocked command never opens another studio.
 
-## Decision & Approval (PARTIAL)
+## Decision & Approval (WIRED_WRITE where the runtime is mounted)
 
-- Enterprise approvals are wired, but there is no Engineering proposal store
-  bound to a scenario revision and no execution contract with reauthorization,
-  atomic apply, audit and read-back.
-- No "approve" or "apply" button is offered until that contract exists.
+- Reads proposals from the canonical `AIActionRuntime`, scoped by the session
+  tenant, project and project revision. The proposal list requires project write
+  access; a read-only session sees an explicit read-only state and no list.
+- A proposal does not change project data. Approve/reject records a decision;
+  execution reauthorizes the exact tool grant, checks the pinned revision and
+  applies the change through the registered tool (activity/project-plan).
+- Every action sends `expected_revision`; `409 AI_ACTION_PROPOSAL_STALE_REVISION`
+  re-reads the context and list instead of resubmitting.
+- A proposal whose `project_revision_id` no longer matches the context is marked
+  stale by the server; the studio shows only a warning and offers no control.
+- The preview composition mounts the runtime (`Capabilities(proposal_execution=
+  True)`). A composition without it reports `PARTIAL`, names the missing service
+  and renders no approval control.
+- Scenario-specific approvals remain pending with the scenario service (#1989);
+  the studio does not invent a scenario proposal model.
 
 ## Parallel-engine prohibitions
 

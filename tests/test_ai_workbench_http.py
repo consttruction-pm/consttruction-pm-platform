@@ -21,6 +21,7 @@ from construction_pm.application.project_lifecycle import (
     SessionError,
 )
 from construction_pm.application.project_lifecycle_api import ProjectLifecycleAPI
+from construction_pm.ai_workbench.studios import Capabilities
 
 NOW = datetime(2026, 11, 21, 9, 0, tzinfo=timezone.utc)
 
@@ -211,6 +212,31 @@ def test_viewer_cannot_propose():
     status, payload = _call(app, "GET", "/api/projects/alpha/workbench/context")
     assert status == 200
     assert payload["permissions"] == {"can_read": True, "can_propose": False}
+
+
+def test_decision_studio_reports_the_canonical_contract_when_mounted():
+    app, _ = _app(capabilities=Capabilities(proposal_execution=True))
+    status, payload = _call(app, "GET", "/api/projects/alpha/workbench/context")
+    assert status == 200
+    studio = next(
+        entry for entry in payload["studios"] if entry["id"] == "decision-approval"
+    )
+    assert studio["status"] == "WIRED_WRITE"
+    assert studio["can_execute"] is True
+    assert studio["blocked_reason"] is None
+    assert studio["service"].startswith("Canonical AI action proposal store")
+
+
+def test_decision_studio_stays_partial_when_the_runtime_is_absent():
+    app, _ = _app()
+    status, payload = _call(app, "GET", "/api/projects/alpha/workbench/context")
+    assert status == 200
+    studio = next(
+        entry for entry in payload["studios"] if entry["id"] == "decision-approval"
+    )
+    assert studio["status"] == "PARTIAL"
+    assert studio["can_execute"] is False
+    assert studio["blocked_reason"]
 
 
 def test_risk_command_opens_writable_studio():

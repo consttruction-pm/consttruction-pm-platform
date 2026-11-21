@@ -123,6 +123,38 @@ export function statusTone(status: string): string {
   }
 }
 
+const PROPOSAL_STATUS_LABELS: Record<string, [string, string]> = {
+  proposed: ["Awaiting a decision", "در انتظار تصمیم"],
+  approved: ["Approved", "تأییدشده"],
+  rejected: ["Rejected", "ردشده"],
+  executing: ["Executing", "در حال اجرا"],
+  executed: ["Executed", "اجراشده"],
+  failed: ["Execution failed", "اجرا ناموفق"],
+  stale: ["Stale", "کهنه"],
+};
+
+export function proposalStatusLabel(locale: string, status: string): string {
+  const entry = PROPOSAL_STATUS_LABELS[status.toLowerCase()];
+  if (!entry) return status;
+  return t(locale, entry[0], entry[1]);
+}
+
+export function proposalStatusTone(status: string): string {
+  switch (status.toLowerCase()) {
+    case "executed":
+      return "is-live";
+    case "approved":
+      return "is-read";
+    case "proposed":
+      return "is-partial";
+    case "rejected":
+    case "failed":
+      return "is-blocked";
+    default:
+      return "is-planned";
+  }
+}
+
 export function studioById(
   context: WorkbenchContext | null,
   id: string,

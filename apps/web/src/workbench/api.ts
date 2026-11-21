@@ -160,6 +160,24 @@ export type WorkspaceReadSnapshot = {  contract_version: string;
   } | null;
 };
 
+export type AIActionProposal = {
+  proposal_id: string;
+  tool_name: string;
+  action: string;
+  status: string;
+  requires_human_approval: boolean;
+  requested_by: string;
+  evidence_refs: string[];
+  project_revision_id: string;
+  resource_domain: string | null;
+  payload: Record<string, unknown>;
+  result: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+  decided_by: string | null;
+  is_stale: boolean;
+};
+
 export type SessionInfo = {
   session_id: string;
   user_id: string;
@@ -273,6 +291,51 @@ export class WorkbenchApi {
       EarnedValueSnapshot
     >(
       `/api/projects/${encodeURIComponent(projectId)}/p6/earned-value`,
+      body,
+      context,
+    );
+  }
+
+  proposals(
+    projectId: string,
+    context: ProjectContext,
+  ): Promise<ApiResult<{ contract_version: string; proposals: AIActionProposal[] }>> {
+    return this.transport.get(
+      `/api/projects/${encodeURIComponent(projectId)}/ai/actions/proposals`,
+      context,
+    );
+  }
+
+  decideProposal(
+    projectId: string,
+    proposalId: string,
+    body: { expected_revision: number; approved: boolean },
+    context: ProjectContext,
+  ): Promise<
+    ApiResult<{ contract_version: string; proposal_id: string; status: string; decided_by: string | null }>
+  > {
+    return this.transport.post(
+      `/api/projects/${encodeURIComponent(projectId)}/ai/actions/proposals/${encodeURIComponent(proposalId)}/decision`,
+      body,
+      context,
+    );
+  }
+
+  executeProposal(
+    projectId: string,
+    proposalId: string,
+    body: { expected_revision: number },
+    context: ProjectContext,
+  ): Promise<
+    ApiResult<{
+      contract_version: string;
+      proposal_id: string;
+      status: string;
+      result: Record<string, unknown> | null;
+    }>
+  > {
+    return this.transport.post(
+      `/api/projects/${encodeURIComponent(projectId)}/ai/actions/proposals/${encodeURIComponent(proposalId)}/execute`,
       body,
       context,
     );

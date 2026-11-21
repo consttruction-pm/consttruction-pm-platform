@@ -18,6 +18,9 @@ Browser
   │    ├─ GET  /api/projects/{id}/workbench/context
   │    ├─ POST /api/projects/{id}/workbench/command
   │    ├─ GET|POST /api/projects/{id}/risks
+  │    ├─ GET  /api/projects/{id}/ai/actions/proposals
+  │    ├─ POST /api/projects/{id}/ai/actions/proposals/{pid}/decision
+  │    ├─ POST /api/projects/{id}/ai/actions/proposals/{pid}/execute
   │    └─ GET  /api/v2/workspace/control-room/read
   └─ /cubi/*                      Enterprise Workbench (enterprise.html)
 ```
@@ -87,6 +90,9 @@ desktop-only floating window.
 - Risk studio → table and 5×5 matrix built **only** from stored records.
 - Analysis studio → record counts from the workspace read model and stored
   control metrics. EVM and resource/forecast sections are explicitly `PLANNED`.
+- Decision studio → proposals read from the canonical AI action runtime. A
+  pending proposal offers approve/reject; an approved one offers execution; a
+  stale proposal shows only its warning. No proposal is created by the studio.
 - A failed read renders the server error code with a retry control; it never
   falls back to sample data.
 

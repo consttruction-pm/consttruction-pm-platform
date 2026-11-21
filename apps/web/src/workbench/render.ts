@@ -6,6 +6,7 @@
  * service and the acceptance gate instead.
  */
 import type {
+  AIActionProposal,
   BaselineRecord,
   EarnedValueSnapshot,
   RiskHistoryEvent,
@@ -24,6 +25,8 @@ import {
   formatNumber,
   metricRows,
   metricSourceSummary,
+  proposalStatusLabel,
+  proposalStatusTone,
   riskMatrix,
   statusLabel,
   statusTone,
@@ -53,6 +56,10 @@ export type ShellState = {
   evmBaselineId: string;
   evmCurrency: string;
   evmDataDate: string;
+  proposals: readonly AIActionProposal[];
+  proposalError: string | null;
+  proposalNotice: string | null;
+  proposalBusy: string | null;
   loading: string | null;
   lastUpdated: string | null;
   connected: boolean;
@@ -537,6 +544,82 @@ export function renderAnalysisStudio(state: ShellState): string {
         <p>${escapeHtml(t(locale, "No resource or forecast read model is mounted for this studio. Nothing is estimated.", "هیچ مدل خواندن منابع یا پیش‌بینی برای این کارگاه متصل نیست و چیزی تخمین زده نمی‌شود."))}</p>
       </section>
     </div>`;
+}
+
+export function renderDecisionStudio(state: ShellState): string {
+  const { locale } = state;
+  if (!state.context?.permissions.can_propose) {
+    return `<section class="aiw-panel aiw-readonly" data-decision-readonly>
+      <h2>${escapeHtml(t(locale, "Decision & Approval Workspace", "فضای تصمیم و تأیید"))}</h2>
+      <p class="aiw-status-line"><span class="aiw-status is-read">${escapeHtml(t(locale, "Read only", "فقط خواندن"))}</span></p>
+      <p>${escapeHtml(t(locale, "Proposal payloads are visible to project editors only. This session cannot read or decide proposals; no list is fabricated.", "بارهای پیشنهاد فقط برای ویرایشگران پروژه قابل مشاهده است. این نشست نمی‌تواند پیشنهادها را بخواند یا درباره آن‌ها تصمیم بگیرد؛ فهرستی ساختگی نمایش داده نمی‌شود."))}</p>
+    </section>`;
+  }
+  if (state.proposalError) {
+    return `<section class="aiw-panel aiw-error" data-decision-error>
+      <h2>${escapeHtml(t(locale, "Proposals could not be read", "پیشنهادها خوانده نشدند"))}</h2>
+      <p>${escapeHtml(state.proposalError)}</p>
+      <button type="button" data-workbench="retry-decisions">${escapeHtml(t(locale, "Retry", "تلاش دوباره"))}</button>
+    </section>`;
+  }
+  const header = `<header class="aiw-panel-header">
+      <h2>${escapeHtml(t(locale, "Decision & Approval Workspace", "فضای تصمیم و تأیید"))}</h2>
+      <span>${escapeHtml(t(locale, "Source revision", "نسخه منبع"))}: ${escapeHtml(state.context?.project.revision ?? "—")}</span>
+    </header>`;
+  if (state.proposals.length === 0) {
+    return `<section class="aiw-panel aiw-empty" data-decision-empty>
+      ${header}
+      <p>${escapeHtml(t(locale, "No proposal is stored for this project revision. The studio never creates one to fill the space.", "برای این نسخهٔ پروژه هیچ پیشنهادی ذخیره نشده است. این کارگاه برای پر کردن فضا پیشنهادی نمی‌سازد."))}</p>
+    </section>`;
+  }
+  return `<section class="aiw-panel" data-decision-list>
+    ${header}
+    <p class="aiw-hint">${escapeHtml(t(locale, "Proposals come from the canonical AI action runtime. A decision records the approval only; execution applies the proposed change with the pinned revision.", "پیشنهادها از زمان‌اجرای متعارف اقدام هوشمند می‌آیند. تصمیم فقط تأیید را ثبت می‌کند؛ اجرا تغییر پیشنهادی را با نسخهٔ ثابت‌شده اعمال می‌کند."))}</p>
+    ${state.proposalNotice ? `<p class="aiw-hint" data-decision-notice role="status">${escapeHtml(state.proposalNotice)}</p>` : ""}
+    <div class="aiw-decisions">
+      ${state.proposals.map((proposal) => renderProposal(state, proposal)).join("")}
+    </div>
+  </section>`;
+}
+
+function renderProposal(state: ShellState, proposal: AIActionProposal): string {
+  const { locale } = state;
+  const payload = escapeHtml(JSON.stringify(proposal.payload, null, 2));
+  const result = proposal.result
+    ? `<details class="aiw-proposal-result"><summary>${escapeHtml(t(locale, "Result", "نتیجه"))}</summary><pre>${escapeHtml(JSON.stringify(proposal.result, null, 2))}</pre></details>`
+    : "";
+  const busy = state.proposalBusy === proposal.proposal_id;
+  let controls = "";
+  if (proposal.is_stale) {
+    controls = `<p class="aiw-hint is-warning" data-proposal-stale>${escapeHtml(t(locale, "Stale proposal: the project revision advanced after this proposal; it cannot be approved or executed.", "پیشنهاد کهنه: نسخهٔ پروژه پس از این پیشنهاد پیش رفته است؛ نمی‌توان آن را تأیید یا اجرا کرد."))}</p>`;
+  } else if (proposal.status === "proposed" && proposal.requires_human_approval) {
+    controls = `<div class="aiw-decision-actions">
+      <button type="button" data-workbench="decide-proposal" data-proposal="${escapeHtml(proposal.proposal_id)}" data-approved="true"${busy ? " disabled" : ""}>${escapeHtml(t(locale, "Approve", "تأیید"))}</button>
+      <button type="button" data-workbench="decide-proposal" data-proposal="${escapeHtml(proposal.proposal_id)}" data-approved="false"${busy ? " disabled" : ""}>${escapeHtml(t(locale, "Reject", "رد"))}</button>
+    </div>`;
+  } else if (proposal.status === "approved") {
+    controls = `<div class="aiw-decision-actions">
+      <button type="button" data-workbench="execute-proposal" data-proposal="${escapeHtml(proposal.proposal_id)}"${busy ? " disabled" : ""}>${escapeHtml(t(locale, "Execute", "اجرا"))}</button>
+    </div>`;
+  }
+  return `<article class="aiw-decision" data-proposal="${escapeHtml(proposal.proposal_id)}" data-proposal-status="${escapeHtml(proposal.status)}">
+    <header>
+      <strong>${escapeHtml(proposal.tool_name)}</strong>
+      <span class="aiw-status ${proposalStatusTone(proposal.status)}">${escapeHtml(proposalStatusLabel(locale, proposal.status))}</span>
+    </header>
+    <dl class="aiw-facts">
+      <dt>${escapeHtml(t(locale, "Action", "اقدام"))}</dt><dd>${escapeHtml(proposal.action)}</dd>
+      <dt>${escapeHtml(t(locale, "Requested by", "درخواست‌کننده"))}</dt><dd>${escapeHtml(proposal.requested_by)}</dd>
+      <dt>${escapeHtml(t(locale, "Recorded", "ثبت‌شده"))}</dt><dd>${escapeHtml(formatDateTime(locale, proposal.created_at))}</dd>
+      <dt>${escapeHtml(t(locale, "Proposal revision", "نسخهٔ پیشنهاد"))}</dt><dd>${escapeHtml(proposal.project_revision_id)}</dd>
+      <dt>${escapeHtml(t(locale, "Evidence", "شواهد"))}</dt><dd>${escapeHtml(proposal.evidence_refs.length ? proposal.evidence_refs.join(", ") : "—")}</dd>
+      ${proposal.decided_by ? `<dt>${escapeHtml(t(locale, "Decided by", "تصمیم‌گیرنده"))}</dt><dd>${escapeHtml(proposal.decided_by)}</dd>` : ""}
+    </dl>
+    <details class="aiw-proposal-payload"><summary>${escapeHtml(t(locale, "Payload", "بار"))}</summary><pre>${payload}</pre></details>
+    ${result}
+    ${busy ? `<p class="aiw-hint">${escapeHtml(t(locale, "Working…", "در حال انجام…"))}</p>` : ""}
+    ${controls}
+  </article>`;
 }
 
 export function renderInspector(state: ShellState): string {

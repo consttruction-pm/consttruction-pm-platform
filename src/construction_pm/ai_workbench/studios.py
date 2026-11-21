@@ -105,8 +105,8 @@ def studios(capabilities: Capabilities | None = None) -> tuple[Studio, ...]:
     decision_reason = (
         None
         if caps.proposal_execution
-        else "Enterprise approvals are wired, but no Engineering proposal/execution contract "
-        "exists for scenario changes."
+        else "The canonical proposal/execution runtime is not mounted in this "
+        "environment. The studio stays partial and shows no approval control."
     )
     return (
         Studio(
@@ -171,9 +171,17 @@ def studios(capabilities: Capabilities | None = None) -> tuple[Studio, ...]:
             id=StudioId.DECISION_APPROVAL,
             intent=Intent.DECISION,
             status=decision_status,
-            service="Proposal store + approval/execution contract",
-            read_route="/api/enterprise/approvals",
-            write_route=None,
+            service=(
+                "Canonical AI action proposal store with approval and execution"
+                if caps.proposal_execution
+                else "AI action proposal store (not mounted)"
+            ),
+            read_route="/api/projects/{project_id}/ai/actions/proposals",
+            write_route=(
+                "/api/projects/{project_id}/ai/actions/proposals/{proposal_id}/decision"
+                if caps.proposal_execution
+                else None
+            ),
             blocked_reason=decision_reason,
             help_topic="Approvals, Workflows, Change Management",
             help_status=StudioStatus.HELP_REFERENCE_PENDING,
