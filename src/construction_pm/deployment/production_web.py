@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import mimetypes
+import io
 import os
 import traceback
 from pathlib import Path
@@ -639,6 +640,16 @@ class ProductionWebApp:
                 ("Location", f"{LOGIN_PATH}?{quote('next')}={quote(target)}"),
                 ("Cache-Control", "no-store"),
             ], b""
+        requested_path = str(environ.get("PATH_INFO", APP_PATH) or APP_PATH).rstrip("/")
+        if requested_path == APP_PATH:
+            query = parse_qs(str(environ.get("QUERY_STRING", "") or ""), keep_blank_values=False)
+            project_values = query.get("project", [])
+            project_id = project_values[0].strip() if len(project_values) == 1 else ""
+            if not project_id or not self._project_is_authorized(environ, project_id):
+                return 303, [
+                    ("Location", f"{WORKBENCH_PATH}/"),
+                    ("Cache-Control", "no-store"),
+                ], b""
         page = self.site.resolve("/app")
         if page is None:
             return _json(503, {"code": "APP_SHELL_MISSING"}, cache="no-store")
@@ -646,6 +657,32 @@ class ProductionWebApp:
             ("Content-Type", "text/html; charset=utf-8"),
             ("Cache-Control", "no-store"),
         ], page.read_bytes()
+
+    def _project_is_authorized(self, environ: Mapping[str, Any], project_id: str) -> bool:
+        """Resolve the caller's actual project register before serving Engineering."""
+        probe = dict(environ)
+        probe["REQUEST_METHOD"] = "GET"
+        probe["PATH_INFO"] = "/api/projects"
+        probe["QUERY_STRING"] = ""
+        probe["CONTENT_LENGTH"] = "0"
+        probe["wsgi.input"] = io.BytesIO(b"")
+        captured: dict[str, Any] = {}
+
+        def capture_start_response(status: str, headers: list[tuple[str, str]], exc_info=None):
+            captured["status"] = int(str(status).split()[0])
+
+        try:
+            body = b"".join(self.api_app(probe, capture_start_response))
+            if captured.get("status") != 200:
+                return False
+            payload = json.loads(body.decode("utf-8"))
+            projects = payload.get("projects", []) if isinstance(payload, dict) else []
+            return isinstance(projects, list) and any(
+                isinstance(project, dict) and project.get("project_id") == project_id
+                for project in projects
+            )
+        except (TypeError, ValueError, UnicodeDecodeError):
+            return False
 
     def _workbench(
         self, method: str, environ: Mapping[str, Any]
