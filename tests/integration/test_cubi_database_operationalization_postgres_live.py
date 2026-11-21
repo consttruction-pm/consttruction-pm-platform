@@ -1138,13 +1138,20 @@ def test_knowledge_survives_and_reports_missing_coverage(runtime):
 def test_username_signup_is_durable_and_duplicate_recovery_keeps_postgres_usable(runtime):
     suffix = runtime.test_ids["suffix"]
     username = f"signup-{suffix}"
-    status, _, body = call(
+    status, headers, body = call(
         runtime, "POST", "/api/signup",
         body={"username": username, "password": "signup password battery staple"},
     )
     assert status == 201, body
     created = json.loads(body)
     assert created["roles"] == ["viewer"]
+    session_cookie = next(
+        value.split(";", 1)[0] for value in headers["set-cookie"]
+        if value.startswith("cp_session=")
+    )
+    status, _, body = call(runtime, "GET", "/api/session", cookie=session_cookie)
+    assert status == 200
+    assert json.loads(body)["user_id"] == created["user_id"]
 
     status, _, body = call(
         runtime, "POST", "/api/signup",
