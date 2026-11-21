@@ -595,7 +595,11 @@ class ProductionWebApp:
             cookies = _cookie_values(environ)
             session = self.identity.resolve(cookies.get(SESSION_COOKIE_NAME, ""))
             if session is None:
-                target = CUBI_PATH + "/" + (f"?{query}" if query else "")
+                # Preserve the exact Enterprise document (and its query) the
+                # visitor asked for. Replacing it with the bare /cubi/ entry
+                # would silently drop a valid deep link after sign-in.
+                requested = path + (f"?{query}" if query else "")
+                target = _safe_next(requested)
                 return 302, [
                     ("Location", f"{LOGIN_PATH}?{quote('next')}={quote(target)}"),
                     ("Cache-Control", "no-store"),
