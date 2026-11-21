@@ -19,7 +19,10 @@ canonical service exists. A placeholder or a skipped test is not a pass.
 | Objective/constraints | captured as assumptions, never as results | same | PASS |
 | Enterprise scope isolation | Enterprise command cannot borrow Engineering project | same | PASS |
 | Response serialization | calculated/recommendations empty, facts only from envelope | same | PASS |
-| Studio registry | five studios, Help topic and pending status declared | same | PASS |
+| Studio registry | five studios, verified Help topic and URL declared | same | PASS |
+| Assistant fallback classification | only provider-unavailable codes fall back; stale/denied do not | `apps/web/src/workbench-model.test.ts` | PASS |
+| Transcript rendering | canonical messages, escaped, link to Decision & Approval, no approval control | `apps/web/src/workbench-render.test.ts` | PASS |
+| Browser: assistant first | canonical turn attempted; unconfigured 503 disclosed and routed to the planner | `apps/web/e2e/preview-e2e.mjs` | PASS |
 
 Command: `python -m pytest tests/test_ai_workbench_orchestration.py -q`
 

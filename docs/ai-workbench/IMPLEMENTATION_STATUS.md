@@ -125,10 +125,10 @@ Routing:
 | `pytest tests/test_ai_workbench_http.py tests/test_ai_workbench_orchestration.py` | 47 passed |
 | `pytest tests/test_production_web_app.py` | 34 passed |
 | `pytest tests/test_preview_runtime.py` | 26 passed |
-| `npm test` (web) | 1276 + 16 passed, 0 failed |
+| `npm test` (web) | 1296 + 16 passed, 0 failed |
 | `npm run typecheck` | clean |
 | `npm run build` | bundles emitted |
-| `node e2e/preview-e2e.mjs` | 112 recorded checks (see the run log attached to the PR) |
+| `node e2e/preview-e2e.mjs` | 116 recorded checks (see the run log attached to the PR) |
 
 The browser journey drives the real preview runtime: document gate, planner
 sign-in, empty risk state, risk create and read-back across a full reload,
@@ -156,6 +156,25 @@ Implemented in this change wherever the canonical runtime is mounted:
 
 Scenario-specific approvals are still pending with the scenario service
 (#1989); the studio does not invent a scenario proposal model.
+
+## Phase 8 Assistant conversation in the Workbench
+
+The command panel now speaks to the canonical assistant instead of only routing
+keywords:
+
+- `POST /api/projects/{id}/ai/assistant/turn` is called through the shared
+  `AIActionClient`, the same client the workspace chat uses; there is no second
+  prompt format, no local provider call and no client-side proposal creation;
+- the transcript is bounded by the shared `boundedAIAssistantHistory` helper and
+  renders only the server's messages; it never offers approve or execute;
+- an `action_proposal` turn is stored by the server, the panel shows its id and
+  opens Decision & Approval, where the existing revision-guarded approve/execute
+  controls remain the only way to act;
+- when the deployment has no provider (`AI_ASSISTANT_NOT_CONFIGURED`, or a
+  provider 429/5xx/configuration error), the panel says so and routes the same
+  sentence through the read-only deterministic planner. The browser run proves
+  the fallback from the recorded response body, and any other 5xx still fails;
+- a stale assistant revision re-reads the pinned context instead of resubmitting.
 
 ## Phase 7 security acceptance
 

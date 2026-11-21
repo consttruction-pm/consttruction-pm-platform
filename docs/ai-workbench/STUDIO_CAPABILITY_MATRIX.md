@@ -16,6 +16,7 @@ full studio contract does not. `BLOCKED` — the canonical service is absent.
 | Risk Analysis Studio | `WIRED_WRITE` | `GET /api/projects/{id}/risks` (+ `/history`) | `POST` create, `PUT` update with `expected_revision` | `risk_api.py` / `risk_application.py` | table, 5×5 matrix, inspector, create and edit forms, audit history |
 | Project Analysis Studio | `WIRED_READ` | workspace read v2 + control metrics + `GET .../p6/baselines` + `POST .../p6/earned-value` | none | `project_lifecycle_routes.py`, `p6_earned_value_read_model_api.py` | record counts, stored metric bars, source refs, baseline-driven EVM |
 | Decision & Approval Workspace | `WIRED_WRITE` when the canonical runtime is mounted, otherwise `PARTIAL` | `GET .../ai/actions/proposals` | `POST .../decision`, `POST .../execute` with `expected_revision` | `ai_action_runtime.py` / `ai_action_boundary.py` | proposal list, approve/reject, execute-if-approved, stale guard, canonical result |
+| Conversation (command panel) | `WIRED_READ` conversation; proposals only via the runtime above | `POST .../ai/assistant/turn` (`ai-assistant-turn.v1`) | none in the panel; a returned proposal is stored by the server | `ai_assistant_orchestration.py` + `AIActionClient` | transcript, proposal id and a link to Decision & Approval; deterministic planner only when the provider is unavailable |
 
 ## Risk Analysis Studio (WIRED_WRITE)
 

@@ -5,7 +5,16 @@
  * timeouts and error codes behave exactly like the rest of the workspace. The
  * Workbench adds no second API convention.
  */
-import { FetchApiTransport, type ApiResult, type ProjectContext } from "../client.js";
+import {
+  FetchApiTransport,
+  type ApiResult,
+  type ProjectContext,
+} from "../client.js";
+import {
+  AIActionClient,
+  type AIAssistantHistoryMessage,
+  type AIAssistantTurn,
+} from "../ai-action-client.js";
 
 export type WorkbenchStudio = {
   id: string;
@@ -218,11 +227,33 @@ export type SessionInfo = {
 };
 
 export class WorkbenchApi {
-  constructor(
-    private readonly transport: FetchApiTransport = new FetchApiTransport(
-      typeof window === "undefined" ? "http://127.0.0.1" : window.location.origin,
-    ),
-  ) {}
+  private readonly actions: AIActionClient;
+
+  constructor(private readonly transport: FetchApiTransport = new FetchApiTransport(
+    typeof window === "undefined" ? "http://127.0.0.1" : window.location.origin,
+  )) {
+    this.actions = new AIActionClient(transport);
+  }
+
+  /**
+   * Conversation runs on the canonical assistant endpoint (`ai-assistant-turn.v1`),
+   * through the same client the workspace chat uses. The Workbench adds no second
+   * assistant protocol and no local proposal logic.
+   */
+  assistantTurn(
+    projectId: string,
+    context: ProjectContext,
+    message: string,
+    locale: string,
+    history: readonly AIAssistantHistoryMessage[],
+  ): Promise<ApiResult<AIAssistantTurn>> {
+    return this.actions.sendAssistantTurn(
+      { ...context, project_id: projectId },
+      message,
+      locale,
+      history,
+    );
+  }
 
   session(): Promise<ApiResult<SessionInfo>> {
     return this.transport.get<SessionInfo>("/api/session", {

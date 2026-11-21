@@ -183,6 +183,37 @@ h1, h2, h3, p { margin: 0; }
 }
 .aiw-command-form button[type="submit"]:disabled { opacity: .55; cursor: progress; }
 .aiw-form-error { color: var(--aiw-error); font-size: .8rem; }
+.aiw-transcript-region:empty { display: none; }
+.aiw-transcript {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  padding: .55rem;
+  border: 1px solid var(--aiw-border);
+  border-radius: 8px;
+  background: #fff;
+  max-height: 16rem;
+  overflow-y: auto;
+}
+.aiw-chat-message { display: flex; flex-direction: column; gap: .15rem; }
+.aiw-chat-author { font-size: .68rem; letter-spacing: .04em; text-transform: uppercase; color: var(--aiw-muted); }
+.aiw-chat-message-user .aiw-chat-author { color: var(--aiw-blue); }
+.aiw-chat-text { margin: 0; font-size: .82rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.aiw-chat-message-user .aiw-chat-text { font-weight: 600; }
+.aiw-chat-pending,
+.aiw-chat-notice { margin: 0; font-size: .76rem; color: var(--aiw-muted); }
+.aiw-chat-notice { color: var(--aiw-text); }
+.aiw-chat-review {
+  align-self: flex-start;
+  border: 1px solid var(--aiw-blue);
+  background: #fff;
+  color: var(--aiw-blue);
+  border-radius: 6px;
+  padding: .3rem .65rem;
+  font-size: .78rem;
+  cursor: pointer;
+}
+.aiw-chat-proposal-id { margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .7rem; color: var(--aiw-muted); }
 .aiw-history { display: flex; flex-direction: column; gap: .3rem; }
 .aiw-history-item {
   display: flex;
