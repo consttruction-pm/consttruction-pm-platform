@@ -1,10 +1,10 @@
 """Production runtime composition for the Vercel deployment.
 
 This module is the only place where the CUBI workspace is wired to a durable
-PostgreSQL database and a real password session. It intentionally composes a
-narrower command surface than the local preview runtime: session, project
-lifecycle, the canonical workspace read, the field registry and the layout
-endpoint. Adding a window to the production surface means adding its
+PostgreSQL database and a real password session. It composes the production
+project lifecycle, canonical workspace read, field registry/layout, tenant
+security administration, and P6 resource assignment/capacity/rate surfaces.
+Adding a window to the production surface means adding its PostgreSQL
 repositories here explicitly, never falling back to preview adapters.
 
 Every HTTP request checks out one pooled connection. Repositories share a
@@ -52,9 +52,49 @@ from ..identity_session import (
 from ..p6_cost_account_api import P6CostAccountAPI
 from ..p6_obs_api import P6OBSNodeAPI
 from ..p6_obs_repository import P6OBSApplicationService, PostgresP6OBSRepository
+from ..p6_project_security_api import P6ProjectSecurityAPI
+from ..p6_project_security_repository import PostgresP6ProjectSecurityRepository
+from ..p6_associated_resource_api import P6AssociatedResourceAPI
+from ..p6_associated_resource_repository import PostgresP6AssociatedResourceRepository
+from ..p6_resource_master_repository import PostgresP6ResourceRepository
+from ..p6_resource_assignment_repository import (
+    P6ResourceAssignmentApplicationService,
+    P6ResourceAssignmentPeriodApplicationService,
+    PostgresP6ResourceAssignmentRepository,
+    PostgresP6ResourceAssignmentPeriodRepository,
+)
+from ..p6_resource_spread_repository import (
+    P6ResourceSpreadApplicationService,
+    PostgresP6ResourceSpreadRepository,
+)
+from ..p6_resource_capacity_repository import (
+    P6ResourceCapacityApplicationService,
+    PostgresP6ResourceCapacityRepository,
+)
+from ..p6_resource_rate_repository import (
+    P6ResourceRateApplicationService,
+    PostgresP6ResourceRateRepository,
+)
+from ..p6_resource_read_api import P6ResourceReadAPI
+from ..p6_resource_write_api import P6ResourceWriteAPI
+from ..p6_resource_spread_api import P6ResourceSpreadAPI
+from ..p6_resource_capacity_read_api import P6ResourceCapacityReadAPI
+from ..p6_resource_capacity_write_api import P6ResourceCapacityWriteAPI
+from ..p6_resource_rate_read_api import P6ResourceRateReadAPI
+from ..p6_resource_rate_write_api import P6ResourceRateWriteAPI
+from ..p6_code_repository import P6CodeApplicationService, PostgresP6CodeRepository
+from ..p6_code_assignment_repository import (
+    P6CodeAssignmentApplicationService,
+    PostgresP6CodeAssignmentRepository,
+)
+from ..p6_code_api import P6CodeAPI, P6CodeAssignmentAPI
 from ..p6_cost_account_repository import (
     P6CostAccountApplicationService,
     PostgresP6CostAccountRepository,
+)
+from ..p6_global_security import (
+    P6GlobalSecurityAuthorizationPolicy,
+    PostgresP6GlobalSecurityRepository,
 )
 from ..p6_field_registry_api import P6FieldRegistryAPI
 from ..p6_field_registry_repository import (
@@ -295,27 +335,83 @@ class ProductionRuntime:
 
     def _build(self) -> None:
         connection = self.connection
-        policy = RoleBasedAuthorizationPolicy(default_role_permissions())
+        project_role_policy = RoleBasedAuthorizationPolicy(default_role_permissions())
+        global_security_repository = PostgresP6GlobalSecurityRepository(connection)
         cost_account_repository = PostgresP6CostAccountRepository(connection)
         obs_node_repository = PostgresP6OBSRepository(connection)
         obs_node_service = P6OBSApplicationService(obs_node_repository)
+        project_repository = PostgresProjectRepository(connection)
+        def project_obs_lookup(tenant_id: str, project_id: str) -> str | None:
+            row = connection.execute(
+                "SELECT obs_id FROM project_lifecycle_projects WHERE tenant_id=%s AND project_id=%s",
+                (tenant_id, project_id),
+            ).fetchone()
+            return None if row is None or not row[0] else str(row[0])
+        project_security_repository = PostgresP6ProjectSecurityRepository(
+            connection, project_obs_lookup=project_obs_lookup,
+            obs_repository=obs_node_repository,
+        )
+        def sync_native_user_personal_name(tenant_id: str, user_id: str, resource_name: str) -> None:
+            updated = connection.execute(
+                "UPDATE identity_users SET display_name=%s WHERE tenant_id=%s AND user_id=%s",
+                (resource_name, tenant_id, user_id),
+            )
+            if updated.rowcount != 1:
+                raise ValueError("ASSOCIATED_RESOURCE_USER_NOT_FOUND")
+        associated_resource_repository = PostgresP6AssociatedResourceRepository(
+            connection, native_auth_name_sync=sync_native_user_personal_name
+        )
+        policy = P6GlobalSecurityAuthorizationPolicy(
+            global_security_repository, project_role_policy,
+            obs_project_access=project_security_repository,
+            associated_resource_access=associated_resource_repository,
+        )
+        project_security_api = P6ProjectSecurityAPI(project_security_repository, policy)
+        associated_resource_api = P6AssociatedResourceAPI(associated_resource_repository, policy)
         lifecycle_api = ProjectLifecycleAPI(
             ProjectLifecycleService(
                 IdentitySessionRepository(self.identity),
-                PostgresProjectRepository(connection),
+                project_repository,
                 policy,
                 cost_accounts=cost_account_repository,
                 obs_nodes=obs_node_repository,
             )
         )
         checkout_lease = PostgresProjectCheckoutLease(connection)
+        transaction_manager = _RequestTransactionManager(connection)
+        resource_repository = PostgresP6ResourceRepository(connection)
+        resource_assignment_repository = PostgresP6ResourceAssignmentRepository(connection)
+        resource_period_repository = PostgresP6ResourceAssignmentPeriodRepository(connection)
+        resource_spread_repository = PostgresP6ResourceSpreadRepository(connection)
+        resource_assignment_service = P6ResourceAssignmentApplicationService(
+            resource_assignment_repository, transaction_manager
+        )
+        resource_period_service = P6ResourceAssignmentPeriodApplicationService(
+            resource_period_repository, transaction_manager
+        )
+        resource_spread_service = P6ResourceSpreadApplicationService(
+            resource_spread_repository, transaction_manager
+        )
+        resource_capacity_repository = PostgresP6ResourceCapacityRepository(connection)
+        resource_capacity_service = P6ResourceCapacityApplicationService(
+            resource_capacity_repository, transaction_manager
+        )
+        resource_rate_repository = PostgresP6ResourceRateRepository(connection)
+        resource_rate_service = P6ResourceRateApplicationService(
+            resource_rate_repository, transaction_manager
+        )
+        code_repository = PostgresP6CodeRepository(connection)
+        code_service = P6CodeApplicationService(code_repository, transaction_manager)
+        code_assignment_repository = PostgresP6CodeAssignmentRepository(connection)
+        code_assignment_service = P6CodeAssignmentApplicationService(
+            code_assignment_repository, transaction_manager
+        )
         activity_repository = PostgresActivityMasterRepository(connection)
         wbs_repository = PostgresWBSMasterRepository(connection)
         relationship_repository = PostgresRelationshipMasterRepository(connection)
         field_repository = PostgresP6FieldRegistryRepository(connection)
         layout_repository = PostgresP6LayoutRepository(connection)
         udf_field_repository = PostgresP6UserDefinedFieldRepository(connection)
-        transaction_manager = _RequestTransactionManager(connection)
         field_service = P6FieldRegistryApplicationService(
             repository=field_repository,
             transaction_manager=transaction_manager,
@@ -362,6 +458,37 @@ class ProductionRuntime:
                 checkout_lease=checkout_lease,
             ),
             p6_obs_node_api=P6OBSNodeAPI(obs_node_service, policy),
+            p6_project_security_api=project_security_api,
+            p6_associated_resource_api=associated_resource_api,
+            resource_read_api=P6ResourceReadAPI(
+                resource_assignment_service, resource_period_service,
+                resource_spread_service, policy, resource_repository=resource_repository,
+            ),
+            resource_write_api=P6ResourceWriteAPI(
+                resource_period_service, policy,
+                assignment_service=resource_assignment_service,
+                resource_repository=resource_repository,
+            ),
+            p6_resource_spread_api=P6ResourceSpreadAPI(
+                resource_spread_service, policy, resource_repository=resource_repository,
+            ),
+            p6_resource_capacity_read_api=P6ResourceCapacityReadAPI(
+                resource_capacity_service, policy, resource_repository=resource_repository,
+            ),
+            p6_resource_capacity_write_api=P6ResourceCapacityWriteAPI(
+                resource_capacity_service, policy, resource_repository=resource_repository,
+            ),
+            p6_resource_rate_read_api=P6ResourceRateReadAPI(
+                resource_rate_service, policy, resource_repository=resource_repository,
+            ),
+            p6_resource_rate_write_api=P6ResourceRateWriteAPI(
+                resource_rate_service, policy, resource_repository=resource_repository,
+            ),
+            p6_code_api=P6CodeAPI(code_service, policy),
+            p6_code_assignment_api=P6CodeAssignmentAPI(
+                code_assignment_service, policy, code_service=code_service,
+            ),
+            tracking_resource_repository=resource_repository,
             p6_layout_definition_api=P6LayoutDefinitionAPI(layout_repository, policy),
             environment={},
             operational_endpoints=False,

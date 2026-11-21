@@ -1031,3 +1031,28 @@ def test_defaults_history_rejects_non_members():
         make_service(session).project_defaults_history(
             "session-a", "project-other", now=now
         )
+
+
+def test_v26_project_security_profile_gates_project_creation_and_metadata():
+    now, session = make_session(roles=frozenset())
+    class V26Policy:
+        def __init__(self):
+            self.checked = []
+        def require_project_privilege_for_obs(self, context, obs_id, privilege):
+            self.checked.append(("obs", obs_id, privilege))
+        def require_project_privilege(self, context, privilege):
+            self.checked.append(("project", context.project_id, privilege))
+
+    policy = V26Policy()
+    projects = Projects()
+    service = ProjectLifecycleService(Sessions(session), projects, policy)
+    service.create_project(
+        "session-a", "project-new", "New Project", obs_id="OBS-CIVIL", now=now
+    )
+    service.update_project(
+        "session-a", "project-a", name="Renamed", expected_revision=0, now=now
+    )
+    assert policy.checked == [
+        ("obs", "OBS-CIVIL", "add_projects"),
+        ("project", "project-a", "edit_project_details_except_costs_financials"),
+    ]

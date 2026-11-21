@@ -10,6 +10,7 @@ from .application.authorization import (
     Permission,
 )
 from .backend_p0.models import BackendScope
+from .p6_project_security import require_project_privilege
 from .p6_code_repository import (
     P6CodeApplicationService,
     P6CodeDefinition,
@@ -21,6 +22,19 @@ from .p6_code_assignment_repository import (
 
 P6_CODE_API_VERSION = "p6-code-api.v1"
 P6_CODE_ASSIGNMENT_API_VERSION = "p6-code-assignment-api.v1"
+
+
+def _require_activity_code_privilege(policy, auth_context, scope_kind: str, subject_area: str, *, create: bool) -> None:
+    if subject_area.upper() != "ACTIVITY":
+        return
+    normalized_scope = scope_kind.upper()
+    if normalized_scope == "PROJECT":
+        privilege = "add_project_activity_codes" if create else "edit_project_activity_codes"
+    elif normalized_scope == "EPS":
+        privilege = "add_eps_activity_codes" if create else "edit_eps_activity_codes"
+    else:
+        return
+    require_project_privilege(policy, auth_context, privilege)
 
 
 def _require_scope(scope: BackendScope, auth_context: AuthorizationContext) -> None:
@@ -58,6 +72,7 @@ def _code_dto(definition: P6CodeDefinition) -> dict[str, Any]:
             "subject_area": definition.subject_area,
             "scope_kind": definition.scope_kind,
             "scope_key": definition.scope_key,
+            "is_secure": definition.is_secure,
             "values": [
                 {
                     "value_id": item.value_id,
@@ -92,6 +107,10 @@ class P6CodeAPI:
     service: P6CodeApplicationService
     authorization_policy: AuthorizationPolicy
 
+    def _secure_allowed(self, auth_context: AuthorizationContext, action: str) -> bool:
+        checker = getattr(self.authorization_policy, "allows_secure_code_action", None)
+        return True if not callable(checker) else bool(checker(auth_context, action))
+
     def create(
         self,
         definition: P6CodeDefinition,
@@ -100,6 +119,12 @@ class P6CodeAPI:
     ) -> dict[str, Any]:
         _require_scope(definition.scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        _require_activity_code_privilege(
+            self.authorization_policy, auth_context, definition.scope_kind,
+            definition.subject_area, create=True,
+        )
+        if definition.is_secure and not self._secure_allowed(auth_context, "add_delete"):
+            raise AuthorizationError("SECURE_CODE_ADD_DELETE_NOT_AUTHORIZED")
         return _code_dto(self.service.save(definition))
 
     def get(
@@ -112,7 +137,9 @@ class P6CodeAPI:
         _require_scope(scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_READ)
         result = self.service.read(scope, code_id)
-        return None if result is None else _code_dto(result)
+        if result is None or (result.is_secure and not self._secure_allowed(auth_context, "view")):
+            return None
+        return _code_dto(result)
 
     def list(
         self,
@@ -126,6 +153,7 @@ class P6CodeAPI:
         return tuple(
             _code_dto(item)
             for item in self.service.list(scope, subject_area=subject_area)
+            if not item.is_secure or self._secure_allowed(auth_context, "view")
         )
 
 
@@ -135,6 +163,17 @@ class P6CodeAssignmentAPI:
 
     service: P6CodeAssignmentApplicationService
     authorization_policy: AuthorizationPolicy
+    code_service: P6CodeApplicationService | None = None
+
+    def _secure_definition(self, scope: BackendScope, code_id: str) -> bool | None:
+        if self.code_service is None:
+            return None
+        definition = self.code_service.read(scope, code_id)
+        return None if definition is None else definition.is_secure
+
+    def _secure_allowed(self, auth_context: AuthorizationContext, action: str) -> bool:
+        checker = getattr(self.authorization_policy, "allows_secure_code_action", None)
+        return True if not callable(checker) else bool(checker(auth_context, action))
 
     def create(
         self,
@@ -144,6 +183,19 @@ class P6CodeAssignmentAPI:
     ) -> dict[str, Any]:
         _require_scope(assignment.scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        if self.code_service is not None:
+            definition = self.code_service.read(assignment.scope, assignment.code_id)
+            if definition is not None:
+                _require_activity_code_privilege(
+                    self.authorization_policy, auth_context, definition.scope_kind,
+                    definition.subject_area, create=False,
+                )
+        secure = self._secure_definition(assignment.scope, assignment.code_id)
+        if callable(getattr(self.authorization_policy, "allows_secure_code_action", None)):
+            if secure is None:
+                raise AuthorizationError("SECURE_CODE_DEFINITION_LOOKUP_REQUIRED")
+            if secure and not self._secure_allowed(auth_context, "assign"):
+                raise AuthorizationError("SECURE_CODE_ASSIGN_NOT_AUTHORIZED")
         return _assignment_dto(self.service.save(assignment))
 
     def get(
@@ -159,7 +211,13 @@ class P6CodeAssignmentAPI:
         _require_scope(scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_READ)
         result = self.service.read(scope, code_id, value_id, owner_type, owner_id)
-        return None if result is None else _assignment_dto(result)
+        if result is None:
+            return None
+        secure = self._secure_definition(scope, code_id)
+        if callable(getattr(self.authorization_policy, "allows_secure_code_action", None)):
+            if secure is None or (secure and not self._secure_allowed(auth_context, "view")):
+                return None
+        return _assignment_dto(result)
 
     def list(
         self,
@@ -171,10 +229,17 @@ class P6CodeAssignmentAPI:
     ) -> tuple[dict[str, Any], ...]:
         _require_scope(scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_READ)
-        return tuple(
-            _assignment_dto(item)
-            for item in self.service.list(scope, owner_type=owner_type, owner_id=owner_id)
-        )
+        items = self.service.list(scope, owner_type=owner_type, owner_id=owner_id)
+        if callable(getattr(self.authorization_policy, "allows_secure_code_action", None)):
+            if self.code_service is None:
+                return ()
+            visible = []
+            for item in items:
+                secure = self._secure_definition(scope, item.code_id)
+                if secure is False or (secure is True and self._secure_allowed(auth_context, "view")):
+                    visible.append(item)
+            items = tuple(visible)
+        return tuple(_assignment_dto(item) for item in items)
 
 
 __all__ = [

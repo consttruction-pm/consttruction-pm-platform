@@ -10,6 +10,7 @@ from .application.authorization import (
     Permission,
 )
 from .backend_p0.models import BackendScope
+from .p6_project_security import require_project_privilege
 from .p6_baseline_repository import P6Baseline, P6BaselineApplicationService
 
 P6_BASELINE_API_VERSION = "p6-baseline-api.v1"
@@ -57,6 +58,7 @@ class P6BaselineAPI:
     def create(self, baseline: P6Baseline, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         _require_scope(baseline.scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_project_baselines")
         return _dto(self.service.save(baseline))
 
     def get(self, scope: BackendScope, baseline_id: str, *, auth_context: AuthorizationContext) -> dict[str, Any] | None:

@@ -63,9 +63,14 @@ class P6OBSNodeAPI:
     def save(
         self, node: P6OBSNode, *, auth_context: AuthorizationContext
     ) -> dict[str, Any]:
-        _require_permission(
-            self.authorization_policy, auth_context, Permission.PROJECT_WRITE
-        )
+        global_privilege = getattr(self.authorization_policy, "allows_global_privilege", None)
+        if callable(global_privilege):
+            if not global_privilege(auth_context, "add_edit_delete_obs"):
+                raise AuthorizationError("P6_OBS_ADMIN_NOT_AUTHORIZED")
+        else:
+            _require_permission(
+                self.authorization_policy, auth_context, Permission.PROJECT_WRITE
+            )
         if node.tenant_id != auth_context.tenant_id:
             raise AuthorizationError("CROSS_SCOPE_ACCESS")
         return _dto(self.service.save(node))

@@ -171,6 +171,9 @@ from ..budget_persistence import (
 from ..p6_issue_repository import P6Issue, P6IssuePersistenceError
 from ..p6_cost_account_api import P6CostAccountAPI, P6_COST_ACCOUNT_API_VERSION
 from ..p6_obs_api import P6OBSNodeAPI, P6_OBS_NODE_API_VERSION
+from ..p6_project_security import P6ProjectSecurityProfile
+from ..p6_project_security_api import P6ProjectSecurityAPI
+from ..p6_associated_resource_api import P6AssociatedResourceAPI
 from ..p6_obs_repository import P6OBSNode
 from ..p6_cost_account_repository import P6CostAccount
 from ..p6_activity_period_actual_api import P6ActivityPeriodActualAPI, P6_ACTIVITY_PERIOD_ACTUAL_API_VERSION
@@ -242,8 +245,9 @@ from ..p6_resource_assignment_repository import (
 )
 from ..p6_resource_spread_api import P6ResourceSpreadAPI, P6_RESOURCE_SPREAD_API_VERSION
 from ..p6_resource_spread_repository import P6ResourceSpreadBucket
-from ..p6_code_api import P6CodeAPI, P6_CODE_API_VERSION
+from ..p6_code_api import P6CodeAPI, P6CodeAssignmentAPI, P6_CODE_API_VERSION, P6_CODE_ASSIGNMENT_API_VERSION
 from ..p6_code_repository import P6CodeDefinition, P6CodeValue
+from ..p6_code_assignment_repository import P6CodeAssignment
 from ..p6_mapping_registry import P6MappingDefinition, P6MappingFormat, P6MappingStatus, PersistedP6Mapping
 from ..p6_layout_definition_api import P6LayoutDefinitionAPI, P6_LAYOUT_DEFINITION_API_VERSION
 from ..p6_layout_definition_repository import (
@@ -343,6 +347,8 @@ class ProjectLifecycleHttpRoutes:
         p6_expense_api: P6ExpenseAPI | None = None,
         p6_cost_account_api: P6CostAccountAPI | None = None,
         p6_obs_node_api: P6OBSNodeAPI | None = None,
+        p6_project_security_api: P6ProjectSecurityAPI | None = None,
+        p6_associated_resource_api: P6AssociatedResourceAPI | None = None,
         p6_issue_api: P6IssueAPI | None = None,
         p6_activity_step_api: P6ActivityStepReadAPI | None = None,
         document_api: DocumentAPI | None = None,
@@ -375,6 +381,7 @@ class ProjectLifecycleHttpRoutes:
         p6_resource_write_api: P6ResourceWriteAPI | None = None,
         p6_resource_spread_api: P6ResourceSpreadAPI | None = None,
         p6_code_api: P6CodeAPI | None = None,
+        p6_code_assignment_api: P6CodeAssignmentAPI | None = None,
         dependency_graph_api: DependencyGraphAPI | None = None,
         sync_endpoint_factory: Callable[[str, str], VersionedSyncEndpoint] | None = None,
         backend_p0_api: BackendP0API | None = None,
@@ -407,6 +414,8 @@ class ProjectLifecycleHttpRoutes:
         self._p6_expense_api = p6_expense_api
         self._p6_cost_account_api = p6_cost_account_api
         self._p6_obs_node_api = p6_obs_node_api
+        self._p6_project_security_api = p6_project_security_api
+        self._p6_associated_resource_api = p6_associated_resource_api
         self._p6_issue_api = p6_issue_api
         self._p6_activity_step_api = p6_activity_step_api
         self._document_api = document_api
@@ -439,6 +448,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_resource_write_api = p6_resource_write_api
         self._p6_resource_spread_api = p6_resource_spread_api
         self._p6_code_api = p6_code_api
+        self._p6_code_assignment_api = p6_code_assignment_api
         self._dependency_graph_api = dependency_graph_api
         self._sync_endpoint_factory = sync_endpoint_factory
         self._backend_p0_api = backend_p0_api
@@ -452,6 +462,121 @@ class ProjectLifecycleHttpRoutes:
             if form_builder_api is not None
             else None
         )
+
+    def _handle_p6_security_admin_route(
+        self, method: str, path: str, *, session_id: str, now: datetime, body: bytes
+    ) -> tuple[int, dict[str, str], bytes] | None:
+        route = unquote(urlsplit(path).path).rstrip("/")
+        profile_root = "/api/admin/p6/project-security-profiles"
+        associated_root = "/api/admin/p6/users/"
+        if not (
+            (self._p6_project_security_api is not None and (route == "/api/admin/p6/obs" or route.startswith(profile_root)))
+            or (self._p6_associated_resource_api is not None and (route == "/api/admin/p6/associated-resources" or (route.startswith(associated_root) and route.endswith("/associated-resource"))))
+        ):
+            return None
+        try:
+            session = self._api.get_session(session_id, now=now)
+            # Tenant-administration APIs are not scoped to an arbitrary project.
+            auth = AuthorizationContext(
+                session.tenant_id, "__tenant_admin__", session.user_id, session.roles
+            )
+            payload = json.loads(body.decode("utf-8") or "{}") if body else {}
+            if not isinstance(payload, dict):
+                return self._error(400, "P6_SECURITY_REQUEST_INVALID", "error.request.invalid")
+
+            if route == "/api/admin/p6/obs" and self._p6_project_security_api is not None and method == "GET":
+                return self._json(200, self._p6_project_security_api.list_obs_nodes(auth_context=auth))
+            if route == f"{profile_root}/catalog" and self._p6_project_security_api is not None and method == "GET":
+                return self._json(200, self._p6_project_security_api.catalog(auth_context=auth))
+            if route == profile_root and self._p6_project_security_api is not None:
+                if method == "GET":
+                    return self._json(200, self._p6_project_security_api.list_profiles(auth_context=auth))
+                if method == "POST":
+                    profile = P6ProjectSecurityProfile(
+                        tenant_id=auth.tenant_id,
+                        profile_id=payload.get("profile_id", ""),
+                        name=payload.get("name", ""),
+                        privileges=tuple(payload.get("privileges", ())),
+                        active=payload.get("active", True),
+                        revision=payload.get("revision", 1),
+                        description=payload.get("description", ""),
+                    )
+                    return self._json(200, self._p6_project_security_api.save_profile(
+                        profile, expected_revision=payload.get("expected_revision"), auth_context=auth
+                    ))
+            if route == f"{profile_root}/project-superuser" and method == "POST":
+                return self._json(200, self._p6_project_security_api.ensure_builtin_profile(auth_context=auth))
+            if route == f"{profile_root}/obs-grants" and method == "POST":
+                return self._json(200, self._p6_project_security_api.assign_obs(
+                    payload.get("user_id", ""), payload.get("obs_id", ""),
+                    payload.get("profile_id"), auth_context=auth,
+                ))
+            prefix = f"{profile_root}/users/"
+            if route.startswith(prefix) and route.endswith("/obs-grants"):
+                user_id = route[len(prefix):-len("/obs-grants")].strip("/")
+                if method == "GET" and user_id:
+                    return self._json(200, self._p6_project_security_api.list_user_grants(user_id, auth_context=auth))
+            grant_prefix = f"{profile_root}/obs-grants/"
+            if route.startswith(grant_prefix) and method == "DELETE":
+                parts = route[len(grant_prefix):].split("/")
+                if len(parts) == 2 and all(parts):
+                    self._p6_project_security_api.revoke_obs(parts[0], parts[1], auth_context=auth)
+                    return self._json(200, {"revoked": True})
+            profile_prefix = f"{profile_root}/"
+            if route.startswith(profile_prefix):
+                duplicate_parts = route[len(profile_prefix):].split("/")
+                if len(duplicate_parts) == 2 and duplicate_parts[1] == "duplicate" and method == "POST":
+                    return self._json(200, self._p6_project_security_api.duplicate_profile(
+                        duplicate_parts[0], payload.get("new_profile_id", ""),
+                        payload.get("new_name", ""), auth_context=auth,
+                    ))
+            if route.startswith(profile_prefix):
+                parts = route[len(profile_prefix):].split("/")
+                if len(parts) == 2 and parts[1] == "default" and method == "POST":
+                    return self._json(200, self._p6_project_security_api.set_default(
+                        parts[0], expected_revision=payload.get("expected_revision"), auth_context=auth
+                    ))
+                if len(parts) == 1 and method == "DELETE":
+                    self._p6_project_security_api.delete_profile(
+                        parts[0], expected_revision=payload.get("expected_revision"), auth_context=auth
+                    )
+                    return self._json(200, {"deleted": True})
+
+            if route == "/api/admin/p6/associated-resources" and self._p6_associated_resource_api is not None and method == "GET":
+                return self._json(200, self._p6_associated_resource_api.list_resources(auth_context=auth))
+            if route.startswith(associated_root) and self._p6_associated_resource_api is not None:
+                user_id = route[len(associated_root):-len("/associated-resource")].strip("/")
+                if not user_id:
+                    return self._error(400, "ASSOCIATED_RESOURCE_USER_REQUIRED", "error.request.invalid")
+                if method == "GET":
+                    result = self._p6_associated_resource_api.get(user_id, auth_context=auth)
+                    return self._json(200, result or {"association": None})
+                if method in {"PUT", "POST"}:
+                    return self._json(200, self._p6_associated_resource_api.assign(
+                        user_id, payload.get("resource_id", ""),
+                        expected_revision=payload.get("expected_revision"), auth_context=auth,
+                    ))
+                if method == "DELETE":
+                    self._p6_associated_resource_api.unassign(
+                        user_id, expected_revision=payload.get("expected_revision"), auth_context=auth
+                    )
+                    return self._json(200, {"unassigned": True})
+            return self._error(404, "P6_SECURITY_ROUTE_NOT_FOUND", "error.resource.not_found")
+        except AuthorizationError as exc:
+            return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
+        except ValueError as exc:
+            code = str(exc)
+            if (
+                "REVISION_CONFLICT" in code
+                or "HAS_ASSIGNMENTS" in code
+                or "DEFAULT_PROJECT_PROFILE" in code
+                or "BUILTIN_PROJECT_SECURITY_PROFILE" in code
+                or code == "RESOURCE_ALREADY_ASSOCIATED"
+            ):
+                return self._error(409, code, "error.conflict")
+            return self._error(400, code or "P6_SECURITY_REQUEST_INVALID", "error.request.invalid")
+        except (TypeError, KeyError):
+            return self._error(400, "P6_SECURITY_REQUEST_INVALID", "error.request.invalid")
 
     def handle(
         self,
@@ -476,6 +601,11 @@ class ProjectLifecycleHttpRoutes:
 
         try:
             now = self._clock.now()
+            security_admin_response = self._handle_p6_security_admin_route(
+                method, path, session_id=session_id, now=now, body=body
+            )
+            if security_admin_response is not None:
+                return security_admin_response
             if self._form_builder_routes is not None:
                 form_path = urlsplit(path).path
                 if form_path.startswith(ORGANIZATION_ROUTE) or (
@@ -6393,9 +6523,81 @@ class ProjectLifecycleHttpRoutes:
                     if not isinstance(raw_values, list): raise ValueError
                     values = tuple(P6CodeValue(value_id=item.get("value_id", ""), value=item.get("value", ""), description=item.get("description")) for item in raw_values if isinstance(item, dict))
                     if len(values) != len(raw_values): raise ValueError
-                    definition = P6CodeDefinition(BackendScope(context.tenant_id, context.project_id, context.revision), payload.get("code_id", ""), payload.get("name", ""), payload.get("subject_area", ""), payload.get("scope_kind", ""), payload.get("scope_key", ""), values)
+                    is_secure = payload.get("is_secure", False)
+                    if not isinstance(is_secure, bool): raise ValueError
+                    definition = P6CodeDefinition(
+                        BackendScope(context.tenant_id, context.project_id, context.revision),
+                        payload.get("code_id", ""), payload.get("name", ""),
+                        payload.get("subject_area", ""), payload.get("scope_kind", ""),
+                        payload.get("scope_key", ""), values, is_secure,
+                    )
                     result = self._p6_code_api.create(definition, auth_context=auth)
                 except (TypeError, ValueError): return self._error(400, "P6_CODE_REQUEST_INVALID", "error.request.invalid")
+                return self._json(200, result)
+            if method == "GET" and path.startswith("/api/projects/") and path.endswith("/p6/code-assignments"):
+                if self._p6_code_assignment_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                project_id = path[len("/api/projects/"):-len("/p6/code-assignments")].rstrip("/")
+                if not project_id:
+                    return self._error(400, "P6_CODE_ASSIGNMENT_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED": return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                result = self._p6_code_assignment_api.list(
+                    BackendScope(context.tenant_id, context.project_id, context.revision), auth_context=auth
+                )
+                return self._json(200, {"contract_version": P6_CODE_ASSIGNMENT_API_VERSION, "assignments": list(result)})
+            if method == "GET" and path.startswith("/api/projects/") and "/p6/code-assignments/" in path:
+                if self._p6_code_assignment_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                prefix, key = path.split("/p6/code-assignments/", 1)
+                project_id = prefix[len("/api/projects/"):]
+                parts = key.split("/")
+                if not project_id or len(parts) != 4 or not all(parts):
+                    return self._error(400, "P6_CODE_ASSIGNMENT_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED": return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                result = self._p6_code_assignment_api.get(
+                    BackendScope(context.tenant_id, context.project_id, context.revision),
+                    *parts, auth_context=auth,
+                )
+                if result is None:
+                    return self._error(404, "P6_CODE_ASSIGNMENT_NOT_FOUND", "error.p6.code_assignment.not_found")
+                return self._json(200, result)
+            if method == "POST" and path.startswith("/api/projects/") and path.endswith("/p6/code-assignments"):
+                if self._p6_code_assignment_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                project_id = path[len("/api/projects/"):-len("/p6/code-assignments")].rstrip("/")
+                if not project_id:
+                    return self._error(400, "P6_CODE_ASSIGNMENT_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED": return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                try:
+                    payload = json.loads(body.decode("utf-8") or "{}")
+                    if not isinstance(payload, dict): raise ValueError
+                    assignment = P6CodeAssignment(
+                        BackendScope(context.tenant_id, context.project_id, context.revision),
+                        payload.get("code_id", ""), payload.get("value_id", ""),
+                        payload.get("owner_type", ""), payload.get("owner_id", ""),
+                        payload.get("metadata"),
+                    )
+                    result = self._p6_code_assignment_api.create(assignment, auth_context=auth)
+                except (TypeError, ValueError):
+                    return self._error(400, "P6_CODE_ASSIGNMENT_REQUEST_INVALID", "error.request.invalid")
                 return self._json(200, result)
             if path.startswith("/api/projects/") and "/ai/assistant/turn" in path:
                 parts = path[len("/api/projects/"):].split("/")

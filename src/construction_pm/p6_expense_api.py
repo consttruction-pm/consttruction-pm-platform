@@ -10,6 +10,7 @@ from .application.authorization import (
     Permission,
 )
 from .backend_p0.models import BackendScope
+from .p6_project_security import require_project_privilege
 from .p6_expense_repository import P6Expense, P6ExpenseApplicationService
 
 P6_EXPENSE_API_VERSION = "p6-expense-api.v1"
@@ -73,6 +74,7 @@ class P6ExpenseAPI:
     def create(self, expense: P6Expense, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         _require_scope(expense.scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_expenses")
         return _dto(self.service.save(expense))
 
     def get(

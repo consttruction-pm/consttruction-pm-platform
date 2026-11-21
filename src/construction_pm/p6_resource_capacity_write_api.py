@@ -21,6 +21,8 @@ from .application.authorization import (
     Permission,
 )
 from .backend_p0.models import BackendScope
+from .p6_resource_master_repository import P6ResourceRepository
+from .p6_resource_access import require_resource_access
 from .p6_resource_capacity_repository import (
     P6ResourceCapacityApplicationService,
     P6ResourceCapacityRecord,
@@ -105,6 +107,7 @@ class P6ResourceCapacityWriteAPI:
     service: P6ResourceCapacityApplicationService
     authorization_policy: AuthorizationPolicy
     clock: object | None = None
+    resource_repository: P6ResourceRepository | None = None
 
     def save_effective_change(
         self,
@@ -138,6 +141,7 @@ class P6ResourceCapacityWriteAPI:
             raise ResourceCapacityError("INVALID_RESOURCE_ID")
         if resource_id != resource_id.strip() or "/" in resource_id:
             raise ResourceCapacityError("INVALID_RESOURCE_ID")
+        require_resource_access(self.authorization_policy, self.resource_repository, scope, resource_id, auth_context)
         try:
             basis = ResourceCapacityBasis(str(unit_basis))
         except ValueError as exc:

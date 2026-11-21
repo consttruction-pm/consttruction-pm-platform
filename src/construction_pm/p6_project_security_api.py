@@ -1,0 +1,226 @@
+"""Authenticated API for V26 project profiles and user↔OBS project access."""
+from __future__ import annotations
+
+from dataclasses import dataclass, replace
+from typing import Any
+
+from .application.authorization import AuthorizationContext, AuthorizationError
+from .p6_project_security import (
+    P6ProjectSecurityProfile, P6_PROJECT_PRIVILEGE_DEFINITIONS, normalize_project_privileges,
+    P6_PROJECT_PRIVILEGE_DEPENDENCIES, P6_PROJECT_PRIVILEGE_REQUIREMENTS,
+    P6_PROJECT_SUPERUSER_PROFILE_ID,
+)
+from .p6_project_security_repository import (
+    P6OBSProjectGrant,
+    P6ProjectSecurityPersistenceError,
+    P6ProjectSecurityRepository,
+)
+
+P6_PROJECT_SECURITY_API_VERSION = "p6-project-security-api.v1"
+_PROFILE_MANAGEMENT_PRIVILEGE = "add_edit_delete_security_profiles"
+_USER_ACCESS_MANAGEMENT_PRIVILEGE = "add_edit_delete_users"
+
+
+def _require_privilege(policy: Any, context: AuthorizationContext, privilege: str, error: str) -> None:
+    checker = getattr(policy, "allows_global_privilege", None)
+    if not callable(checker) or not checker(context, privilege):
+        raise AuthorizationError(error)
+
+
+def _require_any_privilege(policy: Any, context: AuthorizationContext, privileges: tuple[str, ...], error: str) -> None:
+    checker = getattr(policy, "allows_global_privilege", None)
+    if not callable(checker) or not any(checker(context, code) for code in privileges):
+        raise AuthorizationError(error)
+
+
+def _require_profile_admin(policy: Any, context: AuthorizationContext) -> None:
+    _require_privilege(policy, context, _PROFILE_MANAGEMENT_PRIVILEGE,
+                       "P6_PROJECT_SECURITY_PROFILE_ADMIN_NOT_AUTHORIZED")
+
+
+def _require_user_admin(policy: Any, context: AuthorizationContext) -> None:
+    _require_privilege(policy, context, _USER_ACCESS_MANAGEMENT_PRIVILEGE,
+                       "P6_PROJECT_ACCESS_ADMIN_NOT_AUTHORIZED")
+
+
+def _profile_dto(profile: P6ProjectSecurityProfile) -> dict[str, Any]:
+    labels = {code: {"label": label, "category": category}
+              for code, label, category in P6_PROJECT_PRIVILEGE_DEFINITIONS}
+    return {
+        "profile_id": profile.profile_id,
+        "name": profile.name,
+        "active": profile.active,
+        "revision": profile.revision,
+        "is_default": profile.is_default,
+        "built_in": profile.built_in,
+        "description": profile.description,
+        "privileges": [
+            {"code": code, **labels[code], "auto_selects": sorted(P6_PROJECT_PRIVILEGE_DEPENDENCIES.get(code, ())), "requires": sorted(P6_PROJECT_PRIVILEGE_REQUIREMENTS.get(code, ()))} for code in profile.privileges
+        ],
+    }
+
+
+@dataclass(frozen=True)
+class P6ProjectSecurityAPI:
+    repository: P6ProjectSecurityRepository
+    authorization_policy: Any
+
+    def ensure_builtin_profile(self, *, auth_context: AuthorizationContext) -> dict[str, Any]:
+        auth_context.validate()
+        _require_profile_admin(self.authorization_policy, auth_context)
+        is_superuser = getattr(self.authorization_policy, "is_admin_superuser", None)
+        if not callable(is_superuser) or not is_superuser(auth_context):
+            raise AuthorizationError("PROJECT_SUPERUSER_PROFILE_PROVISIONING_REQUIRES_ADMIN_SUPERUSER")
+        profile = self.repository.ensure_builtin_profile(
+            auth_context.tenant_id, actor_id=auth_context.user_id
+        )
+        return {"contract_version": P6_PROJECT_SECURITY_API_VERSION, "profile": _profile_dto(profile)}
+
+    def catalog(self, *, auth_context: AuthorizationContext) -> dict[str, Any]:
+        auth_context.validate()
+        _require_profile_admin(self.authorization_policy, auth_context)
+        return {
+            "contract_version": P6_PROJECT_SECURITY_API_VERSION,
+            "privileges": [
+                {
+                    "code": code, "label": label, "category": category,
+                    "auto_selects": sorted(P6_PROJECT_PRIVILEGE_DEPENDENCIES.get(code, ())),
+                    "requires": sorted(P6_PROJECT_PRIVILEGE_REQUIREMENTS.get(code, ())),
+                }
+                for code, label, category in P6_PROJECT_PRIVILEGE_DEFINITIONS
+            ],
+        }
+
+    def list_profiles(self, *, auth_context: AuthorizationContext) -> dict[str, Any]:
+        auth_context.validate()
+        _require_any_privilege(
+            self.authorization_policy, auth_context,
+            (_PROFILE_MANAGEMENT_PRIVILEGE, _USER_ACCESS_MANAGEMENT_PRIVILEGE),
+            "P6_PROJECT_SECURITY_PROFILE_READ_NOT_AUTHORIZED",
+        )
+        return {
+            "contract_version": P6_PROJECT_SECURITY_API_VERSION,
+            "profiles": [_profile_dto(item) for item in self.repository.list_profiles(auth_context.tenant_id)],
+        }
+
+    def save_profile(
+        self, profile: P6ProjectSecurityProfile, *, expected_revision: int | None = None,
+        auth_context: AuthorizationContext,
+    ) -> dict[str, Any]:
+        auth_context.validate()
+        if profile.tenant_id != auth_context.tenant_id:
+            raise AuthorizationError("CROSS_TENANT_ACCESS")
+        _require_profile_admin(self.authorization_policy, auth_context)
+        # V26 automatically selects prerequisite privileges in the profile editor.
+        profile = replace(profile, privileges=normalize_project_privileges(profile.privileges))
+        current = self.repository.get_profile(auth_context.tenant_id, profile.profile_id)
+        if current is not None and profile.is_default != current.is_default:
+            profile = replace(profile, is_default=current.is_default)
+        stored = self.repository.save_profile(
+            profile, actor_id=auth_context.user_id, expected_revision=expected_revision
+        )
+        return {"contract_version": P6_PROJECT_SECURITY_API_VERSION, "profile": _profile_dto(stored)}
+
+    def duplicate_profile(
+        self, source_profile_id: str, new_profile_id: str, new_name: str, *,
+        auth_context: AuthorizationContext,
+    ) -> dict[str, Any]:
+        auth_context.validate()
+        _require_profile_admin(self.authorization_policy, auth_context)
+        profile = self.repository.duplicate_profile(
+            auth_context.tenant_id, source_profile_id, new_profile_id=new_profile_id,
+            new_name=new_name, actor_id=auth_context.user_id,
+        )
+        return {"contract_version": P6_PROJECT_SECURITY_API_VERSION, "profile": _profile_dto(profile)}
+
+    def set_default(
+        self, profile_id: str, *, expected_revision: int,
+        auth_context: AuthorizationContext,
+    ) -> dict[str, Any]:
+        auth_context.validate()
+        _require_profile_admin(self.authorization_policy, auth_context)
+        if profile_id == P6_PROJECT_SUPERUSER_PROFILE_ID:
+            is_superuser = getattr(self.authorization_policy, "is_admin_superuser", None)
+            if not callable(is_superuser) or not is_superuser(auth_context):
+                raise AuthorizationError("PROJECT_SUPERUSER_PROFILE_DEFAULT_REQUIRES_ADMIN_SUPERUSER")
+        stored = self.repository.set_default_profile(
+            auth_context.tenant_id, profile_id, actor_id=auth_context.user_id,
+            expected_revision=expected_revision,
+        )
+        return {"contract_version": P6_PROJECT_SECURITY_API_VERSION, "profile": _profile_dto(stored)}
+
+    def delete_profile(
+        self, profile_id: str, *, expected_revision: int,
+        auth_context: AuthorizationContext,
+    ) -> None:
+        auth_context.validate()
+        _require_profile_admin(self.authorization_policy, auth_context)
+        self.repository.delete_profile(
+            auth_context.tenant_id, profile_id, actor_id=auth_context.user_id,
+            expected_revision=expected_revision,
+        )
+
+    def assign_obs(
+        self, user_id: str, obs_id: str, profile_id: str | None = None, *,
+        auth_context: AuthorizationContext,
+    ) -> dict[str, Any]:
+        auth_context.validate()
+        _require_user_admin(self.authorization_policy, auth_context)
+        is_superuser = getattr(self.authorization_policy, "is_admin_superuser", None)
+        allow_project_superuser = bool(callable(is_superuser) and is_superuser(auth_context))
+        try:
+            grant = self.repository.assign_obs(
+                P6OBSProjectGrant(auth_context.tenant_id, user_id, obs_id, profile_id or ""),
+                actor_id=auth_context.user_id,
+                allow_project_superuser=allow_project_superuser,
+            )
+        except P6ProjectSecurityPersistenceError as exc:
+            if str(exc) == "PROJECT_SUPERUSER_ASSIGNMENT_REQUIRES_ADMIN_SUPERUSER":
+                raise AuthorizationError(str(exc)) from exc
+            raise
+        return {"contract_version": P6_PROJECT_SECURITY_API_VERSION, "grant": _grant_dto(grant)}
+
+    def revoke_obs(
+        self, user_id: str, obs_id: str, *, auth_context: AuthorizationContext,
+    ) -> None:
+        auth_context.validate()
+        _require_user_admin(self.authorization_policy, auth_context)
+        self.repository.revoke_obs(
+            auth_context.tenant_id, user_id, obs_id, actor_id=auth_context.user_id
+        )
+
+    def list_obs_nodes(self, *, auth_context: AuthorizationContext) -> dict[str, Any]:
+        auth_context.validate()
+        _require_user_admin(self.authorization_policy, auth_context)
+        nodes = self.repository.list_obs_nodes(auth_context.tenant_id)
+        return {
+            "contract_version": P6_PROJECT_SECURITY_API_VERSION,
+            "obs_nodes": [
+                {
+                    "obs_id": node.obs_id,
+                    "parent_obs_id": node.parent_obs_id,
+                    "code": node.code,
+                    "name": node.name,
+                    "manager_user_id": node.manager_user_id,
+                    "sequence_number": node.sequence_number,
+                }
+                for node in nodes
+            ],
+        }
+
+    def list_user_grants(
+        self, user_id: str, *, auth_context: AuthorizationContext,
+    ) -> dict[str, Any]:
+        auth_context.validate()
+        _require_user_admin(self.authorization_policy, auth_context)
+        grants = self.repository.list_user_grants(auth_context.tenant_id, user_id)
+        return {
+            "contract_version": P6_PROJECT_SECURITY_API_VERSION,
+            "grants": [
+                {"user_id": item.user_id, "obs_id": item.obs_id, "profile_id": item.profile_id}
+                for item in grants
+            ],
+        }
+
+
+__all__ = ["P6_PROJECT_SECURITY_API_VERSION", "P6ProjectSecurityAPI"]

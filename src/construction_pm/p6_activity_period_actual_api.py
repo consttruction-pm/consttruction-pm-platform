@@ -10,6 +10,7 @@ from .application.authorization import (
     Permission,
 )
 from .backend_p0.models import BackendScope
+from .p6_project_security import require_project_privilege
 from .p6_activity_period_actual_repository import (
     P6ActivityPeriodActual,
     P6ActivityPeriodActualApplicationService,
@@ -75,6 +76,7 @@ class P6ActivityPeriodActualAPI:
     ) -> dict[str, Any]:
         _require_scope(actual.scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        require_project_privilege(self.authorization_policy, auth_context, "edit_period_performance")
         return _dto(self.service.save(actual))
 
     def get(

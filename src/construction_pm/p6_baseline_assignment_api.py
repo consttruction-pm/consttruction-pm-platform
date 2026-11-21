@@ -12,6 +12,7 @@ from .application.authorization import (
     Permission,
 )
 from .backend_p0.models import BackendScope
+from .p6_project_security import require_project_privilege
 from .p6_baseline_assignment import (
     P6BaselineAssignmentService,
     require_baseline_role,
@@ -88,6 +89,7 @@ class P6BaselineAssignmentAPI:
         _require_permission(
             self.authorization_policy, auth_context, Permission.PROJECT_WRITE
         )
+        require_project_privilege(self.authorization_policy, auth_context, "assign_project_baselines")
         _require_revision(scope, expected_revision)
         role = require_baseline_role(role)
         if not isinstance(baseline_id, str) or not baseline_id.strip():

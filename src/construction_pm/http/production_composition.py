@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from dataclasses import replace
 from typing import Callable, Mapping
 
 from construction_pm.application.authorization import AuthorizationContext, AuthorizationPolicy
@@ -43,6 +44,8 @@ from construction_pm.p6_resource_rate_read_api import P6ResourceRateReadAPI
 from construction_pm.p6_resource_rate_write_api import P6ResourceRateWriteAPI
 from construction_pm.p6_resource_read_api import P6ResourceReadAPI
 from construction_pm.p6_resource_write_api import P6ResourceWriteAPI
+from construction_pm.p6_resource_spread_api import P6ResourceSpreadAPI
+from construction_pm.p6_code_api import P6CodeAPI, P6CodeAssignmentAPI
 from construction_pm.p6_relationship_api import P6RelationshipAPI
 from construction_pm.p6_constraint_api import P6ConstraintAPI
 from construction_pm.constraint_master_repository import ConstraintMasterRepository
@@ -53,6 +56,8 @@ from construction_pm.p6_expense_api import P6ExpenseAPI
 from construction_pm.p6_cost_account_api import P6CostAccountAPI
 from construction_pm.project_checkout import ProjectCheckoutLease
 from construction_pm.p6_obs_api import P6OBSNodeAPI
+from construction_pm.p6_project_security_api import P6ProjectSecurityAPI
+from construction_pm.p6_associated_resource_api import P6AssociatedResourceAPI
 from construction_pm.p6_financial_period_api import P6FinancialPeriodAPI
 from construction_pm.p6_issue_api import P6IssueAPI
 from construction_pm.p6_activity_step_api import P6ActivityStepReadAPI
@@ -154,6 +159,8 @@ def build_project_lifecycle_wsgi_app(
     p6_expense_api: P6ExpenseAPI | None = None,
     p6_cost_account_api: P6CostAccountAPI | None = None,
     p6_obs_node_api: P6OBSNodeAPI | None = None,
+    p6_project_security_api: P6ProjectSecurityAPI | None = None,
+    p6_associated_resource_api: P6AssociatedResourceAPI | None = None,
     p6_financial_period_api: P6FinancialPeriodAPI | None = None,
     p6_issue_api: P6IssueAPI | None = None,
     p6_activity_step_api: P6ActivityStepReadAPI | None = None,
@@ -182,6 +189,9 @@ def build_project_lifecycle_wsgi_app(
     cost_inputs_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, AuthorizationContext], LevelingCostInputs | None] | None = None,
     resource_read_api: P6ResourceReadAPI | None = None,
     resource_write_api: P6ResourceWriteAPI | None = None,
+    p6_resource_spread_api: P6ResourceSpreadAPI | None = None,
+    p6_code_api: P6CodeAPI | None = None,
+    p6_code_assignment_api: P6CodeAssignmentAPI | None = None,
     p6_resource_capacity_read_api: P6ResourceCapacityReadAPI | None = None,
     p6_resource_capacity_write_api: P6ResourceCapacityWriteAPI | None = None,
     p6_resource_rate_read_api: P6ResourceRateReadAPI | None = None,
@@ -217,6 +227,61 @@ def build_project_lifecycle_wsgi_app(
     The assistant provider is wired only through an explicit dependency or
     CUBI_AI_ENABLED=true with server-only CUBI_AI_* environment configuration.
     """
+    # A persisted P6 global-security policy must reach every resource-bearing
+    # API through the same tenant-scoped resource master. Do not silently mount
+    # a policy-aware API without the ancestry repository it needs.
+    if callable(getattr(authorization_policy, "can_access_resource", None)):
+        resource_apis = (
+            p6_resource_api, resource_read_api, resource_write_api,
+            p6_resource_spread_api, p6_resource_capacity_read_api, p6_resource_capacity_write_api,
+            p6_resource_rate_read_api, p6_resource_rate_write_api,
+        )
+        resource_master_repository = (
+            tracking_resource_repository
+            if tracking_resource_repository is not None
+            else getattr(p6_resource_api, "repository", None)
+        )
+        if any(api is not None for api in resource_apis) and resource_master_repository is None:
+            raise ValueError("P6_RESOURCE_ACCESS_REPOSITORY_REQUIRED")
+        if p6_resource_api is not None:
+            p6_resource_api = replace(
+                p6_resource_api, authorization_policy=authorization_policy
+            )
+        if resource_read_api is not None:
+            resource_read_api = replace(
+                resource_read_api, authorization_policy=authorization_policy,
+                resource_repository=resource_master_repository,
+            )
+        if resource_write_api is not None:
+            resource_write_api = replace(
+                resource_write_api, authorization_policy=authorization_policy,
+                resource_repository=resource_master_repository,
+            )
+        if p6_resource_spread_api is not None:
+            p6_resource_spread_api = replace(
+                p6_resource_spread_api, authorization_policy=authorization_policy,
+                resource_repository=resource_master_repository,
+            )
+        if p6_resource_capacity_read_api is not None:
+            p6_resource_capacity_read_api = replace(
+                p6_resource_capacity_read_api, authorization_policy=authorization_policy,
+                resource_repository=tracking_resource_repository,
+            )
+        if p6_resource_capacity_write_api is not None:
+            p6_resource_capacity_write_api = replace(
+                p6_resource_capacity_write_api, authorization_policy=authorization_policy,
+                resource_repository=tracking_resource_repository,
+            )
+        if p6_resource_rate_read_api is not None:
+            p6_resource_rate_read_api = replace(
+                p6_resource_rate_read_api, authorization_policy=authorization_policy,
+                resource_repository=tracking_resource_repository,
+            )
+        if p6_resource_rate_write_api is not None:
+            p6_resource_rate_write_api = replace(
+                p6_resource_rate_write_api, authorization_policy=authorization_policy,
+                resource_repository=tracking_resource_repository,
+            )
     resolved_environment = os.environ if environment is None else environment
     assistant_enabled = resolved_environment.get(
         "CUBI_AI_ENABLED", ""
@@ -441,6 +506,8 @@ def build_project_lifecycle_wsgi_app(
         p6_expense_api=p6_expense_api,
         p6_cost_account_api=p6_cost_account_api,
         p6_obs_node_api=p6_obs_node_api,
+        p6_project_security_api=p6_project_security_api,
+        p6_associated_resource_api=p6_associated_resource_api,
         p6_financial_period_api=p6_financial_period_api,
         p6_issue_api=p6_issue_api,
         p6_activity_step_api=p6_activity_step_api,
@@ -456,6 +523,9 @@ def build_project_lifecycle_wsgi_app(
         backup_api=backup_api,
         p6_resource_read_api=resource_read_api,
         p6_resource_write_api=resource_write_api,
+        p6_resource_spread_api=p6_resource_spread_api,
+        p6_code_api=p6_code_api,
+        p6_code_assignment_api=p6_code_assignment_api,
         p6_resource_capacity_read_api=p6_resource_capacity_read_api,
         p6_resource_capacity_write_api=p6_resource_capacity_write_api,
         p6_resource_rate_read_api=p6_resource_rate_read_api,

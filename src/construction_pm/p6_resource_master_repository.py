@@ -100,6 +100,25 @@ def _from_row(row: tuple[object, ...]) -> P6Resource:
 
 
 class SQLiteP6ResourceRepository:
+    def _persist_enterprise_identity(self, resource: P6Resource) -> None:
+        self.connection.execute(
+            "INSERT INTO p6_enterprise_resource_identity "
+            "(tenant_id,resource_id,name,resource_type,parent_resource_id,email,is_active,record_revision) "
+            "VALUES(?,?,?,?,?,?,?,1) ON CONFLICT(tenant_id,resource_id) DO UPDATE SET "
+            "name=excluded.name,resource_type=excluded.resource_type,"
+            "parent_resource_id=excluded.parent_resource_id,email=excluded.email,"
+            "is_active=excluded.is_active,record_revision=p6_enterprise_resource_identity.record_revision+1",
+            (resource.tenant_id, resource.resource_id, resource.name, resource.resource_type,
+             resource.parent_resource_id, resource.email, int(resource.is_active)),
+        )
+        self.connection.execute(
+            "UPDATE p6_resource_master SET name=?,resource_type=?,parent_resource_id=?,email=?,"
+            "is_active=?,record_revision=record_revision+1 WHERE tenant_id=? AND resource_id=? "
+            "AND project_id<>?",
+            (resource.name, resource.resource_type, resource.parent_resource_id, resource.email,
+             int(resource.is_active), resource.tenant_id, resource.resource_id, resource.project_id),
+        )
+
     def __init__(self, connection: sqlite3.Connection) -> None:
         self.connection = connection
         self.connection.execute(
@@ -113,6 +132,24 @@ class SQLiteP6ResourceRepository:
               record_revision INTEGER NOT NULL DEFAULT 0,
               PRIMARY KEY (tenant_id, project_id, resource_id)
             )"""
+        )
+        self.connection.execute(
+            """CREATE TABLE IF NOT EXISTS p6_enterprise_resource_identity (
+              tenant_id TEXT NOT NULL, resource_id TEXT NOT NULL, name TEXT NOT NULL,
+              resource_type TEXT NOT NULL, parent_resource_id TEXT, email TEXT,
+              is_active INTEGER NOT NULL, record_revision INTEGER NOT NULL DEFAULT 1,
+              PRIMARY KEY (tenant_id,resource_id)
+            )"""
+        )
+        self.connection.execute(
+            "INSERT OR IGNORE INTO p6_enterprise_resource_identity "
+            "(tenant_id,resource_id,name,resource_type,parent_resource_id,email,is_active,record_revision) "
+            "SELECT tenant_id,resource_id,MIN(name),MIN(resource_type),MIN(parent_resource_id),"
+            "MIN(email),MIN(is_active),MAX(record_revision) FROM p6_resource_master "
+            "GROUP BY tenant_id,resource_id HAVING COUNT(DISTINCT name)=1 "
+            "AND COUNT(DISTINCT resource_type)=1 "
+            "AND COUNT(DISTINCT COALESCE(parent_resource_id,''))=1 "
+            "AND COUNT(DISTINCT COALESCE(email,''))=1 AND COUNT(DISTINCT is_active)=1"
         )
         self.connection.commit()
 
@@ -162,6 +199,7 @@ class SQLiteP6ResourceRepository:
                     stored.record_revision,
                 ),
             )
+            self._persist_enterprise_identity(stored)
             self.connection.commit()
             return stored
         current = int(row[9])
@@ -208,6 +246,7 @@ class SQLiteP6ResourceRepository:
         )
         if self.connection.execute("SELECT changes()").fetchone()[0] != 1:
             raise ValueError("REVISION_CONFLICT")
+        self._persist_enterprise_identity(stored)
         self.connection.commit()
         return stored
 
@@ -233,6 +272,25 @@ class SQLiteP6ResourceRepository:
 
 
 class PostgresP6ResourceRepository:
+    def _persist_enterprise_identity(self, resource: P6Resource) -> None:
+        self.connection.execute(
+            "INSERT INTO p6_enterprise_resource_identity "
+            "(tenant_id,resource_id,name,resource_type,parent_resource_id,email,is_active,record_revision) "
+            "VALUES(%s,%s,%s,%s,%s,%s,%s,1) ON CONFLICT (tenant_id,resource_id) DO UPDATE SET "
+            "name=EXCLUDED.name,resource_type=EXCLUDED.resource_type,"
+            "parent_resource_id=EXCLUDED.parent_resource_id,email=EXCLUDED.email,"
+            "is_active=EXCLUDED.is_active,record_revision=p6_enterprise_resource_identity.record_revision+1",
+            (resource.tenant_id, resource.resource_id, resource.name, resource.resource_type,
+             resource.parent_resource_id, resource.email, resource.is_active),
+        )
+        self.connection.execute(
+            "UPDATE p6_resource_master SET name=%s,resource_type=%s,parent_resource_id=%s,email=%s,"
+            "is_active=%s,record_revision=record_revision+1 WHERE tenant_id=%s AND resource_id=%s "
+            "AND project_id<>%s",
+            (resource.name, resource.resource_type, resource.parent_resource_id, resource.email,
+             resource.is_active, resource.tenant_id, resource.resource_id, resource.project_id),
+        )
+
     def __init__(self, connection: object) -> None:
         self.connection = connection
 
@@ -248,6 +306,25 @@ class PostgresP6ResourceRepository:
               record_revision BIGINT NOT NULL DEFAULT 0,
               PRIMARY KEY (tenant_id, project_id, resource_id)
             )"""
+        )
+        self.connection.execute(
+            """CREATE TABLE IF NOT EXISTS p6_enterprise_resource_identity (
+              tenant_id TEXT NOT NULL, resource_id TEXT NOT NULL, name TEXT NOT NULL,
+              resource_type TEXT NOT NULL, parent_resource_id TEXT, email TEXT,
+              is_active BOOLEAN NOT NULL, record_revision BIGINT NOT NULL DEFAULT 1,
+              PRIMARY KEY (tenant_id,resource_id)
+            )"""
+        )
+        self.connection.execute(
+            "INSERT INTO p6_enterprise_resource_identity "
+            "(tenant_id,resource_id,name,resource_type,parent_resource_id,email,is_active,record_revision) "
+            "SELECT tenant_id,resource_id,MIN(name),MIN(resource_type),MIN(parent_resource_id),"
+            "MIN(email),BOOL_AND(is_active),MAX(record_revision) FROM p6_resource_master "
+            "GROUP BY tenant_id,resource_id HAVING COUNT(DISTINCT name)=1 "
+            "AND COUNT(DISTINCT resource_type)=1 "
+            "AND COUNT(DISTINCT COALESCE(parent_resource_id,''))=1 "
+            "AND COUNT(DISTINCT COALESCE(email,''))=1 AND COUNT(DISTINCT is_active)=1 "
+            "ON CONFLICT (tenant_id,resource_id) DO NOTHING"
         )
 
     def save(
@@ -296,6 +373,7 @@ class PostgresP6ResourceRepository:
                     stored.record_revision,
                 ),
             )
+            self._persist_enterprise_identity(stored)
             return stored
         current = int(row[1])
         if expected_revision is not None and expected_revision != current:
@@ -342,6 +420,7 @@ class PostgresP6ResourceRepository:
         ).fetchone()
         if updated is None:
             raise ValueError("REVISION_CONFLICT")
+        self._persist_enterprise_identity(stored)
         return stored
 
     def get(

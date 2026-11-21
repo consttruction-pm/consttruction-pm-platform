@@ -11,6 +11,9 @@ from .application.authorization import (
     Permission,
 )
 from .backend_p0.models import BackendScope
+from .p6_project_security import require_project_privilege
+from .p6_resource_master_repository import P6ResourceRepository
+from .p6_resource_access import resource_is_accessible, require_resource_access
 from .p6_resource_spread_repository import (
     P6ResourceSpreadApplicationService,
     P6ResourceSpreadBucket,
@@ -44,6 +47,7 @@ class P6ResourceSpreadAPI:
 
     spread_service: P6ResourceSpreadApplicationService
     authorization_policy: AuthorizationPolicy
+    resource_repository: P6ResourceRepository | None = None
 
     def list(
         self,
@@ -55,7 +59,13 @@ class P6ResourceSpreadAPI:
         _require_scope(scope, auth_context)
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_READ):
             raise AuthorizationError("RESOURCE_SPREAD_READ_NOT_AUTHORIZED")
-        return [_bucket_dto(item) for item in self.spread_service.list(scope, spread_id)]
+        return [
+            _bucket_dto(item) for item in self.spread_service.list(scope, spread_id)
+            if resource_is_accessible(
+                self.authorization_policy, self.resource_repository, scope,
+                item.resource_id, auth_context,
+            )
+        ]
 
     def get(
         self,
@@ -69,7 +79,12 @@ class P6ResourceSpreadAPI:
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_READ):
             raise AuthorizationError("RESOURCE_SPREAD_READ_NOT_AUTHORIZED")
         item = self.spread_service.read(scope, spread_id, period_id)
-        return None if item is None else _bucket_dto(item)
+        if item is None or not resource_is_accessible(
+            self.authorization_policy, self.resource_repository, scope,
+            item.resource_id, auth_context,
+        ):
+            return None
+        return _bucket_dto(item)
 
     def save(
         self,
@@ -80,6 +95,11 @@ class P6ResourceSpreadAPI:
         _require_scope(bucket.scope, auth_context)
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
             raise AuthorizationError("RESOURCE_SPREAD_WRITE_NOT_AUTHORIZED")
+        require_project_privilege(self.authorization_policy, auth_context, "edit_future_periods")
+        require_resource_access(
+            self.authorization_policy, self.resource_repository, bucket.scope,
+            bucket.resource_id, auth_context,
+        )
         return _bucket_dto(self.spread_service.save(bucket))
 
 

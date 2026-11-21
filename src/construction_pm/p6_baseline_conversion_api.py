@@ -12,6 +12,7 @@ from .application.authorization import (
     Permission,
 )
 from .backend_p0.models import BackendScope
+from .p6_project_security import require_project_privilege
 from .p6_baseline_conversion import P6BaselineConversionService
 from .p6_baseline_repository import P6Baseline
 
@@ -111,6 +112,7 @@ class P6BaselineConversionAPI:
             auth_context,
             Permission.PROJECT_WRITE,
         )
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_project_baselines")
         _require_revision(target_scope, expected_revision)
         if source_baseline_id is not None and (
             not isinstance(source_baseline_id, str)

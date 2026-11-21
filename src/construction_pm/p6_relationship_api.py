@@ -6,6 +6,7 @@ from typing import Any
 from .application.authorization import AuthorizationContext, AuthorizationError, AuthorizationPolicy, Permission
 from .activity_master_repository import ActivityMasterRepository
 from .backend_p0.models import BackendScope
+from .p6_project_security import require_project_privilege
 from .project_checkout import (
     ProjectCheckoutLease,
     require_project_write_ownership,
@@ -65,6 +66,7 @@ class P6RelationshipAPI:
     def create(self, relationship: RelationshipMaster, *, auth_context: AuthorizationContext, expected_revision: int | None = None) -> dict[str, Any]:
         _require_scope(relationship.scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_activity_relationships")
         require_project_write_ownership(
             self.checkout_lease, relationship.scope, auth_context
         )
@@ -74,6 +76,7 @@ class P6RelationshipAPI:
     def update(self, relationship: RelationshipMaster, *, expected_revision: int, auth_context: AuthorizationContext) -> dict[str, Any]:
         _require_scope(relationship.scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_activity_relationships")
         require_project_write_ownership(
             self.checkout_lease, relationship.scope, auth_context
         )
@@ -126,6 +129,7 @@ class P6RelationshipAPI:
     def delete(self, scope: BackendScope, relationship_id: str, *, expected_revision: int, auth_context: AuthorizationContext) -> dict[str, Any]:
         _require_scope(scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_activity_relationships")
         require_project_write_ownership(self.checkout_lease, scope, auth_context)
         deleted = self.repository.delete(scope, relationship_id, expected_revision=expected_revision)
         return {

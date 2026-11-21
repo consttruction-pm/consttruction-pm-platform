@@ -2,6 +2,7 @@ import os
 import threading
 from concurrent.futures import ThreadPoolExecutor
 import uuid
+from dataclasses import replace
 import pytest
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.p6_code_repository import P6CodeDefinition, P6CodeValue, P6CodePersistenceError, PostgresP6CodeRepository
@@ -56,3 +57,16 @@ def test_postgres_concurrent_identical_upsert_is_idempotent():
         results = [future.result(timeout=10) for future in futures]
 
     assert results == [item, item]
+
+
+def test_postgres_persists_secure_code_status_and_rejects_status_downgrade():
+    with connect() as conn:
+        repo = PostgresP6CodeRepository(conn)
+        repo.initialize()
+        scope = BackendScope("tenant-secure-code-pg", f"project-{uuid.uuid4().hex}", 1)
+        secure = replace(definition(scope), is_secure=True)
+        assert repo.upsert(secure) == secure
+        assert repo.get(scope, "ACTIVITY_TYPE").is_secure is True
+        assert repo.list(scope)[0].is_secure is True
+        with pytest.raises(P6CodePersistenceError, match="IMMUTABLE_CODE_DEFINITION"):
+            repo.upsert(replace(secure, is_secure=False))

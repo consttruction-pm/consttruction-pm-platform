@@ -18,6 +18,7 @@ from .application.authorization import (
     Permission,
 )
 from .backend_p0.models import BackendScope
+from .p6_project_security import require_project_privilege
 from .constraint_master_repository import (
     ConstraintMaster,
     ConstraintMasterRepository,
@@ -91,6 +92,7 @@ class P6ConstraintAPI:
     ) -> dict[str, Any]:
         _require_scope(constraint.scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_activities_except_relationships")
         require_project_write_ownership(self.checkout_lease, constraint.scope, auth_context)
         self._validate_target(constraint)
         return _dto(self.repository.save(constraint, expected_revision=expected_revision))
@@ -104,6 +106,7 @@ class P6ConstraintAPI:
     ) -> dict[str, Any]:
         _require_scope(constraint.scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_activities_except_relationships")
         require_project_write_ownership(self.checkout_lease, constraint.scope, auth_context)
         self._validate_target(constraint)
         return _dto(self.repository.save(constraint, expected_revision=expected_revision))
@@ -140,6 +143,7 @@ class P6ConstraintAPI:
     ) -> dict[str, Any]:
         _require_scope(scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_activities_except_relationships")
         require_project_write_ownership(self.checkout_lease, scope, auth_context)
         deleted = self.repository.delete(
             scope, constraint_id, expected_revision=expected_revision

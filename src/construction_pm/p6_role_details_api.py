@@ -18,7 +18,10 @@ from .application.authorization import (
     AuthorizationPolicy,
     Permission,
 )
+from .backend_p0.models import BackendScope
+from .p6_project_security import require_project_privilege
 from .p6_resource_master_repository import P6ResourceRepository
+from .p6_resource_access import require_resource_access, resource_is_accessible
 from .p6_role_dictionary_repository import (
     P6RoleDictionaryRepository,
     P6RoleLimit,
@@ -101,6 +104,12 @@ class P6RoleDetailsAPI:
     resources: P6ResourceRepository
     dictionary: P6RoleDictionaryRepository
     authorization_policy: AuthorizationPolicy
+
+    def _resource_visible(self, tenant_id: str, project_id: str, project_revision: int, resource_id: str, auth: AuthorizationContext) -> bool:
+        return resource_is_accessible(
+            self.authorization_policy, self.resources,
+            BackendScope(tenant_id, project_id, project_revision), resource_id, auth,
+        )
 
     def _role(self, tenant_id: str, project_id: str, project_revision: int, role_id: str) -> P6Role:
         role = self.roles.get(tenant_id, project_id, project_revision, role_id)
@@ -232,6 +241,7 @@ class P6RoleDetailsAPI:
         role_id = _identifier(role_id, "INVALID_ROLE_ID")
         self._read_scope(tenant_id, project_id, project_revision, role_id, auth_context)
         items = self.dictionary.list_role_resources(tenant_id, project_id, project_revision, role_id)
+        items = tuple(item for item in items if self._resource_visible(tenant_id, project_id, project_revision, item.resource_id, auth_context))
         return {
             "contract_version": P6_ROLE_RESOURCE_API_VERSION,
             "kind": "role_resource_list",
@@ -254,10 +264,15 @@ class P6RoleDetailsAPI:
     ) -> dict[str, Any]:
         role_id = _identifier(role_id, "INVALID_ROLE_ID")
         self._write_scope(tenant_id, project_id, project_revision, role_id, auth_context)
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_role_assignments_resource_planning")
         resource_id = _identifier(resource_id, "INVALID_ROLE_RESOURCE_ID")
         resource = self.resources.get(tenant_id, project_id, project_revision, resource_id)
         if resource is None:
             raise ValueError("ROLE_RESOURCE_NOT_FOUND")
+        require_resource_access(
+            self.authorization_policy, self.resources,
+            BackendScope(tenant_id, project_id, project_revision), resource_id, auth_context,
+        )
         if expected_revision is not None and (
             isinstance(expected_revision, bool)
             or not isinstance(expected_revision, int)
@@ -296,8 +311,13 @@ class P6RoleDetailsAPI:
         role_id = _identifier(role_id, "INVALID_ROLE_ID")
         resource_id = _identifier(resource_id, "INVALID_ROLE_RESOURCE_ID")
         self._write_scope(tenant_id, project_id, project_revision, role_id, auth_context)
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_role_assignments_resource_planning")
         if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
             raise ValueError("INVALID_EXPECTED_REVISION")
+        require_resource_access(
+            self.authorization_policy, self.resources,
+            BackendScope(tenant_id, project_id, project_revision), resource_id, auth_context,
+        )
         self.dictionary.remove_role_resource(
             tenant_id, project_id, project_revision, role_id, resource_id,
             expected_revision=expected_revision,

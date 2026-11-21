@@ -34,6 +34,7 @@ class P6CodeDefinition:
     scope_kind: str
     scope_key: str
     values: tuple[P6CodeValue, ...] = ()
+    is_secure: bool = False
 
     def validate(self) -> None:
         self.scope.validate()
@@ -47,6 +48,8 @@ class P6CodeDefinition:
                 raise P6CodePersistenceError(f"INVALID_{name}")
         if self.scope_kind not in {"GLOBAL", "PROJECT", "EPS"}:
             raise P6CodePersistenceError("INVALID_SCOPE_KIND")
+        if not isinstance(self.is_secure, bool):
+            raise P6CodePersistenceError("INVALID_SECURE_CODE_FLAG")
         ids: set[str] = set()
         values: set[str] = set()
         for item in self.values:
@@ -77,11 +80,15 @@ class SQLiteP6CodeRepository:
           tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, project_revision INTEGER NOT NULL,
           code_id TEXT NOT NULL, name TEXT NOT NULL, subject_area TEXT NOT NULL,
           scope_kind TEXT NOT NULL, scope_key TEXT NOT NULL, values_json TEXT NOT NULL,
+          is_secure INTEGER NOT NULL DEFAULT 0 CHECK(is_secure IN (0,1)),
           PRIMARY KEY (tenant_id, project_id, code_id)
         );
         CREATE INDEX IF NOT EXISTS idx_p6_code_scope
           ON p6_code_definition(tenant_id, project_id, subject_area, scope_kind, code_id);
         """)
+        columns = {row[1] for row in self.connection.execute("PRAGMA table_info(p6_code_definition)")}
+        if "is_secure" not in columns:
+            self.connection.execute("ALTER TABLE p6_code_definition ADD COLUMN is_secure INTEGER NOT NULL DEFAULT 0")
         self.connection.commit()
 
     def upsert(self, definition: P6CodeDefinition) -> P6CodeDefinition:
@@ -89,21 +96,21 @@ class SQLiteP6CodeRepository:
         definition.validate()
         payload = json.dumps(_payload(definition), sort_keys=True, separators=(",", ":"))
         row = self.connection.execute(
-            "SELECT project_revision,name,subject_area,scope_kind,scope_key,values_json "
+            "SELECT project_revision,name,subject_area,scope_kind,scope_key,values_json,is_secure "
             "FROM p6_code_definition WHERE tenant_id=? AND project_id=? AND code_id=?",
             (definition.scope.tenant_id, definition.scope.project_id, definition.code_id),
         ).fetchone()
         if row is not None:
             if int(row[0]) != definition.scope.project_revision:
                 raise P6CodePersistenceError("REVISION_CONFLICT")
-            if tuple(row[1:]) != (definition.name, definition.subject_area, definition.scope_kind, definition.scope_key, payload):
+            if tuple(row[1:]) != (definition.name, definition.subject_area, definition.scope_kind, definition.scope_key, payload, int(definition.is_secure)):
                 raise P6CodePersistenceError("IMMUTABLE_CODE_DEFINITION")
             return definition
         self.connection.execute(
-            "INSERT INTO p6_code_definition VALUES (?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO p6_code_definition (tenant_id,project_id,project_revision,code_id,name,subject_area,scope_kind,scope_key,values_json,is_secure) VALUES (?,?,?,?,?,?,?,?,?,?)",
             (definition.scope.tenant_id, definition.scope.project_id, definition.scope.project_revision,
              definition.code_id, definition.name, definition.subject_area, definition.scope_kind,
-             definition.scope_key, payload),
+             definition.scope_key, payload, int(definition.is_secure)),
         )
         return definition
 
@@ -112,7 +119,7 @@ class SQLiteP6CodeRepository:
         if not isinstance(code_id, str) or not code_id.strip():
             raise P6CodePersistenceError("INVALID_CODE_ID")
         row = self.connection.execute(
-            "SELECT project_revision,code_id,name,subject_area,scope_kind,scope_key,values_json "
+            "SELECT project_revision,code_id,name,subject_area,scope_kind,scope_key,values_json,is_secure "
             "FROM p6_code_definition WHERE tenant_id=? AND project_id=? AND code_id=?",
             (scope.tenant_id, scope.project_id, code_id),
         ).fetchone()
@@ -124,7 +131,7 @@ class SQLiteP6CodeRepository:
 
     def list(self, scope: BackendScope, subject_area: str | None = None) -> tuple[P6CodeDefinition, ...]:
         scope.validate()
-        query = ("SELECT project_revision,code_id,name,subject_area,scope_kind,scope_key,values_json "
+        query = ("SELECT project_revision,code_id,name,subject_area,scope_kind,scope_key,values_json,is_secure "
                  "FROM p6_code_definition WHERE tenant_id=? AND project_id=? AND project_revision=?")
         params: tuple[object, ...] = (scope.tenant_id, scope.project_id, scope.project_revision)
         if subject_area is not None:
@@ -139,7 +146,7 @@ def _from_row(scope: BackendScope, row: tuple[object, ...]) -> P6CodeDefinition:
     import json
     try:
         values = tuple(P6CodeValue(str(v[0]), str(v[1]), None if v[2] is None else str(v[2])) for v in json.loads(row[6]))
-        result = P6CodeDefinition(scope, str(row[1]), str(row[2]), str(row[3]), str(row[4]), str(row[5]), values)
+        result = P6CodeDefinition(scope, str(row[1]), str(row[2]), str(row[3]), str(row[4]), str(row[5]), values, bool(row[7]))
         result.validate()
         return result
     except (TypeError, ValueError, KeyError, json.JSONDecodeError) as exc:
@@ -174,8 +181,9 @@ class PostgresP6CodeRepository:
             "CREATE TABLE IF NOT EXISTS p6_code_definition ("
             "tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, project_revision BIGINT NOT NULL, "
             "code_id TEXT NOT NULL, name TEXT NOT NULL, subject_area TEXT NOT NULL, scope_kind TEXT NOT NULL, "
-            "scope_key TEXT NOT NULL, values_json TEXT NOT NULL, PRIMARY KEY (tenant_id, project_id, code_id))"
+            "scope_key TEXT NOT NULL, values_json TEXT NOT NULL, is_secure BOOLEAN NOT NULL DEFAULT FALSE, PRIMARY KEY (tenant_id, project_id, code_id))"
         )
+        self.connection.execute("ALTER TABLE p6_code_definition ADD COLUMN IF NOT EXISTS is_secure BOOLEAN NOT NULL DEFAULT FALSE")
         self.connection.execute(
             "CREATE INDEX IF NOT EXISTS idx_p6_code_scope "
             "ON p6_code_definition(tenant_id, project_id, subject_area, scope_kind, code_id)"
@@ -187,15 +195,15 @@ class PostgresP6CodeRepository:
         payload = json.dumps(_payload(definition), sort_keys=True, separators=(",", ":"))
         self.connection.execute(
             "INSERT INTO p6_code_definition "
-            "(tenant_id,project_id,project_revision,code_id,name,subject_area,scope_kind,scope_key,values_json) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+            "(tenant_id,project_id,project_revision,code_id,name,subject_area,scope_kind,scope_key,values_json,is_secure) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
             "ON CONFLICT (tenant_id,project_id,code_id) DO NOTHING",
             (definition.scope.tenant_id,definition.scope.project_id,definition.scope.project_revision,
              definition.code_id,definition.name,definition.subject_area,definition.scope_kind,
-             definition.scope_key,payload),
+             definition.scope_key,payload,definition.is_secure),
         )
         row = self.connection.execute(
-            "SELECT project_revision,name,subject_area,scope_kind,scope_key,values_json "
+            "SELECT project_revision,name,subject_area,scope_kind,scope_key,values_json,is_secure "
             "FROM p6_code_definition WHERE tenant_id=%s AND project_id=%s AND code_id=%s",
             (definition.scope.tenant_id, definition.scope.project_id, definition.code_id),
         ).fetchone()
@@ -203,14 +211,14 @@ class PostgresP6CodeRepository:
             raise P6CodePersistenceError("CODE_DEFINITION_INSERT_FAILED")
         if int(row[0]) != definition.scope.project_revision:
             raise P6CodePersistenceError("REVISION_CONFLICT")
-        if tuple(row[1:]) != (definition.name, definition.subject_area, definition.scope_kind, definition.scope_key, payload):
+        if tuple(row[1:]) != (definition.name, definition.subject_area, definition.scope_kind, definition.scope_key, payload, definition.is_secure):
             raise P6CodePersistenceError("IMMUTABLE_CODE_DEFINITION")
         return definition
 
     def get(self, scope: BackendScope, code_id: str) -> P6CodeDefinition | None:
         scope.validate()
         row = self.connection.execute(
-            "SELECT project_revision,code_id,name,subject_area,scope_kind,scope_key,values_json "
+            "SELECT project_revision,code_id,name,subject_area,scope_kind,scope_key,values_json,is_secure "
             "FROM p6_code_definition WHERE tenant_id=%s AND project_id=%s AND code_id=%s",
             (scope.tenant_id,scope.project_id,code_id),
         ).fetchone()
@@ -222,7 +230,7 @@ class PostgresP6CodeRepository:
 
     def list(self, scope: BackendScope, subject_area: str | None = None) -> tuple[P6CodeDefinition, ...]:
         scope.validate()
-        query = ("SELECT project_revision,code_id,name,subject_area,scope_kind,scope_key,values_json "
+        query = ("SELECT project_revision,code_id,name,subject_area,scope_kind,scope_key,values_json,is_secure "
                  "FROM p6_code_definition WHERE tenant_id=%s AND project_id=%s AND project_revision=%s")
         params: tuple[object, ...] = (scope.tenant_id,scope.project_id,scope.project_revision)
         if subject_area is not None:

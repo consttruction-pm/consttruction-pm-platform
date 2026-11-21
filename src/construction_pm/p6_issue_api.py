@@ -13,6 +13,7 @@ from .application.authorization import (
     Permission,
 )
 from .backend_p0.models import BackendScope
+from .p6_project_security import require_project_privilege
 from .p6_issue_repository import (
     P6Issue,
     P6IssueEvent,
@@ -101,6 +102,7 @@ class P6IssueAPI:
     ) -> dict[str, Any]:
         _require_scope(issue.scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_issues_issue_thresholds")
         with self._transaction():
             stored = self.repository.create(
                 issue, actor_id=auth_context.user_id, occurred_at=occurred_at
@@ -154,6 +156,7 @@ class P6IssueAPI:
     ) -> dict[str, Any]:
         _require_scope(issue.scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_issues_issue_thresholds")
         with self._transaction():
             stored = self.repository.update(
                 issue,
@@ -174,6 +177,7 @@ class P6IssueAPI:
     ) -> dict[str, Any]:
         _require_scope(scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_issues_issue_thresholds")
         with self._transaction():
             deleted = self.repository.delete(
                 scope,
@@ -203,6 +207,7 @@ class P6IssueAPI:
     ) -> dict[str, Any]:
         _require_scope(scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_issues_issue_thresholds")
         with self._transaction():
             stored = self.repository.add_comment(
                 scope,

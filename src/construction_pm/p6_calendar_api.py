@@ -5,6 +5,7 @@ from typing import Any
 
 from .application.authorization import AuthorizationContext, AuthorizationError, AuthorizationPolicy, Permission
 from .backend_p0.models import BackendScope
+from .p6_project_security import require_project_privilege
 from .backend_p0.transactions import TransactionManager
 from .calendar_exception_repository import CalendarException, CalendarExceptionRepository
 from .calendar_master_repository import CalendarMaster, CalendarMasterRepository, CalendarPersistenceError
@@ -115,6 +116,7 @@ class P6CalendarAPI:
     def create(self, scope: BackendScope, request: P6CalendarCreateRequest, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         request.validate()
         self._authorize(scope, auth_context, Permission.PROJECT_WRITE)
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_project_calendars")
         base = self._resolve_base_calendar(scope, request)
         calendar = CalendarMaster(
             scope=scope,
@@ -144,6 +146,7 @@ class P6CalendarAPI:
     def update(self, scope: BackendScope, request: P6CalendarCreateRequest, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         request.validate()
         self._authorize(scope, auth_context, Permission.PROJECT_WRITE)
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_project_calendars")
         if request.expected_revision is None or request.expected_revision < 1:
             raise P6CalendarAPIError("EXPECTED_REVISION_REQUIRED_FOR_UPDATE")
         existing = self.calendar_repository.get(scope, request.calendar_id, request.calendar_version)
@@ -179,6 +182,7 @@ class P6CalendarAPI:
 
     def delete(self, scope: BackendScope, calendar_id: str, calendar_version: str, *, expected_revision: int, auth_context: AuthorizationContext) -> bool:
         self._authorize(scope, auth_context, Permission.PROJECT_WRITE)
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_project_calendars")
         # Calendar deletion clears the master and all associated rows. Keep
         # those mutations in the same application-owned transaction, just like
         # copy/replace, so any failure rolls the complete deletion back.
@@ -190,6 +194,7 @@ class P6CalendarAPI:
 
     def copy(self, scope: BackendScope, source_calendar_id: str, source_calendar_version: str, target_calendar_id: str, target_calendar_version: str, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         self._authorize(scope, auth_context, Permission.PROJECT_WRITE)
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_project_calendars")
         with self._transaction():
             source = self.calendar_repository.get(scope, source_calendar_id, source_calendar_version)
             if source is None:
@@ -207,6 +212,7 @@ class P6CalendarAPI:
 
     def replace(self, scope: BackendScope, target_calendar_id: str, target_calendar_version: str, source_calendar_id: str, source_calendar_version: str, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         self._authorize(scope, auth_context, Permission.PROJECT_WRITE)
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_project_calendars")
         with self._transaction():
             source = self.calendar_repository.get(scope, source_calendar_id, source_calendar_version)
             if source is None:
@@ -243,6 +249,7 @@ class P6CalendarAPI:
 
     def save_exception(self, exception: CalendarException, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         self._authorize(exception.scope, auth_context, Permission.PROJECT_WRITE)
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_project_calendars")
         stored = self.exception_repository.save(exception)
         return _exception_dto(stored)
 
@@ -265,6 +272,7 @@ class P6CalendarAPI:
         entry semantics, while the canonical date stays ISO Gregorian.
         """
         self._authorize(scope, auth_context, Permission.PROJECT_WRITE)
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_project_calendars")
         if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
             raise P6CalendarAPIError("EXPECTED_EXCEPTION_REVISION_REQUIRED")
         existing = self.exception_repository.get(scope, calendar_id, calendar_version, exception_date)
@@ -327,6 +335,7 @@ class P6CalendarAPI:
 
     def delete_exception(self, scope: BackendScope, calendar_id: str, calendar_version: str, exception_date: Any, *, auth_context: AuthorizationContext) -> bool:
         self._authorize(scope, auth_context, Permission.PROJECT_WRITE)
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_project_calendars")
         return bool(self.exception_repository.delete(scope, calendar_id, calendar_version, exception_date))
 
     def _transaction(self):
@@ -341,6 +350,7 @@ class P6CalendarAPI:
 
     def save_work_hours(self, rule: CalendarWorkHourRule, *, auth_context: AuthorizationContext) -> dict[str, object]:
         self._authorize(rule.scope, auth_context, Permission.PROJECT_WRITE)
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_project_calendars")
         existing = [
             item for item in self._work_hours().list(rule.scope, rule.calendar_id, rule.calendar_version, rule.kind)
             if item.weekday == rule.weekday
@@ -378,6 +388,7 @@ class P6CalendarAPI:
         calendar update and the resolver's definition hash changes with it.
         """
         self._authorize(rule.scope, auth_context, Permission.PROJECT_WRITE)
+        require_project_privilege(self.authorization_policy, auth_context, "add_edit_delete_project_calendars")
         if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
             raise P6CalendarAPIError("INVALID_EXPECTED_REVISION")
         master = self.calendar_repository.get(rule.scope, rule.calendar_id, rule.calendar_version)

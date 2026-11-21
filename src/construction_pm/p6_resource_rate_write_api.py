@@ -21,6 +21,8 @@ from .application.authorization import (
     Permission,
 )
 from .backend_p0.models import BackendScope
+from .p6_resource_master_repository import P6ResourceRepository
+from .p6_resource_access import require_resource_access
 from .p6_resource_rate_repository import (
     P6ResourceRateApplicationService,
     P6ResourceRateRecord,
@@ -110,6 +112,7 @@ class P6ResourceRateWriteAPI:
     service: P6ResourceRateApplicationService
     authorization_policy: AuthorizationPolicy
     clock: object | None = None
+    resource_repository: P6ResourceRepository | None = None
 
     def save_effective_change(
         self,
@@ -141,6 +144,7 @@ class P6ResourceRateWriteAPI:
         ):
             raise ResourceRateFactError("INVALID_RATE_CLOSE_FLAG")
         resource = _text(resource_id, "INVALID_RESOURCE_ID")
+        require_resource_access(self.authorization_policy, self.resource_repository, scope, resource, auth_context)
         if "/" in resource:
             raise ResourceRateFactError("INVALID_RESOURCE_ID")
         try:

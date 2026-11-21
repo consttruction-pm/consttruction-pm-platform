@@ -76,6 +76,35 @@ class P6ResourceAPI:
     authorization_policy: AuthorizationPolicy
     calendar_repository: CalendarMasterRepository
 
+    @staticmethod
+    def _resource_ancestry(
+        resource_id: str, parent_resource_id: str | None, items: tuple[P6Resource, ...]
+    ) -> tuple[str, ...]:
+        """Resolve self-to-root ancestry from the tenant/project-scoped master."""
+        by_id = {item.resource_id: item for item in items}
+        ancestry = [resource_id]
+        seen = {resource_id}
+        cursor = parent_resource_id
+        while cursor is not None:
+            if cursor in seen or cursor not in by_id:
+                raise ValueError("RESOURCE_HIERARCHY_INVALID")
+            seen.add(cursor)
+            ancestry.append(cursor)
+            cursor = by_id[cursor].parent_resource_id
+        return tuple(ancestry)
+
+    def _resource_access_allowed(
+        self, auth_context: AuthorizationContext, resource_id: str,
+        parent_resource_id: str | None, items: tuple[P6Resource, ...],
+    ) -> bool:
+        # Legacy/non-P6 policy adapters retain their established behavior. The
+        # persisted P6 global policy exposes this method and is always enforced.
+        checker = getattr(self.authorization_policy, "can_access_resource", None)
+        if not callable(checker):
+            return True
+        ancestry = self._resource_ancestry(resource_id, parent_resource_id, items)
+        return bool(checker(auth_context, resource_id, ancestry))
+
     def _validate_calendar(self, resource: P6Resource) -> None:
         if resource.calendar_id is None:
             # No explicit calendar: the project calendar resolves capacity at
@@ -125,6 +154,13 @@ class P6ResourceAPI:
             raise ValueError("RESOURCE_ALREADY_EXISTS")
         self._validate_calendar(resource)
         self._validate_parent(resource)
+        items = self.repository.list(
+            resource.tenant_id, resource.project_id, resource.project_revision
+        )
+        if not self._resource_access_allowed(
+            auth_context, resource.resource_id, resource.parent_resource_id, items
+        ):
+            raise AuthorizationError("RESOURCE_ACCESS_DENIED")
         return _dto(self.repository.save(resource))
 
     def update(
@@ -141,8 +177,23 @@ class P6ResourceAPI:
         if expected_revision < 1:
             raise ValueError("RESOURCE_REVISION_REQUIRED")
         resource.validate()
+        current = self.repository.get(
+            resource.tenant_id, resource.project_id, resource.project_revision,
+            resource.resource_id,
+        )
+        if current is None:
+            raise ValueError("RESOURCE_NOT_FOUND")
         self._validate_calendar(resource)
         self._validate_parent(resource)
+        items = self.repository.list(
+            resource.tenant_id, resource.project_id, resource.project_revision
+        )
+        if not self._resource_access_allowed(
+            auth_context, current.resource_id, current.parent_resource_id, items
+        ) or not self._resource_access_allowed(
+            auth_context, resource.resource_id, resource.parent_resource_id, items
+        ):
+            raise AuthorizationError("RESOURCE_ACCESS_DENIED")
         return _dto(
             self.repository.save(resource, expected_revision=expected_revision)
         )
@@ -163,7 +214,14 @@ class P6ResourceAPI:
         item = self.repository.get(
             tenant_id, project_id, project_revision, resource_id
         )
-        return None if item is None else _dto(item)
+        if item is None:
+            return None
+        items = self.repository.list(tenant_id, project_id, project_revision)
+        if not self._resource_access_allowed(
+            auth_context, item.resource_id, item.parent_resource_id, items
+        ):
+            return None
+        return _dto(item)
 
     def list(
         self,
@@ -178,7 +236,13 @@ class P6ResourceAPI:
             self.authorization_policy, auth_context, Permission.PROJECT_READ
         )
         items = self.repository.list(tenant_id, project_id, project_revision)
-        return tuple(_dto(item) for item in resource_tree_order(items))
+        visible = tuple(
+            item for item in items
+            if self._resource_access_allowed(
+                auth_context, item.resource_id, item.parent_resource_id, items
+            )
+        )
+        return tuple(_dto(item) for item in resource_tree_order(visible))
 
 
 __all__ = ["P6_RESOURCE_API_VERSION", "P6ResourceAPI"]
