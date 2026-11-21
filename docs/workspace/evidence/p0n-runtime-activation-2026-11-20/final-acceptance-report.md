@@ -119,9 +119,10 @@ All required checks passed on the code head `78bd3aac` (branch
 | typecheck (apps/client-sync) | success | 19 s | [44861097599](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/44861097599) |
 | Vercel – cubi-web-preview | success | — | preview deployment |
 
-The commit that adds this section is documentation-only and runs the same
-workflow; its checks are visible on the PR's commit list. Local evidence above was
-produced independently of CI and does not depend on it.
+The commit that adds this section (`b829f0c8`) changes only this file. GitHub did not
+schedule a workflow run for it, so the run set above — on the last commit that changed
+code and evidence, `78bd3aac` — is the complete CI result for this branch. Local evidence
+was produced independently of CI and does not depend on it.
 
 ## 6. Honest boundaries
 
