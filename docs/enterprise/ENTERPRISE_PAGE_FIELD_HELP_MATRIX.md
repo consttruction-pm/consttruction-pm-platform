@@ -43,15 +43,15 @@ green HTTP status alone is not enough.
 | 1 | CUBI Homepage | `/cubi/` | **VERIFIED** | Static product copy, official Help links, locale switching, browser pass | — |
 | 2 | Login / Authentication | `/cubi/login` | **WIRED_WRITE** | Preview persona login issues a real `cp_session`; production form targets `/api/session` | Production credential flow not exercisable in the demo preview |
 | 3 | Role & Permission Selection | `/cubi/roles` | **WIRED_READ** | Session roles/tenant read from the server; tier explained, never asserted | No role-assignment write API |
-| 4 | Personal Workbench Dashboard | `/cubi/workbench` → `/workbench/` | **VERIFIED** | Single canonical entry; redirect verified; enterprise card links to `/cubi/enterprise/dashboard` | — |
+| 4 | Personal Workbench Dashboard | `/cubi/workbench` → `/workbench/` | **VERIFIED** | Single canonical entry; enterprise card links to `/cubi/enterprise/dashboard`; server-authoritative environment probe with retry; sign-out returns to `/login` | — |
 | 5 | Environment Selector | `/cubi/environments` → `/workbench/` | **VERIFIED** | Same canonical entry; no parallel workbench rendered | — |
-| 6 | Enterprise Dashboard & Portlets | `/cubi/enterprise/dashboard` | **WIRED_WRITE** | Layout create/update on `/api/enterprise/dashboards`, revision-checked, server badge after reload | Portlet values (schedule/EVM/capacity) return 503 until Engineering read models connect; visibility is metadata only |
-| 7 | Portfolio & Executive Center | `/cubi/enterprise/portfolio` | **WIRED_WRITE** | Decisions create/list on `/api/enterprise/decisions`; decision form persists after reload | KPI/trend/EVM routes 503 `ENGINEERING_SOURCE_NOT_CONNECTED`; no numbers are derived |
-| 8 | Enterprise Projects / Project Portal | `/cubi/enterprise/projects` | **WIRED_READ** | Projects from `GET /api/projects`; risks/issues/documents read from existing project routes | No Enterprise project write here; EPS hierarchy has its own page (#18) |
+| 6 | Enterprise Dashboard & Portlets | `/cubi/enterprise/dashboard` | **WIRED_WRITE** | Layout create/update on `/api/enterprise/dashboards`, revision-checked, designer add/remove/reorder/resize, portlet text filter and project scope, server badge after reload | Portlet values (schedule/EVM/capacity) return 503 until Engineering read models connect; visibility is metadata only |
+| 7 | Portfolio & Executive Center | `/cubi/enterprise/portfolio` | **WIRED_WRITE** | Decisions create/list on `/api/enterprise/decisions`; register toolbar with server-text search, status filter and locale-aware sort; decision form persists after reload | KPI/trend/EVM routes 503 `ENGINEERING_SOURCE_NOT_CONNECTED`; no numbers are derived |
+| 8 | Enterprise Projects / Project Portal | `/cubi/enterprise/projects` | **WIRED_READ** | Projects from `GET /api/projects`; register search, status filter and sort; six-tab project portal reads official project routes | No Enterprise project write here; EPS hierarchy has its own page (#18) |
 | 9 | Organization & Access Center | `/cubi/enterprise/access` | **WIRED_WRITE** | Team, invitation and grant create; soft delete; tenant isolation, IDOR and admin gates covered by backend tests | Invitation acceptance not implemented; demo fixture rows are non-deletable |
 | 10 | Team & Task Center | `/cubi/enterprise/tasks` | **WIRED_WRITE** | Create/complete/PATCH with revision and idempotency; personal and project scope; register shows real rows | No task delete, team assignment or Engineering references by design |
 | 11 | Workflow Studio | `/cubi/enterprise/workflows` | **WIRED_WRITE** | Create draft and publish with server graph validation; `published_version` increments | No workflow approval/scheduling integration |
-| 12 | Feedback & Approval Center | `/cubi/enterprise/approvals` | **WIRED_WRITE** | Queue reads approvals; Review fills the revision; decision accepted once, stale/duplicate 409 shown to the user | Feedback write form is minimal; no reviewer assignment |
+| 12 | Feedback & Approval Center | `/cubi/enterprise/approvals` | **WIRED_WRITE** | Queue reads approvals; New approval creates a queue item; Review fills the revision; decision accepted once, stale/duplicate 409 shown to the user | No reviewer assignment; feedback write form is minimal |
 | 13 | Resources & Capacity | `/cubi/enterprise/resources` | **WIRED_READ** | Reads existing resource/capacity routes verbatim; no aggregation | No resource directory or assignment edit |
 | 14 | Reports & Operations | `/cubi/enterprise/reports` | **WIRED_READ** | Existing catalogue/definitions/jobs routes only; no parallel queue or worker | Report authoring/run from Enterprise is not opened |
 | 15 | Knowledge & PMBOK Center | `/cubi/enterprise/knowledge` | **WIRED_READ** | Real knowledge/forms routes | Seed is empty; no knowledge contribution write |
@@ -67,7 +67,7 @@ route, and carries a direct Help topic. Status vocabulary is unchanged.
 | 16 | Risk & Issue Management | `/cubi/enterprise/risks` | **WIRED_WRITE** | title · risk_type · severity · owner · description · status | *About Risks* <https://docs.oracle.com/cd/G48897_01/p6help/en/6628.htm> | Create/edit/soft delete/restore on `/api/enterprise/risks`; server validates type and severity; audit recorded | Schedule and cost impact stay in Engineering; no risk score is calculated |
 | 17 | Document & Information Management | `/cubi/enterprise/documents` | **WIRED_WRITE** | title · category · owner · link · description · status | *About Documents* <https://docs.oracle.com/cd/G48897_01/p6help/en/6620.htm> | Register of document identity and review state with revisions and audit | Binary storage is out of scope; the page states that instead of implying upload |
 | 18 | EPS / Project Hierarchy | `/cubi/enterprise/eps` | **WIRED_WRITE** | name · code · parent_id · description · status | *About the Enterprise Project Structure (EPS)* <https://docs.oracle.com/cd/G48897_01/p6help/en/6621.htm> | CUBI-owned EPS register with parent reference, revision history and audit | No CPM rollup; project dates remain Engineering facts |
-| 19 | Team Member My Activities | `/cubi/enterprise/member-activities` | **WIRED_READ** | — (read-only by design) | *About P6 Team Member Status Updates* <https://docs.oracle.com/cd/G48897_01/p6help/en/50904.htm> | Reads the authoritative `GET /api/projects/{id}/p6/activities` route and links back to Engineering | No write control; status updates are performed in Engineering |
+| 19 | Team Member My Activities | `/cubi/enterprise/member-activities` | **WIRED_READ** | — (read-only by design) | *About P6 Team Member Status Updates* <https://docs.oracle.com/cd/G48897_01/p6help/en/50904.htm> | Auto-selects the first authorized project, reads the authoritative `GET /api/projects/{id}/p6/activities` route, client-side search over returned rows, links back to Engineering | No write control; status updates are performed in Engineering |
 | 20 | Timesheets & Time Reporting | `/cubi/enterprise/timesheets` | **WIRED_WRITE** | user_id · work_date · hours · project_id · note · status | *About Timesheets* <https://docs.oracle.com/cd/G48897_01/p6help/en/6610.htm> | Server validates hours (0 < h ≤ 24) and ISO dates on create and patch; soft delete and audit | P6 timesheet approval and actuals remain Engineering-owned |
 | 21 | Notifications & Messaging | `/cubi/enterprise/notifications` | **WIRED_WRITE** | title · message · audience · channel · status | *About email Notifications* <https://docs.oracle.com/cd/G48897_01/p6help/en/6605.htm> | Notification records with audience and channel, revisions and audit | No external delivery is claimed unless the server reports it |
 | 22 | Enterprise Administration Settings | `/cubi/enterprise/settings` | **WIRED_WRITE** | key · value · description · status | *About Application Settings* <https://docs.oracle.com/cd/G48897_01/p6help/en/36403.htm> | Admin-only writes; a non-administrator receives 403 `ENTERPRISE_ADMIN_REQUIRED` | Settings are tenant records; no application restart or provisioning action |
@@ -75,10 +75,25 @@ route, and carries a direct Help topic. Status vocabulary is unchanged.
 | 24 | Audit & Activity Log | `/cubi/enterprise/audit` | **WIRED_READ** | — (append-only) | *About Table Auditing* <https://docs.oracle.com/cd/G48897_01/p6help/en/102813.htm> | Reads `GET /api/enterprise/audit`; `POST` answers 405 by design | No export or retention policy editor |
 | 25 | Resource Directory & Assignments | `/cubi/enterprise/directory` | **WIRED_WRITE** | display_name · email · role_title · team · capacity_hours · status | *About Resources* <https://docs.oracle.com/cd/G48897_01/p6help/en/6640.htm> | Tenant directory records with revision history and audit | Calendars, units and rates stay authoritative in Engineering; no leveling |
 
-Live verification for all 25 pages: `65/65` browser checks, `49/49` API checks,
-`43/43` locale checks, screenshots `01`–`25` in
-`artifacts/enterprise-preview/`. The register pages share one config-driven
-component (`pages/records.ts`) so the field contract is visible in one place.
+Live verification for all 25 pages remains recorded in `artifacts/enterprise-preview/`
+(screenshots `01`–`25`). The V26 entry-and-operations increment (2026-11-21)
+re-verified the 20 Enterprise data routes end to end and its artefacts are in
+`artifacts/enterprise-preview/v26/`:
+
+- 20/20 routes opened by direct URL and survived a hard refresh with the same
+  `h1`; back/forward restored Portfolio and Approvals correctly.
+- 5/5 personas (Enterprise administrator, Project administrator, Planner,
+  Viewer, New account) signed in to `/workbench/`; only the Enterprise
+  administrator reached `/cubi/enterprise/dashboard/`, every other persona was
+  redirected to `/workbench/`; sign-out returned to `/login` with `/api/session`
+  answering 401, and re-login succeeded.
+- Dashboard layout Save reached `/api/enterprise/dashboards` and the server-sync
+  badge survived a reload.
+- Persian switch produced `dir=rtl`, `lang=fa` and a localized `h1`; no
+  horizontal overflow at 1366×768 or 1280×720 in either Persian or English.
+
+The register pages share one config-driven component (`pages/records.ts`), so
+the field contract is visible in one place.
 
 ---
 

@@ -38,9 +38,11 @@ calculated by Enterprise.
 
 | Route | Behaviour |
 | --- | --- |
-| `/workbench/` | Personal Workbench, served from `apps/web/app.html` by the preview. Canonical signed-in entry to both environments. |
+| `/login` | Canonical sign-in document. In the preview it renders the persona card and preserves `next`; `/preview/login` remains a compatibility alias. |
+| `/workbench/` | Personal Workbench, served from `apps/web/app.html` by the preview. Canonical signed-in entry to both environments. Sign-out returns to `/login`. |
 | `/app` | Engineering workspace shell (unchanged). |
 | `/cubi/*` | Enterprise Workbench shell (`apps/web/enterprise.html`), own client router. |
+| `/enterprise` | Retired Engineering route: `308` to `/cubi/`, never `app.html`. |
 | `/cubi/workbench`, `/cubi/environments` | Redirect to `/workbench/`; no parallel workbench is rendered. |
 
 ### Preview-only routes (not part of the product contract)
@@ -48,7 +50,9 @@ calculated by Enterprise.
 | Method | Path | Purpose |
 | --- | --- | --- |
 | GET | `/preview/health` | capability probe used to decide whether the demo panel is shown |
-| POST | `/preview/login` | issues a demo session for a fixed persona; `next` accepts `/app…`, `/workbench/` and local `/cubi…` paths |
+| POST | `/preview/login` (alias `/login`) | issues a demo session for a fixed persona; `next` accepts `/app…`, `/workbench/` and local `/cubi…` paths |
+| DELETE | `/api/session` | revokes the preview session and clears `cp_session`; `204` |
+| POST | `/preview/logout` (alias `/logout`) | revokes the session and redirects to `/login` |
 | GET/DELETE | `/preview/logout`, `/preview/private-login` | existing preview session management |
 
 ## 2. Enterprise API — mounted on the preview runtime
@@ -254,3 +258,36 @@ state on its own.
   `HELP_REFERENCE_PENDING` in the help matrix.
 - Long-form page copy is reviewed in English and Persian; the other eight locales
   use the shared dictionary and fall back to English for missing keys.
+
+
+## 6. V26 addendum — entry routing, session sign-out and operational UI
+
+Recorded 2026-11-21 on `feat/cubi-entry-enterprise-operational`.
+
+1. **Preview canonical login.** `/login` now serves the same sign-in card as
+   `/preview/login`; anonymous requests to `/app`, `/workbench/` and
+   `/cubi/enterprise/*` redirect to `/login?next=…`. The post-login fallback is
+   `/workbench/`. `/enterprise` answers `308` to `/cubi/`.
+2. **Session termination.** `DELETE /api/session` revokes the preview session and
+   answers `204`; the Personal Workbench and the Enterprise shell both return to
+   `/login` after sign-out. A stale cookie no longer keeps `/login` in the
+   "signed in" state.
+3. **Workbench store surface.** `EnterpriseWorkbenchHttpMiddleware` serves
+   `GET/POST /api/enterprise/{kind}` and `GET/PATCH/DELETE
+   /api/enterprise/{kind}/{id}` plus `POST …/{id}/restore` for
+   organizations, users, teams, memberships, invitations, roles, grants,
+   workflows, approvals, feedback, portfolios, decisions, dashboards, risks,
+   documents, eps, timesheets, notifications, settings, forms and directory.
+   List filters: `q`, `status`, `project_id`, `include_deleted`, `limit`.
+   `approvals/{id}/decisions`, `workflows/{id}/publish` and `audit` (read-only)
+   are dedicated actions.
+4. **Operating surface.** Registers share a toolbar/sort/selection/detail/context
+   menu/CSV component; Portfolio, Projects, Tasks, Approvals, Dashboard, Workflow
+   and Member Activities have page-specific controls. The top bar adds global
+   search over served routes and readable projects (`Ctrl/Cmd+K`) and a
+   notification indicator based on `/api/enterprise/notifications`.
+5. **Production composition gap (unchanged blocker).** The production runtime
+   still mounts only `EnterpriseTaskHttpMiddleware`. The `/api/enterprise/{kind}`
+   workbench routes described above are mounted by the preview runtime; PR #2068
+   tracks the production composition change. No production deployment or
+   migration is claimed by this branch.

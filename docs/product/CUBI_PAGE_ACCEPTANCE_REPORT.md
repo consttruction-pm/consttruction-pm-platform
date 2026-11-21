@@ -5,6 +5,17 @@
 **Matrix:** `CUBI_MASTER_PAGE_COMPONENT_MATRIX.csv` / `.json` — 86 rows (25 initial + 61 remaining)
 **Rule applied:** a page is `VERIFIED` only with an observed browser proof; a route alone is never acceptance.
 
+> **V26 re-audit (2026-11-21, supersedes the Enterprise rows below).**
+> Branch `feat/cubi-entry-enterprise-operational` (PR #2089) on `main`
+> `b2b20793c`. All 20 Enterprise data routes are now served under `/cubi/*` by
+> `enterprise.html` and were opened by direct URL and hard refresh in the shared
+> preview (port 4191; 4180 was occupied by an unrelated stale server). The
+> persona matrix, controls, localization and limits are recorded in
+> `docs/enterprise/ENTERPRISE_V26_ENTRY_ROUTING_AND_OPERATIONS.md` with
+> artefacts in `artifacts/enterprise-preview/v26/`. Rows 16–25 below reflect the
+> older `/enterprise/` audit and must not be read as current Enterprise status.
+
+
 ## 1. Test evidence collected at this SHA
 
 | Gate | Result |

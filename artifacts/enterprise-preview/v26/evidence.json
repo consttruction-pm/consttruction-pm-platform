@@ -1,0 +1,956 @@
+{
+ "generated_at": "2026-11-21",
+ "preview": "http://127.0.0.1:4191 (shared preview, port 4180 was occupied by an unrelated stale server)",
+ "personas": {
+  "enterprise": {
+   "after_login_url": "http://127.0.0.1:4191/workbench/",
+   "workbench_h1": "Personal Workbench",
+   "api_session": [
+    200,
+    [
+     "enterprise_admin",
+     "project_admin"
+    ]
+   ],
+   "signout_visible": 1,
+   "enterprise_status": 200,
+   "enterprise_final_url": "http://127.0.0.1:4191/cubi/enterprise/dashboard/",
+   "enterprise_h1": "Enterprise dashboard & portlets",
+   "after_signout_url": "http://127.0.0.1:4191/login",
+   "session_after_signout": 401,
+   "login_cards": 5,
+   "relogin_url": "http://127.0.0.1:4191/workbench/"
+  },
+  "admin": {
+   "after_login_url": "http://127.0.0.1:4191/workbench/",
+   "workbench_h1": "Personal Workbench",
+   "api_session": [
+    200,
+    [
+     "project_admin"
+    ]
+   ],
+   "signout_visible": 1,
+   "enterprise_status": 200,
+   "enterprise_final_url": "http://127.0.0.1:4191/workbench/",
+   "enterprise_h1": "",
+   "after_signout_url": "http://127.0.0.1:4191/login",
+   "session_after_signout": 401,
+   "login_cards": 5,
+   "relogin_url": "http://127.0.0.1:4191/workbench/"
+  },
+  "planner": {
+   "after_login_url": "http://127.0.0.1:4191/workbench/",
+   "workbench_h1": "Personal Workbench",
+   "api_session": [
+    200,
+    [
+     "planner"
+    ]
+   ],
+   "signout_visible": 1,
+   "enterprise_status": 200,
+   "enterprise_final_url": "http://127.0.0.1:4191/workbench/",
+   "enterprise_h1": "",
+   "after_signout_url": "http://127.0.0.1:4191/login",
+   "session_after_signout": 401,
+   "login_cards": 5,
+   "relogin_url": "http://127.0.0.1:4191/workbench/"
+  },
+  "viewer": {
+   "after_login_url": "http://127.0.0.1:4191/workbench/",
+   "workbench_h1": "Personal Workbench",
+   "api_session": [
+    200,
+    [
+     "viewer"
+    ]
+   ],
+   "signout_visible": 1,
+   "enterprise_status": 200,
+   "enterprise_final_url": "http://127.0.0.1:4191/workbench/",
+   "enterprise_h1": "",
+   "after_signout_url": "http://127.0.0.1:4191/login",
+   "session_after_signout": 401,
+   "login_cards": 5,
+   "relogin_url": "http://127.0.0.1:4191/workbench/"
+  },
+  "newcomer": {
+   "after_login_url": "http://127.0.0.1:4191/workbench/",
+   "workbench_h1": "Personal Workbench",
+   "api_session": [
+    200,
+    [
+     "project_admin"
+    ]
+   ],
+   "signout_visible": 1,
+   "enterprise_status": 200,
+   "enterprise_final_url": "http://127.0.0.1:4191/workbench/",
+   "enterprise_h1": "",
+   "after_signout_url": "http://127.0.0.1:4191/login",
+   "session_after_signout": 401,
+   "login_cards": 5,
+   "relogin_url": "http://127.0.0.1:4191/workbench/"
+  }
+ },
+ "scenario": {
+  "portfolio_filter_rows": 1,
+  "portfolio_count_text": "0 of 2 projects returned by the server",
+  "portfolio_all_rows": 2,
+  "projects_filter_rows": 1,
+  "member_table": 1,
+  "member_rows": 14,
+  "member_search_enabled": true,
+  "approval_rows_after_create": 1,
+  "approval_revision_filled": "1",
+  "approval_result": "Decision recorded by the server. The queue will refresh.",
+  "task_create_enabled": true,
+  "task_rows": 1,
+  "task_status_after": "in_progress",
+  "http_failures": [
+   [
+    503,
+    "http://127.0.0.1:4191/api/enterprise/evm/capability"
+   ],
+   [
+    503,
+    "http://127.0.0.1:4191/api/enterprise/portfolio/indicators?project_id=preview-rps-01"
+   ],
+   [
+    503,
+    "http://127.0.0.1:4191/api/enterprise/portfolio/trends?project_id=preview-rps-01"
+   ]
+  ]
+ },
+ "navigation": {
+  "direct_and_refresh": {
+   "dashboard": {
+    "h1": "Enterprise dashboard & portlets",
+    "after_refresh": "Enterprise dashboard & portlets",
+    "ok": true
+   },
+   "portfolio": {
+    "h1": "Portfolio & executive center",
+    "after_refresh": "Portfolio & executive center",
+    "ok": true
+   },
+   "projects": {
+    "h1": "Enterprise projects",
+    "after_refresh": "Enterprise projects",
+    "ok": true
+   },
+   "access": {
+    "h1": "Organization & access center",
+    "after_refresh": "Organization & access center",
+    "ok": true
+   },
+   "tasks": {
+    "h1": "Team & task center",
+    "after_refresh": "Team & task center",
+    "ok": true
+   },
+   "workflows": {
+    "h1": "Workflow studio",
+    "after_refresh": "Workflow studio",
+    "ok": true
+   },
+   "approvals": {
+    "h1": "Feedback & approval center",
+    "after_refresh": "Feedback & approval center",
+    "ok": true
+   },
+   "resources": {
+    "h1": "Resources & capacity",
+    "after_refresh": "Resources & capacity",
+    "ok": true
+   },
+   "reports": {
+    "h1": "Reports & operations",
+    "after_refresh": "Reports & operations",
+    "ok": true
+   },
+   "knowledge": {
+    "h1": "Knowledge & PMBOK center",
+    "after_refresh": "Knowledge & PMBOK center",
+    "ok": true
+   },
+   "risks": {
+    "h1": "Risks & issues",
+    "after_refresh": "Risks & issues",
+    "ok": true
+   },
+   "documents": {
+    "h1": "Documents",
+    "after_refresh": "Documents",
+    "ok": true
+   },
+   "eps": {
+    "h1": "Enterprise project structure",
+    "after_refresh": "Enterprise project structure",
+    "ok": true
+   },
+   "member-activities": {
+    "h1": "Team member activities",
+    "after_refresh": "Team member activities",
+    "ok": true
+   },
+   "timesheets": {
+    "h1": "Timesheets",
+    "after_refresh": "Timesheets",
+    "ok": true
+   },
+   "notifications": {
+    "h1": "Notifications",
+    "after_refresh": "Notifications",
+    "ok": true
+   },
+   "settings": {
+    "h1": "Administration",
+    "after_refresh": "Administration",
+    "ok": true
+   },
+   "forms": {
+    "h1": "Form builder",
+    "after_refresh": "Form builder",
+    "ok": true
+   },
+   "audit": {
+    "h1": "Audit trail",
+    "after_refresh": "Audit trail",
+    "ok": true
+   },
+   "directory": {
+    "h1": "Resource directory",
+    "after_refresh": "Resource directory",
+    "ok": true
+   }
+  },
+  "back_h1": "Portfolio & executive center",
+  "forward_h1": "Feedback & approval center",
+  "server_sync_badge": 1,
+  "server_sync_after_reload": 1,
+  "fa": {
+   "dir": "rtl",
+   "lang": "fa",
+   "h1": "داشبورد و پورتلت‌های سازمانی"
+  },
+  "widths_fa": {
+   "1366x768": {
+    "overflow": false,
+    "sw": 1366,
+    "iw": 1366
+   },
+   "1280x720": {
+    "overflow": false,
+    "sw": 1280,
+    "iw": 1280
+   }
+  },
+  "widths_en_risks": {
+   "1366x768": {
+    "overflow": false,
+    "sw": 1366,
+    "iw": 1366
+   },
+   "1280x720": {
+    "overflow": false,
+    "sw": 1280,
+    "iw": 1280
+   }
+  }
+ },
+ "page_audit": {
+  "dashboard": {
+   "h1": "Enterprise dashboard & portlets",
+   "toolbar": 1,
+   "tables": 1,
+   "rows": 2,
+   "inputs": 3,
+   "forms": 0,
+   "buttons": [
+    "Refresh",
+    "Designer",
+    "Reset layout",
+    "narrow",
+    "✕",
+    "Try again",
+    "narrow",
+    "✕",
+    "narrow",
+    "✕",
+    "Try again",
+    "narrow",
+    "✕",
+    "Try again"
+   ],
+   "testids": [
+    "dashboard-toolbar",
+    "dashboard-selector",
+    "dashboard-project-filter",
+    "dashboard-text-filter",
+    "dashboard-portlets",
+    "portlet-schedule",
+    "portlet-portfolio",
+    "portlet-evm",
+    "portlet-capacity",
+    "portlet-tasks",
+    "portlet-approvals"
+   ],
+   "status": [
+    "Layout revision 1",
+    "Saved 2026-11-21 01:04",
+    "Server sync: not confirmed",
+    "Visibility: private (local)",
+    "∅Schedule healthSource not connected — Engineering schedule read model is mounted but the Engineering source it reports from is not connected (GET /api/enterprise/portlets/schedule-health?project_id=preview-rps-01 · ENGINEERING_SOURCE_NOT_CONNECTED). No value is derived or substituted.Try again",
+    "∅Cost & EVM summarySource not connected — Engineering EVM source is mounted but the Engineering source it reports from is not connected (GET /api/enterprise/portlets/evm-summary?project_id=preview-rps-01 · ENGINEERING_SOURCE_NOT_CONNECTED). No value is derived or substituted.Try again",
+    "∅Resource capacitySource not connected — Engineering capacity read model is mounted but the Engineering source it reports from is not connected (GET /api/enterprise/portlets/resource-capacity?project_id=preview-rps-01 · ENGINEERING_SOURCE_NOT_CONNECTED). No value is derived or substituted.Try again"
+   ],
+   "notfound": false,
+   "console_errors": [
+    [
+     "http://127.0.0.1:4191/cubi/enterprise/dashboard/",
+     "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    ],
+    [
+     "http://127.0.0.1:4191/cubi/enterprise/dashboard/",
+     "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    ],
+    [
+     "http://127.0.0.1:4191/cubi/enterprise/dashboard/",
+     "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    ]
+   ]
+  },
+  "portfolio": {
+   "h1": "Portfolio & executive center",
+   "toolbar": 0,
+   "tables": 3,
+   "rows": 5,
+   "inputs": 2,
+   "forms": 0,
+   "buttons": [
+    "Open",
+    "Open",
+    "Project portal",
+    "Engineering workspace",
+    "Record decision"
+   ],
+   "testids": [
+    "portfolio-summary",
+    "portfolio-register",
+    "portfolio-hierarchy",
+    "portfolio-detail",
+    "portfolio-scorecard",
+    "portfolio-indicators",
+    "portfolio-decisions"
+   ],
+   "status": [
+    "active",
+    "active",
+    "1",
+    "1",
+    "source not connected",
+    "source not connected",
+    "source not connected",
+    "source not connected"
+   ],
+   "notfound": false,
+   "console_errors": [
+    [
+     "http://127.0.0.1:4191/cubi/enterprise/portfolio/",
+     "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    ],
+    [
+     "http://127.0.0.1:4191/cubi/enterprise/portfolio/",
+     "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    ],
+    [
+     "http://127.0.0.1:4191/cubi/enterprise/portfolio/",
+     "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    ]
+   ]
+  },
+  "projects": {
+   "h1": "Enterprise projects",
+   "toolbar": 0,
+   "tables": 1,
+   "rows": 2,
+   "inputs": 0,
+   "forms": 0,
+   "buttons": [
+    "Open portal",
+    "Open portal",
+    "Overview",
+    "Engineering source",
+    "Resources",
+    "Documents",
+    "Risks & issues",
+    "Reports",
+    "Open Engineering workspace",
+    "Portfolio view"
+   ],
+   "testids": [
+    "projects-register",
+    "projects-portal"
+   ],
+   "status": [
+    "active",
+    "active"
+   ],
+   "notfound": false,
+   "console_errors": []
+  },
+  "access": {
+   "h1": "Organization & access center",
+   "toolbar": 0,
+   "tables": 7,
+   "rows": 25,
+   "inputs": 6,
+   "forms": 0,
+   "buttons": [
+    "Delete",
+    "Delete",
+    "Delete",
+    "Delete",
+    "Delete",
+    "Delete",
+    "Delete",
+    "Delete",
+    "Delete",
+    "Delete",
+    "Delete",
+    "Delete",
+    "Delete",
+    "Delete"
+   ],
+   "testids": [
+    "access-session",
+    "access-connections",
+    "access-policy",
+    "access-registers",
+    "access-organizations",
+    "access-users",
+    "access-teams",
+    "access-memberships",
+    "access-invitations",
+    "access-roles",
+    "access-grants",
+    "access-audit",
+    "access-admin",
+    "access-team-name"
+   ],
+   "status": [
+    "200",
+    "Connected",
+    "200",
+    "Connected",
+    "200",
+    "Connected",
+    "200",
+    "Connected"
+   ],
+   "notfound": false,
+   "console_errors": []
+  },
+  "tasks": {
+   "h1": "Team & task center",
+   "toolbar": 1,
+   "tables": 0,
+   "rows": 0,
+   "inputs": 4,
+   "forms": 0,
+   "buttons": [
+    "Refresh",
+    "New task"
+   ],
+   "testids": [
+    "tasks-intro",
+    "tasks-capability",
+    "tasks-filters",
+    "tasks-filter-project",
+    "tasks-filter-status",
+    "tasks-filter-priority",
+    "tasks-search",
+    "tasks-create-toggle",
+    "tasks-register",
+    "tasks-contract"
+   ],
+   "status": [
+    "200",
+    "available",
+    "GET",
+    "POST",
+    "PATCH"
+   ],
+   "notfound": false,
+   "console_errors": []
+  },
+  "workflows": {
+   "h1": "Workflow studio",
+   "toolbar": 0,
+   "tables": 2,
+   "rows": 7,
+   "inputs": 9,
+   "forms": 1,
+   "buttons": [
+    "Remove",
+    "Remove",
+    "Remove",
+    "Remove",
+    "Add step",
+    "Remove",
+    "Remove",
+    "Remove",
+    "Add transition",
+    "Save draft",
+    "Validate",
+    "Publish version",
+    "Reset draft"
+   ],
+   "testids": [
+    "workflows-intro",
+    "workflows-capability",
+    "workflows-editor",
+    "workflows-name",
+    "workflows-step-name",
+    "workflows-validation",
+    "workflows-canvas"
+   ],
+   "status": [
+    "200",
+    "valid"
+   ],
+   "notfound": false,
+   "console_errors": []
+  },
+  "approvals": {
+   "h1": "Feedback & approval center",
+   "toolbar": 0,
+   "tables": 0,
+   "rows": 0,
+   "inputs": 3,
+   "forms": 1,
+   "buttons": [
+    "Submit decision"
+   ],
+   "testids": [
+    "approvals-intro",
+    "approvals-queue",
+    "approvals-decision",
+    "approvals-item-id",
+    "approvals-revision",
+    "approvals-outcome",
+    "approvals-result",
+    "approvals-submit",
+    "approvals-feedback",
+    "approvals-outcomes"
+   ],
+   "status": [
+    "recorded",
+    "stale revision",
+    "duplicate decision",
+    "forbidden",
+    "not connected"
+   ],
+   "notfound": false,
+   "console_errors": []
+  },
+  "resources": {
+   "h1": "Resources & capacity",
+   "toolbar": 1,
+   "tables": 2,
+   "rows": 3,
+   "inputs": 1,
+   "forms": 0,
+   "buttons": [
+    "Open Engineering workspace",
+    "Project portal"
+   ],
+   "testids": [
+    "resources-intro",
+    "resources-project",
+    "resources-context",
+    "resources-register",
+    "resources-capacity"
+   ],
+   "status": [
+    "active"
+   ],
+   "notfound": false,
+   "console_errors": []
+  },
+  "reports": {
+   "h1": "Reports & operations",
+   "toolbar": 2,
+   "tables": 2,
+   "rows": 7,
+   "inputs": 2,
+   "forms": 0,
+   "buttons": [
+    "Read job"
+   ],
+   "testids": [
+    "reports-intro",
+    "reports-runtime",
+    "reports-catalogue",
+    "reports-definitions",
+    "reports-operations",
+    "reports-jobs",
+    "reports-jobs-panel",
+    "reports-job-id"
+   ],
+   "status": [
+    "200",
+    "available",
+    "200",
+    "available"
+   ],
+   "notfound": false,
+   "console_errors": []
+  },
+  "knowledge": {
+   "h1": "Knowledge & PMBOK center",
+   "toolbar": 1,
+   "tables": 2,
+   "rows": 12,
+   "inputs": 1,
+   "forms": 0,
+   "buttons": [
+    "Search",
+    "Open the shared Form Builder in Engineering"
+   ],
+   "testids": [
+    "knowledge-intro",
+    "knowledge-capability",
+    "knowledge-search",
+    "knowledge-search-input",
+    "knowledge-cards",
+    "knowledge-coverage",
+    "knowledge-forms"
+   ],
+   "status": [
+    "200",
+    "available",
+    "200",
+    "available",
+    "200",
+    "available",
+    "not ingested",
+    "[object Object]"
+   ],
+   "notfound": false,
+   "console_errors": []
+  },
+  "risks": {
+   "h1": "Risks & issues",
+   "toolbar": 1,
+   "tables": 1,
+   "rows": 5,
+   "inputs": 15,
+   "forms": 1,
+   "buttons": [
+    "Open the Help topic",
+    "Create record",
+    "Cancel edit",
+    "Refresh",
+    "Export CSV",
+    "Print",
+    "Edit",
+    "Delete",
+    "Edit",
+    "Delete",
+    "Edit",
+    "Delete",
+    "Edit",
+    "Delete"
+   ],
+   "testids": [
+    "risks-intro",
+    "risks-form",
+    "risks-result",
+    "risks-submit",
+    "risks-list",
+    "risks-table",
+    "risks-capability"
+   ],
+   "status": [
+    "open",
+    "open",
+    "open",
+    "open",
+    "open",
+    "200",
+    "Connected"
+   ],
+   "notfound": false,
+   "console_errors": []
+  },
+  "documents": {
+   "h1": "Documents",
+   "toolbar": 1,
+   "tables": 1,
+   "rows": 1,
+   "inputs": 10,
+   "forms": 1,
+   "buttons": [
+    "Open the Help topic",
+    "Create record",
+    "Cancel edit",
+    "Refresh",
+    "Export CSV",
+    "Print"
+   ],
+   "testids": [
+    "documents-intro",
+    "documents-form",
+    "documents-result",
+    "documents-submit",
+    "documents-list",
+    "documents-table",
+    "documents-capability"
+   ],
+   "status": [
+    "200",
+    "Connected"
+   ],
+   "notfound": false,
+   "console_errors": []
+  },
+  "eps": {
+   "h1": "Enterprise project structure",
+   "toolbar": 1,
+   "tables": 1,
+   "rows": 1,
+   "inputs": 9,
+   "forms": 1,
+   "buttons": [
+    "Open the Help topic",
+    "Create record",
+    "Cancel edit",
+    "Refresh",
+    "Export CSV",
+    "Print"
+   ],
+   "testids": [
+    "eps-intro",
+    "eps-form",
+    "eps-result",
+    "eps-submit",
+    "eps-list",
+    "eps-table",
+    "eps-capability"
+   ],
+   "status": [
+    "200",
+    "Connected"
+   ],
+   "notfound": false,
+   "console_errors": []
+  },
+  "member-activities": {
+   "h1": "Team member activities",
+   "toolbar": 0,
+   "tables": 0,
+   "rows": 0,
+   "inputs": 1,
+   "forms": 0,
+   "buttons": [
+    "Open the Help topic"
+   ],
+   "testids": [
+    "member-activities-intro",
+    "member-activities-list",
+    "member-activities-capability"
+   ],
+   "status": [],
+   "notfound": false,
+   "console_errors": []
+  },
+  "timesheets": {
+   "h1": "Timesheets",
+   "toolbar": 1,
+   "tables": 1,
+   "rows": 1,
+   "inputs": 10,
+   "forms": 1,
+   "buttons": [
+    "Open the Help topic",
+    "Create record",
+    "Cancel edit",
+    "Refresh",
+    "Export CSV",
+    "Print"
+   ],
+   "testids": [
+    "timesheets-intro",
+    "timesheets-form",
+    "timesheets-result",
+    "timesheets-submit",
+    "timesheets-list",
+    "timesheets-table",
+    "timesheets-capability"
+   ],
+   "status": [
+    "200",
+    "Connected"
+   ],
+   "notfound": false,
+   "console_errors": []
+  },
+  "notifications": {
+   "h1": "Notifications",
+   "toolbar": 1,
+   "tables": 1,
+   "rows": 1,
+   "inputs": 9,
+   "forms": 1,
+   "buttons": [
+    "Open the Help topic",
+    "Create record",
+    "Cancel edit",
+    "Refresh",
+    "Export CSV",
+    "Print"
+   ],
+   "testids": [
+    "notifications-intro",
+    "notifications-form",
+    "notifications-result",
+    "notifications-submit",
+    "notifications-list",
+    "notifications-table",
+    "notifications-capability"
+   ],
+   "status": [
+    "200",
+    "Connected"
+   ],
+   "notfound": false,
+   "console_errors": []
+  },
+  "settings": {
+   "h1": "Administration",
+   "toolbar": 1,
+   "tables": 1,
+   "rows": 1,
+   "inputs": 8,
+   "forms": 1,
+   "buttons": [
+    "Open the Help topic",
+    "Create record",
+    "Cancel edit",
+    "Refresh",
+    "Export CSV",
+    "Print"
+   ],
+   "testids": [
+    "settings-intro",
+    "settings-form",
+    "settings-result",
+    "settings-submit",
+    "settings-list",
+    "settings-table",
+    "settings-capability"
+   ],
+   "status": [
+    "200",
+    "Connected"
+   ],
+   "notfound": false,
+   "console_errors": []
+  },
+  "forms": {
+   "h1": "Form builder",
+   "toolbar": 1,
+   "tables": 1,
+   "rows": 1,
+   "inputs": 7,
+   "forms": 1,
+   "buttons": [
+    "Open the Help topic",
+    "Create record",
+    "Cancel edit",
+    "Refresh",
+    "Export CSV",
+    "Print"
+   ],
+   "testids": [
+    "forms-intro",
+    "forms-form",
+    "forms-result",
+    "forms-submit",
+    "forms-list",
+    "forms-table",
+    "forms-capability"
+   ],
+   "status": [
+    "200",
+    "Connected"
+   ],
+   "notfound": false,
+   "console_errors": []
+  },
+  "audit": {
+   "h1": "Audit trail",
+   "toolbar": 0,
+   "tables": 1,
+   "rows": 6,
+   "inputs": 0,
+   "forms": 0,
+   "buttons": [
+    "Open the Help topic",
+    "Refresh"
+   ],
+   "testids": [
+    "audit-intro",
+    "audit-events",
+    "audit-table",
+    "audit-capability"
+   ],
+   "status": [
+    "allowed",
+    "allowed",
+    "allowed",
+    "allowed",
+    "allowed",
+    "allowed",
+    "200",
+    "Connected"
+   ],
+   "notfound": false,
+   "console_errors": []
+  },
+  "directory": {
+   "h1": "Resource directory",
+   "toolbar": 1,
+   "tables": 1,
+   "rows": 1,
+   "inputs": 11,
+   "forms": 1,
+   "buttons": [
+    "Open the Help topic",
+    "Create record",
+    "Cancel edit",
+    "Refresh",
+    "Export CSV",
+    "Print"
+   ],
+   "testids": [
+    "directory-intro",
+    "directory-form",
+    "directory-result",
+    "directory-submit",
+    "directory-list",
+    "directory-table",
+    "directory-capability"
+   ],
+   "status": [
+    "200",
+    "Connected"
+   ],
+   "notfound": false,
+   "console_errors": []
+  }
+ }
+}
