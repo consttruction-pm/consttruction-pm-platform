@@ -58,6 +58,8 @@ See `COMMAND_CONTRACT.md`. The response always includes `contract_version`,
 |---|---|---|
 | Risk read | `GET /api/projects/{id}/risks` | `p6-risk-api.v1` list |
 | Risk create | `POST /api/projects/{id}/risks` + `Idempotency-Key` | single risk DTO |
+| Risk update | `PUT /api/projects/{id}/risks/{risk_id}` + `expected_revision` | single risk DTO |
+| Risk history | `GET /api/projects/{id}/risks/{risk_id}/history` | audit events, newest revision included |
 | Analysis read | `GET /api/v2/workspace/control-room/read` + `X-Tenant-Id`, `X-Project-Id`, `X-Project-Revision` | workspace rows + `control_intelligence` |
 | Register exchange | `GET/POST /api/projects/{id}/exchange/*` | not surfaced as project import |
 
@@ -85,6 +87,10 @@ stored record. This avoids a second state authority.
   fresh read instead of a duplicate.
 - After a successful write the studio re-reads the full list and re-groups the
   matrix from the server rows. The row shown is the row stored.
+- A risk update sends the revision that was rendered. On `409` the client
+  re-reads instead of overwriting a newer record; the success notice shows the
+  revision the server returned. The inspector's history view reads the audit
+  events for the selected risk and never reconstructs them locally.
 - The analysis studio reads with the pinned revision header. `409
   STALE_WORKSPACE_READ_SCOPE` is surfaced as the server code with a retry.
 - No optimistic local mutation is displayed before the server confirms.

@@ -6,6 +6,7 @@
  * service and the acceptance gate instead.
  */
 import type {
+  RiskHistoryEvent,
   RiskRecord,
   WorkbenchCommandPlan,
   WorkbenchContext,
@@ -36,6 +37,10 @@ export type ShellState = {
   activeStudio: string;
   risks: readonly RiskRecord[];
   selectedRisk: string | null;
+  editingRisk: string | null;
+  riskHistory: readonly RiskHistoryEvent[];
+  historyRisk: string | null;
+  riskNotice: string | null;
   workspace: WorkspaceReadSnapshot | null;
   riskError: string | null;
   analysisError: string | null;
@@ -233,6 +238,7 @@ export function renderRiskStudio(state: ShellState): string {
           <span>${escapeHtml(t(locale, "records", "رکورد"))}: ${formatNumber(locale, state.risks.length)}</span>
           ${state.context?.permissions.can_propose ? `<button type="button" data-workbench="new-risk">${escapeHtml(t(locale, "New risk", "ریسک جدید"))}</button>` : ""}
         </header>
+        ${state.riskNotice ? `<p class="aiw-hint" data-risk-notice role="status">${escapeHtml(state.riskNotice)}</p>` : ""}
         <table class="aiw-table" data-risk-table>
           <thead>
             <tr>
@@ -308,6 +314,82 @@ export function renderRiskForm(locale: string): string {
         <button type="button" data-workbench="cancel-risk">${escapeHtml(t(locale, "Cancel", "انصراف"))}</button>
       </div>
     </form>`;
+}
+
+const RISK_CATEGORIES = [
+  "technical",
+  "commercial",
+  "schedule",
+  "cost",
+  "quality",
+  "safety",
+  "resource",
+  "external",
+] as const;
+const RISK_STRATEGIES = ["avoid", "transfer", "mitigate", "accept", "escalate"] as const;
+const RISK_STATUSES = ["open", "monitoring", "mitigating", "closed"] as const;
+
+function option(value: string, selected: string): string {
+  return `<option value="${escapeHtml(value)}"${value === selected ? " selected" : ""}>${escapeHtml(value)}</option>`;
+}
+
+export function renderRiskEditForm(locale: string, risk: RiskRecord): string {
+  return `
+    <form class="aiw-form" data-workbench="risk-edit-form" data-risk="${escapeHtml(risk.risk_id)}" novalidate>
+      <h3>${escapeHtml(t(locale, "Edit risk", "ویرایش ریسک"))}</h3>
+      <p class="aiw-hint">${escapeHtml(t(locale, "Optimistic locking: this edit submits revision", "قفل خوش‌بینانه: این ویرایش نسخه را ارسال می‌کند"))} ${escapeHtml(risk.revision)}.</p>
+      <input type="hidden" name="expected_revision" value="${escapeHtml(risk.revision)}" />
+      <label>${escapeHtml(t(locale, "Risk ID", "شناسه ریسک"))}<input name="risk_id" value="${escapeHtml(risk.risk_id)}" readonly /></label>
+      <label>${escapeHtml(t(locale, "Title", "عنوان"))}<input name="title" required maxlength="160" value="${escapeHtml(risk.title)}" autocomplete="off" /></label>
+      <label>${escapeHtml(t(locale, "Description", "توضیح"))}<textarea name="description" rows="3" maxlength="2000">${escapeHtml(risk.description)}</textarea></label>
+      <label>${escapeHtml(t(locale, "Category", "دسته"))}
+        <select name="category">${RISK_CATEGORIES.map((value) => option(value, risk.category)).join("")}</select>
+      </label>
+      <label>${escapeHtml(t(locale, "Status", "وضعیت"))}
+        <select name="status">${RISK_STATUSES.map((value) => option(value, risk.status)).join("")}</select>
+      </label>
+      <label>${escapeHtml(t(locale, "Probability (1-5)", "احتمال (۱ تا ۵)"))}<input name="probability" type="number" min="1" max="5" value="${escapeHtml(risk.probability)}" required /></label>
+      <label>${escapeHtml(t(locale, "Impact (1-5)", "اثر (۱ تا ۵)"))}<input name="impact" type="number" min="1" max="5" value="${escapeHtml(risk.impact)}" required /></label>
+      <label>${escapeHtml(t(locale, "Owner", "مالک"))}<input name="owner" required maxlength="80" value="${escapeHtml(risk.owner)}" autocomplete="off" /></label>
+      <label>${escapeHtml(t(locale, "Response strategy", "راهبرد پاسخ"))}
+        <select name="response_strategy">${RISK_STRATEGIES.map((value) => option(value, risk.response_strategy)).join("")}</select>
+      </label>
+      <label>${escapeHtml(t(locale, "Date identified", "تاریخ شناسایی"))}<input name="date_identified" type="date" value="${escapeHtml(risk.date_identified)}" required /></label>
+      <label>${escapeHtml(t(locale, "Change reason", "علت تغییر"))}<input name="reason" maxlength="200" autocomplete="off" /></label>
+      <p class="aiw-form-error" data-risk-form-error role="alert" hidden></p>
+      <div class="aiw-form-actions">
+        <button type="submit">${escapeHtml(t(locale, "Save changes", "ذخیره تغییرات"))}</button>
+        <button type="button" data-workbench="cancel-edit">${escapeHtml(t(locale, "Cancel", "انصراف"))}</button>
+      </div>
+    </form>`;
+}
+
+export function renderRiskHistory(
+  locale: string,
+  riskId: string,
+  events: readonly RiskHistoryEvent[],
+): string {
+  return `
+    <h2>${escapeHtml(t(locale, "Risk history", "تاریخچهٔ ریسک"))}</h2>
+    <p class="aiw-hint">${escapeHtml(riskId)}</p>
+    ${
+      events.length === 0
+        ? `<p class="aiw-empty-line">${escapeHtml(t(locale, "The audit service returned no event for this risk.", "سرویس حسابرسی رویدادی برای این ریسک برنگرداند."))}</p>`
+        : `<ul class="aiw-history" data-risk-history>
+            ${events
+              .map(
+                (event) => `<li>
+                  <strong>${escapeHtml(event.event_type)}</strong>
+                  <span>${escapeHtml(t(locale, "revision", "نسخه"))} ${escapeHtml(event.revision)}</span>
+                  <span>${escapeHtml(event.actor_id)}</span>
+                  <span>${escapeHtml(formatDateTime(locale, event.occurred_at))}</span>
+                  ${event.reason ? `<span class="aiw-hint">${escapeHtml(event.reason)}</span>` : ""}
+                </li>`,
+              )
+              .join("")}
+          </ul>`
+    }
+    <button type="button" data-workbench="close-history">${escapeHtml(t(locale, "Close", "بستن"))}</button>`;
 }
 
 export function renderAnalysisStudio(state: ShellState): string {
@@ -390,10 +472,20 @@ export function renderInspector(state: ShellState): string {
   const risk = state.selectedRisk
     ? state.risks.find((item) => item.risk_id === state.selectedRisk) ?? null
     : null;
+  if (risk && state.editingRisk === risk.risk_id) {
+    return renderRiskEditForm(locale, risk);
+  }
+  if (risk && state.historyRisk === risk.risk_id) {
+    return renderRiskHistory(locale, risk.risk_id, state.riskHistory);
+  }
   if (risk) {
     return `
       <h2>${escapeHtml(t(locale, "Inspector", "بازرس"))}</h2>
       <h3>${escapeHtml(risk.title)}</h3>
+      <div class="aiw-inspector-actions">
+        ${state.context?.permissions.can_propose ? `<button type="button" data-workbench="edit-risk">${escapeHtml(t(locale, "Edit", "ویرایش"))}</button>` : ""}
+        <button type="button" data-workbench="show-history">${escapeHtml(t(locale, "History", "تاریخچه"))}</button>
+      </div>
       <dl class="aiw-facts">
         <dt>${escapeHtml(t(locale, "Risk ID", "شناسه ریسک"))}</dt><dd>${escapeHtml(risk.risk_id)}</dd>
         <dt>${escapeHtml(t(locale, "Category", "دسته"))}</dt><dd>${escapeHtml(risk.category)}</dd>

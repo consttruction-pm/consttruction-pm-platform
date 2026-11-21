@@ -61,6 +61,10 @@ function initialState(locale: string, projectId: string | null): ShellState {
     activeStudio: "risk-analysis",
     risks: [],
     selectedRisk: null,
+    editingRisk: null,
+    riskHistory: [],
+    historyRisk: null,
+    riskNotice: null,
     workspace: null,
     riskError: null,
     analysisError: null,
@@ -288,6 +292,9 @@ export async function mountWorkbench(options: MountOptions = {}): Promise<void> 
     state.risks = result.data.risks;
     if (state.selectedRisk && !state.risks.some((risk) => risk.risk_id === state.selectedRisk)) {
       state.selectedRisk = null;
+      state.editingRisk = null;
+      state.historyRisk = null;
+      state.riskHistory = [];
     }
     risksLoaded = true;
     state.lastUpdated = new Date().toISOString();
@@ -443,10 +450,103 @@ export async function mountWorkbench(options: MountOptions = {}): Promise<void> 
     await loadRisks();
   }
 
+  function readRiskEditForm(): { riskId: string; body: Record<string, unknown> } | null {
+    const form = root.querySelector<HTMLFormElement>('[data-workbench="risk-edit-form"]');
+    if (!form) return null;
+    const data = new FormData(form);
+    const value = (key: string): string => String(data.get(key) ?? "").trim();
+    const probability = Number(value("probability"));
+    const impact = Number(value("impact"));
+    const expected = Number(value("expected_revision"));
+    const riskId = value("risk_id");
+    if (!riskId || !value("title") || !value("owner") || !value("date_identified")) return null;
+    if (!Number.isInteger(probability) || probability < 1 || probability > 5) return null;
+    if (!Number.isInteger(impact) || impact < 1 || impact > 5) return null;
+    if (!Number.isInteger(expected) || expected < 1) return null;
+    return {
+      riskId,
+      body: {
+        risk_id: riskId,
+        title: value("title"),
+        description: value("description"),
+        category: value("category"),
+        status: value("status"),
+        probability,
+        impact,
+        response_strategy: value("response_strategy"),
+        owner: value("owner"),
+        date_identified: value("date_identified"),
+        expected_revision: expected,
+        reason: value("reason"),
+      },
+    };
+  }
+
+  async function saveRiskEdit(): Promise<void> {
+    if (!projectId) return;
+    const formError = root.querySelector<HTMLElement>("[data-risk-form-error]");
+    const draft = readRiskEditForm();
+    if (!draft) {
+      if (formError) {
+        formError.textContent = t(
+          state.locale,
+          "Title, owner and date are required; probability, impact and revision must be valid.",
+          "عنوان، مالک و تاریخ الزامی است؛ احتمال، اثر و نسخه باید معتبر باشند.",
+        );
+        formError.hidden = false;
+      }
+      return;
+    }
+    const result = await api.updateRisk(projectId, draft.riskId, draft.body, {
+      tenant_id: sessionTenant,
+      project_id: projectId,
+      revision: projectRevision,
+    });
+    if (!result.ok) {
+      if (formError) {
+        formError.textContent = `${result.error.code}`;
+        formError.hidden = false;
+      }
+      if (result.error.code.includes("CONFLICT") || result.error.code.includes("REVISION")) {
+        // Another writer advanced the record: re-read instead of overwriting.
+        await loadRisks();
+      }
+      return;
+    }
+    state.editingRisk = null;
+    state.selectedRisk = result.data.risk_id;
+    state.riskNotice = t(
+      state.locale,
+      "Saved. The record is now at revision",
+      "ذخیره شد. رکورد اکنون در نسخهٔ",
+    ) + ` ${result.data.revision}.`;
+    await loadRisks();
+  }
+
+  async function loadRiskHistory(riskId: string): Promise<void> {
+    if (!projectId) return;
+    state.riskHistory = [];
+    const result = await api.riskHistory(projectId, riskId, {
+      tenant_id: sessionTenant,
+      project_id: projectId,
+      revision: projectRevision,
+    });
+    state.historyRisk = riskId;
+    if (!result.ok) {
+      state.riskNotice = `${result.error.code}`;
+    } else {
+      state.riskHistory = result.data.events;
+    }
+    renderAll();
+  }
+
   function switchStudio(id: string): void {
     state.activeStudio = id;
     riskFormOpen = false;
     helpOpen = false;
+    state.editingRisk = null;
+    state.historyRisk = null;
+    state.riskNotice = null;
     renderAll();
     if (id === "risk-analysis" && !risksLoaded) void loadRisks();
     if (id === "project-analysis" && !analysisLoaded) void loadAnalysis();
@@ -484,8 +584,32 @@ export async function mountWorkbench(options: MountOptions = {}): Promise<void> 
       case "select-risk":
         if (target.dataset.risk) {
           state.selectedRisk = target.dataset.risk;
+          state.editingRisk = null;
+          state.historyRisk = null;
+          state.riskNotice = null;
           renderAll();
         }
+        break;
+      case "edit-risk":
+        if (state.selectedRisk) {
+          state.editingRisk = state.selectedRisk;
+          state.historyRisk = null;
+          helpOpen = false;
+          riskFormOpen = false;
+          renderAll();
+        }
+        break;
+      case "cancel-edit":
+        state.editingRisk = null;
+        renderAll();
+        break;
+      case "show-history":
+        if (state.selectedRisk) void loadRiskHistory(state.selectedRisk);
+        break;
+      case "close-history":
+        state.historyRisk = null;
+        state.riskHistory = [];
+        renderAll();
         break;
       case "matrix-cell": {
         const probability = Number(target.dataset.probability);
@@ -495,6 +619,8 @@ export async function mountWorkbench(options: MountOptions = {}): Promise<void> 
         );
         if (match) {
           state.selectedRisk = match.risk_id;
+          state.editingRisk = null;
+          state.historyRisk = null;
           renderAll();
         }
         break;
@@ -502,6 +628,8 @@ export async function mountWorkbench(options: MountOptions = {}): Promise<void> 
       case "new-risk":
         riskFormOpen = true;
         helpOpen = false;
+        state.editingRisk = null;
+        state.historyRisk = null;
         renderAll();
         break;
       case "cancel-risk":
@@ -546,6 +674,11 @@ export async function mountWorkbench(options: MountOptions = {}): Promise<void> 
     if (form.matches('[data-workbench="risk-form"]')) {
       event.preventDefault();
       void saveRisk();
+      return;
+    }
+    if (form.matches('[data-workbench="risk-edit-form"]')) {
+      event.preventDefault();
+      void saveRiskEdit();
     }
   });
 

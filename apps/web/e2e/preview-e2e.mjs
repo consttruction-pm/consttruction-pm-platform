@@ -679,11 +679,60 @@ async function runAiWorkbenchJourney(page, baseUrl) {
     matrix_marks: written.matrix_marks,
   });
 
+  await page.click('[data-risk="R-AIW-1"]');
+  await page.waitForSelector('[data-workbench="edit-risk"]', "risk inspector actions");
+  await page.click('[data-workbench="edit-risk"]');
+  await page.waitForSelector('form[data-workbench="risk-edit-form"]', "risk edit form");
+  const expectedRevision = await page.evaluate(
+    `document.querySelector('form[data-workbench="risk-edit-form"] [name="expected_revision"]')?.value ?? null`,
+  );
+  assert(expectedRevision === "1", "the edit form must carry the stored revision: " + expectedRevision);
+  await page.evaluate(`(() => {
+    const form = document.querySelector('form[data-workbench="risk-edit-form"]');
+    const set = (name, value) => {
+      const field = form.querySelector('[name="' + name + '"]');
+      if (field) field.value = value;
+    };
+    set("status", "mitigating");
+    set("response_strategy", "mitigate");
+    set("reason", "weekly review");
+    form.requestSubmit();
+    return true;
+  })()`);
+  await page.waitForSelector("[data-risk-notice]", "risk update confirmation", 30000);
+  const updated = await page.evaluate(`(() => ({
+    notice: document.querySelector("[data-risk-notice]")?.textContent ?? "",
+    row: document.querySelector('[data-risk="R-AIW-1"]')?.textContent?.replace(/\\s+/g, " ").trim() ?? "",
+  }))()`);
+  assert(/revision 2/.test(updated.notice), "the update must report the new revision: " + updated.notice);
+  assert(/mitigating/.test(updated.row), "the stored status must be read back: " + updated.row);
+  assert(/\b2\b/.test(updated.row.split(" ").slice(-1)[0] ?? ""), "the row must show revision 2");
+  record("risk update is applied with optimistic locking and read back", {
+    notice: updated.notice,
+  });
+
+  await page.click('[data-workbench="show-history"]');
+  await page.waitForSelector("[data-risk-history]", "risk audit history", 30000);
+  const history = await page.evaluate(`(() => ({
+    events: document.querySelectorAll("[data-risk-history] li").length,
+    text: document.querySelector("[data-risk-history]")?.textContent ?? "",
+  }))()`);
+  assert(history.events >= 2, "the audit service must return create and update events");
+  assert(/status_changed|updated|created/i.test(history.text), "the history must include the update event");
+  record("risk audit history is read from the authoritative service", {
+    events: history.events,
+  });
+  await page.click('[data-workbench="close-history"]');
+
   await page.navigate(
     `${baseUrl}/ai-workbench?project=${encodeURIComponent(PROJECT_ID)}&lang=en`,
     '[data-risk="R-AIW-1"]',
     "risk persisted across a full document reload",
   );
+  const reloaded = await page.evaluate(
+    `document.querySelector('[data-risk="R-AIW-1"]')?.textContent?.replace(/\\s+/g, " ").trim() ?? ""`,
+  );
+  assert(/mitigating/.test(reloaded), "the reloaded risk must keep the updated status: " + reloaded);
   record("risk survives a full reload (fresh read-back)", {});
 
   await page.evaluate(`(() => {

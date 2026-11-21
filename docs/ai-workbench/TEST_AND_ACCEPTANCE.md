@@ -63,6 +63,14 @@ planner.
 - stored metrics keep their values and stable order; source refs are unique;
 - query/project helpers preserve only the intended parameters.
 
+`apps/web/src/workbench-render.test.ts` (6 tests):
+
+- the edit form pre-fills stored values and the rendered revision;
+- stored values are escaped in the edit form;
+- the history panel renders server events and an honest empty state;
+- the inspector offers edit and history; a read-only session gets no edit;
+- the inspector swaps to the edit form while editing.
+
 ## 4. Browser acceptance (real preview)
 
 The journey added to `apps/web/e2e/preview-e2e.mjs` runs headless Chrome against
@@ -74,13 +82,15 @@ the real WSGI runtime, real SQLite stores and the real API composition:
 3. the header carries the pinned project, five studios and the server statuses;
 4. the fresh revision shows the empty risk state, not fixtures;
 5. a risk is created; the table, the matrix cell and the inspector agree;
-6. a full document reload reads the same record back;
-7. a typed command returns a plan with four separated blocks and names the
+6. the risk is edited with its rendered revision; the status and revision 2 are
+   read back and the audit history lists the events;
+7. a full document reload reads the updated record back;
+8. a typed command returns a plan with four separated blocks and names the
    canonical studio;
-8. the scenario studio renders `BLOCKED` with zero controls;
-9. the analysis studio shows four stored counts and declares EVM/resources
-   `PLANNED`;
-10. switching to Persian flips direction while keeping five studios, then back
+9. the scenario studio renders `BLOCKED` with zero controls;
+10. the analysis studio shows four stored counts and declares EVM/resources
+    `PLANNED`;
+11. switching to Persian flips direction while keeping five studios, then back
     to English.
 
 Screenshots: `ai-workbench-en.png`, `ai-workbench-fa.png` under
