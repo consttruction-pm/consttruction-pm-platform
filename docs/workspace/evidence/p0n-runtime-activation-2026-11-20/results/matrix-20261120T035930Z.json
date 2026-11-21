@@ -1,0 +1,3924 @@
+{
+  "schema": "construction-pm/p0n2-runtime-matrix/v1",
+  "generated_at": "2026-11-20T03:59:30.852552+00:00",
+  "started_at": "2026-11-20T03:59:30.852552+00:00",
+  "repo_root": "/data/work/repo",
+  "git": {
+    "commit": "5b4cfb7104cbd4952d60af9734cfe1b559aa923f",
+    "branch": "feat/p0n2-runtime-activation",
+    "working_tree_porcelain": "M docs/workspace/evidence/p0n-runtime-activation-2026-11-20/job-lifecycle-evidence.md\n M docs/workspace/evidence/p0n-runtime-activation-2026-11-20/runtime-composition-map.md\n M docs/workspace/evidence/p0n-runtime-activation-2026-11-20/two-environment-reference-map.md\n M src/construction_pm/deployment/production_runtime.py\n M src/construction_pm/scheduling_job_runner.py\n?? docs/workspace/evidence/p0n-runtime-activation-2026-11-20/README.md\n?? docs/workspace/evidence/p0n-runtime-activation-2026-11-20/final-acceptance-report.md\n?? docs/workspace/evidence/p0n-runtime-activation-2026-11-20/logs/live-job-run-process.log\n?? docs/workspace/evidence/p0n-runtime-activation-2026-11-20/logs/live-job-run-thread.log\n?? docs/workspace/evidence/p0n-runtime-activation-2026-11-20/logs/worker-e2e.log\n?? docs/workspace/evidence/p0n-runtime-activation-2026-11-20/multi-project-budget-evidence.md\n?? docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/\n?? scripts/p0n2_runtime_matrix.py"
+  },
+  "environment": {
+    "python": "3.12.13",
+    "implementation": "CPython",
+    "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+    "machine": "x86_64",
+    "cpu_count": 4,
+    "cpu_affinity_count": 4,
+    "memory_total_kb": 8131540,
+    "git_sha": "5b4cfb7104cbd4952d60af9734cfe1b559aa923f"
+  },
+  "postgres_version": "PostgreSQL 14.24 (Ubuntu 14.24-0ubuntu0.22.04.1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0, 64-bit",
+  "argv": [
+    "scripts/p0n2_runtime_matrix.py",
+    "run",
+    "--out-dir",
+    "docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results",
+    "--dsn",
+    "postgresql://postgres@127.0.0.1:55432/postgres"
+  ],
+  "definitions": {
+    "sizes": [
+      1000,
+      5000,
+      25000,
+      50000,
+      100000
+    ],
+    "shapes": [
+      "chain",
+      "wide",
+      "mixed",
+      "resource-heavy",
+      "constraint-heavy"
+    ],
+    "shape_definitions": {
+      "chain": "time_network(size, \"chain\", seed=20261116)",
+      "wide": "time_network(size, \"wide\", seed=20261116)",
+      "mixed": "time_network(size, \"mixed\", seed=20261116)",
+      "resource-heavy": "time_network(size, \"fan\", seed=20261116) (fan: one root -> size-2 concurrent activities -> one join)",
+      "constraint-heavy": "time_network(size, \"dag\", seed=20261116) plus TimeActivityConstraint(START_NO_EARLIER_THAN) on every 7th activity"
+    },
+    "seed": 20261116,
+    "constraint_target_formula": "TIME_PROJECT_START + timedelta(days=(index % 21) + 1) for index in range(0, size, 7)",
+    "project_finish_source": "fixture project_finish from time_network (float_days=0)",
+    "sequential": "time_schedule(..., float_workers=1, float_policy=None)",
+    "parallel": "time_schedule(..., float_workers=3, float_policy=FloatExecutionPolicy(workers=3, admission=make_slot_admission(4), allow_nested_fork=True))",
+    "repeats": {
+      "small": 2,
+      "large": 1,
+      "small_sizes": [
+        1000,
+        5000
+      ]
+    },
+    "mode_budget_s": {
+      "1000": 60.0,
+      "5000": 90.0,
+      "25000": 150.0,
+      "50000": 300.0,
+      "100000": 180.0
+    },
+    "matrix_phase_deadline_s": 960.0,
+    "timeout_policy": "each cell runs in its own subprocess; every mode is bounded by signal.setitimer(ITIMER_REAL) inside the child and a hard subprocess timeout in the parent; a cell with no phase budget left is recorded SKIPPED_BUDGET",
+    "engine_module": "construction_pm.scheduling.time_schedule.time_schedule",
+    "notes": [
+      "Measurement only: this harness adds scripts/p0n2_runtime_matrix.py and the four evidence files under docs/workspace/evidence/p0n-runtime-activation-2026-11-20/ and changes no product code, test, or configuration.",
+      "The worker process-mode path ran against the fixed executor: commit 5b4cfb7104cbd4952d60af9734cfe1b559aa923f (\"fix(p0n): drain the child result pipe before join in process placement\") is the recorded run HEAD, so every worker number here includes the pipe-drain fix. The defect it removes: the parent joined the child before reading the result pipe, so a pickled SchedulingJobResult above the ~64 KiB pipe buffer deadlocked and the job was retried as SCHEDULING_JOB_TIMEOUT (regression test: tests/scheduling/test_scheduling_job_executor_process.py::test_result_larger_than_the_pipe_buffer_does_not_deadlock).",
+      "constraint-heavy cells pass the fixture's own (unconstrained) project_finish to time_schedule, exactly like scripts/p0n_multi_project_benchmark.py::run_project. Because the START_NO_EARLIER_THAN list pushes work later than that finish, the recorded total float for those cells is negative; min_total_float_hours/max_total_float_hours are stored per run so the effect is visible instead of hidden.",
+      "This host runs other work items in parallel; the same PostgreSQL instance is shared. Each worker run seeds its own unique tenant scope, so rows never overlap, but wall-clock numbers can include contention noise."
+    ]
+  },
+  "matrix_cells": [
+    {
+      "size": 1000,
+      "shape": "chain",
+      "shape_definition": "time_network(size, \"chain\", seed=20261116)",
+      "seed": 20261116,
+      "repeats": 2,
+      "parallel_slots": 4,
+      "modes": {
+        "sequential": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 60.0,
+          "float_workers": 1,
+          "policy": "float_workers=1, no policy",
+          "runs": [
+            {
+              "engine_ms": 129.6,
+              "cpu_seconds": 0.13,
+              "hash": "bdb8a04616a6c0011030a076197b789369b35beb15e55500c29bd644287c663c",
+              "project_finish": "2037-07-09T08:00:00+00:00",
+              "critical_count": 1000,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 0.0
+            },
+            {
+              "engine_ms": 128.9,
+              "cpu_seconds": 0.13,
+              "hash": "bdb8a04616a6c0011030a076197b789369b35beb15e55500c29bd644287c663c",
+              "project_finish": "2037-07-09T08:00:00+00:00",
+              "critical_count": 1000,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 0.0
+            }
+          ],
+          "engine_ms_median": 129.2,
+          "cpu_seconds_total": 0.26,
+          "hash": "bdb8a04616a6c0011030a076197b789369b35beb15e55500c29bd644287c663c",
+          "internal_hash_agreement": true
+        },
+        "parallel": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 60.0,
+          "float_workers": 3,
+          "policy": "FloatExecutionPolicy(workers=3, admission=make_slot_admission(4), allow_nested_fork=True)",
+          "runs": [
+            {
+              "engine_ms": 110.8,
+              "cpu_seconds": 0.15,
+              "hash": "bdb8a04616a6c0011030a076197b789369b35beb15e55500c29bd644287c663c",
+              "project_finish": "2037-07-09T08:00:00+00:00",
+              "critical_count": 1000,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 0.0
+            },
+            {
+              "engine_ms": 117.5,
+              "cpu_seconds": 0.2,
+              "hash": "bdb8a04616a6c0011030a076197b789369b35beb15e55500c29bd644287c663c",
+              "project_finish": "2037-07-09T08:00:00+00:00",
+              "critical_count": 1000,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 0.0
+            }
+          ],
+          "engine_ms_median": 114.2,
+          "cpu_seconds_total": 0.35,
+          "hash": "bdb8a04616a6c0011030a076197b789369b35beb15e55500c29bd644287c663c",
+          "internal_hash_agreement": true
+        }
+      },
+      "status": "OK",
+      "error": null,
+      "fixture_ms": 26.9,
+      "activities": 1000,
+      "relationships": 999,
+      "constraints": 0,
+      "hash_equality": {
+        "status": "PASS",
+        "sequential_hash": "bdb8a04616a6c0011030a076197b789369b35beb15e55500c29bd644287c663c",
+        "parallel_hash": "bdb8a04616a6c0011030a076197b789369b35beb15e55500c29bd644287c663c",
+        "sequential_hashes": [
+          "bdb8a04616a6c0011030a076197b789369b35beb15e55500c29bd644287c663c",
+          "bdb8a04616a6c0011030a076197b789369b35beb15e55500c29bd644287c663c"
+        ],
+        "parallel_hashes": [
+          "bdb8a04616a6c0011030a076197b789369b35beb15e55500c29bd644287c663c",
+          "bdb8a04616a6c0011030a076197b789369b35beb15e55500c29bd644287c663c"
+        ],
+        "error": null
+      },
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "unit_run": {
+        "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 1000 --shape chain --deadline 1795147380.933 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-00-1000-chain.json",
+        "status": "OK",
+        "error": null,
+        "wall_ms": 813.0,
+        "exit": 0,
+        "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+        "stderr": ""
+      }
+    },
+    {
+      "size": 1000,
+      "shape": "wide",
+      "shape_definition": "time_network(size, \"wide\", seed=20261116)",
+      "seed": 20261116,
+      "repeats": 2,
+      "parallel_slots": 4,
+      "modes": {
+        "sequential": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 60.0,
+          "float_workers": 1,
+          "policy": "float_workers=1, no policy",
+          "runs": [
+            {
+              "engine_ms": 45.7,
+              "cpu_seconds": 0.08,
+              "hash": "24e2759cc6d42df0a8ab1bb5c4ef1338807169b74cecb77b2085015548ce5054",
+              "project_finish": "2026-01-13T08:00:00+00:00",
+              "critical_count": 200,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 32.0
+            },
+            {
+              "engine_ms": 45.5,
+              "cpu_seconds": 0.04,
+              "hash": "24e2759cc6d42df0a8ab1bb5c4ef1338807169b74cecb77b2085015548ce5054",
+              "project_finish": "2026-01-13T08:00:00+00:00",
+              "critical_count": 200,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 32.0
+            }
+          ],
+          "engine_ms_median": 45.6,
+          "cpu_seconds_total": 0.12,
+          "hash": "24e2759cc6d42df0a8ab1bb5c4ef1338807169b74cecb77b2085015548ce5054",
+          "internal_hash_agreement": true
+        },
+        "parallel": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 60.0,
+          "float_workers": 3,
+          "policy": "FloatExecutionPolicy(workers=3, admission=make_slot_admission(4), allow_nested_fork=True)",
+          "runs": [
+            {
+              "engine_ms": 117.7,
+              "cpu_seconds": 0.16,
+              "hash": "24e2759cc6d42df0a8ab1bb5c4ef1338807169b74cecb77b2085015548ce5054",
+              "project_finish": "2026-01-13T08:00:00+00:00",
+              "critical_count": 200,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 32.0
+            },
+            {
+              "engine_ms": 56.0,
+              "cpu_seconds": 0.09,
+              "hash": "24e2759cc6d42df0a8ab1bb5c4ef1338807169b74cecb77b2085015548ce5054",
+              "project_finish": "2026-01-13T08:00:00+00:00",
+              "critical_count": 200,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 32.0
+            }
+          ],
+          "engine_ms_median": 86.8,
+          "cpu_seconds_total": 0.25,
+          "hash": "24e2759cc6d42df0a8ab1bb5c4ef1338807169b74cecb77b2085015548ce5054",
+          "internal_hash_agreement": true
+        }
+      },
+      "status": "OK",
+      "error": null,
+      "fixture_ms": 16.5,
+      "activities": 1000,
+      "relationships": 0,
+      "constraints": 0,
+      "hash_equality": {
+        "status": "PASS",
+        "sequential_hash": "24e2759cc6d42df0a8ab1bb5c4ef1338807169b74cecb77b2085015548ce5054",
+        "parallel_hash": "24e2759cc6d42df0a8ab1bb5c4ef1338807169b74cecb77b2085015548ce5054",
+        "sequential_hashes": [
+          "24e2759cc6d42df0a8ab1bb5c4ef1338807169b74cecb77b2085015548ce5054",
+          "24e2759cc6d42df0a8ab1bb5c4ef1338807169b74cecb77b2085015548ce5054"
+        ],
+        "parallel_hashes": [
+          "24e2759cc6d42df0a8ab1bb5c4ef1338807169b74cecb77b2085015548ce5054",
+          "24e2759cc6d42df0a8ab1bb5c4ef1338807169b74cecb77b2085015548ce5054"
+        ],
+        "error": null
+      },
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "unit_run": {
+        "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 1000 --shape wide --deadline 1795147381.746 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-01-1000-wide.json",
+        "status": "OK",
+        "error": null,
+        "wall_ms": 564.1,
+        "exit": 0,
+        "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+        "stderr": ""
+      }
+    },
+    {
+      "size": 1000,
+      "shape": "mixed",
+      "shape_definition": "time_network(size, \"mixed\", seed=20261116)",
+      "seed": 20261116,
+      "repeats": 2,
+      "parallel_slots": 4,
+      "modes": {
+        "sequential": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 60.0,
+          "float_workers": 1,
+          "policy": "float_workers=1, no policy",
+          "runs": [
+            {
+              "engine_ms": 255.9,
+              "cpu_seconds": 0.26,
+              "hash": "9845018480b69b802ec47370416fbb2b5ef7dc8b6abc791c8257f04ebe0c0083",
+              "project_finish": "2031-04-18T08:00:00+00:00",
+              "critical_count": 721,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 88.0
+            },
+            {
+              "engine_ms": 264.8,
+              "cpu_seconds": 0.27,
+              "hash": "9845018480b69b802ec47370416fbb2b5ef7dc8b6abc791c8257f04ebe0c0083",
+              "project_finish": "2031-04-18T08:00:00+00:00",
+              "critical_count": 721,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 88.0
+            }
+          ],
+          "engine_ms_median": 260.4,
+          "cpu_seconds_total": 0.53,
+          "hash": "9845018480b69b802ec47370416fbb2b5ef7dc8b6abc791c8257f04ebe0c0083",
+          "internal_hash_agreement": true
+        },
+        "parallel": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 60.0,
+          "float_workers": 3,
+          "policy": "FloatExecutionPolicy(workers=3, admission=make_slot_admission(4), allow_nested_fork=True)",
+          "runs": [
+            {
+              "engine_ms": 156.0,
+              "cpu_seconds": 0.29,
+              "hash": "9845018480b69b802ec47370416fbb2b5ef7dc8b6abc791c8257f04ebe0c0083",
+              "project_finish": "2031-04-18T08:00:00+00:00",
+              "critical_count": 721,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 88.0
+            },
+            {
+              "engine_ms": 149.8,
+              "cpu_seconds": 0.29,
+              "hash": "9845018480b69b802ec47370416fbb2b5ef7dc8b6abc791c8257f04ebe0c0083",
+              "project_finish": "2031-04-18T08:00:00+00:00",
+              "critical_count": 721,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 88.0
+            }
+          ],
+          "engine_ms_median": 152.9,
+          "cpu_seconds_total": 0.58,
+          "hash": "9845018480b69b802ec47370416fbb2b5ef7dc8b6abc791c8257f04ebe0c0083",
+          "internal_hash_agreement": true
+        }
+      },
+      "status": "OK",
+      "error": null,
+      "fixture_ms": 49.0,
+      "activities": 1000,
+      "relationships": 2029,
+      "constraints": 0,
+      "hash_equality": {
+        "status": "PASS",
+        "sequential_hash": "9845018480b69b802ec47370416fbb2b5ef7dc8b6abc791c8257f04ebe0c0083",
+        "parallel_hash": "9845018480b69b802ec47370416fbb2b5ef7dc8b6abc791c8257f04ebe0c0083",
+        "sequential_hashes": [
+          "9845018480b69b802ec47370416fbb2b5ef7dc8b6abc791c8257f04ebe0c0083",
+          "9845018480b69b802ec47370416fbb2b5ef7dc8b6abc791c8257f04ebe0c0083"
+        ],
+        "parallel_hashes": [
+          "9845018480b69b802ec47370416fbb2b5ef7dc8b6abc791c8257f04ebe0c0083",
+          "9845018480b69b802ec47370416fbb2b5ef7dc8b6abc791c8257f04ebe0c0083"
+        ],
+        "error": null
+      },
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "unit_run": {
+        "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 1000 --shape mixed --deadline 1795147382.311 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-02-1000-mixed.json",
+        "status": "OK",
+        "error": null,
+        "wall_ms": 1158.9,
+        "exit": 0,
+        "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+        "stderr": ""
+      }
+    },
+    {
+      "size": 1000,
+      "shape": "resource-heavy",
+      "shape_definition": "time_network(size, \"fan\", seed=20261116) (fan: one root -> size-2 concurrent activities -> one join)",
+      "seed": 20261116,
+      "repeats": 2,
+      "parallel_slots": 4,
+      "modes": {
+        "sequential": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 60.0,
+          "float_workers": 1,
+          "policy": "float_workers=1, no policy",
+          "runs": [
+            {
+              "engine_ms": 220.4,
+              "cpu_seconds": 0.22,
+              "hash": "f74a2644df81a608807551200ba83c5fbe3e9d09f45ba3de5c2688014a18fcc9",
+              "project_finish": "2026-01-21T08:00:00+00:00",
+              "critical_count": 201,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 32.0
+            },
+            {
+              "engine_ms": 228.3,
+              "cpu_seconds": 0.23,
+              "hash": "f74a2644df81a608807551200ba83c5fbe3e9d09f45ba3de5c2688014a18fcc9",
+              "project_finish": "2026-01-21T08:00:00+00:00",
+              "critical_count": 201,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 32.0
+            }
+          ],
+          "engine_ms_median": 224.4,
+          "cpu_seconds_total": 0.45,
+          "hash": "f74a2644df81a608807551200ba83c5fbe3e9d09f45ba3de5c2688014a18fcc9",
+          "internal_hash_agreement": true
+        },
+        "parallel": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 60.0,
+          "float_workers": 3,
+          "policy": "FloatExecutionPolicy(workers=3, admission=make_slot_admission(4), allow_nested_fork=True)",
+          "runs": [
+            {
+              "engine_ms": 174.1,
+              "cpu_seconds": 0.24,
+              "hash": "f74a2644df81a608807551200ba83c5fbe3e9d09f45ba3de5c2688014a18fcc9",
+              "project_finish": "2026-01-21T08:00:00+00:00",
+              "critical_count": 201,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 32.0
+            },
+            {
+              "engine_ms": 172.4,
+              "cpu_seconds": 0.26,
+              "hash": "f74a2644df81a608807551200ba83c5fbe3e9d09f45ba3de5c2688014a18fcc9",
+              "project_finish": "2026-01-21T08:00:00+00:00",
+              "critical_count": 201,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 32.0
+            }
+          ],
+          "engine_ms_median": 173.2,
+          "cpu_seconds_total": 0.5,
+          "hash": "f74a2644df81a608807551200ba83c5fbe3e9d09f45ba3de5c2688014a18fcc9",
+          "internal_hash_agreement": true
+        }
+      },
+      "status": "OK",
+      "error": null,
+      "fixture_ms": 36.0,
+      "activities": 1000,
+      "relationships": 1996,
+      "constraints": 0,
+      "hash_equality": {
+        "status": "PASS",
+        "sequential_hash": "f74a2644df81a608807551200ba83c5fbe3e9d09f45ba3de5c2688014a18fcc9",
+        "parallel_hash": "f74a2644df81a608807551200ba83c5fbe3e9d09f45ba3de5c2688014a18fcc9",
+        "sequential_hashes": [
+          "f74a2644df81a608807551200ba83c5fbe3e9d09f45ba3de5c2688014a18fcc9",
+          "f74a2644df81a608807551200ba83c5fbe3e9d09f45ba3de5c2688014a18fcc9"
+        ],
+        "parallel_hashes": [
+          "f74a2644df81a608807551200ba83c5fbe3e9d09f45ba3de5c2688014a18fcc9",
+          "f74a2644df81a608807551200ba83c5fbe3e9d09f45ba3de5c2688014a18fcc9"
+        ],
+        "error": null
+      },
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "unit_run": {
+        "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 1000 --shape resource-heavy --deadline 1795147383.470 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-03-1000-resource-heavy.json",
+        "status": "OK",
+        "error": null,
+        "wall_ms": 1114.7,
+        "exit": 0,
+        "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+        "stderr": ""
+      }
+    },
+    {
+      "size": 1000,
+      "shape": "constraint-heavy",
+      "shape_definition": "time_network(size, \"dag\", seed=20261116) plus TimeActivityConstraint(START_NO_EARLIER_THAN) on every 7th activity",
+      "seed": 20261116,
+      "repeats": 2,
+      "parallel_slots": 4,
+      "modes": {
+        "sequential": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 60.0,
+          "float_workers": 1,
+          "policy": "float_workers=1, no policy",
+          "runs": [
+            {
+              "engine_ms": 318.9,
+              "cpu_seconds": 0.32,
+              "hash": "3c922da3dd0b10941e2a3a6ae71d1dd5c31862f8c057860ac62e51b86b2f6ad3",
+              "project_finish": "2037-07-09T08:00:00+00:00",
+              "critical_count": 1000,
+              "min_total_float_hours": -8.0,
+              "max_total_float_hours": -8.0
+            },
+            {
+              "engine_ms": 328.3,
+              "cpu_seconds": 0.33,
+              "hash": "3c922da3dd0b10941e2a3a6ae71d1dd5c31862f8c057860ac62e51b86b2f6ad3",
+              "project_finish": "2037-07-09T08:00:00+00:00",
+              "critical_count": 1000,
+              "min_total_float_hours": -8.0,
+              "max_total_float_hours": -8.0
+            }
+          ],
+          "engine_ms_median": 323.6,
+          "cpu_seconds_total": 0.65,
+          "hash": "3c922da3dd0b10941e2a3a6ae71d1dd5c31862f8c057860ac62e51b86b2f6ad3",
+          "internal_hash_agreement": true
+        },
+        "parallel": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 60.0,
+          "float_workers": 3,
+          "policy": "FloatExecutionPolicy(workers=3, admission=make_slot_admission(4), allow_nested_fork=True)",
+          "runs": [
+            {
+              "engine_ms": 240.8,
+              "cpu_seconds": 0.36,
+              "hash": "3c922da3dd0b10941e2a3a6ae71d1dd5c31862f8c057860ac62e51b86b2f6ad3",
+              "project_finish": "2037-07-09T08:00:00+00:00",
+              "critical_count": 1000,
+              "min_total_float_hours": -8.0,
+              "max_total_float_hours": -8.0
+            },
+            {
+              "engine_ms": 256.5,
+              "cpu_seconds": 0.39,
+              "hash": "3c922da3dd0b10941e2a3a6ae71d1dd5c31862f8c057860ac62e51b86b2f6ad3",
+              "project_finish": "2037-07-09T08:00:00+00:00",
+              "critical_count": 1000,
+              "min_total_float_hours": -8.0,
+              "max_total_float_hours": -8.0
+            }
+          ],
+          "engine_ms_median": 248.7,
+          "cpu_seconds_total": 0.75,
+          "hash": "3c922da3dd0b10941e2a3a6ae71d1dd5c31862f8c057860ac62e51b86b2f6ad3",
+          "internal_hash_agreement": true
+        }
+      },
+      "status": "OK",
+      "error": null,
+      "fixture_ms": 37.5,
+      "activities": 1000,
+      "relationships": 1923,
+      "constraints": 143,
+      "hash_equality": {
+        "status": "PASS",
+        "sequential_hash": "3c922da3dd0b10941e2a3a6ae71d1dd5c31862f8c057860ac62e51b86b2f6ad3",
+        "parallel_hash": "3c922da3dd0b10941e2a3a6ae71d1dd5c31862f8c057860ac62e51b86b2f6ad3",
+        "sequential_hashes": [
+          "3c922da3dd0b10941e2a3a6ae71d1dd5c31862f8c057860ac62e51b86b2f6ad3",
+          "3c922da3dd0b10941e2a3a6ae71d1dd5c31862f8c057860ac62e51b86b2f6ad3"
+        ],
+        "parallel_hashes": [
+          "3c922da3dd0b10941e2a3a6ae71d1dd5c31862f8c057860ac62e51b86b2f6ad3",
+          "3c922da3dd0b10941e2a3a6ae71d1dd5c31862f8c057860ac62e51b86b2f6ad3"
+        ],
+        "error": null
+      },
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "unit_run": {
+        "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 1000 --shape constraint-heavy --deadline 1795147384.586 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-04-1000-constraint-heavy.json",
+        "status": "OK",
+        "error": null,
+        "wall_ms": 1466.9,
+        "exit": 0,
+        "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+        "stderr": ""
+      }
+    },
+    {
+      "size": 5000,
+      "shape": "chain",
+      "shape_definition": "time_network(size, \"chain\", seed=20261116)",
+      "seed": 20261116,
+      "repeats": 2,
+      "parallel_slots": 4,
+      "modes": {
+        "sequential": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 90.0,
+          "float_workers": 1,
+          "policy": "float_workers=1, no policy",
+          "runs": [
+            {
+              "engine_ms": 649.0,
+              "cpu_seconds": 0.65,
+              "hash": "3d2f1f8dc31ceb4f1fef6006a5008ef3ca051f0896f78f39f352eda0be606ae9",
+              "project_finish": "2083-07-08T08:00:00+00:00",
+              "critical_count": 5000,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 0.0
+            },
+            {
+              "engine_ms": 664.6,
+              "cpu_seconds": 0.66,
+              "hash": "3d2f1f8dc31ceb4f1fef6006a5008ef3ca051f0896f78f39f352eda0be606ae9",
+              "project_finish": "2083-07-08T08:00:00+00:00",
+              "critical_count": 5000,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 0.0
+            }
+          ],
+          "engine_ms_median": 656.8,
+          "cpu_seconds_total": 1.31,
+          "hash": "3d2f1f8dc31ceb4f1fef6006a5008ef3ca051f0896f78f39f352eda0be606ae9",
+          "internal_hash_agreement": true
+        },
+        "parallel": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 90.0,
+          "float_workers": 3,
+          "policy": "FloatExecutionPolicy(workers=3, admission=make_slot_admission(4), allow_nested_fork=True)",
+          "runs": [
+            {
+              "engine_ms": 471.0,
+              "cpu_seconds": 0.76,
+              "hash": "3d2f1f8dc31ceb4f1fef6006a5008ef3ca051f0896f78f39f352eda0be606ae9",
+              "project_finish": "2083-07-08T08:00:00+00:00",
+              "critical_count": 5000,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 0.0
+            },
+            {
+              "engine_ms": 466.0,
+              "cpu_seconds": 0.78,
+              "hash": "3d2f1f8dc31ceb4f1fef6006a5008ef3ca051f0896f78f39f352eda0be606ae9",
+              "project_finish": "2083-07-08T08:00:00+00:00",
+              "critical_count": 5000,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 0.0
+            }
+          ],
+          "engine_ms_median": 468.5,
+          "cpu_seconds_total": 1.54,
+          "hash": "3d2f1f8dc31ceb4f1fef6006a5008ef3ca051f0896f78f39f352eda0be606ae9",
+          "internal_hash_agreement": true
+        }
+      },
+      "status": "OK",
+      "error": null,
+      "fixture_ms": 139.3,
+      "activities": 5000,
+      "relationships": 4999,
+      "constraints": 0,
+      "hash_equality": {
+        "status": "PASS",
+        "sequential_hash": "3d2f1f8dc31ceb4f1fef6006a5008ef3ca051f0896f78f39f352eda0be606ae9",
+        "parallel_hash": "3d2f1f8dc31ceb4f1fef6006a5008ef3ca051f0896f78f39f352eda0be606ae9",
+        "sequential_hashes": [
+          "3d2f1f8dc31ceb4f1fef6006a5008ef3ca051f0896f78f39f352eda0be606ae9",
+          "3d2f1f8dc31ceb4f1fef6006a5008ef3ca051f0896f78f39f352eda0be606ae9"
+        ],
+        "parallel_hashes": [
+          "3d2f1f8dc31ceb4f1fef6006a5008ef3ca051f0896f78f39f352eda0be606ae9",
+          "3d2f1f8dc31ceb4f1fef6006a5008ef3ca051f0896f78f39f352eda0be606ae9"
+        ],
+        "error": null
+      },
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "unit_run": {
+        "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 5000 --shape chain --deadline 1795147446.054 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-05-5000-chain.json",
+        "status": "OK",
+        "error": null,
+        "wall_ms": 2945.6,
+        "exit": 0,
+        "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+        "stderr": ""
+      }
+    },
+    {
+      "size": 5000,
+      "shape": "wide",
+      "shape_definition": "time_network(size, \"wide\", seed=20261116)",
+      "seed": 20261116,
+      "repeats": 2,
+      "parallel_slots": 4,
+      "modes": {
+        "sequential": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 90.0,
+          "float_workers": 1,
+          "policy": "float_workers=1, no policy",
+          "runs": [
+            {
+              "engine_ms": 234.4,
+              "cpu_seconds": 0.23,
+              "hash": "f3e779aebd3c1c1095569f9da54884365c2ce0638f859e84f888c8b527f1a64c",
+              "project_finish": "2026-01-13T08:00:00+00:00",
+              "critical_count": 1000,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 32.0
+            },
+            {
+              "engine_ms": 226.3,
+              "cpu_seconds": 0.23,
+              "hash": "f3e779aebd3c1c1095569f9da54884365c2ce0638f859e84f888c8b527f1a64c",
+              "project_finish": "2026-01-13T08:00:00+00:00",
+              "critical_count": 1000,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 32.0
+            }
+          ],
+          "engine_ms_median": 230.4,
+          "cpu_seconds_total": 0.46,
+          "hash": "f3e779aebd3c1c1095569f9da54884365c2ce0638f859e84f888c8b527f1a64c",
+          "internal_hash_agreement": true
+        },
+        "parallel": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 90.0,
+          "float_workers": 3,
+          "policy": "FloatExecutionPolicy(workers=3, admission=make_slot_admission(4), allow_nested_fork=True)",
+          "runs": [
+            {
+              "engine_ms": 230.9,
+              "cpu_seconds": 0.3,
+              "hash": "f3e779aebd3c1c1095569f9da54884365c2ce0638f859e84f888c8b527f1a64c",
+              "project_finish": "2026-01-13T08:00:00+00:00",
+              "critical_count": 1000,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 32.0
+            },
+            {
+              "engine_ms": 255.4,
+              "cpu_seconds": 0.36,
+              "hash": "f3e779aebd3c1c1095569f9da54884365c2ce0638f859e84f888c8b527f1a64c",
+              "project_finish": "2026-01-13T08:00:00+00:00",
+              "critical_count": 1000,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 32.0
+            }
+          ],
+          "engine_ms_median": 243.2,
+          "cpu_seconds_total": 0.66,
+          "hash": "f3e779aebd3c1c1095569f9da54884365c2ce0638f859e84f888c8b527f1a64c",
+          "internal_hash_agreement": true
+        }
+      },
+      "status": "OK",
+      "error": null,
+      "fixture_ms": 79.2,
+      "activities": 5000,
+      "relationships": 0,
+      "constraints": 0,
+      "hash_equality": {
+        "status": "PASS",
+        "sequential_hash": "f3e779aebd3c1c1095569f9da54884365c2ce0638f859e84f888c8b527f1a64c",
+        "parallel_hash": "f3e779aebd3c1c1095569f9da54884365c2ce0638f859e84f888c8b527f1a64c",
+        "sequential_hashes": [
+          "f3e779aebd3c1c1095569f9da54884365c2ce0638f859e84f888c8b527f1a64c",
+          "f3e779aebd3c1c1095569f9da54884365c2ce0638f859e84f888c8b527f1a64c"
+        ],
+        "parallel_hashes": [
+          "f3e779aebd3c1c1095569f9da54884365c2ce0638f859e84f888c8b527f1a64c",
+          "f3e779aebd3c1c1095569f9da54884365c2ce0638f859e84f888c8b527f1a64c"
+        ],
+        "error": null
+      },
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "unit_run": {
+        "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 5000 --shape wide --deadline 1795147449.000 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-06-5000-wide.json",
+        "status": "OK",
+        "error": null,
+        "wall_ms": 1572.6,
+        "exit": 0,
+        "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+        "stderr": ""
+      }
+    },
+    {
+      "size": 5000,
+      "shape": "mixed",
+      "shape_definition": "time_network(size, \"mixed\", seed=20261116)",
+      "seed": 20261116,
+      "repeats": 2,
+      "parallel_slots": 4,
+      "modes": {
+        "sequential": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 90.0,
+          "float_workers": 1,
+          "policy": "float_workers=1, no policy",
+          "runs": [
+            {
+              "engine_ms": 1276.2,
+              "cpu_seconds": 1.28,
+              "hash": "067f05a0be1a27dd182afee0e06f39eaf9b40d64ceee04c5a5486bc639b92358",
+              "project_finish": "2051-10-12T08:00:00+00:00",
+              "critical_count": 3562,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 88.0
+            },
+            {
+              "engine_ms": 1276.3,
+              "cpu_seconds": 1.27,
+              "hash": "067f05a0be1a27dd182afee0e06f39eaf9b40d64ceee04c5a5486bc639b92358",
+              "project_finish": "2051-10-12T08:00:00+00:00",
+              "critical_count": 3562,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 88.0
+            }
+          ],
+          "engine_ms_median": 1276.2,
+          "cpu_seconds_total": 2.55,
+          "hash": "067f05a0be1a27dd182afee0e06f39eaf9b40d64ceee04c5a5486bc639b92358",
+          "internal_hash_agreement": true
+        },
+        "parallel": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 90.0,
+          "float_workers": 3,
+          "policy": "FloatExecutionPolicy(workers=3, admission=make_slot_admission(4), allow_nested_fork=True)",
+          "runs": [
+            {
+              "engine_ms": 781.7,
+              "cpu_seconds": 1.44,
+              "hash": "067f05a0be1a27dd182afee0e06f39eaf9b40d64ceee04c5a5486bc639b92358",
+              "project_finish": "2051-10-12T08:00:00+00:00",
+              "critical_count": 3562,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 88.0
+            },
+            {
+              "engine_ms": 743.3,
+              "cpu_seconds": 1.43,
+              "hash": "067f05a0be1a27dd182afee0e06f39eaf9b40d64ceee04c5a5486bc639b92358",
+              "project_finish": "2051-10-12T08:00:00+00:00",
+              "critical_count": 3562,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 88.0
+            }
+          ],
+          "engine_ms_median": 762.5,
+          "cpu_seconds_total": 2.87,
+          "hash": "067f05a0be1a27dd182afee0e06f39eaf9b40d64ceee04c5a5486bc639b92358",
+          "internal_hash_agreement": true
+        }
+      },
+      "status": "OK",
+      "error": null,
+      "fixture_ms": 246.7,
+      "activities": 5000,
+      "relationships": 10103,
+      "constraints": 0,
+      "hash_equality": {
+        "status": "PASS",
+        "sequential_hash": "067f05a0be1a27dd182afee0e06f39eaf9b40d64ceee04c5a5486bc639b92358",
+        "parallel_hash": "067f05a0be1a27dd182afee0e06f39eaf9b40d64ceee04c5a5486bc639b92358",
+        "sequential_hashes": [
+          "067f05a0be1a27dd182afee0e06f39eaf9b40d64ceee04c5a5486bc639b92358",
+          "067f05a0be1a27dd182afee0e06f39eaf9b40d64ceee04c5a5486bc639b92358"
+        ],
+        "parallel_hashes": [
+          "067f05a0be1a27dd182afee0e06f39eaf9b40d64ceee04c5a5486bc639b92358",
+          "067f05a0be1a27dd182afee0e06f39eaf9b40d64ceee04c5a5486bc639b92358"
+        ],
+        "error": null
+      },
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "unit_run": {
+        "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 5000 --shape mixed --deadline 1795147450.574 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-07-5000-mixed.json",
+        "status": "OK",
+        "error": null,
+        "wall_ms": 4898.8,
+        "exit": 0,
+        "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+        "stderr": ""
+      }
+    },
+    {
+      "size": 5000,
+      "shape": "resource-heavy",
+      "shape_definition": "time_network(size, \"fan\", seed=20261116) (fan: one root -> size-2 concurrent activities -> one join)",
+      "seed": 20261116,
+      "repeats": 2,
+      "parallel_slots": 4,
+      "modes": {
+        "sequential": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 90.0,
+          "float_workers": 1,
+          "policy": "float_workers=1, no policy",
+          "runs": [
+            {
+              "engine_ms": 1154.1,
+              "cpu_seconds": 1.15,
+              "hash": "f0a94e8caa6bdc8c42646afd01a1d3fc5e057021a7ebd171895edc7dd9106c43",
+              "project_finish": "2026-01-21T08:00:00+00:00",
+              "critical_count": 1001,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 32.0
+            },
+            {
+              "engine_ms": 1151.2,
+              "cpu_seconds": 1.15,
+              "hash": "f0a94e8caa6bdc8c42646afd01a1d3fc5e057021a7ebd171895edc7dd9106c43",
+              "project_finish": "2026-01-21T08:00:00+00:00",
+              "critical_count": 1001,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 32.0
+            }
+          ],
+          "engine_ms_median": 1152.7,
+          "cpu_seconds_total": 2.3,
+          "hash": "f0a94e8caa6bdc8c42646afd01a1d3fc5e057021a7ebd171895edc7dd9106c43",
+          "internal_hash_agreement": true
+        },
+        "parallel": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 90.0,
+          "float_workers": 3,
+          "policy": "FloatExecutionPolicy(workers=3, admission=make_slot_admission(4), allow_nested_fork=True)",
+          "runs": [
+            {
+              "engine_ms": 913.7,
+              "cpu_seconds": 1.28,
+              "hash": "f0a94e8caa6bdc8c42646afd01a1d3fc5e057021a7ebd171895edc7dd9106c43",
+              "project_finish": "2026-01-21T08:00:00+00:00",
+              "critical_count": 1001,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 32.0
+            },
+            {
+              "engine_ms": 898.7,
+              "cpu_seconds": 1.32,
+              "hash": "f0a94e8caa6bdc8c42646afd01a1d3fc5e057021a7ebd171895edc7dd9106c43",
+              "project_finish": "2026-01-21T08:00:00+00:00",
+              "critical_count": 1001,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 32.0
+            }
+          ],
+          "engine_ms_median": 906.2,
+          "cpu_seconds_total": 2.6,
+          "hash": "f0a94e8caa6bdc8c42646afd01a1d3fc5e057021a7ebd171895edc7dd9106c43",
+          "internal_hash_agreement": true
+        }
+      },
+      "status": "OK",
+      "error": null,
+      "fixture_ms": 185.5,
+      "activities": 5000,
+      "relationships": 9996,
+      "constraints": 0,
+      "hash_equality": {
+        "status": "PASS",
+        "sequential_hash": "f0a94e8caa6bdc8c42646afd01a1d3fc5e057021a7ebd171895edc7dd9106c43",
+        "parallel_hash": "f0a94e8caa6bdc8c42646afd01a1d3fc5e057021a7ebd171895edc7dd9106c43",
+        "sequential_hashes": [
+          "f0a94e8caa6bdc8c42646afd01a1d3fc5e057021a7ebd171895edc7dd9106c43",
+          "f0a94e8caa6bdc8c42646afd01a1d3fc5e057021a7ebd171895edc7dd9106c43"
+        ],
+        "parallel_hashes": [
+          "f0a94e8caa6bdc8c42646afd01a1d3fc5e057021a7ebd171895edc7dd9106c43",
+          "f0a94e8caa6bdc8c42646afd01a1d3fc5e057021a7ebd171895edc7dd9106c43"
+        ],
+        "error": null
+      },
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "unit_run": {
+        "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 5000 --shape resource-heavy --deadline 1795147455.474 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-08-5000-resource-heavy.json",
+        "status": "OK",
+        "error": null,
+        "wall_ms": 4855.8,
+        "exit": 0,
+        "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+        "stderr": ""
+      }
+    },
+    {
+      "size": 5000,
+      "shape": "constraint-heavy",
+      "shape_definition": "time_network(size, \"dag\", seed=20261116) plus TimeActivityConstraint(START_NO_EARLIER_THAN) on every 7th activity",
+      "seed": 20261116,
+      "repeats": 2,
+      "parallel_slots": 4,
+      "modes": {
+        "sequential": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 90.0,
+          "float_workers": 1,
+          "policy": "float_workers=1, no policy",
+          "runs": [
+            {
+              "engine_ms": 3446.9,
+              "cpu_seconds": 3.44,
+              "hash": "cea94bcaadcb3cd7d99d5ba9b978e83d509aae066d3be6caac25a25428bc47ae",
+              "project_finish": "2083-07-08T08:00:00+00:00",
+              "critical_count": 5000,
+              "min_total_float_hours": -8.0,
+              "max_total_float_hours": -8.0
+            },
+            {
+              "engine_ms": 3450.7,
+              "cpu_seconds": 3.46,
+              "hash": "cea94bcaadcb3cd7d99d5ba9b978e83d509aae066d3be6caac25a25428bc47ae",
+              "project_finish": "2083-07-08T08:00:00+00:00",
+              "critical_count": 5000,
+              "min_total_float_hours": -8.0,
+              "max_total_float_hours": -8.0
+            }
+          ],
+          "engine_ms_median": 3448.8,
+          "cpu_seconds_total": 6.9,
+          "hash": "cea94bcaadcb3cd7d99d5ba9b978e83d509aae066d3be6caac25a25428bc47ae",
+          "internal_hash_agreement": true
+        },
+        "parallel": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 90.0,
+          "float_workers": 3,
+          "policy": "FloatExecutionPolicy(workers=3, admission=make_slot_admission(4), allow_nested_fork=True)",
+          "runs": [
+            {
+              "engine_ms": 2984.3,
+              "cpu_seconds": 3.6,
+              "hash": "cea94bcaadcb3cd7d99d5ba9b978e83d509aae066d3be6caac25a25428bc47ae",
+              "project_finish": "2083-07-08T08:00:00+00:00",
+              "critical_count": 5000,
+              "min_total_float_hours": -8.0,
+              "max_total_float_hours": -8.0
+            },
+            {
+              "engine_ms": 2968.1,
+              "cpu_seconds": 3.58,
+              "hash": "cea94bcaadcb3cd7d99d5ba9b978e83d509aae066d3be6caac25a25428bc47ae",
+              "project_finish": "2083-07-08T08:00:00+00:00",
+              "critical_count": 5000,
+              "min_total_float_hours": -8.0,
+              "max_total_float_hours": -8.0
+            }
+          ],
+          "engine_ms_median": 2976.2,
+          "cpu_seconds_total": 7.18,
+          "hash": "cea94bcaadcb3cd7d99d5ba9b978e83d509aae066d3be6caac25a25428bc47ae",
+          "internal_hash_agreement": true
+        }
+      },
+      "status": "OK",
+      "error": null,
+      "fixture_ms": 192.2,
+      "activities": 5000,
+      "relationships": 9575,
+      "constraints": 715,
+      "hash_equality": {
+        "status": "PASS",
+        "sequential_hash": "cea94bcaadcb3cd7d99d5ba9b978e83d509aae066d3be6caac25a25428bc47ae",
+        "parallel_hash": "cea94bcaadcb3cd7d99d5ba9b978e83d509aae066d3be6caac25a25428bc47ae",
+        "sequential_hashes": [
+          "cea94bcaadcb3cd7d99d5ba9b978e83d509aae066d3be6caac25a25428bc47ae",
+          "cea94bcaadcb3cd7d99d5ba9b978e83d509aae066d3be6caac25a25428bc47ae"
+        ],
+        "parallel_hashes": [
+          "cea94bcaadcb3cd7d99d5ba9b978e83d509aae066d3be6caac25a25428bc47ae",
+          "cea94bcaadcb3cd7d99d5ba9b978e83d509aae066d3be6caac25a25428bc47ae"
+        ],
+        "error": null
+      },
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "unit_run": {
+        "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 5000 --shape constraint-heavy --deadline 1795147460.331 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-09-5000-constraint-heavy.json",
+        "status": "OK",
+        "error": null,
+        "wall_ms": 13603.5,
+        "exit": 0,
+        "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+        "stderr": ""
+      }
+    },
+    {
+      "size": 25000,
+      "shape": "chain",
+      "shape_definition": "time_network(size, \"chain\", seed=20261116)",
+      "seed": 20261116,
+      "repeats": 1,
+      "parallel_slots": 4,
+      "modes": {
+        "sequential": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 150.0,
+          "float_workers": 1,
+          "policy": "float_workers=1, no policy",
+          "runs": [
+            {
+              "engine_ms": 3381.7,
+              "cpu_seconds": 3.38,
+              "hash": "84864c94f01706c01ac024f6dd99ae6e556d35b0c53eb1239726a61c86e93360",
+              "project_finish": "2313-07-03T08:00:00+00:00",
+              "critical_count": 25000,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 0.0
+            }
+          ],
+          "engine_ms_median": 3381.7,
+          "cpu_seconds_total": 3.38,
+          "hash": "84864c94f01706c01ac024f6dd99ae6e556d35b0c53eb1239726a61c86e93360",
+          "internal_hash_agreement": true
+        },
+        "parallel": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 150.0,
+          "float_workers": 3,
+          "policy": "FloatExecutionPolicy(workers=3, admission=make_slot_admission(4), allow_nested_fork=True)",
+          "runs": [
+            {
+              "engine_ms": 2342.2,
+              "cpu_seconds": 3.92,
+              "hash": "84864c94f01706c01ac024f6dd99ae6e556d35b0c53eb1239726a61c86e93360",
+              "project_finish": "2313-07-03T08:00:00+00:00",
+              "critical_count": 25000,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 0.0
+            }
+          ],
+          "engine_ms_median": 2342.2,
+          "cpu_seconds_total": 3.92,
+          "hash": "84864c94f01706c01ac024f6dd99ae6e556d35b0c53eb1239726a61c86e93360",
+          "internal_hash_agreement": true
+        }
+      },
+      "status": "OK",
+      "error": null,
+      "fixture_ms": 692.0,
+      "activities": 25000,
+      "relationships": 24999,
+      "constraints": 0,
+      "hash_equality": {
+        "status": "PASS",
+        "sequential_hash": "84864c94f01706c01ac024f6dd99ae6e556d35b0c53eb1239726a61c86e93360",
+        "parallel_hash": "84864c94f01706c01ac024f6dd99ae6e556d35b0c53eb1239726a61c86e93360",
+        "sequential_hashes": [
+          "84864c94f01706c01ac024f6dd99ae6e556d35b0c53eb1239726a61c86e93360"
+        ],
+        "parallel_hashes": [
+          "84864c94f01706c01ac024f6dd99ae6e556d35b0c53eb1239726a61c86e93360"
+        ],
+        "error": null
+      },
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "unit_run": {
+        "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 25000 --shape chain --deadline 1795147593.935 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-10-25000-chain.json",
+        "status": "OK",
+        "error": null,
+        "wall_ms": 7467.8,
+        "exit": 0,
+        "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+        "stderr": ""
+      }
+    },
+    {
+      "size": 25000,
+      "shape": "wide",
+      "shape_definition": "time_network(size, \"wide\", seed=20261116)",
+      "seed": 20261116,
+      "repeats": 1,
+      "parallel_slots": 4,
+      "modes": {
+        "sequential": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 150.0,
+          "float_workers": 1,
+          "policy": "float_workers=1, no policy",
+          "runs": [
+            {
+              "engine_ms": 1211.5,
+              "cpu_seconds": 1.21,
+              "hash": "7a08260e72eb8999e84b6b1c04cbd15633cd27550b42311c16a741db69dd9937",
+              "project_finish": "2026-01-13T08:00:00+00:00",
+              "critical_count": 5000,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 32.0
+            }
+          ],
+          "engine_ms_median": 1211.5,
+          "cpu_seconds_total": 1.21,
+          "hash": "7a08260e72eb8999e84b6b1c04cbd15633cd27550b42311c16a741db69dd9937",
+          "internal_hash_agreement": true
+        },
+        "parallel": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 150.0,
+          "float_workers": 3,
+          "policy": "FloatExecutionPolicy(workers=3, admission=make_slot_admission(4), allow_nested_fork=True)",
+          "runs": [
+            {
+              "engine_ms": 1187.3,
+              "cpu_seconds": 1.69,
+              "hash": "7a08260e72eb8999e84b6b1c04cbd15633cd27550b42311c16a741db69dd9937",
+              "project_finish": "2026-01-13T08:00:00+00:00",
+              "critical_count": 5000,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 32.0
+            }
+          ],
+          "engine_ms_median": 1187.3,
+          "cpu_seconds_total": 1.69,
+          "hash": "7a08260e72eb8999e84b6b1c04cbd15633cd27550b42311c16a741db69dd9937",
+          "internal_hash_agreement": true
+        }
+      },
+      "status": "OK",
+      "error": null,
+      "fixture_ms": 423.8,
+      "activities": 25000,
+      "relationships": 0,
+      "constraints": 0,
+      "hash_equality": {
+        "status": "PASS",
+        "sequential_hash": "7a08260e72eb8999e84b6b1c04cbd15633cd27550b42311c16a741db69dd9937",
+        "parallel_hash": "7a08260e72eb8999e84b6b1c04cbd15633cd27550b42311c16a741db69dd9937",
+        "sequential_hashes": [
+          "7a08260e72eb8999e84b6b1c04cbd15633cd27550b42311c16a741db69dd9937"
+        ],
+        "parallel_hashes": [
+          "7a08260e72eb8999e84b6b1c04cbd15633cd27550b42311c16a741db69dd9937"
+        ],
+        "error": null
+      },
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "unit_run": {
+        "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 25000 --shape wide --deadline 1795147601.405 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-11-25000-wide.json",
+        "status": "OK",
+        "error": null,
+        "wall_ms": 3894.6,
+        "exit": 0,
+        "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+        "stderr": ""
+      }
+    },
+    {
+      "size": 25000,
+      "shape": "mixed",
+      "shape_definition": "time_network(size, \"mixed\", seed=20261116)",
+      "seed": 20261116,
+      "repeats": 1,
+      "parallel_slots": 4,
+      "modes": {
+        "sequential": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 150.0,
+          "float_workers": 1,
+          "policy": "float_workers=1, no policy",
+          "runs": [
+            {
+              "engine_ms": 6557.4,
+              "cpu_seconds": 6.57,
+              "hash": "7c6aa1b2e001b445cb2d46c4625422a0045ffcf640b9289193e0b7a48e582404",
+              "project_finish": "2154-03-04T08:00:00+00:00",
+              "critical_count": 17853,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 120.0
+            }
+          ],
+          "engine_ms_median": 6557.4,
+          "cpu_seconds_total": 6.57,
+          "hash": "7c6aa1b2e001b445cb2d46c4625422a0045ffcf640b9289193e0b7a48e582404",
+          "internal_hash_agreement": true
+        },
+        "parallel": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 150.0,
+          "float_workers": 3,
+          "policy": "FloatExecutionPolicy(workers=3, admission=make_slot_admission(4), allow_nested_fork=True)",
+          "runs": [
+            {
+              "engine_ms": 3785.9,
+              "cpu_seconds": 7.1,
+              "hash": "7c6aa1b2e001b445cb2d46c4625422a0045ffcf640b9289193e0b7a48e582404",
+              "project_finish": "2154-03-04T08:00:00+00:00",
+              "critical_count": 17853,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 120.0
+            }
+          ],
+          "engine_ms_median": 3785.9,
+          "cpu_seconds_total": 7.1,
+          "hash": "7c6aa1b2e001b445cb2d46c4625422a0045ffcf640b9289193e0b7a48e582404",
+          "internal_hash_agreement": true
+        }
+      },
+      "status": "OK",
+      "error": null,
+      "fixture_ms": 1290.5,
+      "activities": 25000,
+      "relationships": 50671,
+      "constraints": 0,
+      "hash_equality": {
+        "status": "PASS",
+        "sequential_hash": "7c6aa1b2e001b445cb2d46c4625422a0045ffcf640b9289193e0b7a48e582404",
+        "parallel_hash": "7c6aa1b2e001b445cb2d46c4625422a0045ffcf640b9289193e0b7a48e582404",
+        "sequential_hashes": [
+          "7c6aa1b2e001b445cb2d46c4625422a0045ffcf640b9289193e0b7a48e582404"
+        ],
+        "parallel_hashes": [
+          "7c6aa1b2e001b445cb2d46c4625422a0045ffcf640b9289193e0b7a48e582404"
+        ],
+        "error": null
+      },
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "unit_run": {
+        "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 25000 --shape mixed --deadline 1795147605.301 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-12-25000-mixed.json",
+        "status": "OK",
+        "error": null,
+        "wall_ms": 12807.1,
+        "exit": 0,
+        "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+        "stderr": ""
+      }
+    },
+    {
+      "size": 25000,
+      "shape": "resource-heavy",
+      "shape_definition": "time_network(size, \"fan\", seed=20261116) (fan: one root -> size-2 concurrent activities -> one join)",
+      "seed": 20261116,
+      "repeats": 1,
+      "parallel_slots": 4,
+      "modes": {
+        "sequential": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 150.0,
+          "float_workers": 1,
+          "policy": "float_workers=1, no policy",
+          "runs": [
+            {
+              "engine_ms": 7086.2,
+              "cpu_seconds": 7.09,
+              "hash": "ebe781ac1c8fdd1f8ddb6ae43263aaa41aa44a1b3b92453cb4a456a21eb4a6dc",
+              "project_finish": "2026-01-21T08:00:00+00:00",
+              "critical_count": 5001,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 32.0
+            }
+          ],
+          "engine_ms_median": 7086.2,
+          "cpu_seconds_total": 7.09,
+          "hash": "ebe781ac1c8fdd1f8ddb6ae43263aaa41aa44a1b3b92453cb4a456a21eb4a6dc",
+          "internal_hash_agreement": true
+        },
+        "parallel": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 150.0,
+          "float_workers": 3,
+          "policy": "FloatExecutionPolicy(workers=3, admission=make_slot_admission(4), allow_nested_fork=True)",
+          "runs": [
+            {
+              "engine_ms": 5786.6,
+              "cpu_seconds": 7.71,
+              "hash": "ebe781ac1c8fdd1f8ddb6ae43263aaa41aa44a1b3b92453cb4a456a21eb4a6dc",
+              "project_finish": "2026-01-21T08:00:00+00:00",
+              "critical_count": 5001,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 32.0
+            }
+          ],
+          "engine_ms_median": 5786.6,
+          "cpu_seconds_total": 7.71,
+          "hash": "ebe781ac1c8fdd1f8ddb6ae43263aaa41aa44a1b3b92453cb4a456a21eb4a6dc",
+          "internal_hash_agreement": true
+        }
+      },
+      "status": "OK",
+      "error": null,
+      "fixture_ms": 933.8,
+      "activities": 25000,
+      "relationships": 49996,
+      "constraints": 0,
+      "hash_equality": {
+        "status": "PASS",
+        "sequential_hash": "ebe781ac1c8fdd1f8ddb6ae43263aaa41aa44a1b3b92453cb4a456a21eb4a6dc",
+        "parallel_hash": "ebe781ac1c8fdd1f8ddb6ae43263aaa41aa44a1b3b92453cb4a456a21eb4a6dc",
+        "sequential_hashes": [
+          "ebe781ac1c8fdd1f8ddb6ae43263aaa41aa44a1b3b92453cb4a456a21eb4a6dc"
+        ],
+        "parallel_hashes": [
+          "ebe781ac1c8fdd1f8ddb6ae43263aaa41aa44a1b3b92453cb4a456a21eb4a6dc"
+        ],
+        "error": null
+      },
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "unit_run": {
+        "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 25000 --shape resource-heavy --deadline 1795147618.109 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-13-25000-resource-heavy.json",
+        "status": "OK",
+        "error": null,
+        "wall_ms": 14892.2,
+        "exit": 0,
+        "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+        "stderr": ""
+      }
+    },
+    {
+      "size": 25000,
+      "shape": "constraint-heavy",
+      "shape_definition": "time_network(size, \"dag\", seed=20261116) plus TimeActivityConstraint(START_NO_EARLIER_THAN) on every 7th activity",
+      "seed": 20261116,
+      "repeats": 1,
+      "parallel_slots": 4,
+      "modes": {
+        "sequential": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 150.0,
+          "float_workers": 1,
+          "policy": "float_workers=1, no policy",
+          "runs": [
+            {
+              "engine_ms": 68896.9,
+              "cpu_seconds": 68.89,
+              "hash": "12e7a27cbf287d35218811e76135248ff323298c0f3f641a025b3c53f17cfa0a",
+              "project_finish": "2313-07-03T08:00:00+00:00",
+              "critical_count": 25000,
+              "min_total_float_hours": -8.0,
+              "max_total_float_hours": -8.0
+            }
+          ],
+          "engine_ms_median": 68896.9,
+          "cpu_seconds_total": 68.89,
+          "hash": "12e7a27cbf287d35218811e76135248ff323298c0f3f641a025b3c53f17cfa0a",
+          "internal_hash_agreement": true
+        },
+        "parallel": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 150.0,
+          "float_workers": 3,
+          "policy": "FloatExecutionPolicy(workers=3, admission=make_slot_admission(4), allow_nested_fork=True)",
+          "runs": [
+            {
+              "engine_ms": 67296.6,
+              "cpu_seconds": 70.43,
+              "hash": "12e7a27cbf287d35218811e76135248ff323298c0f3f641a025b3c53f17cfa0a",
+              "project_finish": "2313-07-03T08:00:00+00:00",
+              "critical_count": 25000,
+              "min_total_float_hours": -8.0,
+              "max_total_float_hours": -8.0
+            }
+          ],
+          "engine_ms_median": 67296.6,
+          "cpu_seconds_total": 70.43,
+          "hash": "12e7a27cbf287d35218811e76135248ff323298c0f3f641a025b3c53f17cfa0a",
+          "internal_hash_agreement": true
+        }
+      },
+      "status": "OK",
+      "error": null,
+      "fixture_ms": 1012.4,
+      "activities": 25000,
+      "relationships": 47881,
+      "constraints": 3572,
+      "hash_equality": {
+        "status": "PASS",
+        "sequential_hash": "12e7a27cbf287d35218811e76135248ff323298c0f3f641a025b3c53f17cfa0a",
+        "parallel_hash": "12e7a27cbf287d35218811e76135248ff323298c0f3f641a025b3c53f17cfa0a",
+        "sequential_hashes": [
+          "12e7a27cbf287d35218811e76135248ff323298c0f3f641a025b3c53f17cfa0a"
+        ],
+        "parallel_hashes": [
+          "12e7a27cbf287d35218811e76135248ff323298c0f3f641a025b3c53f17cfa0a"
+        ],
+        "error": null
+      },
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "unit_run": {
+        "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 25000 --shape constraint-heavy --deadline 1795147633.003 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-14-25000-constraint-heavy.json",
+        "status": "OK",
+        "error": null,
+        "wall_ms": 138281.8,
+        "exit": 0,
+        "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+        "stderr": ""
+      }
+    },
+    {
+      "size": 50000,
+      "shape": "chain",
+      "shape_definition": "time_network(size, \"chain\", seed=20261116)",
+      "seed": 20261116,
+      "repeats": 1,
+      "parallel_slots": 4,
+      "modes": {
+        "sequential": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 300.0,
+          "float_workers": 1,
+          "policy": "float_workers=1, no policy",
+          "runs": [
+            {
+              "engine_ms": 6901.0,
+              "cpu_seconds": 6.89,
+              "hash": "93957c0bf146fb25c6d19beb9fbbb408549f3a8366ffffe0e5bf3eaba514b6f6",
+              "project_finish": "2600-12-25T08:00:00+00:00",
+              "critical_count": 50000,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 0.0
+            }
+          ],
+          "engine_ms_median": 6901.0,
+          "cpu_seconds_total": 6.89,
+          "hash": "93957c0bf146fb25c6d19beb9fbbb408549f3a8366ffffe0e5bf3eaba514b6f6",
+          "internal_hash_agreement": true
+        },
+        "parallel": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 300.0,
+          "float_workers": 3,
+          "policy": "FloatExecutionPolicy(workers=3, admission=make_slot_admission(4), allow_nested_fork=True)",
+          "runs": [
+            {
+              "engine_ms": 4971.2,
+              "cpu_seconds": 8.03,
+              "hash": "93957c0bf146fb25c6d19beb9fbbb408549f3a8366ffffe0e5bf3eaba514b6f6",
+              "project_finish": "2600-12-25T08:00:00+00:00",
+              "critical_count": 50000,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 0.0
+            }
+          ],
+          "engine_ms_median": 4971.2,
+          "cpu_seconds_total": 8.03,
+          "hash": "93957c0bf146fb25c6d19beb9fbbb408549f3a8366ffffe0e5bf3eaba514b6f6",
+          "internal_hash_agreement": true
+        }
+      },
+      "status": "OK",
+      "error": null,
+      "fixture_ms": 1430.8,
+      "activities": 50000,
+      "relationships": 49999,
+      "constraints": 0,
+      "hash_equality": {
+        "status": "PASS",
+        "sequential_hash": "93957c0bf146fb25c6d19beb9fbbb408549f3a8366ffffe0e5bf3eaba514b6f6",
+        "parallel_hash": "93957c0bf146fb25c6d19beb9fbbb408549f3a8366ffffe0e5bf3eaba514b6f6",
+        "sequential_hashes": [
+          "93957c0bf146fb25c6d19beb9fbbb408549f3a8366ffffe0e5bf3eaba514b6f6"
+        ],
+        "parallel_hashes": [
+          "93957c0bf146fb25c6d19beb9fbbb408549f3a8366ffffe0e5bf3eaba514b6f6"
+        ],
+        "error": null
+      },
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "unit_run": {
+        "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 50000 --shape chain --deadline 1795148071.286 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-15-50000-chain.json",
+        "status": "OK",
+        "error": null,
+        "wall_ms": 15195.9,
+        "exit": 0,
+        "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+        "stderr": ""
+      }
+    },
+    {
+      "size": 50000,
+      "shape": "wide",
+      "shape_definition": "time_network(size, \"wide\", seed=20261116)",
+      "seed": 20261116,
+      "repeats": 1,
+      "parallel_slots": 4,
+      "modes": {
+        "sequential": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 300.0,
+          "float_workers": 1,
+          "policy": "float_workers=1, no policy",
+          "runs": [
+            {
+              "engine_ms": 2497.0,
+              "cpu_seconds": 2.51,
+              "hash": "b801fafc255a8f79f54d27d3e78ba88da8c27e5e0effe97ae15ca48052dcace0",
+              "project_finish": "2026-01-13T08:00:00+00:00",
+              "critical_count": 10000,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 32.0
+            }
+          ],
+          "engine_ms_median": 2497.0,
+          "cpu_seconds_total": 2.51,
+          "hash": "b801fafc255a8f79f54d27d3e78ba88da8c27e5e0effe97ae15ca48052dcace0",
+          "internal_hash_agreement": true
+        },
+        "parallel": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 300.0,
+          "float_workers": 3,
+          "policy": "FloatExecutionPolicy(workers=3, admission=make_slot_admission(4), allow_nested_fork=True)",
+          "runs": [
+            {
+              "engine_ms": 2615.6,
+              "cpu_seconds": 3.56,
+              "hash": "b801fafc255a8f79f54d27d3e78ba88da8c27e5e0effe97ae15ca48052dcace0",
+              "project_finish": "2026-01-13T08:00:00+00:00",
+              "critical_count": 10000,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 32.0
+            }
+          ],
+          "engine_ms_median": 2615.6,
+          "cpu_seconds_total": 3.56,
+          "hash": "b801fafc255a8f79f54d27d3e78ba88da8c27e5e0effe97ae15ca48052dcace0",
+          "internal_hash_agreement": true
+        }
+      },
+      "status": "OK",
+      "error": null,
+      "fixture_ms": 840.7,
+      "activities": 50000,
+      "relationships": 0,
+      "constraints": 0,
+      "hash_equality": {
+        "status": "PASS",
+        "sequential_hash": "b801fafc255a8f79f54d27d3e78ba88da8c27e5e0effe97ae15ca48052dcace0",
+        "parallel_hash": "b801fafc255a8f79f54d27d3e78ba88da8c27e5e0effe97ae15ca48052dcace0",
+        "sequential_hashes": [
+          "b801fafc255a8f79f54d27d3e78ba88da8c27e5e0effe97ae15ca48052dcace0"
+        ],
+        "parallel_hashes": [
+          "b801fafc255a8f79f54d27d3e78ba88da8c27e5e0effe97ae15ca48052dcace0"
+        ],
+        "error": null
+      },
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "unit_run": {
+        "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 50000 --shape wide --deadline 1795148086.484 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-16-50000-wide.json",
+        "status": "OK",
+        "error": null,
+        "wall_ms": 7821.3,
+        "exit": 0,
+        "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+        "stderr": ""
+      }
+    },
+    {
+      "size": 50000,
+      "shape": "mixed",
+      "shape_definition": "time_network(size, \"mixed\", seed=20261116)",
+      "seed": 20261116,
+      "repeats": 1,
+      "parallel_slots": 4,
+      "modes": {
+        "sequential": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 300.0,
+          "float_workers": 1,
+          "policy": "float_workers=1, no policy",
+          "runs": [
+            {
+              "engine_ms": 13401.2,
+              "cpu_seconds": 13.41,
+              "hash": "57949fd27e8cfd75bd90796678e93055c1bea398573a9e6ede42574bb8561072",
+              "project_finish": "2280-08-31T08:00:00+00:00",
+              "critical_count": 35731,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 120.0
+            }
+          ],
+          "engine_ms_median": 13401.2,
+          "cpu_seconds_total": 13.41,
+          "hash": "57949fd27e8cfd75bd90796678e93055c1bea398573a9e6ede42574bb8561072",
+          "internal_hash_agreement": true
+        },
+        "parallel": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 300.0,
+          "float_workers": 3,
+          "policy": "FloatExecutionPolicy(workers=3, admission=make_slot_admission(4), allow_nested_fork=True)",
+          "runs": [
+            {
+              "engine_ms": 8010.5,
+              "cpu_seconds": 14.63,
+              "hash": "57949fd27e8cfd75bd90796678e93055c1bea398573a9e6ede42574bb8561072",
+              "project_finish": "2280-08-31T08:00:00+00:00",
+              "critical_count": 35731,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 120.0
+            }
+          ],
+          "engine_ms_median": 8010.5,
+          "cpu_seconds_total": 14.63,
+          "hash": "57949fd27e8cfd75bd90796678e93055c1bea398573a9e6ede42574bb8561072",
+          "internal_hash_agreement": true
+        }
+      },
+      "status": "OK",
+      "error": null,
+      "fixture_ms": 2632.8,
+      "activities": 50000,
+      "relationships": 101275,
+      "constraints": 0,
+      "hash_equality": {
+        "status": "PASS",
+        "sequential_hash": "57949fd27e8cfd75bd90796678e93055c1bea398573a9e6ede42574bb8561072",
+        "parallel_hash": "57949fd27e8cfd75bd90796678e93055c1bea398573a9e6ede42574bb8561072",
+        "sequential_hashes": [
+          "57949fd27e8cfd75bd90796678e93055c1bea398573a9e6ede42574bb8561072"
+        ],
+        "parallel_hashes": [
+          "57949fd27e8cfd75bd90796678e93055c1bea398573a9e6ede42574bb8561072"
+        ],
+        "error": null
+      },
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "unit_run": {
+        "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 50000 --shape mixed --deadline 1795148094.307 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-17-50000-mixed.json",
+        "status": "OK",
+        "error": null,
+        "wall_ms": 26013.9,
+        "exit": 0,
+        "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+        "stderr": ""
+      }
+    },
+    {
+      "size": 50000,
+      "shape": "resource-heavy",
+      "shape_definition": "time_network(size, \"fan\", seed=20261116) (fan: one root -> size-2 concurrent activities -> one join)",
+      "seed": 20261116,
+      "repeats": 1,
+      "parallel_slots": 4,
+      "modes": {
+        "sequential": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 300.0,
+          "float_workers": 1,
+          "policy": "float_workers=1, no policy",
+          "runs": [
+            {
+              "engine_ms": 17503.8,
+              "cpu_seconds": 17.5,
+              "hash": "098c29739e3b52c62d623ae522ff542bf87bc3fc6d26167740fc5b2f41ef2864",
+              "project_finish": "2026-01-21T08:00:00+00:00",
+              "critical_count": 10001,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 32.0
+            }
+          ],
+          "engine_ms_median": 17503.8,
+          "cpu_seconds_total": 17.5,
+          "hash": "098c29739e3b52c62d623ae522ff542bf87bc3fc6d26167740fc5b2f41ef2864",
+          "internal_hash_agreement": true
+        },
+        "parallel": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 300.0,
+          "float_workers": 3,
+          "policy": "FloatExecutionPolicy(workers=3, admission=make_slot_admission(4), allow_nested_fork=True)",
+          "runs": [
+            {
+              "engine_ms": 15193.8,
+              "cpu_seconds": 19.0,
+              "hash": "098c29739e3b52c62d623ae522ff542bf87bc3fc6d26167740fc5b2f41ef2864",
+              "project_finish": "2026-01-21T08:00:00+00:00",
+              "critical_count": 10001,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 32.0
+            }
+          ],
+          "engine_ms_median": 15193.8,
+          "cpu_seconds_total": 19.0,
+          "hash": "098c29739e3b52c62d623ae522ff542bf87bc3fc6d26167740fc5b2f41ef2864",
+          "internal_hash_agreement": true
+        }
+      },
+      "status": "OK",
+      "error": null,
+      "fixture_ms": 1953.5,
+      "activities": 50000,
+      "relationships": 99996,
+      "constraints": 0,
+      "hash_equality": {
+        "status": "PASS",
+        "sequential_hash": "098c29739e3b52c62d623ae522ff542bf87bc3fc6d26167740fc5b2f41ef2864",
+        "parallel_hash": "098c29739e3b52c62d623ae522ff542bf87bc3fc6d26167740fc5b2f41ef2864",
+        "sequential_hashes": [
+          "098c29739e3b52c62d623ae522ff542bf87bc3fc6d26167740fc5b2f41ef2864"
+        ],
+        "parallel_hashes": [
+          "098c29739e3b52c62d623ae522ff542bf87bc3fc6d26167740fc5b2f41ef2864"
+        ],
+        "error": null
+      },
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "unit_run": {
+        "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 50000 --shape resource-heavy --deadline 1795148120.323 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-18-50000-resource-heavy.json",
+        "status": "OK",
+        "error": null,
+        "wall_ms": 36539.3,
+        "exit": 0,
+        "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+        "stderr": ""
+      }
+    },
+    {
+      "size": 50000,
+      "shape": "constraint-heavy",
+      "shape_definition": "time_network(size, \"dag\", seed=20261116) plus TimeActivityConstraint(START_NO_EARLIER_THAN) on every 7th activity",
+      "seed": 20261116,
+      "repeats": 1,
+      "parallel_slots": 4,
+      "modes": {
+        "sequential": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 300.0,
+          "float_workers": 1,
+          "policy": "float_workers=1, no policy",
+          "runs": [
+            {
+              "engine_ms": 290129.5,
+              "cpu_seconds": 290.12,
+              "hash": "5e4e2219c14e29ced8642e81847bdc84de0c6349de17a61a1c806b30b11846e4",
+              "project_finish": "2600-12-25T08:00:00+00:00",
+              "critical_count": 50000,
+              "min_total_float_hours": -8.0,
+              "max_total_float_hours": -8.0
+            }
+          ],
+          "engine_ms_median": 290129.5,
+          "cpu_seconds_total": 290.12,
+          "hash": "5e4e2219c14e29ced8642e81847bdc84de0c6349de17a61a1c806b30b11846e4",
+          "internal_hash_agreement": true
+        },
+        "parallel": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 300.0,
+          "float_workers": 3,
+          "policy": "FloatExecutionPolicy(workers=3, admission=make_slot_admission(4), allow_nested_fork=True)",
+          "runs": [
+            {
+              "engine_ms": 284302.3,
+              "cpu_seconds": 290.57,
+              "hash": "5e4e2219c14e29ced8642e81847bdc84de0c6349de17a61a1c806b30b11846e4",
+              "project_finish": "2600-12-25T08:00:00+00:00",
+              "critical_count": 50000,
+              "min_total_float_hours": -8.0,
+              "max_total_float_hours": -8.0
+            }
+          ],
+          "engine_ms_median": 284302.3,
+          "cpu_seconds_total": 290.57,
+          "hash": "5e4e2219c14e29ced8642e81847bdc84de0c6349de17a61a1c806b30b11846e4",
+          "internal_hash_agreement": true
+        }
+      },
+      "status": "OK",
+      "error": null,
+      "fixture_ms": 2115.9,
+      "activities": 50000,
+      "relationships": 95786,
+      "constraints": 7143,
+      "hash_equality": {
+        "status": "PASS",
+        "sequential_hash": "5e4e2219c14e29ced8642e81847bdc84de0c6349de17a61a1c806b30b11846e4",
+        "parallel_hash": "5e4e2219c14e29ced8642e81847bdc84de0c6349de17a61a1c806b30b11846e4",
+        "sequential_hashes": [
+          "5e4e2219c14e29ced8642e81847bdc84de0c6349de17a61a1c806b30b11846e4"
+        ],
+        "parallel_hashes": [
+          "5e4e2219c14e29ced8642e81847bdc84de0c6349de17a61a1c806b30b11846e4"
+        ],
+        "error": null
+      },
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "unit_run": {
+        "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 50000 --shape constraint-heavy --deadline 1795148150.933 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-19-50000-constraint-heavy.json",
+        "status": "OK",
+        "error": null,
+        "wall_ms": 578529.1,
+        "exit": 0,
+        "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+        "stderr": ""
+      }
+    },
+    {
+      "size": 100000,
+      "shape": "chain",
+      "shape_definition": "time_network(size, \"chain\", seed=20261116)",
+      "seed": 20261116,
+      "repeats": 1,
+      "parallel_slots": 4,
+      "modes": {
+        "sequential": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 180.0,
+          "float_workers": 1,
+          "policy": "float_workers=1, no policy",
+          "runs": [
+            {
+              "engine_ms": 14250.8,
+              "cpu_seconds": 14.26,
+              "hash": "e1c4396f5c0fa98cc70fcbc4fb3b00920a29e20e0ec6dab8f79e79d8e8f9ecc5",
+              "project_finish": "3175-12-11T08:00:00+00:00",
+              "critical_count": 100000,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 0.0
+            }
+          ],
+          "engine_ms_median": 14250.8,
+          "cpu_seconds_total": 14.26,
+          "hash": "e1c4396f5c0fa98cc70fcbc4fb3b00920a29e20e0ec6dab8f79e79d8e8f9ecc5",
+          "internal_hash_agreement": true
+        },
+        "parallel": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 180.0,
+          "float_workers": 3,
+          "policy": "FloatExecutionPolicy(workers=3, admission=make_slot_admission(4), allow_nested_fork=True)",
+          "runs": [
+            {
+              "engine_ms": 10600.7,
+              "cpu_seconds": 17.0,
+              "hash": "e1c4396f5c0fa98cc70fcbc4fb3b00920a29e20e0ec6dab8f79e79d8e8f9ecc5",
+              "project_finish": "3175-12-11T08:00:00+00:00",
+              "critical_count": 100000,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 0.0
+            }
+          ],
+          "engine_ms_median": 10600.7,
+          "cpu_seconds_total": 17.0,
+          "hash": "e1c4396f5c0fa98cc70fcbc4fb3b00920a29e20e0ec6dab8f79e79d8e8f9ecc5",
+          "internal_hash_agreement": true
+        }
+      },
+      "status": "OK",
+      "error": null,
+      "fixture_ms": 3027.8,
+      "activities": 100000,
+      "relationships": 99999,
+      "constraints": 0,
+      "hash_equality": {
+        "status": "PASS",
+        "sequential_hash": "e1c4396f5c0fa98cc70fcbc4fb3b00920a29e20e0ec6dab8f79e79d8e8f9ecc5",
+        "parallel_hash": "e1c4396f5c0fa98cc70fcbc4fb3b00920a29e20e0ec6dab8f79e79d8e8f9ecc5",
+        "sequential_hashes": [
+          "e1c4396f5c0fa98cc70fcbc4fb3b00920a29e20e0ec6dab8f79e79d8e8f9ecc5"
+        ],
+        "parallel_hashes": [
+          "e1c4396f5c0fa98cc70fcbc4fb3b00920a29e20e0ec6dab8f79e79d8e8f9ecc5"
+        ],
+        "error": null
+      },
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "unit_run": {
+        "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 100000 --shape chain --deadline 1795148495.395 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-20-100000-chain.json",
+        "status": "OK",
+        "error": null,
+        "wall_ms": 31498.4,
+        "exit": 0,
+        "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+        "stderr": ""
+      }
+    },
+    {
+      "size": 100000,
+      "shape": "wide",
+      "shape_definition": "time_network(size, \"wide\", seed=20261116)",
+      "seed": 20261116,
+      "repeats": 1,
+      "parallel_slots": 4,
+      "modes": {
+        "sequential": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 180.0,
+          "float_workers": 1,
+          "policy": "float_workers=1, no policy",
+          "runs": [
+            {
+              "engine_ms": 5434.4,
+              "cpu_seconds": 5.43,
+              "hash": "c09005a68b66a346138b1bc047b995baceb827851d6de061d58abe76bb8c75ba",
+              "project_finish": "2026-01-13T08:00:00+00:00",
+              "critical_count": 20000,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 32.0
+            }
+          ],
+          "engine_ms_median": 5434.4,
+          "cpu_seconds_total": 5.43,
+          "hash": "c09005a68b66a346138b1bc047b995baceb827851d6de061d58abe76bb8c75ba",
+          "internal_hash_agreement": true
+        },
+        "parallel": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 180.0,
+          "float_workers": 3,
+          "policy": "FloatExecutionPolicy(workers=3, admission=make_slot_admission(4), allow_nested_fork=True)",
+          "runs": [
+            {
+              "engine_ms": 5498.1,
+              "cpu_seconds": 7.47,
+              "hash": "c09005a68b66a346138b1bc047b995baceb827851d6de061d58abe76bb8c75ba",
+              "project_finish": "2026-01-13T08:00:00+00:00",
+              "critical_count": 20000,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 32.0
+            }
+          ],
+          "engine_ms_median": 5498.1,
+          "cpu_seconds_total": 7.47,
+          "hash": "c09005a68b66a346138b1bc047b995baceb827851d6de061d58abe76bb8c75ba",
+          "internal_hash_agreement": true
+        }
+      },
+      "status": "OK",
+      "error": null,
+      "fixture_ms": 1738.0,
+      "activities": 100000,
+      "relationships": 0,
+      "constraints": 0,
+      "hash_equality": {
+        "status": "PASS",
+        "sequential_hash": "c09005a68b66a346138b1bc047b995baceb827851d6de061d58abe76bb8c75ba",
+        "parallel_hash": "c09005a68b66a346138b1bc047b995baceb827851d6de061d58abe76bb8c75ba",
+        "sequential_hashes": [
+          "c09005a68b66a346138b1bc047b995baceb827851d6de061d58abe76bb8c75ba"
+        ],
+        "parallel_hashes": [
+          "c09005a68b66a346138b1bc047b995baceb827851d6de061d58abe76bb8c75ba"
+        ],
+        "error": null
+      },
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "unit_run": {
+        "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 100000 --shape wide --deadline 1795148526.896 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-21-100000-wide.json",
+        "status": "OK",
+        "error": null,
+        "wall_ms": 16463.5,
+        "exit": 0,
+        "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+        "stderr": ""
+      }
+    },
+    {
+      "size": 100000,
+      "shape": "mixed",
+      "shape_definition": "time_network(size, \"mixed\", seed=20261116)",
+      "seed": 20261116,
+      "repeats": 1,
+      "parallel_slots": 4,
+      "modes": {
+        "sequential": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 180.0,
+          "float_workers": 1,
+          "policy": "float_workers=1, no policy",
+          "runs": [
+            {
+              "engine_ms": 27055.3,
+              "cpu_seconds": 27.05,
+              "hash": "9f69dab36dd1429f9c69982259fe118ae893cc5557b0175b34948bc1b9d31b12",
+              "project_finish": "2534-12-16T08:00:00+00:00",
+              "critical_count": 71570,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 128.0
+            }
+          ],
+          "engine_ms_median": 27055.3,
+          "cpu_seconds_total": 27.05,
+          "hash": "9f69dab36dd1429f9c69982259fe118ae893cc5557b0175b34948bc1b9d31b12",
+          "internal_hash_agreement": true
+        },
+        "parallel": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 180.0,
+          "float_workers": 3,
+          "policy": "FloatExecutionPolicy(workers=3, admission=make_slot_admission(4), allow_nested_fork=True)",
+          "runs": [
+            {
+              "engine_ms": 16502.2,
+              "cpu_seconds": 30.32,
+              "hash": "9f69dab36dd1429f9c69982259fe118ae893cc5557b0175b34948bc1b9d31b12",
+              "project_finish": "2534-12-16T08:00:00+00:00",
+              "critical_count": 71570,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 128.0
+            }
+          ],
+          "engine_ms_median": 16502.2,
+          "cpu_seconds_total": 30.32,
+          "hash": "9f69dab36dd1429f9c69982259fe118ae893cc5557b0175b34948bc1b9d31b12",
+          "internal_hash_agreement": true
+        }
+      },
+      "status": "OK",
+      "error": null,
+      "fixture_ms": 5369.0,
+      "activities": 100000,
+      "relationships": 202707,
+      "constraints": 0,
+      "hash_equality": {
+        "status": "PASS",
+        "sequential_hash": "9f69dab36dd1429f9c69982259fe118ae893cc5557b0175b34948bc1b9d31b12",
+        "parallel_hash": "9f69dab36dd1429f9c69982259fe118ae893cc5557b0175b34948bc1b9d31b12",
+        "sequential_hashes": [
+          "9f69dab36dd1429f9c69982259fe118ae893cc5557b0175b34948bc1b9d31b12"
+        ],
+        "parallel_hashes": [
+          "9f69dab36dd1429f9c69982259fe118ae893cc5557b0175b34948bc1b9d31b12"
+        ],
+        "error": null
+      },
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "unit_run": {
+        "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 100000 --shape mixed --deadline 1795148543.361 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-22-100000-mixed.json",
+        "status": "OK",
+        "error": null,
+        "wall_ms": 53225.9,
+        "exit": 0,
+        "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+        "stderr": ""
+      }
+    },
+    {
+      "size": 100000,
+      "shape": "resource-heavy",
+      "shape_definition": "time_network(size, \"fan\", seed=20261116) (fan: one root -> size-2 concurrent activities -> one join)",
+      "seed": 20261116,
+      "repeats": 1,
+      "parallel_slots": 4,
+      "modes": {
+        "sequential": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 180.0,
+          "float_workers": 1,
+          "policy": "float_workers=1, no policy",
+          "runs": [
+            {
+              "engine_ms": 48849.2,
+              "cpu_seconds": 48.84,
+              "hash": "349eac4729b97e51a7606f28788bb1c095ecdf1198b5334fd18dd3c6d87a135e",
+              "project_finish": "2026-01-21T08:00:00+00:00",
+              "critical_count": 20001,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 32.0
+            }
+          ],
+          "engine_ms_median": 48849.2,
+          "cpu_seconds_total": 48.84,
+          "hash": "349eac4729b97e51a7606f28788bb1c095ecdf1198b5334fd18dd3c6d87a135e",
+          "internal_hash_agreement": true
+        },
+        "parallel": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 180.0,
+          "float_workers": 3,
+          "policy": "FloatExecutionPolicy(workers=3, admission=make_slot_admission(4), allow_nested_fork=True)",
+          "runs": [
+            {
+              "engine_ms": 43180.4,
+              "cpu_seconds": 50.98,
+              "hash": "349eac4729b97e51a7606f28788bb1c095ecdf1198b5334fd18dd3c6d87a135e",
+              "project_finish": "2026-01-21T08:00:00+00:00",
+              "critical_count": 20001,
+              "min_total_float_hours": 0.0,
+              "max_total_float_hours": 32.0
+            }
+          ],
+          "engine_ms_median": 43180.4,
+          "cpu_seconds_total": 50.98,
+          "hash": "349eac4729b97e51a7606f28788bb1c095ecdf1198b5334fd18dd3c6d87a135e",
+          "internal_hash_agreement": true
+        }
+      },
+      "status": "OK",
+      "error": null,
+      "fixture_ms": 4000.8,
+      "activities": 100000,
+      "relationships": 199996,
+      "constraints": 0,
+      "hash_equality": {
+        "status": "PASS",
+        "sequential_hash": "349eac4729b97e51a7606f28788bb1c095ecdf1198b5334fd18dd3c6d87a135e",
+        "parallel_hash": "349eac4729b97e51a7606f28788bb1c095ecdf1198b5334fd18dd3c6d87a135e",
+        "sequential_hashes": [
+          "349eac4729b97e51a7606f28788bb1c095ecdf1198b5334fd18dd3c6d87a135e"
+        ],
+        "parallel_hashes": [
+          "349eac4729b97e51a7606f28788bb1c095ecdf1198b5334fd18dd3c6d87a135e"
+        ],
+        "error": null
+      },
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "post_phase_rerun": true,
+      "superseded_record": {
+        "status": "SKIPPED_BUDGET",
+        "error": "SKIPPED_BUDGET: matrix phase budget 960s exhausted; remaining -15.7s at cell (100000,resource-heavy)",
+        "note": "First pass was skipped by the orchestrated phase deadline (960.0 s); this record is a separate subprocess measurement with --mode-budget None s."
+      },
+      "unit_run": {
+        "unit": "cell",
+        "command": "/usr/bin/python3 scripts/p0n2_runtime_matrix.py _cell --size 100000 --shape resource-heavy --deadline <+1500s> --result-file .../cell-100000-resource-heavy.json",
+        "status": "OK",
+        "phase": "post_phase_rerun"
+      }
+    },
+    {
+      "size": 100000,
+      "shape": "constraint-heavy",
+      "shape_definition": "time_network(size, \"dag\", seed=20261116) plus TimeActivityConstraint(START_NO_EARLIER_THAN) on every 7th activity",
+      "seed": 20261116,
+      "repeats": 1,
+      "parallel_slots": 4,
+      "mode_budget_override_s": 1800.0,
+      "modes": {
+        "sequential": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 1800.0,
+          "float_workers": 1,
+          "policy": "float_workers=1, no policy",
+          "runs": [
+            {
+              "engine_ms": 1168606.3,
+              "cpu_seconds": 1168.53,
+              "hash": "301b17f480b902cea680ed80c74cbab279ff067c1f2bd092e5336e95295b0e09",
+              "project_finish": "3175-12-11T08:00:00+00:00",
+              "critical_count": 100000,
+              "min_total_float_hours": -8.0,
+              "max_total_float_hours": -8.0
+            }
+          ],
+          "engine_ms_median": 1168606.3,
+          "cpu_seconds_total": 1168.53,
+          "hash": "301b17f480b902cea680ed80c74cbab279ff067c1f2bd092e5336e95295b0e09",
+          "internal_hash_agreement": true
+        },
+        "parallel": {
+          "status": "OK",
+          "error": null,
+          "budget_s": 1800.0,
+          "float_workers": 3,
+          "policy": "FloatExecutionPolicy(workers=3, admission=make_slot_admission(4), allow_nested_fork=True)",
+          "runs": [
+            {
+              "engine_ms": 1185340.3,
+              "cpu_seconds": 1195.12,
+              "hash": "301b17f480b902cea680ed80c74cbab279ff067c1f2bd092e5336e95295b0e09",
+              "project_finish": "3175-12-11T08:00:00+00:00",
+              "critical_count": 100000,
+              "min_total_float_hours": -8.0,
+              "max_total_float_hours": -8.0
+            }
+          ],
+          "engine_ms_median": 1185340.3,
+          "cpu_seconds_total": 1195.12,
+          "hash": "301b17f480b902cea680ed80c74cbab279ff067c1f2bd092e5336e95295b0e09",
+          "internal_hash_agreement": true
+        }
+      },
+      "status": "OK",
+      "error": null,
+      "fixture_ms": 4306.3,
+      "activities": 100000,
+      "relationships": 191483,
+      "constraints": 14286,
+      "hash_equality": {
+        "status": "PASS",
+        "sequential_hash": "301b17f480b902cea680ed80c74cbab279ff067c1f2bd092e5336e95295b0e09",
+        "parallel_hash": "301b17f480b902cea680ed80c74cbab279ff067c1f2bd092e5336e95295b0e09",
+        "sequential_hashes": [
+          "301b17f480b902cea680ed80c74cbab279ff067c1f2bd092e5336e95295b0e09"
+        ],
+        "parallel_hashes": [
+          "301b17f480b902cea680ed80c74cbab279ff067c1f2bd092e5336e95295b0e09"
+        ],
+        "error": null
+      },
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "post_phase_rerun": true,
+      "superseded_record": {
+        "status": "SKIPPED_BUDGET",
+        "error": "SKIPPED_BUDGET: matrix phase budget 960s exhausted; remaining -15.7s at cell (100000,constraint-heavy)",
+        "note": "First pass was skipped by the orchestrated phase deadline (960.0 s); this record is a separate subprocess measurement with --mode-budget 1800.0 s."
+      },
+      "unit_run": {
+        "unit": "cell",
+        "command": "/usr/bin/python3 scripts/p0n2_runtime_matrix.py _cell --size 100000 --shape constraint-heavy --mode-budget 1800 --deadline <+5000s> --result-file .../cell-100000-constraint-heavy.json",
+        "status": "OK",
+        "phase": "post_phase_rerun"
+      }
+    }
+  ],
+  "capacity_sweep": [
+    {
+      "size": 25000,
+      "shape": "mixed",
+      "shape_definition": "time_network(size, \"mixed\", seed=20261116)",
+      "slots": 1,
+      "float_workers": 1,
+      "policy": "FloatExecutionPolicy(workers=1, admission=make_slot_admission(1), allow_nested_fork=True)",
+      "status": "OK",
+      "error": null,
+      "activities": 25000,
+      "relationships": 50671,
+      "engine_ms": 6551.1,
+      "cpu_seconds": 6.54,
+      "hash": "7c6aa1b2e001b445cb2d46c4625422a0045ffcf640b9289193e0b7a48e582404",
+      "project_finish": "2154-03-04T08:00:00+00:00",
+      "critical_count": 17853,
+      "min_total_float_hours": 0.0,
+      "max_total_float_hours": 120.0,
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "unit_run": {
+        "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _capacity --slots 1 --deadline 1795148446.593 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/capacity-1.json",
+        "status": "OK",
+        "error": null,
+        "wall_ms": 8471.6,
+        "exit": 0,
+        "stdout": "{\"unit\": \"capacity\", \"status\": \"OK\"}\n",
+        "stderr": ""
+      },
+      "reference_matrix_parallel_hash": "7c6aa1b2e001b445cb2d46c4625422a0045ffcf640b9289193e0b7a48e582404",
+      "hash_equals_matrix_cell": true,
+      "phase": "capacity_sweep",
+      "speedup_vs_slots_1": 1.0
+    },
+    {
+      "size": 25000,
+      "shape": "mixed",
+      "shape_definition": "time_network(size, \"mixed\", seed=20261116)",
+      "slots": 2,
+      "float_workers": 1,
+      "policy": "FloatExecutionPolicy(workers=1, admission=make_slot_admission(2), allow_nested_fork=True)",
+      "status": "OK",
+      "error": null,
+      "activities": 25000,
+      "relationships": 50671,
+      "engine_ms": 6589.0,
+      "cpu_seconds": 6.59,
+      "hash": "7c6aa1b2e001b445cb2d46c4625422a0045ffcf640b9289193e0b7a48e582404",
+      "project_finish": "2154-03-04T08:00:00+00:00",
+      "critical_count": 17853,
+      "min_total_float_hours": 0.0,
+      "max_total_float_hours": 120.0,
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "unit_run": {
+        "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _capacity --slots 2 --deadline 1795148455.067 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/capacity-2.json",
+        "status": "OK",
+        "error": null,
+        "wall_ms": 8508.3,
+        "exit": 0,
+        "stdout": "{\"unit\": \"capacity\", \"status\": \"OK\"}\n",
+        "stderr": ""
+      },
+      "reference_matrix_parallel_hash": "7c6aa1b2e001b445cb2d46c4625422a0045ffcf640b9289193e0b7a48e582404",
+      "hash_equals_matrix_cell": true,
+      "phase": "capacity_sweep",
+      "speedup_vs_slots_1": 0.994
+    },
+    {
+      "size": 25000,
+      "shape": "mixed",
+      "shape_definition": "time_network(size, \"mixed\", seed=20261116)",
+      "slots": 4,
+      "float_workers": 3,
+      "policy": "FloatExecutionPolicy(workers=3, admission=make_slot_admission(4), allow_nested_fork=True)",
+      "status": "OK",
+      "error": null,
+      "activities": 25000,
+      "relationships": 50671,
+      "engine_ms": 3836.8,
+      "cpu_seconds": 7.25,
+      "hash": "7c6aa1b2e001b445cb2d46c4625422a0045ffcf640b9289193e0b7a48e582404",
+      "project_finish": "2154-03-04T08:00:00+00:00",
+      "critical_count": 17853,
+      "min_total_float_hours": 0.0,
+      "max_total_float_hours": 120.0,
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "unit_run": {
+        "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _capacity --slots 4 --deadline 1795148463.577 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/capacity-4.json",
+        "status": "OK",
+        "error": null,
+        "wall_ms": 5860.1,
+        "exit": 0,
+        "stdout": "{\"unit\": \"capacity\", \"status\": \"OK\"}\n",
+        "stderr": ""
+      },
+      "reference_matrix_parallel_hash": "7c6aa1b2e001b445cb2d46c4625422a0045ffcf640b9289193e0b7a48e582404",
+      "hash_equals_matrix_cell": true,
+      "phase": "capacity_sweep",
+      "speedup_vs_slots_1": 1.707
+    },
+    {
+      "size": 25000,
+      "shape": "mixed",
+      "shape_definition": "time_network(size, \"mixed\", seed=20261116)",
+      "slots": 8,
+      "float_workers": 7,
+      "policy": "FloatExecutionPolicy(workers=7, admission=make_slot_admission(8), allow_nested_fork=True)",
+      "status": "OK",
+      "error": null,
+      "activities": 25000,
+      "relationships": 50671,
+      "engine_ms": 3736.1,
+      "cpu_seconds": 7.11,
+      "hash": "7c6aa1b2e001b445cb2d46c4625422a0045ffcf640b9289193e0b7a48e582404",
+      "project_finish": "2154-03-04T08:00:00+00:00",
+      "critical_count": 17853,
+      "min_total_float_hours": 0.0,
+      "max_total_float_hours": 120.0,
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "unit_run": {
+        "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _capacity --slots 8 --deadline 1795148469.440 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/capacity-8.json",
+        "status": "OK",
+        "error": null,
+        "wall_ms": 5774.6,
+        "exit": 0,
+        "stdout": "{\"unit\": \"capacity\", \"status\": \"OK\"}\n",
+        "stderr": ""
+      },
+      "reference_matrix_parallel_hash": "7c6aa1b2e001b445cb2d46c4625422a0045ffcf640b9289193e0b7a48e582404",
+      "hash_equals_matrix_cell": true,
+      "phase": "capacity_sweep",
+      "speedup_vs_slots_1": 1.753
+    },
+    {
+      "size": 25000,
+      "shape": "mixed",
+      "shape_definition": "time_network(size, \"mixed\", seed=20261116)",
+      "slots": 16,
+      "float_workers": 15,
+      "policy": "FloatExecutionPolicy(workers=15, admission=make_slot_admission(16), allow_nested_fork=True)",
+      "status": "OK",
+      "error": null,
+      "activities": 25000,
+      "relationships": 50671,
+      "engine_ms": 3777.3,
+      "cpu_seconds": 7.16,
+      "hash": "7c6aa1b2e001b445cb2d46c4625422a0045ffcf640b9289193e0b7a48e582404",
+      "project_finish": "2154-03-04T08:00:00+00:00",
+      "critical_count": 17853,
+      "min_total_float_hours": 0.0,
+      "max_total_float_hours": 120.0,
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "unit_run": {
+        "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _capacity --slots 16 --deadline 1795148475.216 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/capacity-16.json",
+        "status": "OK",
+        "error": null,
+        "wall_ms": 5821.7,
+        "exit": 0,
+        "stdout": "{\"unit\": \"capacity\", \"status\": \"OK\"}\n",
+        "stderr": ""
+      },
+      "reference_matrix_parallel_hash": "7c6aa1b2e001b445cb2d46c4625422a0045ffcf640b9289193e0b7a48e582404",
+      "hash_equals_matrix_cell": true,
+      "phase": "capacity_sweep",
+      "speedup_vs_slots_1": 1.734
+    }
+  ],
+  "project_sweep": [
+    {
+      "projects": 1,
+      "size": 5000,
+      "shape": "mixed",
+      "shape_definition": "time_network(size, \"mixed\", seed=20261116)",
+      "seeds": [
+        20261116
+      ],
+      "budget_workers": 4,
+      "status": "OK",
+      "error": null,
+      "sequential_reference_ms_total": 1612.5,
+      "sequential_reference_hashes": {
+        "P00": "067f05a0be1a27dd182afee0e06f39eaf9b40d64ceee04c5a5486bc639b92358"
+      },
+      "wall_ms": 1088.9,
+      "start_method": "fork",
+      "multiprocessing_start_methods": [
+        "fork",
+        "spawn",
+        "forkserver"
+      ],
+      "hashes_match": true,
+      "peak_slots": 4,
+      "slots_acquired_total": 1,
+      "process_starts": 1,
+      "inline_fallbacks": 0,
+      "budget_active_after": 0,
+      "jobs": [
+        {
+          "project": "P00",
+          "seed": 20261116,
+          "tenant": "T-p0n2-67c398d9-00",
+          "state": "SUCCEEDED",
+          "slots": 4,
+          "queue_wait_ms": 0.1,
+          "run_ms": 1088.8,
+          "cpu_seconds": 1.78,
+          "engine_ms": 751.7,
+          "sequential_hash": "067f05a0be1a27dd182afee0e06f39eaf9b40d64ceee04c5a5486bc639b92358",
+          "scheduled_hash": "067f05a0be1a27dd182afee0e06f39eaf9b40d64ceee04c5a5486bc639b92358",
+          "hash_match": true,
+          "error": null
+        }
+      ],
+      "queue_wait_ms_max": 0.1,
+      "throughput_projects_per_s": 0.918,
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "unit_run": {
+        "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _projects --count 1 --deadline 1795148781.040 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/projects-1.json",
+        "status": "OK",
+        "error": null,
+        "wall_ms": 2928.1,
+        "exit": 0,
+        "stdout": "{\"unit\": \"projects\", \"status\": \"OK\"}\n",
+        "stderr": ""
+      }
+    },
+    {
+      "projects": 2,
+      "size": 5000,
+      "shape": "mixed",
+      "shape_definition": "time_network(size, \"mixed\", seed=20261116)",
+      "seeds": [
+        20261116,
+        20261117
+      ],
+      "budget_workers": 4,
+      "status": "OK",
+      "error": null,
+      "sequential_reference_ms_total": 3230.2,
+      "sequential_reference_hashes": {
+        "P00": "067f05a0be1a27dd182afee0e06f39eaf9b40d64ceee04c5a5486bc639b92358",
+        "P01": "36bcb72c90878cd6f237826a18c73504352595f5546f7c29568b5971d2b3de89"
+      },
+      "wall_ms": 1637.9,
+      "start_method": "fork",
+      "multiprocessing_start_methods": [
+        "fork",
+        "spawn",
+        "forkserver"
+      ],
+      "hashes_match": true,
+      "peak_slots": 4,
+      "slots_acquired_total": 2,
+      "process_starts": 2,
+      "inline_fallbacks": 0,
+      "budget_active_after": 0,
+      "jobs": [
+        {
+          "project": "P00",
+          "seed": 20261116,
+          "tenant": "T-p0n2-da1fa916-00",
+          "state": "SUCCEEDED",
+          "slots": 2,
+          "queue_wait_ms": 0.1,
+          "run_ms": 1627.5,
+          "cpu_seconds": 1.61,
+          "engine_ms": 1297.4,
+          "sequential_hash": "067f05a0be1a27dd182afee0e06f39eaf9b40d64ceee04c5a5486bc639b92358",
+          "scheduled_hash": "067f05a0be1a27dd182afee0e06f39eaf9b40d64ceee04c5a5486bc639b92358",
+          "hash_match": true,
+          "error": null
+        },
+        {
+          "project": "P01",
+          "seed": 20261117,
+          "tenant": "T-p0n2-da1fa916-01",
+          "state": "SUCCEEDED",
+          "slots": 2,
+          "queue_wait_ms": 2.5,
+          "run_ms": 1635.3,
+          "cpu_seconds": 1.62,
+          "engine_ms": 1308.1,
+          "sequential_hash": "36bcb72c90878cd6f237826a18c73504352595f5546f7c29568b5971d2b3de89",
+          "scheduled_hash": "36bcb72c90878cd6f237826a18c73504352595f5546f7c29568b5971d2b3de89",
+          "hash_match": true,
+          "error": null
+        }
+      ],
+      "queue_wait_ms_max": 2.5,
+      "throughput_projects_per_s": 1.221,
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "unit_run": {
+        "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _projects --count 2 --deadline 1795148783.971 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/projects-2.json",
+        "status": "OK",
+        "error": null,
+        "wall_ms": 5097.9,
+        "exit": 0,
+        "stdout": "{\"unit\": \"projects\", \"status\": \"OK\"}\n",
+        "stderr": ""
+      }
+    },
+    {
+      "projects": 4,
+      "size": 5000,
+      "shape": "mixed",
+      "shape_definition": "time_network(size, \"mixed\", seed=20261116)",
+      "seeds": [
+        20261116,
+        20261117,
+        20261118,
+        20261119
+      ],
+      "budget_workers": 4,
+      "status": "OK",
+      "error": null,
+      "sequential_reference_ms_total": 6483.8,
+      "sequential_reference_hashes": {
+        "P00": "067f05a0be1a27dd182afee0e06f39eaf9b40d64ceee04c5a5486bc639b92358",
+        "P01": "36bcb72c90878cd6f237826a18c73504352595f5546f7c29568b5971d2b3de89",
+        "P02": "44699b5adfb58ffb6251d7471721b0918374aec62ed99ef5c3aae45feb8cc100",
+        "P03": "aca44f474c8e9e7b744bc2e32ad21c7a5beedda4ad33cb4bcf3f7bdced272ef3"
+      },
+      "wall_ms": 1675.4,
+      "start_method": "fork",
+      "multiprocessing_start_methods": [
+        "fork",
+        "spawn",
+        "forkserver"
+      ],
+      "hashes_match": true,
+      "peak_slots": 4,
+      "slots_acquired_total": 4,
+      "process_starts": 4,
+      "inline_fallbacks": 0,
+      "budget_active_after": 0,
+      "jobs": [
+        {
+          "project": "P00",
+          "seed": 20261116,
+          "tenant": "T-p0n2-7f2a055d-00",
+          "state": "SUCCEEDED",
+          "slots": 1,
+          "queue_wait_ms": 0.1,
+          "run_ms": 1654.7,
+          "cpu_seconds": 1.64,
+          "engine_ms": 1283.8,
+          "sequential_hash": "067f05a0be1a27dd182afee0e06f39eaf9b40d64ceee04c5a5486bc639b92358",
+          "scheduled_hash": "067f05a0be1a27dd182afee0e06f39eaf9b40d64ceee04c5a5486bc639b92358",
+          "hash_match": true,
+          "error": null
+        },
+        {
+          "project": "P01",
+          "seed": 20261117,
+          "tenant": "T-p0n2-7f2a055d-01",
+          "state": "SUCCEEDED",
+          "slots": 1,
+          "queue_wait_ms": 2.6,
+          "run_ms": 1657.5,
+          "cpu_seconds": 1.64,
+          "engine_ms": 1285.9,
+          "sequential_hash": "36bcb72c90878cd6f237826a18c73504352595f5546f7c29568b5971d2b3de89",
+          "scheduled_hash": "36bcb72c90878cd6f237826a18c73504352595f5546f7c29568b5971d2b3de89",
+          "hash_match": true,
+          "error": null
+        },
+        {
+          "project": "P02",
+          "seed": 20261118,
+          "tenant": "T-p0n2-7f2a055d-02",
+          "state": "SUCCEEDED",
+          "slots": 1,
+          "queue_wait_ms": 3.4,
+          "run_ms": 1666.9,
+          "cpu_seconds": 1.65,
+          "engine_ms": 1296.0,
+          "sequential_hash": "44699b5adfb58ffb6251d7471721b0918374aec62ed99ef5c3aae45feb8cc100",
+          "scheduled_hash": "44699b5adfb58ffb6251d7471721b0918374aec62ed99ef5c3aae45feb8cc100",
+          "hash_match": true,
+          "error": null
+        },
+        {
+          "project": "P03",
+          "seed": 20261119,
+          "tenant": "T-p0n2-7f2a055d-03",
+          "state": "SUCCEEDED",
+          "slots": 1,
+          "queue_wait_ms": 4.1,
+          "run_ms": 1671.2,
+          "cpu_seconds": 1.65,
+          "engine_ms": 1299.0,
+          "sequential_hash": "aca44f474c8e9e7b744bc2e32ad21c7a5beedda4ad33cb4bcf3f7bdced272ef3",
+          "scheduled_hash": "aca44f474c8e9e7b744bc2e32ad21c7a5beedda4ad33cb4bcf3f7bdced272ef3",
+          "hash_match": true,
+          "error": null
+        }
+      ],
+      "queue_wait_ms_max": 4.1,
+      "throughput_projects_per_s": 2.387,
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "unit_run": {
+        "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _projects --count 4 --deadline 1795148789.071 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/projects-4.json",
+        "status": "OK",
+        "error": null,
+        "wall_ms": 8391.7,
+        "exit": 0,
+        "stdout": "{\"unit\": \"projects\", \"status\": \"OK\"}\n",
+        "stderr": ""
+      }
+    },
+    {
+      "projects": 8,
+      "size": 5000,
+      "shape": "mixed",
+      "shape_definition": "time_network(size, \"mixed\", seed=20261116)",
+      "seeds": [
+        20261116,
+        20261117,
+        20261118,
+        20261119,
+        20261120,
+        20261121,
+        20261122,
+        20261123
+      ],
+      "budget_workers": 4,
+      "status": "OK",
+      "error": null,
+      "sequential_reference_ms_total": 12958.4,
+      "sequential_reference_hashes": {
+        "P00": "067f05a0be1a27dd182afee0e06f39eaf9b40d64ceee04c5a5486bc639b92358",
+        "P01": "36bcb72c90878cd6f237826a18c73504352595f5546f7c29568b5971d2b3de89",
+        "P02": "44699b5adfb58ffb6251d7471721b0918374aec62ed99ef5c3aae45feb8cc100",
+        "P03": "aca44f474c8e9e7b744bc2e32ad21c7a5beedda4ad33cb4bcf3f7bdced272ef3",
+        "P04": "3fe3f5b51eec23dfc44b0e2baed0a39d1dde77fefa815933ae68dd06ba457e40",
+        "P05": "2aeda0742605f9e1caf2215ac95ef9f8d0a32f16dd2953b82b23becaf1e01047",
+        "P06": "f143e030af43752e1e97116f9bba34c5f2a2700f118cf603e834b31588ff2309",
+        "P07": "1ca7128cd63f79570c7ea05149fff4e29a6bdc989eb1733022be618c675fa68f"
+      },
+      "wall_ms": 3345.4,
+      "start_method": "fork",
+      "multiprocessing_start_methods": [
+        "fork",
+        "spawn",
+        "forkserver"
+      ],
+      "hashes_match": true,
+      "peak_slots": 4,
+      "slots_acquired_total": 8,
+      "process_starts": 8,
+      "inline_fallbacks": 0,
+      "budget_active_after": 0,
+      "jobs": [
+        {
+          "project": "P00",
+          "seed": 20261116,
+          "tenant": "T-p0n2-577c1214-00",
+          "state": "SUCCEEDED",
+          "slots": 1,
+          "queue_wait_ms": 0.1,
+          "run_ms": 1654.8,
+          "cpu_seconds": 1.63,
+          "engine_ms": 1304.7,
+          "sequential_hash": "067f05a0be1a27dd182afee0e06f39eaf9b40d64ceee04c5a5486bc639b92358",
+          "scheduled_hash": "067f05a0be1a27dd182afee0e06f39eaf9b40d64ceee04c5a5486bc639b92358",
+          "hash_match": true,
+          "error": null
+        },
+        {
+          "project": "P01",
+          "seed": 20261117,
+          "tenant": "T-p0n2-577c1214-01",
+          "state": "SUCCEEDED",
+          "slots": 1,
+          "queue_wait_ms": 2.5,
+          "run_ms": 1658.8,
+          "cpu_seconds": 1.64,
+          "engine_ms": 1311.7,
+          "sequential_hash": "36bcb72c90878cd6f237826a18c73504352595f5546f7c29568b5971d2b3de89",
+          "scheduled_hash": "36bcb72c90878cd6f237826a18c73504352595f5546f7c29568b5971d2b3de89",
+          "hash_match": true,
+          "error": null
+        },
+        {
+          "project": "P02",
+          "seed": 20261118,
+          "tenant": "T-p0n2-577c1214-02",
+          "state": "SUCCEEDED",
+          "slots": 1,
+          "queue_wait_ms": 3.3,
+          "run_ms": 1664.6,
+          "cpu_seconds": 1.65,
+          "engine_ms": 1318.7,
+          "sequential_hash": "44699b5adfb58ffb6251d7471721b0918374aec62ed99ef5c3aae45feb8cc100",
+          "scheduled_hash": "44699b5adfb58ffb6251d7471721b0918374aec62ed99ef5c3aae45feb8cc100",
+          "hash_match": true,
+          "error": null
+        },
+        {
+          "project": "P03",
+          "seed": 20261119,
+          "tenant": "T-p0n2-577c1214-03",
+          "state": "SUCCEEDED",
+          "slots": 1,
+          "queue_wait_ms": 4.0,
+          "run_ms": 1663.9,
+          "cpu_seconds": 1.64,
+          "engine_ms": 1311.2,
+          "sequential_hash": "aca44f474c8e9e7b744bc2e32ad21c7a5beedda4ad33cb4bcf3f7bdced272ef3",
+          "scheduled_hash": "aca44f474c8e9e7b744bc2e32ad21c7a5beedda4ad33cb4bcf3f7bdced272ef3",
+          "hash_match": true,
+          "error": null
+        },
+        {
+          "project": "P04",
+          "seed": 20261120,
+          "tenant": "T-p0n2-577c1214-04",
+          "state": "SUCCEEDED",
+          "slots": 1,
+          "queue_wait_ms": 1655.0,
+          "run_ms": 1644.6,
+          "cpu_seconds": 1.63,
+          "engine_ms": 1300.8,
+          "sequential_hash": "3fe3f5b51eec23dfc44b0e2baed0a39d1dde77fefa815933ae68dd06ba457e40",
+          "scheduled_hash": "3fe3f5b51eec23dfc44b0e2baed0a39d1dde77fefa815933ae68dd06ba457e40",
+          "hash_match": true,
+          "error": null
+        },
+        {
+          "project": "P05",
+          "seed": 20261121,
+          "tenant": "T-p0n2-577c1214-05",
+          "state": "SUCCEEDED",
+          "slots": 1,
+          "queue_wait_ms": 1661.4,
+          "run_ms": 1658.5,
+          "cpu_seconds": 1.65,
+          "engine_ms": 1310.6,
+          "sequential_hash": "2aeda0742605f9e1caf2215ac95ef9f8d0a32f16dd2953b82b23becaf1e01047",
+          "scheduled_hash": "2aeda0742605f9e1caf2215ac95ef9f8d0a32f16dd2953b82b23becaf1e01047",
+          "hash_match": true,
+          "error": null
+        },
+        {
+          "project": "P06",
+          "seed": 20261122,
+          "tenant": "T-p0n2-577c1214-06",
+          "state": "SUCCEEDED",
+          "slots": 1,
+          "queue_wait_ms": 1668.0,
+          "run_ms": 1652.0,
+          "cpu_seconds": 1.63,
+          "engine_ms": 1302.1,
+          "sequential_hash": "f143e030af43752e1e97116f9bba34c5f2a2700f118cf603e834b31588ff2309",
+          "scheduled_hash": "f143e030af43752e1e97116f9bba34c5f2a2700f118cf603e834b31588ff2309",
+          "hash_match": true,
+          "error": null
+        },
+        {
+          "project": "P07",
+          "seed": 20261123,
+          "tenant": "T-p0n2-577c1214-07",
+          "state": "SUCCEEDED",
+          "slots": 1,
+          "queue_wait_ms": 1669.0,
+          "run_ms": 1676.3,
+          "cpu_seconds": 1.65,
+          "engine_ms": 1324.4,
+          "sequential_hash": "1ca7128cd63f79570c7ea05149fff4e29a6bdc989eb1733022be618c675fa68f",
+          "scheduled_hash": "1ca7128cd63f79570c7ea05149fff4e29a6bdc989eb1733022be618c675fa68f",
+          "hash_match": true,
+          "error": null
+        }
+      ],
+      "queue_wait_ms_max": 1669.0,
+      "throughput_projects_per_s": 2.391,
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "unit_run": {
+        "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _projects --count 8 --deadline 1795148797.465 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/projects-8.json",
+        "status": "OK",
+        "error": null,
+        "wall_ms": 16535.0,
+        "exit": 0,
+        "stdout": "{\"unit\": \"projects\", \"status\": \"OK\"}\n",
+        "stderr": ""
+      }
+    },
+    {
+      "projects": 16,
+      "size": 5000,
+      "shape": "mixed",
+      "shape_definition": "time_network(size, \"mixed\", seed=20261116)",
+      "seeds": [
+        20261116,
+        20261117,
+        20261118,
+        20261119,
+        20261120,
+        20261121,
+        20261122,
+        20261123,
+        20261124,
+        20261125,
+        20261126,
+        20261127,
+        20261128,
+        20261129,
+        20261130,
+        20261131
+      ],
+      "budget_workers": 4,
+      "status": "OK",
+      "error": null,
+      "sequential_reference_ms_total": 25850.3,
+      "sequential_reference_hashes": {
+        "P00": "067f05a0be1a27dd182afee0e06f39eaf9b40d64ceee04c5a5486bc639b92358",
+        "P01": "36bcb72c90878cd6f237826a18c73504352595f5546f7c29568b5971d2b3de89",
+        "P02": "44699b5adfb58ffb6251d7471721b0918374aec62ed99ef5c3aae45feb8cc100",
+        "P03": "aca44f474c8e9e7b744bc2e32ad21c7a5beedda4ad33cb4bcf3f7bdced272ef3",
+        "P04": "3fe3f5b51eec23dfc44b0e2baed0a39d1dde77fefa815933ae68dd06ba457e40",
+        "P05": "2aeda0742605f9e1caf2215ac95ef9f8d0a32f16dd2953b82b23becaf1e01047",
+        "P06": "f143e030af43752e1e97116f9bba34c5f2a2700f118cf603e834b31588ff2309",
+        "P07": "1ca7128cd63f79570c7ea05149fff4e29a6bdc989eb1733022be618c675fa68f",
+        "P08": "4e0fe55fb8864bdcc59c8f047fc0195455f4b59f16a314a2958f352d858d7873",
+        "P09": "f53566bcc002748b6ab058c2e70e3e15a74900c70cfb58965d24606018ce99da",
+        "P10": "f1eabda5f48e2807f580907de79ab921d24db9e6be11bfad60b6817e3efe8fc8",
+        "P11": "36205e91ab4d82123d5b61d6c1b2e8c0eb8c04b9632ca1b209e36c0b817cde11",
+        "P12": "8850b340e0b689f29da2319de8dad01c2267054516cbf82e5a915ef904866e45",
+        "P13": "dc638eb68482aeedaa7110b84291bd69d823f5170204804320b62c2cdd27d334",
+        "P14": "292dd728f530041276662a2ec0689686396673ea104ebc39fff787fec4529940",
+        "P15": "8cd3c54d4aed9159c73c2a7dffa4370626a3bef2f19a63cdaa59277e18ab1b32"
+      },
+      "wall_ms": 6605.7,
+      "start_method": "fork",
+      "multiprocessing_start_methods": [
+        "fork",
+        "spawn",
+        "forkserver"
+      ],
+      "hashes_match": true,
+      "peak_slots": 4,
+      "slots_acquired_total": 16,
+      "process_starts": 16,
+      "inline_fallbacks": 0,
+      "budget_active_after": 0,
+      "jobs": [
+        {
+          "project": "P03",
+          "seed": 20261119,
+          "tenant": "T-p0n2-2a7816d0-03",
+          "state": "SUCCEEDED",
+          "slots": 1,
+          "queue_wait_ms": 4.1,
+          "run_ms": 1630.8,
+          "cpu_seconds": 1.61,
+          "engine_ms": 1302.2,
+          "sequential_hash": "aca44f474c8e9e7b744bc2e32ad21c7a5beedda4ad33cb4bcf3f7bdced272ef3",
+          "scheduled_hash": "aca44f474c8e9e7b744bc2e32ad21c7a5beedda4ad33cb4bcf3f7bdced272ef3",
+          "hash_match": true,
+          "error": null
+        },
+        {
+          "project": "P01",
+          "seed": 20261117,
+          "tenant": "T-p0n2-2a7816d0-01",
+          "state": "SUCCEEDED",
+          "slots": 1,
+          "queue_wait_ms": 2.6,
+          "run_ms": 1658.9,
+          "cpu_seconds": 1.64,
+          "engine_ms": 1328.3,
+          "sequential_hash": "36bcb72c90878cd6f237826a18c73504352595f5546f7c29568b5971d2b3de89",
+          "scheduled_hash": "36bcb72c90878cd6f237826a18c73504352595f5546f7c29568b5971d2b3de89",
+          "hash_match": true,
+          "error": null
+        },
+        {
+          "project": "P02",
+          "seed": 20261118,
+          "tenant": "T-p0n2-2a7816d0-02",
+          "state": "SUCCEEDED",
+          "slots": 1,
+          "queue_wait_ms": 3.3,
+          "run_ms": 1658.2,
+          "cpu_seconds": 1.64,
+          "engine_ms": 1328.4,
+          "sequential_hash": "44699b5adfb58ffb6251d7471721b0918374aec62ed99ef5c3aae45feb8cc100",
+          "scheduled_hash": "44699b5adfb58ffb6251d7471721b0918374aec62ed99ef5c3aae45feb8cc100",
+          "hash_match": true,
+          "error": null
+        },
+        {
+          "project": "P00",
+          "seed": 20261116,
+          "tenant": "T-p0n2-2a7816d0-00",
+          "state": "SUCCEEDED",
+          "slots": 1,
+          "queue_wait_ms": 0.1,
+          "run_ms": 1668.9,
+          "cpu_seconds": 1.65,
+          "engine_ms": 1331.5,
+          "sequential_hash": "067f05a0be1a27dd182afee0e06f39eaf9b40d64ceee04c5a5486bc639b92358",
+          "scheduled_hash": "067f05a0be1a27dd182afee0e06f39eaf9b40d64ceee04c5a5486bc639b92358",
+          "hash_match": true,
+          "error": null
+        },
+        {
+          "project": "P04",
+          "seed": 20261120,
+          "tenant": "T-p0n2-2a7816d0-04",
+          "state": "SUCCEEDED",
+          "slots": 1,
+          "queue_wait_ms": 1635.0,
+          "run_ms": 1629.8,
+          "cpu_seconds": 1.61,
+          "engine_ms": 1300.4,
+          "sequential_hash": "3fe3f5b51eec23dfc44b0e2baed0a39d1dde77fefa815933ae68dd06ba457e40",
+          "scheduled_hash": "3fe3f5b51eec23dfc44b0e2baed0a39d1dde77fefa815933ae68dd06ba457e40",
+          "hash_match": true,
+          "error": null
+        },
+        {
+          "project": "P05",
+          "seed": 20261121,
+          "tenant": "T-p0n2-2a7816d0-05",
+          "state": "SUCCEEDED",
+          "slots": 1,
+          "queue_wait_ms": 1661.6,
+          "run_ms": 1634.8,
+          "cpu_seconds": 1.62,
+          "engine_ms": 1304.1,
+          "sequential_hash": "2aeda0742605f9e1caf2215ac95ef9f8d0a32f16dd2953b82b23becaf1e01047",
+          "scheduled_hash": "2aeda0742605f9e1caf2215ac95ef9f8d0a32f16dd2953b82b23becaf1e01047",
+          "hash_match": true,
+          "error": null
+        },
+        {
+          "project": "P06",
+          "seed": 20261122,
+          "tenant": "T-p0n2-2a7816d0-06",
+          "state": "SUCCEEDED",
+          "slots": 1,
+          "queue_wait_ms": 1662.9,
+          "run_ms": 1639.9,
+          "cpu_seconds": 1.62,
+          "engine_ms": 1310.7,
+          "sequential_hash": "f143e030af43752e1e97116f9bba34c5f2a2700f118cf603e834b31588ff2309",
+          "scheduled_hash": "f143e030af43752e1e97116f9bba34c5f2a2700f118cf603e834b31588ff2309",
+          "hash_match": true,
+          "error": null
+        },
+        {
+          "project": "P07",
+          "seed": 20261123,
+          "tenant": "T-p0n2-2a7816d0-07",
+          "state": "SUCCEEDED",
+          "slots": 1,
+          "queue_wait_ms": 1669.2,
+          "run_ms": 1645.1,
+          "cpu_seconds": 1.63,
+          "engine_ms": 1313.4,
+          "sequential_hash": "1ca7128cd63f79570c7ea05149fff4e29a6bdc989eb1733022be618c675fa68f",
+          "scheduled_hash": "1ca7128cd63f79570c7ea05149fff4e29a6bdc989eb1733022be618c675fa68f",
+          "hash_match": true,
+          "error": null
+        },
+        {
+          "project": "P08",
+          "seed": 20261124,
+          "tenant": "T-p0n2-2a7816d0-08",
+          "state": "SUCCEEDED",
+          "slots": 1,
+          "queue_wait_ms": 3264.9,
+          "run_ms": 1634.8,
+          "cpu_seconds": 1.62,
+          "engine_ms": 1307.9,
+          "sequential_hash": "4e0fe55fb8864bdcc59c8f047fc0195455f4b59f16a314a2958f352d858d7873",
+          "scheduled_hash": "4e0fe55fb8864bdcc59c8f047fc0195455f4b59f16a314a2958f352d858d7873",
+          "hash_match": true,
+          "error": null
+        },
+        {
+          "project": "P10",
+          "seed": 20261126,
+          "tenant": "T-p0n2-2a7816d0-10",
+          "state": "SUCCEEDED",
+          "slots": 1,
+          "queue_wait_ms": 3303.0,
+          "run_ms": 1623.2,
+          "cpu_seconds": 1.6,
+          "engine_ms": 1293.0,
+          "sequential_hash": "f1eabda5f48e2807f580907de79ab921d24db9e6be11bfad60b6817e3efe8fc8",
+          "scheduled_hash": "f1eabda5f48e2807f580907de79ab921d24db9e6be11bfad60b6817e3efe8fc8",
+          "hash_match": true,
+          "error": null
+        },
+        {
+          "project": "P09",
+          "seed": 20261125,
+          "tenant": "T-p0n2-2a7816d0-09",
+          "state": "SUCCEEDED",
+          "slots": 1,
+          "queue_wait_ms": 3296.5,
+          "run_ms": 1636.3,
+          "cpu_seconds": 1.62,
+          "engine_ms": 1304.1,
+          "sequential_hash": "f53566bcc002748b6ab058c2e70e3e15a74900c70cfb58965d24606018ce99da",
+          "scheduled_hash": "f53566bcc002748b6ab058c2e70e3e15a74900c70cfb58965d24606018ce99da",
+          "hash_match": true,
+          "error": null
+        },
+        {
+          "project": "P11",
+          "seed": 20261127,
+          "tenant": "T-p0n2-2a7816d0-11",
+          "state": "SUCCEEDED",
+          "slots": 1,
+          "queue_wait_ms": 3314.4,
+          "run_ms": 1645.0,
+          "cpu_seconds": 1.63,
+          "engine_ms": 1315.7,
+          "sequential_hash": "36205e91ab4d82123d5b61d6c1b2e8c0eb8c04b9632ca1b209e36c0b817cde11",
+          "scheduled_hash": "36205e91ab4d82123d5b61d6c1b2e8c0eb8c04b9632ca1b209e36c0b817cde11",
+          "hash_match": true,
+          "error": null
+        },
+        {
+          "project": "P12",
+          "seed": 20261128,
+          "tenant": "T-p0n2-2a7816d0-12",
+          "state": "SUCCEEDED",
+          "slots": 1,
+          "queue_wait_ms": 4899.8,
+          "run_ms": 1629.6,
+          "cpu_seconds": 1.61,
+          "engine_ms": 1304.7,
+          "sequential_hash": "8850b340e0b689f29da2319de8dad01c2267054516cbf82e5a915ef904866e45",
+          "scheduled_hash": "8850b340e0b689f29da2319de8dad01c2267054516cbf82e5a915ef904866e45",
+          "hash_match": true,
+          "error": null
+        },
+        {
+          "project": "P13",
+          "seed": 20261129,
+          "tenant": "T-p0n2-2a7816d0-13",
+          "state": "SUCCEEDED",
+          "slots": 1,
+          "queue_wait_ms": 4926.3,
+          "run_ms": 1633.6,
+          "cpu_seconds": 1.61,
+          "engine_ms": 1304.3,
+          "sequential_hash": "dc638eb68482aeedaa7110b84291bd69d823f5170204804320b62c2cdd27d334",
+          "scheduled_hash": "dc638eb68482aeedaa7110b84291bd69d823f5170204804320b62c2cdd27d334",
+          "hash_match": true,
+          "error": null
+        },
+        {
+          "project": "P14",
+          "seed": 20261130,
+          "tenant": "T-p0n2-2a7816d0-14",
+          "state": "SUCCEEDED",
+          "slots": 1,
+          "queue_wait_ms": 4932.9,
+          "run_ms": 1632.1,
+          "cpu_seconds": 1.61,
+          "engine_ms": 1300.7,
+          "sequential_hash": "292dd728f530041276662a2ec0689686396673ea104ebc39fff787fec4529940",
+          "scheduled_hash": "292dd728f530041276662a2ec0689686396673ea104ebc39fff787fec4529940",
+          "hash_match": true,
+          "error": null
+        },
+        {
+          "project": "P15",
+          "seed": 20261131,
+          "tenant": "T-p0n2-2a7816d0-15",
+          "state": "SUCCEEDED",
+          "slots": 1,
+          "queue_wait_ms": 4959.5,
+          "run_ms": 1646.1,
+          "cpu_seconds": 1.63,
+          "engine_ms": 1315.5,
+          "sequential_hash": "8cd3c54d4aed9159c73c2a7dffa4370626a3bef2f19a63cdaa59277e18ab1b32",
+          "scheduled_hash": "8cd3c54d4aed9159c73c2a7dffa4370626a3bef2f19a63cdaa59277e18ab1b32",
+          "hash_match": true,
+          "error": null
+        }
+      ],
+      "queue_wait_ms_max": 4959.5,
+      "throughput_projects_per_s": 2.422,
+      "environment": {
+        "python": "3.12.13",
+        "implementation": "CPython",
+        "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35",
+        "machine": "x86_64",
+        "cpu_count": 4,
+        "cpu_affinity_count": 4,
+        "memory_total_kb": 8131540,
+        "git_sha": null
+      },
+      "unit_run": {
+        "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _projects --count 16 --deadline 1795148814.003 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/projects-16.json",
+        "status": "OK",
+        "error": null,
+        "wall_ms": 32685.3,
+        "exit": 0,
+        "stdout": "{\"unit\": \"projects\", \"status\": \"OK\"}\n",
+        "stderr": ""
+      }
+    }
+  ],
+  "runs": [
+    {
+      "unit": "cell",
+      "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 1000 --shape chain --deadline 1795147380.933 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-00-1000-chain.json",
+      "status": "OK",
+      "error": null,
+      "wall_ms": 813.0,
+      "exit": 0,
+      "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+      "stderr": ""
+    },
+    {
+      "unit": "cell",
+      "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 1000 --shape wide --deadline 1795147381.746 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-01-1000-wide.json",
+      "status": "OK",
+      "error": null,
+      "wall_ms": 564.1,
+      "exit": 0,
+      "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+      "stderr": ""
+    },
+    {
+      "unit": "cell",
+      "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 1000 --shape mixed --deadline 1795147382.311 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-02-1000-mixed.json",
+      "status": "OK",
+      "error": null,
+      "wall_ms": 1158.9,
+      "exit": 0,
+      "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+      "stderr": ""
+    },
+    {
+      "unit": "cell",
+      "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 1000 --shape resource-heavy --deadline 1795147383.470 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-03-1000-resource-heavy.json",
+      "status": "OK",
+      "error": null,
+      "wall_ms": 1114.7,
+      "exit": 0,
+      "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+      "stderr": ""
+    },
+    {
+      "unit": "cell",
+      "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 1000 --shape constraint-heavy --deadline 1795147384.586 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-04-1000-constraint-heavy.json",
+      "status": "OK",
+      "error": null,
+      "wall_ms": 1466.9,
+      "exit": 0,
+      "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+      "stderr": ""
+    },
+    {
+      "unit": "cell",
+      "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 5000 --shape chain --deadline 1795147446.054 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-05-5000-chain.json",
+      "status": "OK",
+      "error": null,
+      "wall_ms": 2945.6,
+      "exit": 0,
+      "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+      "stderr": ""
+    },
+    {
+      "unit": "cell",
+      "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 5000 --shape wide --deadline 1795147449.000 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-06-5000-wide.json",
+      "status": "OK",
+      "error": null,
+      "wall_ms": 1572.6,
+      "exit": 0,
+      "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+      "stderr": ""
+    },
+    {
+      "unit": "cell",
+      "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 5000 --shape mixed --deadline 1795147450.574 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-07-5000-mixed.json",
+      "status": "OK",
+      "error": null,
+      "wall_ms": 4898.8,
+      "exit": 0,
+      "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+      "stderr": ""
+    },
+    {
+      "unit": "cell",
+      "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 5000 --shape resource-heavy --deadline 1795147455.474 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-08-5000-resource-heavy.json",
+      "status": "OK",
+      "error": null,
+      "wall_ms": 4855.8,
+      "exit": 0,
+      "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+      "stderr": ""
+    },
+    {
+      "unit": "cell",
+      "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 5000 --shape constraint-heavy --deadline 1795147460.331 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-09-5000-constraint-heavy.json",
+      "status": "OK",
+      "error": null,
+      "wall_ms": 13603.5,
+      "exit": 0,
+      "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+      "stderr": ""
+    },
+    {
+      "unit": "cell",
+      "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 25000 --shape chain --deadline 1795147593.935 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-10-25000-chain.json",
+      "status": "OK",
+      "error": null,
+      "wall_ms": 7467.8,
+      "exit": 0,
+      "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+      "stderr": ""
+    },
+    {
+      "unit": "cell",
+      "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 25000 --shape wide --deadline 1795147601.405 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-11-25000-wide.json",
+      "status": "OK",
+      "error": null,
+      "wall_ms": 3894.6,
+      "exit": 0,
+      "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+      "stderr": ""
+    },
+    {
+      "unit": "cell",
+      "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 25000 --shape mixed --deadline 1795147605.301 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-12-25000-mixed.json",
+      "status": "OK",
+      "error": null,
+      "wall_ms": 12807.1,
+      "exit": 0,
+      "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+      "stderr": ""
+    },
+    {
+      "unit": "cell",
+      "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 25000 --shape resource-heavy --deadline 1795147618.109 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-13-25000-resource-heavy.json",
+      "status": "OK",
+      "error": null,
+      "wall_ms": 14892.2,
+      "exit": 0,
+      "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+      "stderr": ""
+    },
+    {
+      "unit": "cell",
+      "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 25000 --shape constraint-heavy --deadline 1795147633.003 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-14-25000-constraint-heavy.json",
+      "status": "OK",
+      "error": null,
+      "wall_ms": 138281.8,
+      "exit": 0,
+      "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+      "stderr": ""
+    },
+    {
+      "unit": "cell",
+      "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 50000 --shape chain --deadline 1795148071.286 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-15-50000-chain.json",
+      "status": "OK",
+      "error": null,
+      "wall_ms": 15195.9,
+      "exit": 0,
+      "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+      "stderr": ""
+    },
+    {
+      "unit": "cell",
+      "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 50000 --shape wide --deadline 1795148086.484 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-16-50000-wide.json",
+      "status": "OK",
+      "error": null,
+      "wall_ms": 7821.3,
+      "exit": 0,
+      "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+      "stderr": ""
+    },
+    {
+      "unit": "cell",
+      "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 50000 --shape mixed --deadline 1795148094.307 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-17-50000-mixed.json",
+      "status": "OK",
+      "error": null,
+      "wall_ms": 26013.9,
+      "exit": 0,
+      "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+      "stderr": ""
+    },
+    {
+      "unit": "cell",
+      "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 50000 --shape resource-heavy --deadline 1795148120.323 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-18-50000-resource-heavy.json",
+      "status": "OK",
+      "error": null,
+      "wall_ms": 36539.3,
+      "exit": 0,
+      "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+      "stderr": ""
+    },
+    {
+      "unit": "cell",
+      "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 50000 --shape constraint-heavy --deadline 1795148150.933 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-19-50000-constraint-heavy.json",
+      "status": "OK",
+      "error": null,
+      "wall_ms": 578529.1,
+      "exit": 0,
+      "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+      "stderr": ""
+    },
+    {
+      "unit": "cell",
+      "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 100000 --shape chain --deadline 1795148495.395 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-20-100000-chain.json",
+      "status": "OK",
+      "error": null,
+      "wall_ms": 31498.4,
+      "exit": 0,
+      "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+      "stderr": ""
+    },
+    {
+      "unit": "cell",
+      "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 100000 --shape wide --deadline 1795148526.896 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-21-100000-wide.json",
+      "status": "OK",
+      "error": null,
+      "wall_ms": 16463.5,
+      "exit": 0,
+      "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+      "stderr": ""
+    },
+    {
+      "unit": "cell",
+      "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 100000 --shape mixed --deadline 1795148543.361 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-22-100000-mixed.json",
+      "status": "OK",
+      "error": null,
+      "wall_ms": 53225.9,
+      "exit": 0,
+      "stdout": "{\"unit\": \"cell\", \"status\": \"OK\"}\n",
+      "stderr": ""
+    },
+    {
+      "unit": "capacity",
+      "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _capacity --slots 1 --deadline 1795148446.593 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/capacity-1.json",
+      "status": "OK",
+      "error": null,
+      "wall_ms": 8471.6,
+      "exit": 0,
+      "stdout": "{\"unit\": \"capacity\", \"status\": \"OK\"}\n",
+      "stderr": ""
+    },
+    {
+      "unit": "capacity",
+      "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _capacity --slots 2 --deadline 1795148455.067 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/capacity-2.json",
+      "status": "OK",
+      "error": null,
+      "wall_ms": 8508.3,
+      "exit": 0,
+      "stdout": "{\"unit\": \"capacity\", \"status\": \"OK\"}\n",
+      "stderr": ""
+    },
+    {
+      "unit": "capacity",
+      "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _capacity --slots 4 --deadline 1795148463.577 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/capacity-4.json",
+      "status": "OK",
+      "error": null,
+      "wall_ms": 5860.1,
+      "exit": 0,
+      "stdout": "{\"unit\": \"capacity\", \"status\": \"OK\"}\n",
+      "stderr": ""
+    },
+    {
+      "unit": "capacity",
+      "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _capacity --slots 8 --deadline 1795148469.440 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/capacity-8.json",
+      "status": "OK",
+      "error": null,
+      "wall_ms": 5774.6,
+      "exit": 0,
+      "stdout": "{\"unit\": \"capacity\", \"status\": \"OK\"}\n",
+      "stderr": ""
+    },
+    {
+      "unit": "capacity",
+      "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _capacity --slots 16 --deadline 1795148475.216 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/capacity-16.json",
+      "status": "OK",
+      "error": null,
+      "wall_ms": 5821.7,
+      "exit": 0,
+      "stdout": "{\"unit\": \"capacity\", \"status\": \"OK\"}\n",
+      "stderr": ""
+    },
+    {
+      "unit": "projects",
+      "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _projects --count 1 --deadline 1795148781.040 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/projects-1.json",
+      "status": "OK",
+      "error": null,
+      "wall_ms": 2928.1,
+      "exit": 0,
+      "stdout": "{\"unit\": \"projects\", \"status\": \"OK\"}\n",
+      "stderr": ""
+    },
+    {
+      "unit": "projects",
+      "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _projects --count 2 --deadline 1795148783.971 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/projects-2.json",
+      "status": "OK",
+      "error": null,
+      "wall_ms": 5097.9,
+      "exit": 0,
+      "stdout": "{\"unit\": \"projects\", \"status\": \"OK\"}\n",
+      "stderr": ""
+    },
+    {
+      "unit": "projects",
+      "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _projects --count 4 --deadline 1795148789.071 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/projects-4.json",
+      "status": "OK",
+      "error": null,
+      "wall_ms": 8391.7,
+      "exit": 0,
+      "stdout": "{\"unit\": \"projects\", \"status\": \"OK\"}\n",
+      "stderr": ""
+    },
+    {
+      "unit": "projects",
+      "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _projects --count 8 --deadline 1795148797.465 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/projects-8.json",
+      "status": "OK",
+      "error": null,
+      "wall_ms": 16535.0,
+      "exit": 0,
+      "stdout": "{\"unit\": \"projects\", \"status\": \"OK\"}\n",
+      "stderr": ""
+    },
+    {
+      "unit": "projects",
+      "command": "/usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _projects --count 16 --deadline 1795148814.003 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/projects-16.json",
+      "status": "OK",
+      "error": null,
+      "wall_ms": 32685.3,
+      "exit": 0,
+      "stdout": "{\"unit\": \"projects\", \"status\": \"OK\"}\n",
+      "stderr": ""
+    },
+    {
+      "unit": "cell",
+      "phase": "post_phase_rerun",
+      "command": "/usr/bin/python3 scripts/p0n2_runtime_matrix.py _cell --size 100000 --shape resource-heavy --deadline <+1500s> --result-file .../cell-100000-resource-heavy.json",
+      "status": "OK"
+    },
+    {
+      "unit": "cell",
+      "phase": "post_phase_rerun",
+      "command": "/usr/bin/python3 scripts/p0n2_runtime_matrix.py _cell --size 100000 --shape constraint-heavy --mode-budget 1800 --deadline <+5000s> --result-file .../cell-100000-constraint-heavy.json",
+      "status": "OK"
+    }
+  ],
+  "status": "COMPLETE",
+  "finished_at": "2026-11-20T04:17:26.691235+00:00",
+  "matrix_phase_s": 1075.8,
+  "post_phase_reruns": [
+    {
+      "size": 100000,
+      "shape": "resource-heavy",
+      "status": "OK"
+    },
+    {
+      "size": 100000,
+      "shape": "constraint-heavy",
+      "status": "OK"
+    }
+  ],
+  "note_corrections": [
+    {
+      "index": 1,
+      "was": "The worker process-mode path runs against src/construction_pm/scheduling_job_executor.py as it stands in this working tree, which carries an uncommitted fix from another work item: the parent now drains the result pipe (non-blocking poll/recv) before joining the child. Before that fix, two exploratory 5000-activity process-mode runs started by this harness deadlocked with the job child blocked in pipe_write once the pickled SchedulingJobResult exceeded the ~64 KB pipe buffer; those runs were terminated, are not part of this evidence, and their job rows were left as found (expired LEASED, cancelled by the fixing work item).",
+      "now": "The worker process-mode path ran against the fixed executor: commit 5b4cfb7104cbd4952d60af9734cfe1b559aa923f (\"fix(p0n): drain the child result pipe before join in process placement\") is the recorded run HEAD, so every worker number here includes the pipe-drain fix. The defect it removes: the parent joined the child before reading the result pipe, so a pickled SchedulingJobResult above the ~64 KiB pipe buffer deadlocked and the job was retried as SCHEDULING_JOB_TIMEOUT (regression test: tests/scheduling/test_scheduling_job_executor_process.py::test_result_larger_than_the_pipe_buffer_does_not_deadlock)."
+    }
+  ],
+  "post_phase_rerun_note": "Two 100k cells exceeded the orchestrated phase deadline (960 s) and were measured in separate subprocess invocations with an explicit --mode-budget: 100000/resource-heavy (1500 s) and 100000/constraint-heavy (1800 s per mode). They replace the SKIPPED_BUDGET records; the superseded status, its exact error text and the overriding command are kept in each cell (post_phase_rerun, superseded_record, mode_budget_override_s)."
+}

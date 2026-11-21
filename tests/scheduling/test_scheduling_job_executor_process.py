@@ -179,6 +179,43 @@ def test_process_mode_results_are_persisted_and_identical():
 
 
 @requires_fork
+def test_result_larger_than_the_pipe_buffer_does_not_deadlock():
+    """Regression: a big result must be read while the child may still send.
+
+    The child publishes the pickled result over a one-way pipe. When the
+    payload exceeds the OS pipe buffer the child blocks in ``send`` until the
+    parent drains it, so a parent that only reads after ``join`` deadlocks
+    until ``job_timeout``. Two megabytes is far beyond that buffer.
+    """
+    service = _service()
+    _submit(service, ["project-a"])
+    detail = "x" * 2_000_000
+
+    def large(job, slots):
+        base = calculate_with_slots(job, slots)
+        return SchedulingJobResult(
+            tenant_id=base.tenant_id,
+            project_id=base.project_id,
+            job_id=base.job_id,
+            engine_version=base.engine_version,
+            calculation_identity=base.calculation_identity,
+            output_hash=base.output_hash,
+            payload={**dict(base.payload), "detail": detail},
+            persisted_at=base.persisted_at,
+        )
+
+    executor = _executor(
+        service, budget=2, calculate_with_slots=large, job_timeout=60
+    )
+    summary = executor.run_until_idle(timeout=60)
+    assert summary.succeeded == 1 and summary.failed == 0
+    assert summary.process_starts == 1
+    results = list(service._repository._results.values())
+    assert len(results[0].payload["detail"]) == len(detail)
+    assert results[0].output_hash == _sequential_hash("project-a")
+
+
+@requires_fork
 def test_single_project_receives_the_whole_budget():
     fixture = time_network(4000, "dag", 41)
     FIXTURES["project-solo"] = fixture

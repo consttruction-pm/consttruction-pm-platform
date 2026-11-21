@@ -1,0 +1,5 @@
+$ pytest -q -k "pipe_buffer or process" tests/scheduling/test_scheduling_job_executor_process.py tests/integration/test_p0n2_runtime_activation.py
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+13 passed, 11 deselected, 1 warning in 5.99s
+wall=6s

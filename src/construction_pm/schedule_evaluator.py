@@ -323,7 +323,13 @@ def _evaluate_materialized(
             f"SCHEDULE_INFEASIBLE:{exc.code.value}"
         ) from exc
     except (KeyError, TypeError, ValueError) as exc:
-        raise ScheduleEvaluationError("SCHEDULE_EVALUATION_FAILED") from exc
+        # Keep the stable prefix for callers, but preserve the cause: a durable
+        # job's persisted error is otherwise undiagnosable (for example an
+        # unregistered calendar reference or a malformed snapshot field).
+        detail = str(exc).strip()
+        raise ScheduleEvaluationError(
+            f"SCHEDULE_EVALUATION_FAILED:{detail}" if detail else "SCHEDULE_EVALUATION_FAILED"
+        ) from exc
 
 
 def _resource_leveling_requested(options: object) -> bool:
