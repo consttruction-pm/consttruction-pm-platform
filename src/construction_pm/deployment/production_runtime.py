@@ -14,7 +14,9 @@ without leaking a connection across requests.
 
 from __future__ import annotations
 
+import json
 import os
+import re
 import sys
 import threading
 from contextlib import contextmanager
@@ -26,15 +28,31 @@ from typing import Any, Iterator, Mapping
 from urllib.parse import parse_qs
 
 from ..activity_master_repository import PostgresActivityMasterRepository
+from ..ai_action_activity_tools import (
+    AIActionExecutionIdempotencyStore,
+    build_activity_create_tool,
+)
+from ..ai_action_boundary import AIActionApprovalPolicy, AIActionProposal
+from ..ai_action_runtime import AIActionRuntime, PostgresAIActionRuntimeStore
+from ..ai_assistant_orchestration import OpenAICompatibleChatProvider
 from ..ai_workbench.http import AIWorkbenchHttpMiddleware
+from ..ai_workbench.studios import Capabilities as WorkbenchCapabilities
 from ..enterprise_task_application import EnterpriseTaskApplicationService
 from ..enterprise_task_http import EnterpriseTaskHttpMiddleware
 from ..enterprise_task_repository import PostgresEnterpriseTaskRepository
+from ..form_builder_api import FormBuilderAPI
+from ..form_builder_repository import PostgresFormBuilderRepository
 from ..global_administration import (
     GlobalAdministrationService,
     PostgresGlobalAdministrationStore,
 )
 from ..global_administration_http import GlobalAdministrationHttpMiddleware
+from ..knowledge.postgres_store import PostgresKnowledgeStore
+from ..knowledge.runtime import build_knowledge_runtime
+from ..p6_activity_master_api import P6ActivityMasterAPI
+from ..risk_api import RiskAPI
+from ..risk_application import RiskApplicationService
+from ..risk_persistence import PostgresRiskStore
 from ..application.authorization import (
     RoleBasedAuthorizationPolicy,
     default_role_permissions,
@@ -94,6 +112,9 @@ class ProductionConfigurationError(RuntimeError):
     """Startup configuration is incomplete; the message is safe to log."""
 
 
+_SCHEMA_IDENTIFIER = re.compile(r"[a-z_][a-z0-9_]{0,62}")
+
+
 @dataclass(frozen=True)
 class ProductionSettings:
     database_url: str
@@ -103,6 +124,10 @@ class ProductionSettings:
     static_root: Path
     max_pool_size: int = 2
     connect_timeout: int = 10
+    # Optional PostgreSQL schema for the whole runtime. Empty means the
+    # connection default (normally ``public``). This exists so a deployment or
+    # test can isolate one tenant-independent schema without a second database.
+    schema: str = ""
 
     @classmethod
     def from_environment(
@@ -112,6 +137,9 @@ class ProductionSettings:
         database_url = env.get("CONSTRUCTION_PM_DATABASE_URL", "").strip()
         if not database_url.startswith(("postgresql://", "postgres://")):
             raise ProductionConfigurationError("CONSTRUCTION_PM_DATABASE_URL_INVALID")
+        schema = env.get("CONSTRUCTION_PM_DB_SCHEMA", "").strip()
+        if schema and not _SCHEMA_IDENTIFIER.fullmatch(schema):
+            raise ProductionConfigurationError("CONSTRUCTION_PM_DB_SCHEMA_INVALID")
         identity = load_identity_settings(env)
         secret = identity["csrf_secret"]
         if len(secret) < 32:
@@ -129,6 +157,7 @@ class ProductionSettings:
             static_root=static_root,
             max_pool_size=max(1, min(8, int(env.get("CONSTRUCTION_PM_DB_POOL_SIZE", "2") or 2))),
             connect_timeout=max(2, min(30, int(env.get("CONSTRUCTION_PM_DB_CONNECT_TIMEOUT", "10") or 10))),
+            schema=schema,
         )
 
 
@@ -200,17 +229,33 @@ class PostgresProjectCheckoutLease:
 class PostgresConnectionPool:
     """Small, bounded pool. Vercel reuses a warm instance across requests."""
 
-    def __init__(self, dsn: str, *, max_size: int, connect_timeout: int) -> None:
+    def __init__(
+        self, dsn: str, *, max_size: int, connect_timeout: int, schema: str = ""
+    ) -> None:
         self._dsn = dsn
         self._max_size = max_size
         self._connect_timeout = connect_timeout
+        self._schema = schema
         self._lock = threading.Lock()
         self._idle: list[Any] = []
         self._created = 0
 
-    def acquire(self) -> Any:
+    def _connect(self) -> Any:
         import psycopg
 
+        options = "-c statement_timeout=30000 -c idle_in_transaction_session_timeout=60000"
+        if self._schema:
+            # The identifier is validated at configuration time, so it is safe
+            # to place in the startup packet rather than round-tripping a SET.
+            options = f"-c search_path={self._schema} " + options
+        return psycopg.connect(
+            self._dsn,
+            autocommit=False,
+            connect_timeout=self._connect_timeout,
+            options=options,
+        )
+
+    def acquire(self) -> Any:
         with self._lock:
             while self._idle:
                 connection = self._idle.pop()
@@ -222,23 +267,13 @@ class PostgresConnectionPool:
             if self._created < self._max_size:
                 self._created += 1
                 try:
-                    return psycopg.connect(
-                        self._dsn,
-                        autocommit=False,
-                        connect_timeout=self._connect_timeout,
-                        options="-c statement_timeout=30000 -c idle_in_transaction_session_timeout=60000",
-                    )
+                    return self._connect()
                 except Exception:
                     self._created -= 1
                     raise
         # The pool is bounded by the number of concurrent requests the platform
         # sends to one instance; a cold fallback keeps the request from failing.
-        return psycopg.connect(
-            self._dsn,
-            autocommit=False,
-            connect_timeout=self._connect_timeout,
-            options="-c statement_timeout=30000 -c idle_in_transaction_session_timeout=60000",
-        )
+        return self._connect()
 
     def release(self, connection: Any, *, healthy: bool) -> None:
         try:
@@ -272,11 +307,56 @@ class PostgresConnectionPool:
                 pass
 
 
+def _env_flag(name: str) -> bool:
+    return os.environ.get(name, "").strip().lower() in {"1", "true", "yes"}
+
+
 def _calendar_registry_not_wired() -> CalendarResolverRegistry:
     # Schedule Query is not part of the deployed production surface yet. The
     # route is wired to the shared evaluator, so an explicit failure is better
     # than silently evaluating with an empty calendar set.
     raise ProductionConfigurationError("SCHEDULE_QUERY_NOT_DEPLOYED")
+
+
+class PostgresAIPermissionAdapter:
+    """Default-deny AI action grant over durable roles and project membership.
+
+    The preview adapter links a proposal to a live in-memory demo session. The
+    production boundary has no such session registry: the HTTP layer has already
+    authenticated the acting session and passes its user id. This adapter reads
+    the authoritative identity row and project membership instead, and rejects
+    a user who is inactive, locked, expired, in another tenant, not a member of
+    the project, or holding a stale project revision.
+    """
+
+    def __init__(self, identity_store: Any, projects: Any) -> None:
+        self._identity = identity_store
+        self._projects = projects
+
+    def allowed(
+        self, proposal: AIActionProposal, *, subject_id: str | None = None
+    ) -> bool:
+        if not isinstance(subject_id, str) or not subject_id.strip():
+            return False
+        user = self._identity.find_user_by_id(subject_id)
+        if user is None or not user.active or user.locked_at is not None:
+            return False
+        if user.tenant_id != proposal.tenant_id:
+            return False
+        if user.expires_at is not None and user.expires_at <= datetime.now(timezone.utc):
+            return False
+        project = self._projects.get_for_user(
+            proposal.tenant_id, proposal.project_id, subject_id
+        )
+        if project is None or str(project.revision) != proposal.project_revision_id:
+            return False
+        if proposal.action != "create" or not proposal.requires_human_approval:
+            return False
+        if proposal.tool_name == "activity.create":
+            return proposal.resource_domain == "activities" and bool(
+                {"planner", "project_admin"} & set(user.roles)
+            )
+        return False
 
 
 class ProductionRuntime:
@@ -288,9 +368,11 @@ class ProductionRuntime:
             settings.database_url,
             max_size=settings.max_pool_size,
             connect_timeout=settings.connect_timeout,
+            schema=settings.schema,
         )
         self._initialized = False
         self._init_lock = threading.Lock()
+        self.migration_report = None
         self.connection = RequestConnection()
         self.identity = IdentityService(
             PostgresIdentityStore(self.connection),
@@ -343,6 +425,54 @@ class ProductionRuntime:
         calculation_context_repository = PostgresCalculationContextRepository(
             connection
         )
+        activity_api = P6ActivityMasterAPI(
+            activity_repository, policy, checkout_lease=checkout_lease
+        )
+
+        # Workbench decision studio: the canonical proposal runtime over the
+        # durable store. Tables come from the migration registry, so the store
+        # is constructed without re-running DDL inside the request connection.
+        ai_action_store = PostgresAIActionRuntimeStore(connection, initialize=False)
+        ai_idempotency_store = AIActionExecutionIdempotencyStore(
+            connection, placeholder="%s", initialize=False
+        )
+        ai_permission_adapter = PostgresAIPermissionAdapter(
+            self.identity.store, PostgresProjectRepository(connection)
+        )
+        ai_action_runtime = AIActionRuntime(
+            store=ai_action_store,
+            permission_adapter=ai_permission_adapter,
+            audit_sink=ai_action_store,
+            tools=(
+                build_activity_create_tool(
+                    activity_api=activity_api,
+                    idempotency_store=ai_idempotency_store,
+                    transaction_manager=transaction_manager,
+                ),
+            ),
+            clock=lambda: datetime.now(timezone.utc),
+            transaction_manager=transaction_manager,
+            approval_policy=AIActionApprovalPolicy(
+                allow_self_approval=not _env_flag("CUBI_AI_REQUIRE_DISTINCT_APPROVER")
+            ),
+        )
+        # The proposal/approval surface is deterministic and needs no model.
+        # The conversational endpoint is composed only when an HTTPS chat
+        # provider is explicitly configured in the server environment; it fails
+        # closed (503) otherwise rather than inventing replies.
+        ai_assistant_provider = None
+        if _env_flag("CUBI_AI_ENABLED"):
+            ai_assistant_provider = OpenAICompatibleChatProvider.from_environment()
+        risk_store = PostgresRiskStore(connection)
+        risk_api = RiskAPI(
+            RiskApplicationService(risk_store, policy, transaction_manager)
+        )
+        form_repository = PostgresFormBuilderRepository(connection, initialize=False)
+        form_builder_api = FormBuilderAPI(
+            form_repository,
+            policy,
+            clock=lambda: datetime.now(timezone.utc),
+        )
         self.api_app = build_project_lifecycle_wsgi_app(
             lifecycle_api=lifecycle_api,
             snapshot_repository=snapshot_repository,
@@ -368,9 +498,24 @@ class ProductionRuntime:
             ),
             p6_obs_node_api=P6OBSNodeAPI(obs_node_service, policy),
             p6_layout_definition_api=P6LayoutDefinitionAPI(layout_repository, policy),
+            risk_api=risk_api,
+            form_builder_api=form_builder_api,
+            ai_action_runtime=ai_action_runtime,
+            ai_assistant_provider=ai_assistant_provider,
             environment={},
             operational_endpoints=False,
         )
+        # Knowledge and the deterministic assistant read the same durable
+        # database. The store joins the request connection; its schema was
+        # applied by the migration registry.
+        self.api_app = build_knowledge_runtime(
+            self.api_app,
+            policy=policy,
+            lifecycle_api=lifecycle_api,
+            store=PostgresKnowledgeStore(connection, migrate=False),
+            plan_port=None,
+            clock=lambda: datetime.now(timezone.utc),
+        ).app
         self.api_app = GlobalAdministrationHttpMiddleware(
             self.api_app,
             GlobalAdministrationService(
@@ -397,6 +542,7 @@ class ProductionRuntime:
             lifecycle_api=lifecycle_api,
             clock=lambda: datetime.now(timezone.utc),
             data_date_provider=_workbench_data_date,
+            capabilities=WorkbenchCapabilities(proposal_execution=True),
         )
         self.web_app = ProductionWebApp(
             api_app=self.api_app,
@@ -416,13 +562,25 @@ class ProductionRuntime:
                 return
             connection = self.pool.acquire()
             try:
-                initialize_production_schema(connection)
+                report = initialize_production_schema(connection)
                 # Commit schema DDL before the pool releases and rolls back the connection.
                 connection.commit()
-            except Exception:
+            except Exception as error:
                 self.pool.release(connection, healthy=False)
+                print(
+                    f"cubi: schema migration failed ({type(error).__name__}:{getattr(error, 'code', '')})",
+                    file=sys.stderr,
+                )
                 raise
             self.pool.release(connection, healthy=True)
+            self.migration_report = report
+            if report.drift is not None:
+                # Structured, secret-free: versions, checksums and counts only.
+                print(
+                    "cubi: schema drift "
+                    + json.dumps(report.drift, sort_keys=True, default=str),
+                    file=sys.stderr,
+                )
             self._initialized = True
 
     def _readiness(self) -> dict[str, object]:
@@ -438,9 +596,15 @@ class ProductionRuntime:
             self.pool.release(connection, healthy=False)
             return {"status": "not_ready", "components": [{"name": "database", "healthy": False}]}
         self.pool.release(connection, healthy=True)
+        report = getattr(self, "migration_report", None)
         return {
             "status": "ready" if healthy else "not_ready",
             "components": [{"name": "database", "healthy": healthy}],
+            "schema": {
+                "version": None if report is None else report.ledger_version,
+                "tables": None if report is None else report.table_count,
+                "drift": None if report is None else report.drift,
+            },
         }
 
     @contextmanager
@@ -500,6 +664,12 @@ class _RequestTransactionManager:
 
     def __init__(self, connection: RequestConnection) -> None:
         self._connection = connection
+
+    @property
+    def connection(self) -> RequestConnection:
+        """Expose the shared connection so tool factories can prove atomicity."""
+
+        return self._connection
 
     @contextmanager
     def transaction(self) -> Iterator[None]:

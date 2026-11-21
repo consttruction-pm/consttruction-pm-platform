@@ -260,52 +260,40 @@ def _validate_audit(actor_id: str, occurred_at: datetime) -> None:
         raise ValueError("INVALID_RISK_OCCURRED_AT")
 
 
-def _coerce_datetime(value: str) -> datetime:
-    return datetime.fromisoformat(value)
+def _coerce_datetime(value: object) -> datetime:
+    if isinstance(value, datetime):
+        return value
+    return datetime.fromisoformat(str(value))
 
 
-class SQLiteRiskStore:
-    """Project-scoped risk register with an immutable audit trail."""
+class _SqlRiskStore:
+    """Shared behaviour for the SQLite and PostgreSQL risk stores.
+
+    One implementation of the revision, idempotency and audit rules means the
+    two databases cannot drift into two definitions of the register.
+    """
+
+    placeholder = "?"
 
     def __init__(self, connection) -> None:
         self.connection = connection
 
     def initialize(self) -> None:
-        self.connection.execute("PRAGMA busy_timeout = 5000")
-        self.connection.execute(
-            """CREATE TABLE IF NOT EXISTS project_risk (
-                tenant_id TEXT NOT NULL,
-                project_id TEXT NOT NULL,
-                risk_id TEXT NOT NULL,
-                idempotency_key TEXT NOT NULL,
-                fingerprint TEXT NOT NULL,
-                revision INTEGER NOT NULL DEFAULT 1,
-                risk_json TEXT NOT NULL,
-                PRIMARY KEY (tenant_id, project_id, risk_id),
-                UNIQUE (tenant_id, project_id, idempotency_key)
-            )"""
-        )
-        self.connection.execute(
-            """CREATE TABLE IF NOT EXISTS project_risk_audit (
-                tenant_id TEXT NOT NULL,
-                project_id TEXT NOT NULL,
-                entity_type TEXT NOT NULL,
-                entity_id TEXT NOT NULL,
-                revision INTEGER NOT NULL,
-                event_type TEXT NOT NULL,
-                actor_id TEXT NOT NULL,
-                occurred_at TEXT NOT NULL,
-                reason TEXT NOT NULL DEFAULT '',
-                PRIMARY KEY (tenant_id, project_id, entity_type, entity_id, revision)
-            )"""
-        )
-        self.connection.commit()
+        raise NotImplementedError
+
+    # -- dialect hooks -----------------------------------------------------
+    def _field(self, name: str) -> str:
+        raise NotImplementedError
+
+    def _order_by(self) -> str:
+        raise NotImplementedError
 
     # -- reads ------------------------------------------------------------
     def get_risk(self, tenant_id: str, project_id: str, risk_id: str) -> StoredRisk:
+        p = self.placeholder
         row = self.connection.execute(
             "SELECT risk_json, revision FROM project_risk "
-            "WHERE tenant_id=? AND project_id=? AND risk_id=?",
+            f"WHERE tenant_id={p} AND project_id={p} AND risk_id={p}",
             (tenant_id, project_id, risk_id),
         ).fetchone()
         if row is None:
@@ -333,26 +321,30 @@ class SQLiteRiskStore:
             raise RiskPersistenceError("INVALID_RISK_EXPOSURE")
         if search is not None and (not isinstance(search, str) or not search.strip()):
             raise RiskPersistenceError("INVALID_RISK_SEARCH")
-        query = "SELECT risk_json, revision FROM project_risk WHERE tenant_id=? AND project_id=?"
+        p = self.placeholder
+        query = (
+            "SELECT risk_json, revision FROM project_risk "
+            f"WHERE tenant_id={p} AND project_id={p}"
+        )
         params: list[object] = [tenant_id, project_id]
         if category is not None:
-            query += " AND json_extract(risk_json, '$.category')=?"
+            query += f" AND {self._field('category')}={p}"
             params.append(category)
         if status is not None:
-            query += " AND json_extract(risk_json, '$.status')=?"
+            query += f" AND {self._field('status')}={p}"
             params.append(status)
         if response_strategy is not None:
-            query += " AND json_extract(risk_json, '$.response_strategy')=?"
+            query += f" AND {self._field('response_strategy')}={p}"
             params.append(response_strategy)
         if search is not None:
             query += (
-                " AND (LOWER(risk_id) LIKE ?"
-                " OR LOWER(json_extract(risk_json, '$.title')) LIKE ?"
-                " OR LOWER(json_extract(risk_json, '$.owner')) LIKE ?)"
+                f" AND (LOWER(risk_id) LIKE {p}"
+                f" OR LOWER({self._field('title')}) LIKE {p}"
+                f" OR LOWER({self._field('owner')}) LIKE {p})"
             )
             needle = f"%{search.lower()}%"
             params.extend([needle, needle, needle])
-        query += " ORDER BY json_extract(risk_json, '$.probability') * json_extract(risk_json, '$.impact') DESC, risk_id"
+        query += f" ORDER BY {self._order_by()}, risk_id"
         rows = tuple(
             StoredRisk(self._risk_from_json(row[0]), int(row[1]))
             for row in self.connection.execute(query, tuple(params)).fetchall()
@@ -375,9 +367,10 @@ class SQLiteRiskStore:
         _validate_audit(actor_id, occurred_at)
         payload = risk.as_dict()
         fingerprint = _fingerprint(payload)
+        p = self.placeholder
         existing = self.connection.execute(
             "SELECT risk_id, fingerprint FROM project_risk "
-            "WHERE tenant_id=? AND project_id=? AND idempotency_key=?",
+            f"WHERE tenant_id={p} AND project_id={p} AND idempotency_key={p}",
             (risk.tenant_id, risk.project_id, idempotency_key),
         ).fetchone()
         if existing is not None:
@@ -388,7 +381,7 @@ class SQLiteRiskStore:
             self.connection.execute(
                 "INSERT INTO project_risk "
                 "(tenant_id, project_id, risk_id, idempotency_key, fingerprint, revision, risk_json) "
-                "VALUES (?,?,?,?,?,?,?)",
+                f"VALUES ({p},{p},{p},{p},{p},{p},{p})",
                 (
                     risk.tenant_id,
                     risk.project_id,
@@ -400,7 +393,8 @@ class SQLiteRiskStore:
                 ),
             )
         except Exception as exc:
-            if "UNIQUE" in str(exc) or "PRIMARY KEY" in str(exc):
+            message = str(exc).upper()
+            if "UNIQUE" in message or "PRIMARY KEY" in message or "DUPLICATE KEY" in message:
                 raise RiskPersistenceError("RISK_ALREADY_EXISTS") from exc
             raise
         self._audit(risk, "created", 1, actor_id, occurred_at, "")
@@ -425,9 +419,10 @@ class SQLiteRiskStore:
             raise RiskPersistenceError("RISK_REVISION_EXHAUSTED")
         validate_risk_transition(stored.risk.status, risk.status)
         next_revision = stored.revision + 1
+        p = self.placeholder
         self.connection.execute(
-            "UPDATE project_risk SET revision=?, risk_json=? "
-            "WHERE tenant_id=? AND project_id=? AND risk_id=?",
+            "UPDATE project_risk SET revision=" + p + ", risk_json=" + p + " "
+            f"WHERE tenant_id={p} AND project_id={p} AND risk_id={p}",
             (
                 next_revision,
                 json.dumps(
@@ -463,18 +458,21 @@ class SQLiteRiskStore:
         self._audit(
             stored.risk, "deleted", stored.revision + 1, actor_id, occurred_at, reason
         )
+        p = self.placeholder
         self.connection.execute(
-            "DELETE FROM project_risk WHERE tenant_id=? AND project_id=? AND risk_id=?",
+            "DELETE FROM project_risk "
+            f"WHERE tenant_id={p} AND project_id={p} AND risk_id={p}",
             (tenant_id, project_id, risk_id),
         )
 
     def risk_history(
         self, tenant_id: str, project_id: str, risk_id: str
     ) -> tuple[RiskAuditEvent, ...]:
+        p = self.placeholder
         rows = self.connection.execute(
             "SELECT entity_type, entity_id, revision, event_type, actor_id, occurred_at, reason "
             "FROM project_risk_audit "
-            "WHERE tenant_id=? AND project_id=? AND entity_type='risk' AND entity_id=? "
+            f"WHERE tenant_id={p} AND project_id={p} AND entity_type='risk' AND entity_id={p} "
             "ORDER BY revision",
             (tenant_id, project_id, risk_id),
         ).fetchall()
@@ -497,10 +495,11 @@ class SQLiteRiskStore:
         occurred_at: datetime,
         reason: str,
     ) -> None:
+        p = self.placeholder
         self.connection.execute(
             "INSERT INTO project_risk_audit "
             "(tenant_id, project_id, entity_type, entity_id, revision, event_type, actor_id, occurred_at, reason) "
-            "VALUES (?,?,?,?,?,?,?,?,?)",
+            f"VALUES ({p},{p},{p},{p},{p},{p},{p},{p},{p})",
             (
                 risk.tenant_id,
                 risk.project_id,
@@ -549,11 +548,105 @@ class SQLiteRiskStore:
         )
 
 
+class SQLiteRiskStore(_SqlRiskStore):
+    """Project-scoped risk register over the local preview SQLite database."""
+
+    placeholder = "?"
+
+    def initialize(self) -> None:
+        self.connection.execute("PRAGMA busy_timeout = 5000")
+        self.connection.execute(
+            """CREATE TABLE IF NOT EXISTS project_risk (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                risk_id TEXT NOT NULL,
+                idempotency_key TEXT NOT NULL,
+                fingerprint TEXT NOT NULL,
+                revision INTEGER NOT NULL DEFAULT 1,
+                risk_json TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, risk_id),
+                UNIQUE (tenant_id, project_id, idempotency_key)
+            )"""
+        )
+        self.connection.execute(
+            """CREATE TABLE IF NOT EXISTS project_risk_audit (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                entity_type TEXT NOT NULL,
+                entity_id TEXT NOT NULL,
+                revision INTEGER NOT NULL,
+                event_type TEXT NOT NULL,
+                actor_id TEXT NOT NULL,
+                occurred_at TEXT NOT NULL,
+                reason TEXT NOT NULL DEFAULT '',
+                PRIMARY KEY (tenant_id, project_id, entity_type, entity_id, revision)
+            )"""
+        )
+        self.connection.commit()
+
+    def _field(self, name: str) -> str:
+        return f"json_extract(risk_json, '$.{name}')"
+
+    def _order_by(self) -> str:
+        return (
+            "json_extract(risk_json, '$.probability') * "
+            "json_extract(risk_json, '$.impact') DESC"
+        )
+
+
+class PostgresRiskStore(_SqlRiskStore):
+    """Project-scoped risk register over the durable production database."""
+
+    placeholder = "%s"
+
+    def initialize(self) -> None:
+        for statement in (
+            """CREATE TABLE IF NOT EXISTS project_risk (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                risk_id TEXT NOT NULL,
+                idempotency_key TEXT NOT NULL,
+                fingerprint TEXT NOT NULL,
+                revision INTEGER NOT NULL DEFAULT 1,
+                risk_json TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, risk_id),
+                UNIQUE (tenant_id, project_id, idempotency_key)
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_project_risk_scope "
+            "ON project_risk (tenant_id, project_id)",
+            """CREATE TABLE IF NOT EXISTS project_risk_audit (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                entity_type TEXT NOT NULL,
+                entity_id TEXT NOT NULL,
+                revision INTEGER NOT NULL,
+                event_type TEXT NOT NULL,
+                actor_id TEXT NOT NULL,
+                occurred_at TIMESTAMPTZ NOT NULL,
+                reason TEXT NOT NULL DEFAULT '',
+                PRIMARY KEY (tenant_id, project_id, entity_type, entity_id, revision)
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_project_risk_audit_scope "
+            "ON project_risk_audit (tenant_id, project_id, entity_id, revision)",
+        ):
+            self.connection.execute(statement)
+
+    def _field(self, name: str) -> str:
+        return f"(risk_json::jsonb ->> '{name}')"
+
+    def _order_by(self) -> str:
+        return (
+            "((risk_json::jsonb ->> 'probability')::int * "
+            "(risk_json::jsonb ->> 'impact')::int) DESC"
+        )
+
+
 __all__ = [
     "RISK_CATEGORIES",
     "RISK_STATUSES",
     "RISK_STATUS_TRANSITIONS",
     "RISK_STRATEGIES",
+    "PostgresRiskStore",
     "Risk",
     "RiskAuditEvent",
     "RiskIdempotencyReuse",

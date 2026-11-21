@@ -16,6 +16,11 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Mapping, Sequence
 
+try:  # pragma: no cover - exercised only when the driver is absent
+    from psycopg.rows import dict_row
+except ModuleNotFoundError:  # pragma: no cover
+    dict_row = None  # type: ignore[assignment]
+
 from .backend_p0.models import BackendScope
 
 
@@ -50,171 +55,42 @@ def _validate_scope(scope: BackendScope) -> None:
         raise FormPersistenceError("INVALID_PROJECT", 400)
 
 
-class SQLiteFormBuilderRepository:
-    """Durable form storage over the shared preview/application connection."""
+class FormBuilderRepository:
+    """Shared behaviour for the SQLite and PostgreSQL form repositories.
 
-    def _execute(self, sql: str, parameters: Sequence[Any] = ()) -> sqlite3.Cursor:
-        """Run SQL on a cursor that returns named rows.
+    Template versioning, submission revisioning, approval sequencing and audit
+    are implemented once here. The subclasses supply only the driver-specific
+    cursor, blob binding and transaction ownership, so the two databases cannot
+    disagree about form invariants.
+    """
 
-        Named access is needed throughout this repository, but mutating the
-        shared connection would change every other query on the preview handle.
-        """
+    def _sql(self, sql: str) -> str:
+        return sql
 
-        cursor = self.connection.cursor()
-        cursor.row_factory = sqlite3.Row
-        return cursor.execute(sql, parameters)
+    def _blob(self, data: bytes) -> Any:
+        return data
 
-    def __init__(self, connection: sqlite3.Connection) -> None:
-        self.connection = connection
-        # Never change the shared connection's row_factory: the preview runtime
-        # and every other repository on the same SQLite handle expect tuple
-        # rows. Form queries get a row-factory cursor of their own instead.
-        self._execute("PRAGMA foreign_keys = ON")
-        self._execute("PRAGMA busy_timeout = 5000")
-        self.connection.executescript(
-            """
-            CREATE TABLE IF NOT EXISTS form_template_head (
-                tenant_id TEXT NOT NULL,
-                project_id TEXT NOT NULL,
-                template_id TEXT NOT NULL,
-                library TEXT NOT NULL,
-                status TEXT NOT NULL,
-                published_version INTEGER,
-                draft_payload_json TEXT NOT NULL,
-                draft_schema_hash TEXT NOT NULL,
-                title TEXT NOT NULL,
-                category TEXT NOT NULL DEFAULT '',
-                tags_json TEXT NOT NULL DEFAULT '[]',
-                default_locale TEXT NOT NULL DEFAULT 'en',
-                source_template_id TEXT,
-                source_template_version INTEGER,
-                created_by TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                updated_by TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                record_revision INTEGER NOT NULL,
-                PRIMARY KEY (tenant_id, project_id, template_id)
-            );
-            CREATE TABLE IF NOT EXISTS form_template_version (
-                tenant_id TEXT NOT NULL,
-                project_id TEXT NOT NULL,
-                template_id TEXT NOT NULL,
-                version INTEGER NOT NULL,
-                payload_json TEXT NOT NULL,
-                schema_hash TEXT NOT NULL,
-                published_by TEXT NOT NULL,
-                published_at TEXT NOT NULL,
-                change_reason TEXT NOT NULL DEFAULT '',
-                PRIMARY KEY (tenant_id, project_id, template_id, version)
-            );
-            CREATE TABLE IF NOT EXISTS form_submission (
-                tenant_id TEXT NOT NULL,
-                project_id TEXT NOT NULL,
-                submission_id TEXT NOT NULL,
-                template_id TEXT NOT NULL,
-                template_version INTEGER NOT NULL,
-                template_library TEXT NOT NULL,
-                status TEXT NOT NULL,
-                author TEXT NOT NULL,
-                assigned_to TEXT,
-                assigned_by TEXT,
-                title TEXT NOT NULL DEFAULT '',
-                report_date TEXT,
-                period_start TEXT,
-                period_end TEXT,
-                values_json TEXT NOT NULL,
-                tables_json TEXT NOT NULL,
-                calculated_json TEXT NOT NULL,
-                bindings_json TEXT NOT NULL,
-                record_revision INTEGER NOT NULL,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                submitted_at TEXT,
-                decided_at TEXT,
-                issued_at TEXT,
-                PRIMARY KEY (tenant_id, project_id, submission_id)
-            );
-            CREATE TABLE IF NOT EXISTS form_submission_revision (
-                tenant_id TEXT NOT NULL,
-                project_id TEXT NOT NULL,
-                submission_id TEXT NOT NULL,
-                revision INTEGER NOT NULL,
-                event_type TEXT NOT NULL,
-                status TEXT NOT NULL,
-                actor TEXT NOT NULL,
-                payload_json TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                PRIMARY KEY (tenant_id, project_id, submission_id, revision)
-            );
-            CREATE TABLE IF NOT EXISTS form_approval_event (
-                tenant_id TEXT NOT NULL,
-                project_id TEXT NOT NULL,
-                submission_id TEXT NOT NULL,
-                sequence INTEGER NOT NULL,
-                action TEXT NOT NULL,
-                from_status TEXT NOT NULL,
-                to_status TEXT NOT NULL,
-                actor TEXT NOT NULL,
-                actor_roles_json TEXT NOT NULL,
-                reason TEXT NOT NULL DEFAULT '',
-                on_behalf_of TEXT,
-                template_version INTEGER NOT NULL,
-                record_revision INTEGER NOT NULL,
-                at TEXT NOT NULL,
-                PRIMARY KEY (tenant_id, project_id, submission_id, sequence)
-            );
-            CREATE TABLE IF NOT EXISTS form_asset (
-                tenant_id TEXT NOT NULL,
-                project_id TEXT NOT NULL,
-                asset_id TEXT NOT NULL,
-                filename TEXT NOT NULL,
-                content_type TEXT NOT NULL,
-                size_bytes INTEGER NOT NULL,
-                sha256 TEXT NOT NULL,
-                data BLOB NOT NULL,
-                created_by TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                PRIMARY KEY (tenant_id, project_id, asset_id)
-            );
-            CREATE TABLE IF NOT EXISTS form_audit_event (
-                event_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                tenant_id TEXT NOT NULL,
-                project_id TEXT NOT NULL,
-                entity_type TEXT NOT NULL,
-                entity_id TEXT NOT NULL,
-                action TEXT NOT NULL,
-                actor TEXT NOT NULL,
-                at TEXT NOT NULL,
-                detail_json TEXT NOT NULL DEFAULT '{}'
-            );
-            CREATE INDEX IF NOT EXISTS idx_form_template_version_lookup
-                ON form_template_version (tenant_id, project_id, template_id, version);
-            CREATE INDEX IF NOT EXISTS idx_form_submission_template
-                ON form_submission (tenant_id, project_id, template_id, status);
-            CREATE INDEX IF NOT EXISTS idx_form_audit_entity
-                ON form_audit_event (tenant_id, project_id, entity_type, entity_id);
-            """
-        )
-        # Preview databases created before assignment support keep their form
-        # records; add the two columns in place rather than dropping data.
-        submission_columns = {
-            str(row[1]) for row in self._execute("PRAGMA table_info(form_submission)")
-        }
-        for column, ddl in (
-            ("assigned_to", "ALTER TABLE form_submission ADD COLUMN assigned_to TEXT"),
-            ("assigned_by", "ALTER TABLE form_submission ADD COLUMN assigned_by TEXT"),
-        ):
-            if column not in submission_columns:
-                self._execute(ddl)
-        approval_columns = {
-            str(row[1]) for row in self._execute("PRAGMA table_info(form_approval_event)")
-        }
-        if "on_behalf_of" not in approval_columns:
-            # Delegated approvals remain meaningful in preview databases that
-            # predate the column; add it in place instead of recreating the
-            # append-only history.
-            self._execute("ALTER TABLE form_approval_event ADD COLUMN on_behalf_of TEXT")
-        self.connection.commit()
+    def _commit(self) -> None:
+        """Commit when the repository owns the connection's transaction."""
+
+    def _rollback(self) -> None:
+        """Roll back when the repository owns the connection's transaction."""
+
+    def _execute(self, sql: str, parameters: Sequence[Any] = ()) -> Any:
+        raise NotImplementedError
+
+    def initialize(self) -> None:
+        raise NotImplementedError
+
+    @staticmethod
+    def _first_value(row: Any) -> Any:
+        """Read the first selected value from a tuple row or a mapping row."""
+
+        if row is None:
+            return None
+        if isinstance(row, Mapping):
+            return next(iter(row.values()))
+        return row[0]
 
     # ------------------------------------------------------------------
     # Template heads
@@ -270,7 +146,7 @@ class SQLiteFormBuilderRepository:
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             _template_head_params(record),
         )
-        self.connection.commit()
+        self._commit()
         stored = self.get_template_head(
             str(record["tenant_id"]), str(record["project_id"]), str(record["template_id"])
         )
@@ -327,9 +203,9 @@ class SQLiteFormBuilderRepository:
             ),
         )
         if cursor.rowcount != 1:
-            self.connection.rollback()
+            self._rollback()
             raise FormPersistenceError("REVISION_CONFLICT", 409)
-        self.connection.commit()
+        self._commit()
         stored = self.get_template_head(
             str(record["tenant_id"]), str(record["project_id"]), str(record["template_id"])
         )
@@ -357,7 +233,7 @@ class SQLiteFormBuilderRepository:
                WHERE tenant_id=? AND project_id=? AND template_id=? AND record_revision=?""",
             (status, actor, _now(), tenant_id, project_id, template_id, expected_revision),
         )
-        self.connection.commit()
+        self._commit()
         stored = self.get_template_head(tenant_id, project_id, template_id)
         if stored is None:
             raise FormPersistenceError("TEMPLATE_NOT_FOUND", 404)
@@ -403,7 +279,7 @@ class SQLiteFormBuilderRepository:
                 change_reason,
             ),
         )
-        self.connection.commit()
+        self._commit()
         stored = self.get_template_version(
             scope.tenant_id, scope.project_id, template_id, version
         )
@@ -563,7 +439,7 @@ class SQLiteFormBuilderRepository:
                 "bindings": record["bindings"],
             },
         )
-        self.connection.commit()
+        self._commit()
         stored = self.get_submission(
             str(record["tenant_id"]), str(record["project_id"]), str(record["submission_id"])
         )
@@ -617,7 +493,7 @@ class SQLiteFormBuilderRepository:
             ),
         )
         if cursor.rowcount != 1:
-            self.connection.rollback()
+            self._rollback()
             raise FormPersistenceError("REVISION_CONFLICT", 409)
         self.append_revision(
             str(record["tenant_id"]),
@@ -629,7 +505,7 @@ class SQLiteFormBuilderRepository:
             actor=str(record.get("updated_by") or record.get("author") or ""),
             payload=dict(event_payload or {}),
         )
-        self.connection.commit()
+        self._commit()
         stored = self.get_submission(
             str(record["tenant_id"]), str(record["project_id"]), str(record["submission_id"])
         )
@@ -713,7 +589,7 @@ class SQLiteFormBuilderRepository:
                WHERE tenant_id=? AND project_id=? AND submission_id=?""",
             (tenant_id, project_id, submission_id),
         ).fetchone()
-        sequence = int(row[0]) + 1
+        sequence = int(self._first_value(row)) + 1
         self._execute(
             """INSERT INTO form_approval_event
                (tenant_id, project_id, submission_id, sequence, action, from_status,
@@ -737,7 +613,7 @@ class SQLiteFormBuilderRepository:
                 at,
             ),
         )
-        self.connection.commit()
+        self._commit()
         return {
             "sequence": sequence,
             "action": action,
@@ -798,12 +674,12 @@ class SQLiteFormBuilderRepository:
                 content_type,
                 len(data),
                 digest,
-                sqlite3.Binary(data),
+                self._blob(data),
                 created_by,
                 _now(),
             ),
         )
-        self.connection.commit()
+        self._commit()
         return {
             "asset_id": asset_id,
             "filename": filename,
@@ -867,7 +743,7 @@ class SQLiteFormBuilderRepository:
                 _json(dict(detail or {})),
             ),
         )
-        self.connection.commit()
+        self._commit()
 
     def list_audit(
         self,
@@ -905,7 +781,7 @@ class SQLiteFormBuilderRepository:
                 f"SELECT COUNT(*) FROM {table} WHERE tenant_id=? AND project_id=?",
                 (tenant_id, project_id),
             ).fetchone()
-            return int(row[0]) if row else 0
+            return int(self._first_value(row)) if row else 0
 
         return {
             "templates": count("form_template_head"),
@@ -914,6 +790,337 @@ class SQLiteFormBuilderRepository:
             "approval_events": count("form_approval_event"),
             "assets": count("form_asset"),
         }
+
+
+
+class SQLiteFormBuilderRepository(FormBuilderRepository):
+    """Durable form storage over the shared preview/application connection."""
+
+    def _execute(self, sql: str, parameters: Sequence[Any] = ()) -> sqlite3.Cursor:
+        """Run SQL on a cursor that returns named rows.
+
+        Named access is needed throughout this repository, but mutating the
+        shared connection would change every other query on the preview handle.
+        """
+
+        cursor = self.connection.cursor()
+        cursor.row_factory = sqlite3.Row
+        return cursor.execute(self._sql(sql), parameters)
+
+    def _blob(self, data: bytes) -> Any:
+        return sqlite3.Binary(data)
+
+    def _commit(self) -> None:
+        self.connection.commit()
+
+    def _rollback(self) -> None:
+        self.connection.rollback()
+
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self.connection = connection
+        self.initialize()
+
+    def initialize(self) -> None:
+        # Never change the shared connection's row_factory: the preview runtime
+        # and every other repository on the same SQLite handle expect tuple
+        # rows. Form queries get a row-factory cursor of their own instead.
+        self._execute("PRAGMA foreign_keys = ON")
+        self._execute("PRAGMA busy_timeout = 5000")
+        self.connection.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS form_template_head (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                template_id TEXT NOT NULL,
+                library TEXT NOT NULL,
+                status TEXT NOT NULL,
+                published_version INTEGER,
+                draft_payload_json TEXT NOT NULL,
+                draft_schema_hash TEXT NOT NULL,
+                title TEXT NOT NULL,
+                category TEXT NOT NULL DEFAULT '',
+                tags_json TEXT NOT NULL DEFAULT '[]',
+                default_locale TEXT NOT NULL DEFAULT 'en',
+                source_template_id TEXT,
+                source_template_version INTEGER,
+                created_by TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_by TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                record_revision INTEGER NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, template_id)
+            );
+            CREATE TABLE IF NOT EXISTS form_template_version (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                template_id TEXT NOT NULL,
+                version INTEGER NOT NULL,
+                payload_json TEXT NOT NULL,
+                schema_hash TEXT NOT NULL,
+                published_by TEXT NOT NULL,
+                published_at TEXT NOT NULL,
+                change_reason TEXT NOT NULL DEFAULT '',
+                PRIMARY KEY (tenant_id, project_id, template_id, version)
+            );
+            CREATE TABLE IF NOT EXISTS form_submission (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                submission_id TEXT NOT NULL,
+                template_id TEXT NOT NULL,
+                template_version INTEGER NOT NULL,
+                template_library TEXT NOT NULL,
+                status TEXT NOT NULL,
+                author TEXT NOT NULL,
+                assigned_to TEXT,
+                assigned_by TEXT,
+                title TEXT NOT NULL DEFAULT '',
+                report_date TEXT,
+                period_start TEXT,
+                period_end TEXT,
+                values_json TEXT NOT NULL,
+                tables_json TEXT NOT NULL,
+                calculated_json TEXT NOT NULL,
+                bindings_json TEXT NOT NULL,
+                record_revision INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                submitted_at TEXT,
+                decided_at TEXT,
+                issued_at TEXT,
+                PRIMARY KEY (tenant_id, project_id, submission_id)
+            );
+            CREATE TABLE IF NOT EXISTS form_submission_revision (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                submission_id TEXT NOT NULL,
+                revision INTEGER NOT NULL,
+                event_type TEXT NOT NULL,
+                status TEXT NOT NULL,
+                actor TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, submission_id, revision)
+            );
+            CREATE TABLE IF NOT EXISTS form_approval_event (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                submission_id TEXT NOT NULL,
+                sequence INTEGER NOT NULL,
+                action TEXT NOT NULL,
+                from_status TEXT NOT NULL,
+                to_status TEXT NOT NULL,
+                actor TEXT NOT NULL,
+                actor_roles_json TEXT NOT NULL,
+                reason TEXT NOT NULL DEFAULT '',
+                on_behalf_of TEXT,
+                template_version INTEGER NOT NULL,
+                record_revision INTEGER NOT NULL,
+                at TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, submission_id, sequence)
+            );
+            CREATE TABLE IF NOT EXISTS form_asset (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                asset_id TEXT NOT NULL,
+                filename TEXT NOT NULL,
+                content_type TEXT NOT NULL,
+                size_bytes INTEGER NOT NULL,
+                sha256 TEXT NOT NULL,
+                data BLOB NOT NULL,
+                created_by TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, asset_id)
+            );
+            CREATE TABLE IF NOT EXISTS form_audit_event (
+                event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                entity_type TEXT NOT NULL,
+                entity_id TEXT NOT NULL,
+                action TEXT NOT NULL,
+                actor TEXT NOT NULL,
+                at TEXT NOT NULL,
+                detail_json TEXT NOT NULL DEFAULT '{}'
+            );
+            CREATE INDEX IF NOT EXISTS idx_form_template_version_lookup
+                ON form_template_version (tenant_id, project_id, template_id, version);
+            CREATE INDEX IF NOT EXISTS idx_form_submission_template
+                ON form_submission (tenant_id, project_id, template_id, status);
+            CREATE INDEX IF NOT EXISTS idx_form_audit_entity
+                ON form_audit_event (tenant_id, project_id, entity_type, entity_id);
+            """
+        )
+        # Preview databases created before assignment support keep their form
+        # records; add the two columns in place rather than dropping data.
+        submission_columns = {
+            str(row[1]) for row in self._execute("PRAGMA table_info(form_submission)")
+        }
+        for column, ddl in (
+            ("assigned_to", "ALTER TABLE form_submission ADD COLUMN assigned_to TEXT"),
+            ("assigned_by", "ALTER TABLE form_submission ADD COLUMN assigned_by TEXT"),
+        ):
+            if column not in submission_columns:
+                self._execute(ddl)
+        approval_columns = {
+            str(row[1]) for row in self._execute("PRAGMA table_info(form_approval_event)")
+        }
+        if "on_behalf_of" not in approval_columns:
+            # Delegated approvals remain meaningful in preview databases that
+            # predate the column; add it in place instead of recreating the
+            # append-only history.
+            self._execute("ALTER TABLE form_approval_event ADD COLUMN on_behalf_of TEXT")
+        self._commit()
+
+
+class PostgresFormBuilderRepository(FormBuilderRepository):
+    """Form storage over the durable production database.
+
+    The PostgreSQL driver uses ``%s`` binding and native ``BYTEA``; the request
+    transaction belongs to the composed runtime, so this repository never
+    commits or rolls back on its own.
+    """
+
+    def __init__(self, connection: Any, *, initialize: bool = True) -> None:
+        self.connection = connection
+        if initialize:
+            self.initialize()
+
+    def _sql(self, sql: str) -> str:
+        return sql.replace("?", "%s")
+
+    def _execute(self, sql: str, parameters: Sequence[Any] = ()) -> Any:
+        cursor = self.connection.cursor(row_factory=dict_row)
+        cursor.execute(self._sql(sql), tuple(parameters))
+        return cursor
+
+    def initialize(self) -> None:
+        for statement in (
+            """CREATE TABLE IF NOT EXISTS form_template_head (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                template_id TEXT NOT NULL,
+                library TEXT NOT NULL,
+                status TEXT NOT NULL,
+                published_version INTEGER,
+                draft_payload_json TEXT NOT NULL,
+                draft_schema_hash TEXT NOT NULL,
+                title TEXT NOT NULL,
+                category TEXT NOT NULL DEFAULT '',
+                tags_json TEXT NOT NULL DEFAULT '[]',
+                default_locale TEXT NOT NULL DEFAULT 'en',
+                source_template_id TEXT,
+                source_template_version INTEGER,
+                created_by TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_by TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                record_revision INTEGER NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, template_id)
+            )""",
+            """CREATE TABLE IF NOT EXISTS form_template_version (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                template_id TEXT NOT NULL,
+                version INTEGER NOT NULL,
+                payload_json TEXT NOT NULL,
+                schema_hash TEXT NOT NULL,
+                published_by TEXT NOT NULL,
+                published_at TEXT NOT NULL,
+                change_reason TEXT NOT NULL DEFAULT '',
+                PRIMARY KEY (tenant_id, project_id, template_id, version)
+            )""",
+            """CREATE TABLE IF NOT EXISTS form_submission (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                submission_id TEXT NOT NULL,
+                template_id TEXT NOT NULL,
+                template_version INTEGER NOT NULL,
+                template_library TEXT NOT NULL,
+                status TEXT NOT NULL,
+                author TEXT NOT NULL,
+                assigned_to TEXT,
+                assigned_by TEXT,
+                title TEXT NOT NULL DEFAULT '',
+                report_date TEXT,
+                period_start TEXT,
+                period_end TEXT,
+                values_json TEXT NOT NULL,
+                tables_json TEXT NOT NULL,
+                calculated_json TEXT NOT NULL,
+                bindings_json TEXT NOT NULL,
+                record_revision INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                submitted_at TEXT,
+                decided_at TEXT,
+                issued_at TEXT,
+                PRIMARY KEY (tenant_id, project_id, submission_id)
+            )""",
+            """CREATE TABLE IF NOT EXISTS form_submission_revision (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                submission_id TEXT NOT NULL,
+                revision INTEGER NOT NULL,
+                event_type TEXT NOT NULL,
+                status TEXT NOT NULL,
+                actor TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, submission_id, revision)
+            )""",
+            """CREATE TABLE IF NOT EXISTS form_approval_event (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                submission_id TEXT NOT NULL,
+                sequence INTEGER NOT NULL,
+                action TEXT NOT NULL,
+                from_status TEXT NOT NULL,
+                to_status TEXT NOT NULL,
+                actor TEXT NOT NULL,
+                actor_roles_json TEXT NOT NULL,
+                reason TEXT NOT NULL DEFAULT '',
+                on_behalf_of TEXT,
+                template_version INTEGER NOT NULL,
+                record_revision INTEGER NOT NULL,
+                at TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, submission_id, sequence)
+            )""",
+            """CREATE TABLE IF NOT EXISTS form_asset (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                asset_id TEXT NOT NULL,
+                filename TEXT NOT NULL,
+                content_type TEXT NOT NULL,
+                size_bytes INTEGER NOT NULL,
+                sha256 TEXT NOT NULL,
+                data BYTEA NOT NULL,
+                created_by TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, asset_id)
+            )""",
+            """CREATE TABLE IF NOT EXISTS form_audit_event (
+                event_id BIGSERIAL PRIMARY KEY,
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                entity_type TEXT NOT NULL,
+                entity_id TEXT NOT NULL,
+                action TEXT NOT NULL,
+                actor TEXT NOT NULL,
+                at TEXT NOT NULL,
+                detail_json TEXT NOT NULL DEFAULT '{}'
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_form_template_version_lookup "
+            "ON form_template_version (tenant_id, project_id, template_id, version)",
+            "CREATE INDEX IF NOT EXISTS idx_form_submission_template "
+            "ON form_submission (tenant_id, project_id, template_id, status)",
+            "CREATE INDEX IF NOT EXISTS idx_form_audit_entity "
+            "ON form_audit_event (tenant_id, project_id, entity_type, entity_id)",
+            # Additive upgrade for databases created before assignment support.
+            "ALTER TABLE form_submission ADD COLUMN IF NOT EXISTS assigned_to TEXT",
+            "ALTER TABLE form_submission ADD COLUMN IF NOT EXISTS assigned_by TEXT",
+            "ALTER TABLE form_approval_event ADD COLUMN IF NOT EXISTS on_behalf_of TEXT",
+        ):
+            self.connection.execute(statement)
 
 
 def _template_head(row: Mapping[str, Any]) -> dict[str, Any]:

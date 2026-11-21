@@ -158,7 +158,8 @@ def build_knowledge_runtime(
     *,
     policy: object,
     lifecycle_api: object,
-    database: str,
+    database: str | None = None,
+    store: object | None = None,
     plan_port: object | None = None,
     clock: Callable[[], datetime] | None = None,
 ) -> KnowledgeRuntime:
@@ -168,19 +169,25 @@ def build_knowledge_runtime(
     migrated on first use; the store tolerates an empty database, so an
     installation that has not ingested documentation yet still serves locales,
     an honest empty coverage report and explicit knowledge-gap answers.
+
+    ``store`` supplies an already-constructed repository instead (the
+    production runtime passes the PostgreSQL store bound to its request
+    connection). Exactly one of ``database``/``store`` must be provided.
     """
 
-    store = SqliteKnowledgeStore(database)
+    if (database is None) == (store is None):
+        raise ValueError("KNOWLEDGE_STORE_SELECTION_INVALID")
+    active_store = SqliteKnowledgeStore(database) if store is None else store
     workflow_clock = clock or utc_now
     workflows = ProjectCreationWorkflow(
-        store,
+        active_store,
         SessionProjectGateway(lifecycle_api, clock=workflow_clock),
         policy=policy,
         plan_port=plan_port,
         clock=workflow_clock,
     )
-    assistant = KnowledgeAssistant(store, policy, workflows=workflows, clock=workflow_clock)
-    api = KnowledgeAPI(store, policy, assistant, workflows, clock=workflow_clock)
+    assistant = KnowledgeAssistant(active_store, policy, workflows=workflows, clock=workflow_clock)
+    api = KnowledgeAPI(active_store, policy, assistant, workflows, clock=workflow_clock)
     middleware = KnowledgeHttpMiddleware(
         app,
         api,
@@ -188,7 +195,7 @@ def build_knowledge_runtime(
         clock=_MiddlewareClock(workflow_clock),
         session_hook=bind_session,
     )
-    return KnowledgeRuntime(app=_SessionScopedApp(middleware), store=store, api=api, workflows=workflows)
+    return KnowledgeRuntime(app=_SessionScopedApp(middleware), store=active_store, api=api, workflows=workflows)
 
 
 __all__ = [
