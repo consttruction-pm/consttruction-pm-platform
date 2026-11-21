@@ -681,6 +681,7 @@ class SQLiteIdentityStore(_SqlIdentityStore):
                 user_id TEXT PRIMARY KEY,
                 tenant_id TEXT NOT NULL,
                 email TEXT NOT NULL,
+                username TEXT,
                 display_name TEXT NOT NULL DEFAULT '',
                 roles_json TEXT NOT NULL,
                 password_hash TEXT NOT NULL,
@@ -811,6 +812,9 @@ class PostgresIdentityStore(_SqlIdentityStore):
             "CREATE UNIQUE INDEX IF NOT EXISTS identity_users_email_unique "
             "ON identity_users (lower(email))",
             # Additive upgrade for databases created before administration state.
+            "ALTER TABLE identity_users ADD COLUMN IF NOT EXISTS username TEXT",
+            "CREATE UNIQUE INDEX IF NOT EXISTS identity_users_username_unique "
+            "ON identity_users (lower(username)) WHERE username IS NOT NULL",
             "ALTER TABLE identity_users ADD COLUMN IF NOT EXISTS locked_at TIMESTAMPTZ",
             "ALTER TABLE identity_users ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ",
             "ALTER TABLE identity_users ADD COLUMN IF NOT EXISTS must_change_password "
