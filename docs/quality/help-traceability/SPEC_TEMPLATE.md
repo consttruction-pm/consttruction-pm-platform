@@ -37,6 +37,10 @@ Rules:
   has not been opened. It is never replaced with an unrelated topic.
 - A CUBI behavior that diverges from Help is documented as a divergence with
   the reason, not silently "fixed" in the docs.
+- When a section covers exactly one environment and one page, `Env` and
+  `Page / module` may be stated once above the matrix instead of repeated on
+  every row. `Dependencies` and `Expected result` may then live in that page's
+  specification, provided each scenario still records them.
 
 ## 2. Page specification
 

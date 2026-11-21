@@ -7,12 +7,12 @@ new session reads. Update it in every section PR.
 
 | Field | Value |
 | --- | --- |
-| Last verified `main` | `dd14e0be7` (2026-11-21) |
+| Last verified `main` | `99e77d01c` (Section 1 merged) |
 | Baseline for this workstream | PR #2101 merged as `6c25964a4` |
 | Canonical page↔Help index | `docs/traceability/{engineering,enterprise}-v26.json` |
 | Help link check | **84/84 rows verified**, report in `evidence/help-link-verification-2026-11-21.json` |
-| Open PR (this section) | see the PR that introduced this file |
-| Next exact task | Section 2 — Engineering workspace and Activities matrix |
+| Open PR (this section) | Section 2 PR |
+| Next exact task | Section 3 — Activity Details and WBS matrix |
 | Owner split | Agent 1 implements; Agent 2 documents, traces and specifies tests only |
 
 ## Section plan
@@ -22,8 +22,8 @@ Statuses: `NOT_STARTED`, `IN_PROGRESS`, `DOCUMENTED`, `HELP_VERIFIED`,
 
 | # | Section | Status | Document | PR / merge | Notes |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Repository audit and documentation ownership map | `PR_OPEN` | `README.md`, `OFFICIAL_HELP_BASELINE.md`, `SPEC_TEMPLATE.md`, this index | — | 84/84 Help rows verified; no product files touched |
-| 2 | Engineering workspace and Activities | `NOT_STARTED` | `ENGINEERING_WORKSPACE_ACTIVITIES.md` | — | table, columns, selection counts, search, export scopes, layouts |
+| 1 | Repository audit and documentation ownership map | `MERGED` | `README.md`, `OFFICIAL_HELP_BASELINE.md`, `SPEC_TEMPLATE.md`, this index | PR #2106 → `99e77d01c` | 84/84 Help rows verified; no product files touched |
+| 2 | Engineering workspace and Activities | `PR_OPEN` | `ENGINEERING_WORKSPACE_ACTIVITIES.md` | — | 18 Help + 16 User Guide URLs; 11 scenarios; 4 documented divergences |
 | 3 | Activity Details and WBS | `NOT_STARTED` | `ENGINEERING_ACTIVITY_DETAILS_WBS.md` | — | details tabs, WBS hierarchy and activity binding |
 | 4 | Gantt, Relationships and Calendars | `NOT_STARTED` | `ENGINEERING_GANTT_RELATIONSHIPS_CALENDARS.md` | — | bars, progress, logic lines, constraints, calendars |
 | 5 | Resources, Costs and Project Dictionaries | `NOT_STARTED` | `ENGINEERING_RESOURCES_COSTS_DICTIONARIES.md` | — | roles, assignments, cost fields, codes |
@@ -66,9 +66,16 @@ Statuses: `NOT_STARTED`, `IN_PROGRESS`, `DOCUMENTED`, `HELP_VERIFIED`,
 
 No product implementation file is modified by this workstream.
 
+## Section log
+
+| Section | Commit | PR | CI | Merge commit | Notes |
+| --- | --- | --- | --- | --- | --- |
+| 1 — Foundation | `d27acfc94` | #2106 | green (test 3.11–3.13, typecheck ×4; the two unrelated Vercel projects fail on pre-existing account state) | `99e77d01c` | 84/84 Help rows verified |
+| 2 — Workspace and Activities | this PR | this PR | pending | pending | 18 Help URLs, 16 User Guide URLs, 11 scenarios |
+
 ## Open gaps
 
-- Sections 2–18 are `NOT_STARTED`.
+- Sections 3–18 are `NOT_STARTED`; Section 2 is `PR_OPEN`.
 - The User Guide exposes stable per-topic URLs, but only sections opened and
   title-matched are cited. Unopened sections are marked
   `HELP REFERENCE NOT YET VERIFIED`.
