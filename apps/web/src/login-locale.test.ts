@@ -39,6 +39,8 @@ const KEYS = [
   "submit",
   "signup",
   "usernameTaken",
+  "forgot",
+  "forgotHelp",
   "working",
   "footer",
   "failed",
