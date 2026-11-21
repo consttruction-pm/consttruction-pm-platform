@@ -1,0 +1,312 @@
+P0-N.2 runtime matrix run started 2026-11-20T03:59:30.852552+00:00
+command: scripts/p0n2_runtime_matrix.py run --out-dir docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results --dsn postgresql://postgres@127.0.0.1:55432/postgres
+cwd: /data/work/repo
+repo: /data/work/repo
+environment: {"python": "3.12.13", "implementation": "CPython", "platform": "Linux-5.10.134-013.10.1.kangaroo.al8.x86_64-x86_64-with-glibc2.35", "machine": "x86_64", "cpu_count": 4, "cpu_affinity_count": 4, "memory_total_kb": 8131540, "git_sha": "5b4cfb7104cbd4952d60af9734cfe1b559aa923f"}
+python: 3.12.13
+cpu_count: 4
+cpu_affinity: 4
+postgres: PostgreSQL 14.24 (Ubuntu 14.24-0ubuntu0.22.04.1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0, 64-bit
+mode budgets: {1000: 60.0, 5000: 90.0, 25000: 150.0, 50000: 300.0, 100000: 180.0} parallel_slots: 4
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 1000 --shape chain --deadline 1795147380.933 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-00-1000-chain.json
+[OK] wall_ms=813.0 exit=0
+--- stdout ---
+{"unit": "cell", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 1000 --shape wide --deadline 1795147381.746 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-01-1000-wide.json
+[OK] wall_ms=564.1 exit=0
+--- stdout ---
+{"unit": "cell", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 1000 --shape mixed --deadline 1795147382.311 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-02-1000-mixed.json
+[OK] wall_ms=1158.9 exit=0
+--- stdout ---
+{"unit": "cell", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 1000 --shape resource-heavy --deadline 1795147383.470 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-03-1000-resource-heavy.json
+[OK] wall_ms=1114.7 exit=0
+--- stdout ---
+{"unit": "cell", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 1000 --shape constraint-heavy --deadline 1795147384.586 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-04-1000-constraint-heavy.json
+[OK] wall_ms=1466.9 exit=0
+--- stdout ---
+{"unit": "cell", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 5000 --shape chain --deadline 1795147446.054 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-05-5000-chain.json
+[OK] wall_ms=2945.6 exit=0
+--- stdout ---
+{"unit": "cell", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 5000 --shape wide --deadline 1795147449.000 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-06-5000-wide.json
+[OK] wall_ms=1572.6 exit=0
+--- stdout ---
+{"unit": "cell", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 5000 --shape mixed --deadline 1795147450.574 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-07-5000-mixed.json
+[OK] wall_ms=4898.8 exit=0
+--- stdout ---
+{"unit": "cell", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 5000 --shape resource-heavy --deadline 1795147455.474 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-08-5000-resource-heavy.json
+[OK] wall_ms=4855.8 exit=0
+--- stdout ---
+{"unit": "cell", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 5000 --shape constraint-heavy --deadline 1795147460.331 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-09-5000-constraint-heavy.json
+[OK] wall_ms=13603.5 exit=0
+--- stdout ---
+{"unit": "cell", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 25000 --shape chain --deadline 1795147593.935 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-10-25000-chain.json
+[OK] wall_ms=7467.8 exit=0
+--- stdout ---
+{"unit": "cell", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 25000 --shape wide --deadline 1795147601.405 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-11-25000-wide.json
+[OK] wall_ms=3894.6 exit=0
+--- stdout ---
+{"unit": "cell", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 25000 --shape mixed --deadline 1795147605.301 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-12-25000-mixed.json
+[OK] wall_ms=12807.1 exit=0
+--- stdout ---
+{"unit": "cell", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 25000 --shape resource-heavy --deadline 1795147618.109 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-13-25000-resource-heavy.json
+[OK] wall_ms=14892.2 exit=0
+--- stdout ---
+{"unit": "cell", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 25000 --shape constraint-heavy --deadline 1795147633.003 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-14-25000-constraint-heavy.json
+[OK] wall_ms=138281.8 exit=0
+--- stdout ---
+{"unit": "cell", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 50000 --shape chain --deadline 1795148071.286 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-15-50000-chain.json
+[OK] wall_ms=15195.9 exit=0
+--- stdout ---
+{"unit": "cell", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 50000 --shape wide --deadline 1795148086.484 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-16-50000-wide.json
+[OK] wall_ms=7821.3 exit=0
+--- stdout ---
+{"unit": "cell", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 50000 --shape mixed --deadline 1795148094.307 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-17-50000-mixed.json
+[OK] wall_ms=26013.9 exit=0
+--- stdout ---
+{"unit": "cell", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 50000 --shape resource-heavy --deadline 1795148120.323 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-18-50000-resource-heavy.json
+[OK] wall_ms=36539.3 exit=0
+--- stdout ---
+{"unit": "cell", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 50000 --shape constraint-heavy --deadline 1795148150.933 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-19-50000-constraint-heavy.json
+[OK] wall_ms=578529.1 exit=0
+--- stdout ---
+{"unit": "cell", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 100000 --shape chain --deadline 1795148495.395 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-20-100000-chain.json
+[OK] wall_ms=31498.4 exit=0
+--- stdout ---
+{"unit": "cell", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 100000 --shape wide --deadline 1795148526.896 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-21-100000-wide.json
+[OK] wall_ms=16463.5 exit=0
+--- stdout ---
+{"unit": "cell", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _cell --size 100000 --shape mixed --deadline 1795148543.361 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/cell-22-100000-mixed.json
+[OK] wall_ms=53225.9 exit=0
+--- stdout ---
+{"unit": "cell", "status": "OK"}
+
+--- stderr ---
+
+SKIPPED_BUDGET cell size=100000 shape=resource-heavy remaining=-15.7s
+SKIPPED_BUDGET cell size=100000 shape=constraint-heavy remaining=-15.7s
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _capacity --slots 1 --deadline 1795148446.593 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/capacity-1.json
+[OK] wall_ms=8471.6 exit=0
+--- stdout ---
+{"unit": "capacity", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _capacity --slots 2 --deadline 1795148455.067 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/capacity-2.json
+[OK] wall_ms=8508.3 exit=0
+--- stdout ---
+{"unit": "capacity", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _capacity --slots 4 --deadline 1795148463.577 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/capacity-4.json
+[OK] wall_ms=5860.1 exit=0
+--- stdout ---
+{"unit": "capacity", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _capacity --slots 8 --deadline 1795148469.440 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/capacity-8.json
+[OK] wall_ms=5774.6 exit=0
+--- stdout ---
+{"unit": "capacity", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _capacity --slots 16 --deadline 1795148475.216 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/capacity-16.json
+[OK] wall_ms=5821.7 exit=0
+--- stdout ---
+{"unit": "capacity", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _projects --count 1 --deadline 1795148781.040 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/projects-1.json
+[OK] wall_ms=2928.1 exit=0
+--- stdout ---
+{"unit": "projects", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _projects --count 2 --deadline 1795148783.971 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/projects-2.json
+[OK] wall_ms=5097.9 exit=0
+--- stdout ---
+{"unit": "projects", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _projects --count 4 --deadline 1795148789.071 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/projects-4.json
+[OK] wall_ms=8391.7 exit=0
+--- stdout ---
+{"unit": "projects", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _projects --count 8 --deadline 1795148797.465 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/projects-8.json
+[OK] wall_ms=16535.0 exit=0
+--- stdout ---
+{"unit": "projects", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _projects --count 16 --deadline 1795148814.003 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/projects-16.json
+[OK] wall_ms=32685.3 exit=0
+--- stdout ---
+{"unit": "projects", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _worker --dsn postgresql://postgres@127.0.0.1:55432/postgres --size 1000 --mode thread --deadline 1795148666.702 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/worker-1000-thread.json
+[OK] wall_ms=1022.8 exit=0
+--- stdout ---
+{"unit": "worker", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _worker --dsn postgresql://postgres@127.0.0.1:55432/postgres --size 1000 --mode process --deadline 1795148667.725 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/worker-1000-process.json
+[OK] wall_ms=1048.5 exit=0
+--- stdout ---
+{"unit": "worker", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _worker --dsn postgresql://postgres@127.0.0.1:55432/postgres --size 5000 --mode thread --deadline 1795148668.774 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/worker-5000-thread.json
+[OK] wall_ms=1761.0 exit=0
+--- stdout ---
+{"unit": "worker", "status": "OK"}
+
+--- stderr ---
+
+
+$ /usr/bin/python /data/work/repo/scripts/p0n2_runtime_matrix.py _worker --dsn postgresql://postgres@127.0.0.1:55432/postgres --size 5000 --mode process --deadline 1795148670.536 --result-file /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/.unit-20261120T035930Z/worker-5000-process.json
+[OK] wall_ms=1815.7 exit=0
+--- stdout ---
+{"unit": "worker", "status": "OK"}
+
+--- stderr ---
+
+
+run finished 2026-11-20T04:17:32.352375+00:00
+matrix: /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/matrix-20261120T035930Z.json
+worker: /data/work/repo/docs/workspace/evidence/p0n-runtime-activation-2026-11-20/results/worker-e2e-20261120T035930Z.json
