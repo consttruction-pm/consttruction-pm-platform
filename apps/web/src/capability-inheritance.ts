@@ -562,7 +562,7 @@ export function renderMarkdown(
     "| `docs/cubisite/AUDIT_BASELINE_2026-11-20.md` | The accepted C01–C35 enumeration and status vocabulary. |",
   );
   lines.push(
-    "| `docs/traceability/engineering-v26.json`, `enterprise-v26.json` | Official Help topics, PDF pages and executable evidence per surface (83 rows). |",
+    "| `docs/traceability/engineering-v26.json`, `enterprise-v26.json` | Official Help topics, PDF pages and executable evidence per surface (84 rows). |",
   );
   lines.push(
     "| `apps/web/site/routes.mjs` | The 25 approved public routes. |",

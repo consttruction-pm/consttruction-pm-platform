@@ -71,7 +71,9 @@ analysis counts, and Persian RTL / English LTR switching.
 1. Import staging has no project-import engine; only register exchange exists.
 2. Schedule scenarios have no persisted contract.
 3. Decision/approval has no Engineering proposal or execution contract.
-4. Every studio Help status is `HELP_REFERENCE_PENDING`; no fabricated URL.
+4. Every studio Help status is `HELP_REFERENCE_PENDING`; no fabricated URL. The
+   document row `ENG-WS-AI-WORKBENCH` is registered as `CUBI_OWNED` with no
+   official topic.
 5. Workbench-specific UI strings use the shared localization system but most
    non-English catalogs do not yet contain them; the document shows an explicit
    fallback notice for non-English locales.
@@ -93,5 +95,6 @@ analysis counts, and Persian RTL / English LTR switching.
    parallel scheduler.
 3. Phase 6: proposal contract bound to scenario revision with reauthorization,
    atomic apply, audit and read-back.
-4. Help: register `/ai-workbench/` in the traceability source and regenerate the
-   Help registry.
+4. Help: publish a CUBI-owned Workbench Help page. The document entry
+   `ENG-WS-AI-WORKBENCH` is already registered (`CUBI_OWNED`, no topic), so a
+   verified page can flip the per-studio status from `HELP_REFERENCE_PENDING`.

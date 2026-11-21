@@ -128,6 +128,14 @@ test("pages without an official topic fall back to internal documentation", () =
   assert.equal(privacy.topic, null);
 });
 
+test("the AI Workbench document is registered without borrowing a vendor topic", () => {
+  const workbench = resolveContextualHelp("/ai-workbench/");
+  assert.equal(workbench.level, "internal-docs");
+  assert.equal(workbench.entryId, "ENG-WS-AI-WORKBENCH");
+  assert.equal(workbench.topic, null);
+  assert.match(workbench.reason ?? "", /CUBI-owned/i);
+});
+
 test("an unknown public path never borrows another page's topic", () => {
   const unknown = resolveContextualHelp("/not-a-page/");
   assert.equal(unknown.level, "internal-docs");

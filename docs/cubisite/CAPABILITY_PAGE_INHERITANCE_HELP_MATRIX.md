@@ -10,7 +10,7 @@ beyond the C-number assignment; titles, URLs and page numbers come from the Help
 | Source | Role |
 | --- | --- |
 | `docs/cubisite/AUDIT_BASELINE_2026-11-20.md` | The accepted C01–C35 enumeration and status vocabulary. |
-| `docs/traceability/engineering-v26.json`, `enterprise-v26.json` | Official Help topics, PDF pages and executable evidence per surface (83 rows). |
+| `docs/traceability/engineering-v26.json`, `enterprise-v26.json` | Official Help topics, PDF pages and executable evidence per surface (84 rows). |
 | `apps/web/site/routes.mjs` | The 25 approved public routes. |
 | `apps/web/site/capabilities.mjs` | The published feature contract (10 entries). |
 | `apps/web/src/help-registry.ts` | The resolver that turns a route into one of four Help levels. |

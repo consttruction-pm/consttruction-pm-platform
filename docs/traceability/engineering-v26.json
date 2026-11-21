@@ -1136,6 +1136,19 @@
       "cubiBehavior": "Global, EPS and project activity codes.",
       "evidence": "apps/web/src/workspace-view.test.ts",
       "status": "PARTIAL"
+    },
+    {
+      "id": "ENG-WS-AI-WORKBENCH",
+      "environment": "engineering",
+      "kind": "workspace_page",
+      "page": "/ai-workbench/",
+      "surface": "AI Workbench",
+      "module": null,
+      "help": null,
+      "helpRationale": "CUBI-owned workspace with no official P6 Professional topic; an exact Help deep link stays pending verification rather than being invented.",
+      "cubiBehavior": "Deterministic CUBI command panel and five studios over the canonical risk, schedule and analysis services for the pinned project revision. Reached from Enterprise; the document has no third-party assistant runtime.",
+      "evidence": "apps/web/ai-workbench.html",
+      "status": "CUBI_OWNED"
     }
   ]
 }

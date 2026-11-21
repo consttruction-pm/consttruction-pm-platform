@@ -1006,6 +1006,17 @@ export const GENERATED_HELP_ENTRIES = [
     status: "PARTIAL",
   },
   {
+    id: "ENG-WS-AI-WORKBENCH",
+    environment: "engineering",
+    kind: "workspace_page",
+    page: "/ai-workbench/",
+    surface: "AI Workbench",
+    module: null,
+    help: null,
+    rationale: "CUBI-owned workspace with no official P6 Professional topic; an exact Help deep link stays pending verification rather than being invented.",
+    status: "CUBI_OWNED",
+  },
+  {
     id: "ENT-HOME",
     environment: "enterprise",
     kind: "workspace_page",

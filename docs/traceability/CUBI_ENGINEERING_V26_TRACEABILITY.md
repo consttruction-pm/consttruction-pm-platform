@@ -1,7 +1,7 @@
 # CUBI Engineering — P6 Professional V26 per-page traceability
 
 **Help baseline:** P6 Professional V26 (G57535-02, October 2026, 815 pages)
-**Rows:** 67 · **Generated from:** `docs/traceability/engineering-v26.json`
+**Rows:** 68 · **Generated from:** `docs/traceability/engineering-v26.json`
 
 Every public English route and every CUBI Engineering workspace window is listed here. The Help column cites the official HTML Help topic; the PDF column cites the same topic in the 815-page Help PDF. `CUBI-owned` and `Legal` rows intentionally have no Oracle topic. This document is internal traceability: no Oracle, Primavera or P6 name may appear in customer-facing UI.
 
@@ -85,6 +85,7 @@ Every public English route and every CUBI Engineering workspace window is listed
 | ENG-WS-UDF | `/app/activities/` | User-defined fields | [User-defined fields](https://docs.oracle.com/cd/G48902_01/client_help/en_US/user_defined_fields.htm), p. 156 | 156 | `apps/web/src/p6-udf-http.test.ts` | IMPLEMENTED |
 | ENG-WS-STEPS | `/app/activities/` | Activity steps | [Activity steps](https://docs.oracle.com/cd/G48902_01/client_help/en_US/activity_steps.htm), p. 256 | 256 | `apps/web/src/workspace-activity-steps.test.ts` | IMPLEMENTED |
 | ENG-WS-ACTIVITY-CODES | `/app/activities/` | Activity codes | [Activity Codes](https://docs.oracle.com/cd/G48902_01/client_help/en_US/activitycodes.htm), p. 144 | 144 | `apps/web/src/workspace-view.test.ts` | PARTIAL |
+| ENG-WS-AI-WORKBENCH | `/ai-workbench/` | AI Workbench | CUBI-owned workspace with no official P6 Professional topic; an exact Help deep link stays pending verification rather than being invented. | — | `apps/web/ai-workbench.html` | CUBI_OWNED |
 
 ## Behaviour notes
 
@@ -155,3 +156,4 @@ Every public English route and every CUBI Engineering workspace window is listed
 - **ENG-WS-UDF** — Typed user-defined fields on supported records.
 - **ENG-WS-STEPS** — Activity steps, weights and templates.
 - **ENG-WS-ACTIVITY-CODES** — Global, EPS and project activity codes.
+- **ENG-WS-AI-WORKBENCH** — Deterministic CUBI command panel and five studios over the canonical risk, schedule and analysis services for the pinned project revision. Reached from Enterprise; the document has no third-party assistant runtime.
