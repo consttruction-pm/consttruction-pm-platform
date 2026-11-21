@@ -556,3 +556,19 @@ the field contract is visible in one place.
    titles are the official titles used for the link text.
 4. When an API moves from "unverified" to "registered", update both this matrix
    and `ENTERPRISE_API_CONTRACT_STATUS.md`, then re-run the page evidence script.
+
+## Engineering AI Workbench cross-reference
+
+The P0 Engineering AI Workbench owns its own Help matrix in
+`docs/ai-workbench/ENGINEERING_AI_WORKBENCH_HELP_MATRIX.md`. It must not be
+merged into the Enterprise rows above:
+
+- Engineering studios (Import Staging, Schedule Scenario, Risk, Project
+  Analysis, Decision/Execution) inherit P6 Professional V26 behavior and use the
+  shared scheduling core.
+- Enterprise pages keep EPPM V26 behavior and consume Engineering read models;
+  they never recompute CPM, EVM or scenario results.
+- CUBI-only assistant studios are labelled CUBI Extension, never as official
+  product capabilities.
+- Exact topic URLs stay `HELP_REFERENCE_PENDING` until the topic page is opened
+  and recorded; TOC presence is not verification.
