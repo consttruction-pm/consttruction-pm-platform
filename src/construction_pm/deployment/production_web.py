@@ -533,9 +533,13 @@ class ProductionWebApp:
             return _json(400, {"code": "SIGNUP_REQUEST_INVALID"}, cache="no-store")
         try:
             issued = self.identity.register(
-                username, password, display_name=str(payload.get("display_name") or "")
+                username, password, display_name=str(payload.get("display_name") or ""),
+                ip_hash=hash_client_ip(self._ip_secret, _client_ip(environ)),
             )
         except IdentityError as error:
+            if error.code == "AUTHENTICATION_THROTTLED":
+                return _json(429, {"code": error.code}, cache="no-store",
+                             extra=[("Retry-After", "900")])
             if error.code == "USERNAME_TAKEN":
                 return _json(409, {"code": error.code}, cache="no-store")
             return _json(400, {"code": error.code}, cache="no-store")
