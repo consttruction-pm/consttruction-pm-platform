@@ -1,0 +1,17 @@
+# reference extraction — 2026-11-20T03:10:32Z
+## pdf identity
+Title:           Help
+Author:          Oracle Corporation
+CreationDate:    Fri Oct  9 18:42:26 2026 UTC
+Pages:           815
+File size:       3105001 bytes
+0746e8521d9f3bac85b1b6c4ec7fabfd139cc4bf79ae59b03a1a3ee1f8e9dc0b  /uploads/file_00w0y40oop2blwbamcgz-p6-professional-help.pdf
+
+## text extraction
+43089 /tmp/p6prof.txt
+
+## HTML TOC sources
+https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm
+http_code=200 bytes=102589
+https://docs.oracle.com/cd/G48897_01/p6help/en/toc.htm
+http_code=200 bytes=68452

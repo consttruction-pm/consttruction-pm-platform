@@ -202,6 +202,171 @@ def _effective_capacity(
     return interval_hours
 
 
+def build_calendar_registry_for_scope(
+    *,
+    scope: BackendScope,
+    calendar_repository: CalendarMasterRepository,
+    snapshot_repository: CalendarSnapshotRepository,
+    exception_repository: CalendarExceptionRepository,
+    work_hours_repository: CalendarWorkHourRepository,
+) -> CalendarResolverRegistry:
+    """Build one fail-closed registry from every persisted calendar in a scope.
+
+    The registry is the calculation-time view the schedule evaluator resolves
+    version-pinned ``CalendarReference`` values against. Only the requested
+    ``tenant_id``/``project_id``/``project_revision`` rows are read, so a
+    reference can never resolve to another tenant's or revision's definition.
+
+    Unlike a "latest version" lookup, this function never substitutes a
+    version: a missing ``calendar_id@calendar_version`` simply is not
+    registered, and resolution then fails closed. Base-calendar inheritance is
+    validated here as well, including kind and calendar-system agreement.
+    """
+    scope.validate()
+    day_resolvers: dict[str, WorkingTimeResolver] = {}
+    time_resolvers: dict[str, TimeAwareWorkingTimeResolver] = {}
+    exception_layers: dict[str, CalendarExceptionLayers] = {}
+    calendars_by_key: dict[str, CalendarMaster] = {}
+    system_by_key: dict[str, CalendarSystem] = {}
+    pending_bases: list[tuple[str, str, str]] = []
+
+    for master in calendar_repository.list(scope):
+        # Report an unsupported kind directly: the write path validates it, but
+        # an imported or repaired row can still carry one, and callers need the
+        # closed-set reason rather than a generic persistence error.
+        if master.kind not in {"working-day", "working-time"}:
+            raise P6ResourceCalendarResolutionError(
+                f"CALENDAR_KIND_UNSUPPORTED:{_key(master)}"
+            )
+        try:
+            master.validate()
+        except CalendarPersistenceError as exc:
+            raise P6ResourceCalendarResolutionError(
+                f"CALENDAR_DEFINITION_INVALID:{_key(master)}:{exc}"
+            ) from exc
+        if master.scope != scope or master.scope.project_revision != scope.project_revision:
+            raise P6ResourceCalendarResolutionError("CALENDAR_SCOPE_OR_REVISION_MISMATCH")
+        key = _key(master)
+        if key in calendars_by_key:
+            raise P6ResourceCalendarResolutionError(f"CALENDAR_KEY_DUPLICATED:{key}")
+
+        snapshot = snapshot_repository.get(master)
+        if snapshot is None:
+            raise P6ResourceCalendarResolutionError(f"CALENDAR_SNAPSHOT_NOT_FOUND:{key}")
+        snapshot.validate()
+        if (
+            snapshot.scope != scope
+            or snapshot.calendar_id != master.calendar_id
+            or snapshot.calendar_version != master.calendar_version
+        ):
+            raise P6ResourceCalendarResolutionError("CALENDAR_SNAPSHOT_IDENTITY_MISMATCH")
+        if snapshot.kind != master.kind:
+            raise P6ResourceCalendarResolutionError("CALENDAR_SNAPSHOT_KIND_MISMATCH")
+
+        try:
+            definition: CalendarDefinition = (
+                WorkingTimeCalendar.from_canonical_snapshot(snapshot.snapshot)
+                if master.kind == "working-time"
+                else WorkingCalendar.from_canonical_snapshot(snapshot.snapshot)
+            )
+        except (TypeError, ValueError) as exc:
+            raise P6ResourceCalendarResolutionError("INVALID_CALENDAR_SNAPSHOT") from exc
+
+        rules = _load_work_rules(
+            scope, master.calendar_id, master.calendar_version, work_hours_repository
+        )
+        try:
+            definition, _ = apply_weekly_work_hour_rules(definition, rules)
+        except P6ResourceCalendarResolutionError:
+            raise
+        except ValueError as exc:
+            raise P6ResourceCalendarResolutionError("OVERLAP_WORK_HOUR_INTERVAL") from exc
+
+        if isinstance(definition, WorkingCalendar):
+            day_resolvers[key] = WorkingTimeResolver(definition)
+        else:
+            time_resolvers[key] = TimeAwareWorkingTimeResolver(definition)
+
+        persisted_exceptions = tuple(
+            exception_repository.list(scope, master.calendar_id, master.calendar_version)
+        )
+        if persisted_exceptions:
+            core_exceptions = tuple(
+                _persisted_exception_to_core(item) for item in persisted_exceptions
+            )
+            exception_layers[key] = CalendarExceptionLayers(local=core_exceptions)
+
+        calendars_by_key[key] = master
+        system_by_key[key] = definition.system
+
+        if master.base_calendar_id is not None or master.base_calendar_version is not None:
+            if not master.base_calendar_id or not master.base_calendar_version:
+                raise P6ResourceCalendarResolutionError(
+                    f"INCOMPLETE_BASE_CALENDAR_REFERENCE:{key}"
+                )
+            pending_bases.append(
+                (key, master.base_calendar_id, master.base_calendar_version)
+            )
+
+    base_refs: dict[str, CalendarReference] = {}
+    for key, base_id, base_version in pending_bases:
+        parent_key = f"{base_id}@{base_version}"
+        parent = calendars_by_key.get(parent_key)
+        if parent is None:
+            # A base calendar is never fetched from another scope or revision,
+            # and there is no "latest" fallback.
+            raise P6ResourceCalendarResolutionError(
+                f"BASE_CALENDAR_NOT_REGISTERED:{key}->{parent_key}"
+            )
+        child = calendars_by_key[key]
+        if parent.kind != child.kind:
+            raise P6ResourceCalendarResolutionError("CALENDAR_INHERITANCE_KIND_MISMATCH")
+        if system_by_key[parent_key] is not system_by_key[key]:
+            raise P6ResourceCalendarResolutionError("CALENDAR_INHERITANCE_SYSTEM_MISMATCH")
+        base_refs[key] = CalendarReference(
+            base_id, base_version, parent.kind, system_by_key[parent_key]
+        )
+
+    return CalendarResolverRegistry(
+        day_resolvers=day_resolvers,
+        time_resolvers=time_resolvers,
+        exception_layers=exception_layers,
+        base_calendar_references=base_refs,
+    )
+
+
+def calendar_registry_hash(registry: CalendarResolverRegistry) -> str:
+    """Canonical identity hash of every calendar a registry exposes.
+
+    The hash covers the version-pinned reference, the canonical Shared-Core
+    snapshot, the base reference and both exception layers. It is stable for a
+    given persisted state and changes when any version-pinned input changes.
+    """
+    payload = [
+        {
+            "reference": {
+                "calendar_id": entry.reference.calendar_id,
+                "calendar_version": entry.reference.calendar_version,
+                "kind": entry.reference.kind,
+                "system": entry.reference.system.value,
+            },
+            "snapshot": entry.snapshot,
+            "base": None
+            if entry.base is None
+            else {
+                "calendar_id": entry.base.calendar_id,
+                "calendar_version": entry.base.calendar_version,
+                "kind": entry.base.kind,
+                "system": entry.base.system.value,
+            },
+            "local_exceptions": list(entry.local_exceptions),
+            "inherited_exceptions": list(entry.inherited_exceptions),
+        }
+        for entry in registry.entries()
+    ]
+    return hashlib.sha256(_canonical_json(payload).encode("utf-8")).hexdigest()
+
+
 def resolve_p6_resource_calendar(
     *,
     scope: BackendScope,
@@ -407,4 +572,9 @@ def resolve_p6_resource_calendar(
     )
 
 
-__all__ = ["P6ResourceCalendarResolutionError", "resolve_p6_resource_calendar"]
+__all__ = [
+    "P6ResourceCalendarResolutionError",
+    "build_calendar_registry_for_scope",
+    "calendar_registry_hash",
+    "resolve_p6_resource_calendar",
+]
