@@ -141,3 +141,46 @@ def test_shell_resolves_each_workspace_route_without_a_second_shell():
     assert shell._workspace_path({"PATH_INFO": "/enterprise/", "QUERY_STRING": ""}) == "/enterprise"
     # An unknown rewrite never turns into an arbitrary route.
     assert shell._workspace_path({"PATH_INFO": "/api/shell", "QUERY_STRING": "__path=admin"}) == "/app"
+
+def test_canonical_preview_routes_api_and_shell_through_the_same_runtime(monkeypatch):
+    monkeypatch.setenv("VERCEL_ENV", "preview")
+    monkeypatch.delenv("VERCEL_TARGET_ENV", raising=False)
+    monkeypatch.setenv("CUBI_PREVIEW_USE_CANONICAL_DATABASE", "1")
+    index = _load("cubi_canonical_index", WEB_ROOT / "api" / "index.py")
+    shell = _load("cubi_canonical_shell", WEB_ROOT / "api" / "shell.py")
+    calls = []
+
+    class CanonicalRuntime:
+        def __call__(self, environ, start_response):
+            calls.append((environ["REQUEST_METHOD"], environ["PATH_INFO"]))
+            start_response("200 OK", [("Content-Type", "text/plain"), ("Content-Length", "9")])
+            return [b"canonical"]
+
+    runtime = CanonicalRuntime()
+    monkeypatch.setattr(index, "get_runtime", lambda: runtime)
+    monkeypatch.setattr(shell, "get_runtime", lambda: runtime)
+
+    api_status, _, api_body = _call(index.app, "GET", "/api", "__path=health/ready")
+    shell_status, _, shell_body = _call(shell.app, "GET", "/api/shell", "__path=app")
+
+    assert api_status == shell_status == 200
+    assert api_body == shell_body == b"canonical"
+    assert calls == [("GET", "/api"), ("GET", "/app")]
+
+
+def test_supabase_session_pooler_integration_dsn_is_accepted(monkeypatch, tmp_path):
+    from construction_pm.deployment.production_runtime import ProductionSettings
+
+    (tmp_path / "index.html").write_text("<!doctype html>", encoding="utf-8")
+    (tmp_path / "app.html").write_text("<!doctype html>", encoding="utf-8")
+    dsn = "postgresql://postgres.project-ref:secret@aws-0-eu-central-1.pooler.supabase.com:5432/postgres?sslmode=require"
+    monkeypatch.delenv("CONSTRUCTION_PM_DATABASE_URL", raising=False)
+    monkeypatch.setenv("POSTGRES_URL_NON_POOLING", dsn)
+    monkeypatch.setenv("CONSTRUCTION_PM_SESSION_SECRET", "test-session-secret-with-at-least-32-characters")
+    monkeypatch.setenv("CONSTRUCTION_PM_PUBLIC_ORIGIN", "https://preview.example.test")
+    monkeypatch.setenv("CUBI_WEB_ROOT", str(tmp_path))
+
+    settings = ProductionSettings.from_environment()
+
+    assert settings.database_url == dsn
+    assert settings.public_origin == "https://preview.example.test"
