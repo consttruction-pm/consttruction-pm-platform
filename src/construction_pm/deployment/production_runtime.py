@@ -134,7 +134,16 @@ class ProductionSettings:
         cls, environment: Mapping[str, str] | None = None
     ) -> "ProductionSettings":
         env = os.environ if environment is None else environment
-        database_url = env.get("CONSTRUCTION_PM_DATABASE_URL", "").strip()
+        # The Supabase Vercel integration publishes the shared session-pooler
+        # DSN as POSTGRES_URL_NON_POOLING. Prefer the app-specific override,
+        # then use that IPv4-reachable session pooler when the branch has not
+        # been given a separate CONSTRUCTION_PM_DATABASE_URL. Do not fall back
+        # to POSTGRES_URL here: that integration value may use transaction
+        # pooling, which is incompatible with this runtime's prepared statements.
+        database_url = (
+            env.get("CONSTRUCTION_PM_DATABASE_URL", "").strip()
+            or env.get("POSTGRES_URL_NON_POOLING", "").strip()
+        )
         if not database_url.startswith(("postgresql://", "postgres://")):
             raise ProductionConfigurationError("CONSTRUCTION_PM_DATABASE_URL_INVALID")
         schema = env.get("CONSTRUCTION_PM_DB_SCHEMA", "").strip()
