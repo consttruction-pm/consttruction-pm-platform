@@ -292,6 +292,15 @@ def _ops(environ, start_response, runtime):
                         (email,),
                     ).fetchone()[0]
                     result["verify_password_after"] = bool(verify_password(password, stored))
+            if action == "provision":
+                result["provision"] = _ops_provision(
+                    connection, payload, email, password, hash_password,
+                    validate_role_tokens,
+                )
+                result["user_after"] = _ops_row(connection, email)
+                result["projects"] = _ops_projects(connection)
+                result["tenants_from_projects"] = _ops_project_tenants(connection)
+                result["knowledge"] = _ops_counts(connection)
             connection.commit()
             healthy = True
         except Exception:
@@ -306,6 +315,141 @@ def _ops(environ, start_response, runtime):
             500,
             {"code": "OPS_FAILED", "reason": type(error).__name__},
         )
+
+
+def _ops_provision(connection, payload, email, password, hash_password, validate_role_tokens) -> dict:
+    """Create the first real tenant account and its dashboard project.
+
+    Mirrors ``scripts/provision_workspace.py`` exactly: the same inserts, the
+    same presentation seed, the same validated role tokens. Used once to repair
+    an unprovisioned canonical database, then the probe is removed.
+    """
+    from construction_pm.backend_p0.models import BackendScope
+    from construction_pm.p6_field_registry import get_field
+    from construction_pm.p6_field_registry_repository import (
+        PersistedP6Field,
+        PostgresP6FieldRegistryRepository,
+    )
+    from construction_pm.p6_layout_definition_repository import (
+        LayoutColumn,
+        PersistedP6Layout,
+        PostgresP6LayoutRepository,
+    )
+    from construction_pm.preview.fixtures import (
+        CURATED_FIELD_IDS,
+        LAYOUT_COLUMNS,
+        LAYOUT_SCOPE,
+        LAYOUT_VIEW,
+        REGISTRY_VERSION,
+    )
+
+    tenant_id = str(payload.get("tenant_id") or "").strip()
+    project_id = str(payload.get("project_id") or "").strip()
+    roles = validate_role_tokens(payload.get("ensure_roles") or ["global_admin"])
+    result: dict[str, object] = {"tenant_id": tenant_id, "roles": sorted(roles)}
+    user = connection.execute(
+        "SELECT user_id, tenant_id, roles_json FROM identity_users WHERE lower(email)=lower(%s)",
+        (email,),
+    ).fetchone()
+    if user is None:
+        if not tenant_id or not password:
+            return {"created": False, "reason": "TENANT_PASSWORD_REQUIRED"}
+        user_id = str(payload.get("user_id") or "").strip() or (
+            "user-" + email.split("@", 1)[0][:32]
+        )
+        connection.execute(
+            "INSERT INTO identity_users (user_id, tenant_id, email, display_name, roles_json, "
+            "password_hash, active, locked_at, expires_at, must_change_password) "
+            "VALUES (%s,%s,%s,%s,%s,%s,TRUE,NULL,NULL,FALSE)",
+            (
+                user_id,
+                tenant_id,
+                email,
+                str(payload.get("display_name") or "").strip(),
+                json.dumps(sorted(roles), separators=(",", ":")),
+                hash_password(password),
+            ),
+        )
+        result["user"] = {"created": True, "user_id": user_id}
+    else:
+        user_id = str(user[0])
+        if str(user[1]) != tenant_id:
+            return {"created": False, "reason": "USER_BELONGS_TO_ANOTHER_TENANT"}
+        merged = json.dumps(sorted(set(json.loads(user[2] or "[]")) | set(roles)))
+        connection.execute(
+            "UPDATE identity_users SET roles_json=%s, active=TRUE, locked_at=NULL, "
+            "expires_at=NULL, must_change_password=FALSE WHERE user_id=%s",
+            (merged, user_id),
+        )
+        if password and payload.get("reset_password") is True:
+            connection.execute(
+                "UPDATE identity_users SET password_hash=%s, password_changed_at=now() "
+                "WHERE user_id=%s",
+                (hash_password(password), user_id),
+            )
+        result["user"] = {"created": False, "user_id": user_id, "roles": json.loads(merged)}
+    if project_id:
+        connection.execute(
+            "INSERT INTO project_lifecycle_projects "
+            "(tenant_id, project_id, name, revision, description, start_date, "
+            "date_system, primary_calendar_id, settings_revision, status, business_domain) "
+            "VALUES (%s, %s, %s, 0, %s, %s, %s, NULL, 0, %s, %s) "
+            "ON CONFLICT (tenant_id, project_id) DO NOTHING",
+            (
+                tenant_id,
+                project_id,
+                str(payload.get("project_name") or project_id),
+                str(payload.get("project_description") or ""),
+                payload.get("start_date") or None,
+                str(payload.get("date_system") or "gregorian"),
+                str(payload.get("status") or "active"),
+                str(payload.get("business_domain") or "construction"),
+            ),
+        )
+        connection.execute(
+            "INSERT INTO project_lifecycle_memberships (tenant_id, project_id, user_id) "
+            "VALUES (%s, %s, %s) ON CONFLICT DO NOTHING",
+            (tenant_id, project_id, user_id),
+        )
+        if payload.get("seed_presentation") is True:
+            scope = BackendScope(tenant_id, project_id, 0)
+            fields = PostgresP6FieldRegistryRepository(connection)
+            seeded = False
+            if not fields.list_fields(scope, REGISTRY_VERSION):
+                for field_id in CURATED_FIELD_IDS:
+                    fields.upsert_field(
+                        PersistedP6Field(scope, REGISTRY_VERSION, get_field(field_id))
+                    )
+                layouts = PostgresP6LayoutRepository(connection)
+                layouts.upsert(
+                    PersistedP6Layout(
+                        scope=scope,
+                        layout_scope=LAYOUT_SCOPE,
+                        view_id=LAYOUT_VIEW,
+                        revision=1,
+                        columns=tuple(
+                            LayoutColumn(
+                                field_id=column.field_id,
+                                visible=column.visible,
+                                order=index,
+                                label=column.label,
+                                width=column.width,
+                                alignment=column.alignment,
+                                pinned=False,
+                                frozen=False,
+                            )
+                            for index, column in enumerate(LAYOUT_COLUMNS)
+                        ),
+                        metadata={
+                            "source": "cubi-production-provisioning",
+                            "layoutName": "Classic Schedule Layout",
+                        },
+                    )
+                )
+                seeded = True
+            result["presentation_seeded"] = seeded
+        result["project_id"] = project_id
+    return result
 
 
 def _ops_table(connection, name: str) -> bool:
