@@ -1,0 +1,615 @@
+{
+  "verified_at": "2026-11-22",
+  "section": 4,
+  "document": "docs/quality/help-traceability/ENGINEERING_GANTT_RELATIONSHIPS_CALENDARS.md",
+  "official_baselines": {
+    "engineering_html_help_toc": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm",
+    "user_guide_toc": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/toc.htm"
+  },
+  "help_topics": [
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/add_a_bar_to_the_gantt_chart.htm",
+      "title": "Add a bar to the Gantt Chart",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/adding_relationships_between_activities.htm",
+      "title": "Adding relationships between activities",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/applying_a_progress_line_to_the_gantt_chart.htm",
+      "title": "Apply a Progress Line to the Gantt Chart",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/assign_a_calendar_to_an_activity.htm",
+      "title": "Assign a calendar to an activity",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/calendars.htm",
+      "title": "Calendars",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/change_a_bar_in_the_gantt_chart.htm",
+      "title": "Change a bar in the Gantt Chart",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/change_a_gantt_chart_bar_s_settings.htm",
+      "title": "Change a Gantt Chart bar's settings",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/change_a_gantt_chart_bars_filter.htm",
+      "title": "Change a Gantt Chart bar's filter",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/change_a_gantt_chart_bars_label.htm",
+      "title": "Change a Gantt Chart bar's label",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/change_a_gantt_chart_bars_style.htm",
+      "title": "Change a Gantt Chart bar's style",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/change_a_gantt_chart_bars_timescale.htm",
+      "title": "Change a Gantt Chart bar's timescale",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/change_a_layout_s_timescale_format_50.htm",
+      "title": "Change a layout's timescale format",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/change_predecessor_relationships.htm",
+      "title": "Change predecessor relationships",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/change_successor_relationships.htm",
+      "title": "Change successor relationships",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/change_the_background_lines_in_the_gantt_chart.htm",
+      "title": "Change the background lines in the Gantt Chart",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/choose_a_calendar_for_relationship_lag.htm",
+      "title": "Choose a calendar for relationship lag",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_project_calendar.htm",
+      "title": "Create a project calendar",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_relationships_in_the_gantt_chart.htm",
+      "title": "Create relationships in the Gantt Chart",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/customize_the_data_date_line.htm",
+      "title": "Customize the data date line",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/define_critical_activities.htm",
+      "title": "Define critical activities",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/defining_default_hours_per_time_period_in_calendars.htm",
+      "title": "Defining default hours per time period in calendars",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/delete_a_bar_from_the_gantt_chart_layout.htm",
+      "title": "Delete a bar from the Gantt Chart",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/delete_a_project_calendar.htm",
+      "title": "Delete a project calendar",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/delete_relationships_in_the_gantt_chart.htm",
+      "title": "Delete relationships in the Gantt Chart",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/display_the_gantt_chart.htm",
+      "title": "Display the Gantt Chart",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/display_trace_logic.htm",
+      "title": "Display Trace Logic",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/edit_a_project_calendar.htm",
+      "title": "Edit a project calendar",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/edit_relationships_in_the_gantt_chart.htm",
+      "title": "Edit relationships in the Gantt Chart",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/enter_activity_constraints.htm",
+      "title": "Enter activity constraints",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/expand_or_contract_the_visible_area_of_a_timescaled_layout.htm",
+      "title": "Expand or contract the visible area of a timescaled layout",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/globalcalendars.htm",
+      "title": "Global Calendars",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/move_around_a_gantt_chart.htm",
+      "title": "Move around a Gantt Chart",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/move_around_in_trace_logic.htm",
+      "title": "Move around in Trace Logic",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/position_a_bar_in_the_gantt_chart.htm",
+      "title": "Position a bar in the Gantt Chart",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/projectcalendars.htm",
+      "title": "Project Calendars",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/relationships.htm",
+      "title": "Relationships",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/remove_predecessor_relationships.htm",
+      "title": "Remove predecessor relationships",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/remove_successor_relationships.htm",
+      "title": "Remove successor relationships",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/resourcecalendars.htm",
+      "title": "Resource Calendars",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/set_the_project_default_activity_calendar.htm",
+      "title": "Set the project default activity calendar",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/set_trace_logic_preferences.htm",
+      "title": "Set Trace Logic preferences",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/show_or_hide_relationship_lines_in_the_gantt_chart.htm",
+      "title": "Show or hide relationship lines in the Gantt Chart",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/show_or_hide_the_gantt_chart_legend.htm",
+      "title": "Show or hide the Gantt Chart legend",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/the_gantt_chart.htm",
+      "title": "The Gantt Chart",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/trace_logic.htm",
+      "title": "Trace Logic",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/types_of_constraints.htm",
+      "title": "Types of constraints",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/using_the_data_date.htm",
+      "title": "Using the data date",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/view_activity_relationships_in_the_gantt_chart.htm",
+      "title": "View activity relationships in the Gantt Chart",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/view_activity_relationships_in_trace_logic.htm",
+      "title": "View activity relationships in Trace logic",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/view_project_calendar_assignments.htm",
+      "title": "View project calendar assignments",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/view_resource_calendar_assignments.htm",
+      "title": "View resource calendar assignments",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/zoom_in_and_out_of_a_timescaled_layout.htm",
+      "title": "Zoom in and out of a timescaled layout",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    }
+  ],
+  "user_guide_topics": [
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/addabartotheganttchart-19709a.html",
+      "title": "Add a bar to the Gantt Chart",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/assignacalendartoanactivity-19503a.html",
+      "title": "Assign a calendar to an activity",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/calendars-18855a.html",
+      "title": "Calendars",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/changeabarintheganttchart-19723a.html",
+      "title": "Change a bar in the Gantt Chart",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/changeaganttchartbarsfilter-19663a.html",
+      "title": "Change a Gantt Chart bar's filter",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/changeaganttchartbarslabel-19949a.html",
+      "title": "Change a Gantt Chart bar's label",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/changeaganttchartbarssettings-19729a.html",
+      "title": "Change a Gantt Chart bar's settings",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/changeaganttchartbarsstyle-19951a.html",
+      "title": "Change a Gantt Chart bar's style",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/changeaganttchartbarstimescale-19955a.html",
+      "title": "Change a Gantt Chart bar's timescale",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/changealayoutstimescaleformat-19167a.html",
+      "title": "Change a layout's timescale format",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/changethebackgroundlinesintheganttchart-19739a.html",
+      "title": "Change the background lines in the Gantt Chart",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/customizethedatadateline-20041a.html",
+      "title": "Customize the data date line",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/definingdefaulthourspertimeperiodincalendars-20063a.html",
+      "title": "Defining default hours per time period in calendars",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/deleteabarfromtheganttchart-19741a.html",
+      "title": "Delete a bar from the Gantt Chart",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/deleteaprojectcalendar-20722a.html",
+      "title": "Delete a project calendar",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/displaytheganttchart-19747a.html",
+      "title": "Display the Gantt Chart",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/displaytracelogic-19643a.html",
+      "title": "Display Trace Logic",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/editaprojectcalendar-20757a.html",
+      "title": "Edit a project calendar",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/globalcalendars-20816a.html",
+      "title": "Global Calendars",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/linkingactivitieswithrelationships-20867a.html",
+      "title": "Linking Activities with Relationships",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/movearoundaganttchart-19753a.html",
+      "title": "Move around a Gantt Chart",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/movearoundintracelogic-19835a.html",
+      "title": "Move around in Trace Logic",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/positionabarintheganttchart-19757a.html",
+      "title": "Position a bar in the Gantt Chart",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/projectcalendars-20938a.html",
+      "title": "Project Calendars",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/relationships-19487a.html",
+      "title": "Relationships",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/settracelogicpreferences-19837a.html",
+      "title": "Set Trace Logic preferences",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/showorhidetheganttchartlegend-19761a.html",
+      "title": "Show or hide the Gantt Chart legend",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/theganttchart-19631a.html",
+      "title": "The Gantt Chart",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/tracelogic-19645a.html",
+      "title": "Trace Logic",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/viewactivityrelationshipsintheganttchart-19571a.html",
+      "title": "View activity relationships in the Gantt Chart",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/viewactivityrelationshipsintracelogic-19573a.html",
+      "title": "View activity relationships in Trace logic",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/viewprojectcalendarassignments-21132a.html",
+      "title": "View project calendar assignments",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    },
+    {
+      "url": "https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/viewresourcecalendarassignments-21133a.html",
+      "title": "View resource calendar assignments",
+      "http": 200,
+      "in_official_toc": true,
+      "title_matches": true
+    }
+  ],
+  "summary": {
+    "help_total": 52,
+    "help_ok": 52,
+    "user_guide_total": 33,
+    "user_guide_ok": 33,
+    "failures": 0
+  }
+}
