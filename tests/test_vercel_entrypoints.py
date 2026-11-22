@@ -131,9 +131,12 @@ def test_project_configuration_targets_the_authenticated_runtime():
     # serve the Personal Workbench document there instead of the platform 404.
     # It is the same application shell as ``/app``: the client router keys the
     # Personal Workbench off the address, so the address must stay ``/workbench/``.
-    assert rewrites["/workbench"] == "/api/shell?__path=app"
-    assert rewrites["/workbench/"] == "/api/shell?__path=app"
-    assert rewrites["/workbench/:path*"] == "/api/shell?__path=app"
+    assert rewrites["/workbench"] == "/api/shell?__path=workbench"
+    assert rewrites["/workbench/"] == "/api/shell?__path=workbench"
+    assert rewrites["/workbench/:path*"] == "/api/shell?__path=workbench/:path*"
+    assert rewrites["/admin"] == "/api/shell?__path=admin"
+    assert rewrites["/admin/"] == "/api/shell?__path=admin"
+    assert rewrites["/admin/:path*"] == "/api/shell?__path=admin/:path*"
     assert "/workbench" not in redirects
     headers = {
         entry["source"]: {item["key"]: item["value"] for item in entry["headers"]}
