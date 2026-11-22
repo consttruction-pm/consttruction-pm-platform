@@ -1,4 +1,5 @@
 import { FetchSessionApi, type ProjectSummary } from "./session-api.js";
+import { withCsrfHeader } from "./csrf.js";
 
 /**
  * Personal Workbench — the signed-in entry surface that sits between the
@@ -42,6 +43,13 @@ type Copy = {
   language: string;
   signedOut: string;
   signOut: string;
+  account: string;
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+  changePassword: string;
+  passwordChanged: string;
+  passwordMismatch: string;
 };
 
 export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
@@ -77,6 +85,13 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     language: "Language",
     signedOut: "Your session has expired. Sign in to continue.",
     signOut: "Sign out",
+    account: "Account",
+    currentPassword: "Current password",
+    newPassword: "New password",
+    confirmPassword: "Confirm new password",
+    changePassword: "Change password",
+    passwordChanged: "Your password was changed. Other sessions were signed out.",
+    passwordMismatch: "The two new passwords do not match.",
   },
   fa: {
     title: "میزکار شخصی",
@@ -110,6 +125,13 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     language: "زبان",
     signedOut: "نشست شما پایان یافته است. برای ادامه وارد شوید.",
     signOut: "خروج",
+    account: "حساب کاربری",
+    currentPassword: "رمز فعلی",
+    newPassword: "رمز جدید",
+    confirmPassword: "تکرار رمز جدید",
+    changePassword: "تغییر رمز",
+    passwordChanged: "رمز شما تغییر کرد. نشست‌های دیگر بسته شدند.",
+    passwordMismatch: "رمزهای جدید یکسان نیستند.",
   },
   de: {
     title: "Persönliche Werkbank",
@@ -143,6 +165,13 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     language: "Sprache",
     signedOut: "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.",
     signOut: "Abmelden",
+    account: "Konto",
+    currentPassword: "Aktuelles Passwort",
+    newPassword: "Neues Passwort",
+    confirmPassword: "Neues Passwort bestätigen",
+    changePassword: "Passwort ändern",
+    passwordChanged: "Ihr Passwort wurde geändert. Andere Sitzungen wurden beendet.",
+    passwordMismatch: "Die neuen Passwörter stimmen nicht überein.",
   },
   zh: {
     title: "个人工作台",
@@ -176,6 +205,13 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     language: "语言",
     signedOut: "会话已过期，请重新登录。",
     signOut: "退出登录",
+    account: "账户",
+    currentPassword: "当前密码",
+    newPassword: "新密码",
+    confirmPassword: "确认新密码",
+    changePassword: "更改密码",
+    passwordChanged: "密码已更改，其他会话已退出。",
+    passwordMismatch: "两次输入的新密码不一致。",
   },
   ar: {
     title: "مساحة العمل الشخصية",
@@ -209,6 +245,13 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     language: "اللغة",
     signedOut: "انتهت جلستك. سجّل الدخول للمتابعة.",
     signOut: "تسجيل الخروج",
+    account: "الحساب",
+    currentPassword: "كلمة المرور الحالية",
+    newPassword: "كلمة المرور الجديدة",
+    confirmPassword: "تأكيد كلمة المرور الجديدة",
+    changePassword: "تغيير كلمة المرور",
+    passwordChanged: "تم تغيير كلمة المرور وإنهاء الجلسات الأخرى.",
+    passwordMismatch: "كلمتا المرور الجديدتان غير متطابقتين.",
   },
   fr: {
     title: "Bureau personnel",
@@ -242,6 +285,13 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     language: "Langue",
     signedOut: "Votre session a expiré. Veuillez vous reconnecter.",
     signOut: "Se déconnecter",
+    account: "Compte",
+    currentPassword: "Mot de passe actuel",
+    newPassword: "Nouveau mot de passe",
+    confirmPassword: "Confirmer le nouveau mot de passe",
+    changePassword: "Changer le mot de passe",
+    passwordChanged: "Votre mot de passe a été modifié. Les autres sessions ont été fermées.",
+    passwordMismatch: "Les deux nouveaux mots de passe ne correspondent pas.",
   },
   ja: {
     title: "パーソナルワークベンチ",
@@ -275,6 +325,13 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     language: "言語",
     signedOut: "セッションの有効期限が切れました。再度ログインしてください。",
     signOut: "サインアウト",
+    account: "アカウント",
+    currentPassword: "現在のパスワード",
+    newPassword: "新しいパスワード",
+    confirmPassword: "新しいパスワードの確認",
+    changePassword: "パスワードを変更",
+    passwordChanged: "パスワードを変更しました。他のセッションは終了しました。",
+    passwordMismatch: "新しいパスワードが一致しません。",
   },
   ko: {
     title: "개인 워크벤치",
@@ -308,6 +365,13 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     language: "언어",
     signedOut: "세션이 만료되었습니다. 다시 로그인하세요.",
     signOut: "로그아웃",
+    account: "계정",
+    currentPassword: "현재 비밀번호",
+    newPassword: "새 비밀번호",
+    confirmPassword: "새 비밀번호 확인",
+    changePassword: "비밀번호 변경",
+    passwordChanged: "비밀번호가 변경되었습니다. 다른 세션은 로그아웃되었습니다.",
+    passwordMismatch: "새 비밀번호가 일치하지 않습니다.",
   },
   ru: {
     title: "Личное рабочее место",
@@ -341,6 +405,13 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     language: "Язык",
     signedOut: "Сеанс истёк. Войдите снова.",
     signOut: "Выйти",
+    account: "Учётная запись",
+    currentPassword: "Текущий пароль",
+    newPassword: "Новый пароль",
+    confirmPassword: "Повторите новый пароль",
+    changePassword: "Изменить пароль",
+    passwordChanged: "Пароль изменён. Другие сеансы завершены.",
+    passwordMismatch: "Новые пароли не совпадают.",
   },
   tr: {
     title: "Kişisel Çalışma Tezgahı",
@@ -374,6 +445,13 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     language: "Dil",
     signedOut: "Oturumunuz sona erdi. Devam etmek için giriş yapın.",
     signOut: "Çıkış yap",
+    account: "Hesap",
+    currentPassword: "Mevcut parola",
+    newPassword: "Yeni parola",
+    confirmPassword: "Yeni parolayı doğrula",
+    changePassword: "Parolayı değiştir",
+    passwordChanged: "Parolanız değiştirildi. Diğer oturumlar kapatıldı.",
+    passwordMismatch: "Yeni parolalar eşleşmiyor.",
   },
 };
 
@@ -693,6 +771,81 @@ export async function mountPersonalWorkbench(container: HTMLElement, requestedLo
   }
   helpSection.append(helpLinks);
   shell.append(helpSection);
+
+  // Self-service credential management. The current password is required and
+  // verified server-side; every other session is revoked on success.
+  const accountSection = element("section", "cp-wb-account");
+  accountSection.append(element("h2", "", copy.account));
+  const accountForm = element("form", "cp-wb-account-form") as HTMLFormElement;
+  const currentField = element("input") as HTMLInputElement;
+  currentField.type = "password";
+  currentField.name = "current_password";
+  currentField.autocomplete = "current-password";
+  currentField.required = true;
+  const newField = element("input") as HTMLInputElement;
+  newField.type = "password";
+  newField.name = "new_password";
+  newField.autocomplete = "new-password";
+  newField.required = true;
+  const confirmField = element("input") as HTMLInputElement;
+  confirmField.type = "password";
+  confirmField.name = "confirm_password";
+  confirmField.autocomplete = "new-password";
+  confirmField.required = true;
+  const submit = element("button", "cp-wb-account-submit", copy.changePassword) as HTMLButtonElement;
+  submit.type = "submit";
+  const accountMessage = element("p", "cp-wb-account-message");
+  accountMessage.setAttribute("role", "status");
+  for (const [label, field] of [
+    [copy.currentPassword, currentField],
+    [copy.newPassword, newField],
+    [copy.confirmPassword, confirmField],
+  ] as const) {
+    const wrapper = element("label", "cp-wb-account-field");
+    wrapper.append(element("span", "", label), field);
+    accountForm.append(wrapper);
+  }
+  accountForm.append(submit);
+  accountSection.append(accountForm, accountMessage);
+  accountForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    accountMessage.textContent = "";
+    accountMessage.dataset.state = "";
+    if (newField.value !== confirmField.value) {
+      accountMessage.textContent = copy.passwordMismatch;
+      accountMessage.dataset.state = "error";
+      return;
+    }
+    submit.disabled = true;
+    try {
+      const response = await fetch("/api/account/password", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: withCsrfHeader("POST", { "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          current_password: currentField.value,
+          new_password: newField.value,
+        }),
+      });
+      if (response.ok) {
+        accountMessage.textContent = copy.passwordChanged;
+        accountMessage.dataset.state = "ok";
+        currentField.value = "";
+        newField.value = "";
+        confirmField.value = "";
+      } else {
+        const payload = (await response.json().catch(() => ({}))) as { code?: string };
+        accountMessage.textContent = payload.code ?? copy.error;
+        accountMessage.dataset.state = "error";
+      }
+    } catch {
+      accountMessage.textContent = copy.error;
+      accountMessage.dataset.state = "error";
+    } finally {
+      submit.disabled = false;
+    }
+  });
+  shell.append(accountSection);
 
   shell.append(element("p", "cp-wb-security", copy.securityNote));
 }

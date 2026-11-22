@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import mimetypes
 import os
+import re
 import traceback
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping
@@ -39,6 +40,7 @@ StartResponse = Callable[[str, list[tuple[str, str]]], None]
 
 LOGIN_PATH = "/login"
 APP_PATH = "/app"
+_MODULE_SEGMENT = re.compile(r"[a-z][a-z0-9-]{0,31}")
 ADMIN_PATH = "/admin"
 ENTERPRISE_PATH = "/enterprise"
 CUBI_PATH = "/cubi"
@@ -125,6 +127,12 @@ class StaticSite:
         if segments == ["index.html"]:
             return _file(self.root / "index.html")
         if segments in (["app"], ["app", "index.html"]):
+            return _file(self.root / "app.html")
+        # A module deep link such as /app/activities/ is the workspace
+        # document; the client owns the window. Serving the shell here keeps a
+        # refresh working when the request reaches the static layer directly.
+        # A trailing file name (for example /app/theme.css) is never hijacked.
+        if segments[0] == "app" and "." not in segments[-1]:
             return _file(self.root / "app.html")
         # The AI Workbench has its own document and bundle inside the
         # Engineering environment; it is never the general workspace shell.
@@ -236,7 +244,8 @@ def _safe_next(value: str | None) -> str:
     The Personal Workbench is the single signed-in entry that lets the caller
     choose an environment. Two explicit destinations survive the round trip:
 
-    * ``/app?view=live`` (optionally with a project id) — a requested
+    * ``/app?view=live`` (optionally with a project id) and any
+      ``/app/<module>`` path such as ``/app/activities/`` — a requested
       Engineering deep link;
     * ``/cubi/*`` — a requested Enterprise document.
 
@@ -276,6 +285,21 @@ def _safe_next(value: str | None) -> str:
         return AI_WORKBENCH_PATH + (
             "?" + urlencode(preserved, doseq=True) if preserved else ""
         )
+    if path.startswith(APP_PATH + "/") and path not in (APP_PATH, APP_PATH + "/"):
+        # A module deep link (/app/activities/, /app/wbs/, ...) is a requested
+        # Engineering destination too; it must survive the sign-in round trip,
+        # or a refresh and a shared link both land in the Workbench instead.
+        module = path[len(APP_PATH) + 1 :].strip("/")
+        if (
+            not module
+            or "/" in module
+            or not _MODULE_SEGMENT.fullmatch(module)
+        ):
+            return fallback
+        query = parse_qs(split.query, keep_blank_values=True)
+        if set(query) - {"project", "view"}:
+            return f"{APP_PATH}?view=live"
+        return candidate
     if path not in (APP_PATH, APP_PATH + "/"):
         return fallback
     query = parse_qs(split.query, keep_blank_values=True)
@@ -433,6 +457,8 @@ class ProductionWebApp:
             return self._login(environ)
         if path == "/api/session" and method == "DELETE":
             return self._logout(environ)
+        if path == "/api/account/password" and method == "POST":
+            return self._change_password(environ)
         if path.startswith(API_PREFIX):
             return self._api(method, path, environ)
         if path in (ENTERPRISE_PATH, ENTERPRISE_PATH + "/"):
@@ -446,7 +472,16 @@ class ProductionWebApp:
             return self._cubi(method, environ)
         if path == AI_WORKBENCH_PATH or path.startswith(AI_WORKBENCH_PATH + "/"):
             return self._workbench(method, environ)
-        if path in WORKSPACE_PATHS or path.rstrip("/") in WORKSPACE_PATHS:
+        # Every /app/<module> address is the same session-gated workspace
+        # document. Without this, a deep link or a browser refresh on
+        # /app/activities/ (or any other module path) fell through to the
+        # static site and answered ROUTE_NOT_FOUND.
+        if (
+            path in WORKSPACE_PATHS
+            or path.rstrip("/") in WORKSPACE_PATHS
+            or path == APP_PATH + "/"
+            or path.startswith(APP_PATH + "/")
+        ):
             return self._app(method, environ)
         if path == LOGIN_PATH:
             return self._login_page(method, environ)
@@ -536,6 +571,72 @@ class ProductionWebApp:
         return 204, headers, b""
 
     # -- API delegation ----------------------------------------------------
+    def _change_password(
+        self, environ: Mapping[str, Any]
+    ) -> tuple[int, list[tuple[str, str]], bytes]:
+        """Let the signed-in account replace its own password.
+
+        Origin, CSRF, the current password and the password policy are all
+        checked server-side; only a scrypt hash is stored and every earlier
+        session of the account is revoked.
+        """
+        if not self._origin_allowed(environ):
+            return _json(403, {"code": "ORIGIN_NOT_ALLOWED"}, cache="no-store")
+        cookies = _cookie_values(environ)
+        token = cookies.get(SESSION_COOKIE_NAME, "")
+        if not token:
+            return _json(401, {"code": "SESSION_REQUIRED"}, cache="no-store")
+        if not self.identity.verify_csrf(token, _header(environ, CSRF_HEADER_NAME)):
+            return _json(403, {"code": "CSRF_TOKEN_INVALID"}, cache="no-store")
+        content_type = _header(environ, "content-type").split(";")[0].strip().lower()
+        if content_type != "application/json":
+            return _json(400, {"code": "PASSWORD_REQUEST_INVALID"}, cache="no-store")
+        try:
+            raw = _read_body(environ, LOGIN_BODY_LIMIT)
+            payload = json.loads(raw.decode("utf-8") or "{}")
+        except (IdentityError, UnicodeDecodeError, json.JSONDecodeError):
+            return _json(400, {"code": "PASSWORD_REQUEST_INVALID"}, cache="no-store")
+        if not isinstance(payload, dict):
+            return _json(400, {"code": "PASSWORD_REQUEST_INVALID"}, cache="no-store")
+        current = payload.get("current_password")
+        new = payload.get("new_password")
+        if not isinstance(current, str) or not isinstance(new, str):
+            return _json(400, {"code": "PASSWORD_REQUEST_INVALID"}, cache="no-store")
+        ip_hash = hash_client_ip(self._ip_secret, _client_ip(environ))
+        try:
+            issued = self.identity.change_password(
+                token, current, new, ip_hash=ip_hash
+            )
+        except IdentityError as error:
+            if error.code == "SESSION_REQUIRED":
+                return _json(401, {"code": error.code}, cache="no-store")
+            if error.code == "CURRENT_PASSWORD_INVALID":
+                return _json(403, {"code": error.code}, cache="no-store")
+            if error.code in {"PASSWORD_UNCHANGED"}:
+                return _json(400, {"code": error.code}, cache="no-store")
+            return _json(400, {"code": error.code}, cache="no-store")
+        max_age = max(1, int((issued.expires_at - issued.created_at).total_seconds()))
+        headers = [
+            ("Set-Cookie", session_cookie_header(
+                name=SESSION_COOKIE_NAME,
+                value=issued.token,
+                max_age=max_age,
+                secure=self.secure_cookies,
+            )),
+            ("Set-Cookie", csrf_cookie_header(
+                name=CSRF_COOKIE_NAME,
+                value=issued.csrf_token,
+                max_age=max_age,
+                secure=self.secure_cookies,
+            )),
+        ]
+        return _json(
+            200,
+            {"changed": True, "user_id": issued.user_id, "expires_at": issued.expires_at.isoformat()},
+            cache="no-store",
+            extra=headers,
+        )
+
     def _api(
         self, method: str, path: str, environ: Mapping[str, Any]
     ) -> tuple[int, list[tuple[str, str]], bytes]:
