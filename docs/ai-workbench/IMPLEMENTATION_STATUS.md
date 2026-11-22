@@ -229,3 +229,14 @@ there is no cross-phase flow to accept without inventing a parallel engine.
 4. Help: publish a CUBI-owned Workbench Help page. The document entry
    `ENG-WS-AI-WORKBENCH` is already registered (`CUBI_OWNED`, no topic), so a
    verified page can flip the per-studio status from `HELP_REFERENCE_PENDING`.
+
+## Assistant V1 minimum standard and gap-closure directive — 2026-11-22
+
+The binding product standard, required internal tool families, service reuse/build/connect matrix, ordered execution phases and V1 Definition of Done are recorded in:
+
+- `docs/architecture/AI_ASSISTANT_V1_MINIMUM_STANDARD_AND_GAP_EXECUTION.md`
+- Execution issue: [#2125 — Complete CUBI AI Assistant V1 internal tools, service connections and execution gaps](https://github.com/consttruction-pm/consttruction-pm-platform/issues/2125)
+
+Issue #2125 supplements (does not replace) #2093, #2090, #2019, #1423, #1530, #1799 and #1989. The mandatory direction is one CUBI-owned assistant entry, the existing Command Orchestration Layer, one typed Assistant Tool Registry, canonical internal domain services, the single Shared Scheduling/Calculation Core, scoped authorization, explicit approval, revision checks, idempotent/transactional execution, fresh read-back and durable audit. No mandatory third-party AI provider, parallel domain engine, duplicate importer, browser-side authoritative calculation or fabricated capability is permitted.
+
+The architecture document is a target standard and gap-closure plan, not a claim of completion. All capability statuses remain evidence-based; P0 release acceptance requires exact-head CI, real-browser and database proof.
