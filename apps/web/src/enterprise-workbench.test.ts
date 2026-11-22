@@ -80,6 +80,13 @@ test("enterprise tier is independent from project roles", () => {
   assert.equal(enterpriseTier(["planner", "enterprise_viewer"]), "viewer");
   assert.equal(enterpriseTier(["enterprise_user", "enterprise_viewer"]), "user");
   assert.equal(enterpriseTier(["enterprise_admin"]), "admin");
+  assert.equal(enterpriseTier(["global_admin"]), "admin");
+  assert.equal(isEnterpriseWriter(["global_admin"]), true);
+  const owner = environmentAccess({
+    user_id: "u-3", tenant_id: "t-1", roles: ["global_admin"],
+  } as never);
+  assert.equal(owner.enterprise.allowed, true);
+  assert.equal(owner.enterprise.tier, "admin");
   assert.equal(isEnterpriseWriter(["enterprise_viewer"]), false);
   assert.equal(isEnterpriseWriter(["enterprise_user"]), true);
   assert.equal(isEnterpriseWriter(["project_admin"]), false);
