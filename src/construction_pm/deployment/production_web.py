@@ -496,6 +496,8 @@ class ProductionWebApp:
             or path.rstrip("/") in WORKSPACE_PATHS
             or path == APP_PATH + "/"
             or path.startswith(APP_PATH + "/")
+            or path.startswith(ADMIN_PATH + "/")
+            or path.startswith(WORKBENCH_PATH + "/")
         ):
             return self._app(method, environ)
         if path == LOGIN_PATH:
