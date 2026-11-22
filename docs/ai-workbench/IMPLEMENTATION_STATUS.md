@@ -128,12 +128,13 @@ Routing:
 | `npm test` (web) | 1296 + 16 passed, 0 failed |
 | `npm run typecheck` | clean |
 | `npm run build` | bundles emitted |
-| `node e2e/preview-e2e.mjs` | 116 recorded checks (see the run log attached to the PR) |
+| `node e2e/preview-e2e.mjs` | 127 recorded checks (see the run log attached to the PR) |
 
 The browser journey drives the real preview runtime: document gate, planner
 sign-in, empty risk state, risk create and read-back across a full reload,
 deterministic command plan, blocked scenario studio with zero controls, stored
-analysis counts, and Persian RTL / English LTR switching.
+analysis counts, Persian RTL / English LTR switching, and the Enterprise
+environment journey described in `TEST_AND_ACCEPTANCE.md` §5.
 
 ## Phase 6 Decision & Approval
 

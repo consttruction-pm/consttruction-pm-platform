@@ -289,6 +289,18 @@ class EnterpriseWorkbenchHttpTests(unittest.TestCase):
         self.assertTrue(status.startswith("400"))
         self.assertEqual(payload["code"], "EMAIL_INVALID")
 
+        # A record form submits untouched optional fields as ""; that is
+        # "not provided", not an invalid address.
+        status, payload = _request(
+            self.app,
+            "POST",
+            "/api/enterprise/directory",
+            body={"display_name": "Blank email", "email": "", "role_title": "Planner"},
+        )
+        self.assertTrue(status.startswith("201"), f"{status} {payload}")
+        self.assertEqual(payload["record"]["display_name"], "Blank email")
+        self.assertEqual(payload["record"]["email"], "")
+
     def test_immutable_fields_cannot_be_patched(self):
         _, payload = self._team("Immutable")
         team_id = payload["record"]["record_id"]

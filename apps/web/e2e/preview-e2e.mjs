@@ -1086,6 +1086,278 @@ async function runAiWorkbenchJourney(page, baseUrl) {
   });
 }
 
+
+/**
+ * Enterprise environment journey.
+ *
+ * Proves the second environment is a real, independently routed document:
+ * preview sign-in → Personal Workbench environment choice → Enterprise shell →
+ * seeded registers → a real task write with read-back and reload → knowledge
+ * and audit → back to the Personal Workbench. The Engineering bundle is never
+ * loaded and no Enterprise page redirects into Engineering.
+ */
+async function runEnterpriseJourney(page, baseUrl) {
+  await page.navigate(
+    `${baseUrl}/cubi/login/`,
+    '[data-testid="login-preview-signin"]',
+    "Enterprise preview sign-in",
+  );
+  const signIn = await page.evaluate(`(() => ({
+    credential_form: Boolean(document.querySelector('form[action="/api/session"]')),
+    personas: Array.from(document.querySelectorAll('[data-testid="login-preview-signin"] form')).map((form) => form.getAttribute("action")),
+    roles: Array.from(document.querySelectorAll('[data-testid="login-preview-signin"] button[name="role"]')).map((button) => button.value).sort(),
+  }))()`);
+  assert(!signIn.credential_form, "the preview must not offer a credential form it cannot accept");
+  assert(
+    signIn.personas.every((action) => action === "/preview/login"),
+    "the preview sign-in must post to the declared demo endpoint: " + JSON.stringify(signIn.personas),
+  );
+  assert(signIn.roles.includes("enterprise"), "the Enterprise persona must be offered");
+  record("Enterprise preview sign-in uses the declared demo endpoint, not a failing credential form", {
+    roles: signIn.roles,
+  });
+
+  await page.click('[data-testid="login-preview-signin"] button[name="role"][value="enterprise"]');
+  await page.waitFor(`location.pathname === "/workbench/"`, "Enterprise persona lands on the Personal Workbench", 30000);
+  await page.waitForSelector(".cp-wb-card-enterprise", "Personal Workbench environment cards");
+
+  const workbench = await page.evaluate(`(() => {
+    const enterprise = document.querySelector(".cp-wb-card-enterprise a.cp-wb-button");
+    const engineering = document.querySelector(".cp-wb-card-engineering a.cp-wb-button");
+    return {
+      identity: document.querySelector(".cp-wb-identity dd")?.textContent ?? "",
+      cards: document.querySelectorAll(".cp-wb-card").length,
+      enterprise_href: enterprise?.getAttribute("href") ?? null,
+      engineering_href: engineering?.getAttribute("href") ?? null,
+      projects: Array.from(document.querySelectorAll(".cp-wb-project-list a")).map((a) => a.getAttribute("href")),
+      task_link: document.querySelector(".cp-wb-tasks a")?.getAttribute("href") ?? null,
+      restricted: document.querySelectorAll(".cp-wb-restricted").length,
+    };
+  })()`);
+  assert(workbench.identity.includes("preview-enterprise"), "the workbench must show the signed-in identity: " + workbench.identity);
+  assert(workbench.cards === 2, "the Personal Workbench must offer both environments");
+  assert(
+    (workbench.enterprise_href ?? "").startsWith("/cubi/enterprise/dashboard"),
+    "the Enterprise card must open the Enterprise dashboard, never Engineering: " + workbench.enterprise_href,
+  );
+  assert(
+    (workbench.engineering_href ?? "").startsWith("/app"),
+    "the Engineering card must open /app: " + workbench.engineering_href,
+  );
+  assert(workbench.projects.length === 2, "the authorized project list must render both projects");
+  assert(workbench.restricted === 0, "an Enterprise administrator must not see a restricted note");
+  record("Personal Workbench offers the two environments and starts no workspace itself", {
+    cards: workbench.cards,
+    enterprise_href: workbench.enterprise_href,
+    engineering_href: workbench.engineering_href,
+    projects: workbench.projects.length,
+  });
+
+  // Open Enterprise from the workbench card, exactly as a user would.
+  await page.navigate(
+    `${baseUrl}/cubi/enterprise/dashboard/`,
+    '[data-testid="dashboard-portlets"]',
+    "Enterprise dashboard",
+  );
+  await page.waitFor(
+    `document.querySelectorAll("#cubi-main .cubi-loading").length === 0`,
+    "Enterprise dashboard portlets settle",
+    30000,
+  );
+  const dashboard = await page.evaluate(`(() => ({
+    eng_root: Boolean(document.querySelector("#app")),
+    body_class: document.body.className,
+    h1: document.querySelector(".cubi-page-head h1")?.textContent ?? "",
+    nav_links: Array.from(document.querySelectorAll(".cubi-nav a")).map((a) => a.getAttribute("href")),
+    portlets: document.querySelectorAll("[data-portlet]").length,
+    legacy_enterprise: Array.from(document.querySelectorAll("a")).filter((a) => {
+      const href = a.getAttribute("href") ?? "";
+      return href === "/enterprise" || href === "/enterprise/";
+    }).length,
+    workbench_href: document.querySelector('.cubi-topbar a[href="/workbench/"]')?.getAttribute("href") ?? null,
+    engineering_href: document.querySelector('.cubi-topbar a[href^="/app"]')?.getAttribute("href") ?? null,
+  }))()`);
+  assert(!dashboard.eng_root, "the Enterprise document must not mount the Engineering root");
+  assert(dashboard.body_class.includes("cubi-body"), "the Enterprise body class must be applied");
+  assert(dashboard.h1.length > 0, "the Enterprise page header must render a title");
+  assert(dashboard.nav_links.length >= 20, "the Enterprise sidebar must expose the full page set");
+  assert(
+    dashboard.nav_links.every((href) => href && (href.startsWith("/cubi/") || href === "/workbench/" || href.startsWith("/app"))),
+    "every Enterprise navigation target must stay in a real environment",
+  );
+  assert(dashboard.legacy_enterprise === 0, "no link may point at the retired /enterprise route");
+  assert(dashboard.workbench_href === "/workbench/", "Enterprise must link back to the shared Personal Workbench");
+  record("Enterprise dashboard is its own document with the full sidebar", {
+    nav_links: dashboard.nav_links.length,
+    portlets: dashboard.portlets,
+    engineering_root: dashboard.eng_root,
+  });
+  await page.screenshot("enterprise-dashboard.png");
+
+  // Seeded identity registers are read from the Enterprise store.
+  await page.navigate(
+    `${baseUrl}/cubi/enterprise/access/`,
+    '[data-testid="access-registers"]',
+    "Enterprise access registers",
+  );
+  await page.waitFor(
+    `document.querySelectorAll('[data-testid="access-users"] table tbody tr').length > 0 && document.querySelectorAll('[data-testid="access-roles"] table tbody tr').length >= 3`,
+    "seeded users and roles in the access registers",
+    30000,
+  );
+  const access = await page.evaluate(`(() => ({
+    users: document.querySelectorAll('[data-testid="access-users"] table tbody tr').length,
+    roles: document.querySelectorAll('[data-testid="access-roles"] table tbody tr').length,
+    teams: document.querySelectorAll('[data-testid="access-teams"] table tbody tr').length,
+    organizations: document.querySelectorAll('[data-testid="access-organizations"] table tbody tr').length,
+  }))()`);
+  assert(access.users >= 5, "the seeded demo identities must be listed");
+  assert(access.teams >= 1 && access.organizations >= 1, "the seeded team and organization must be listed");
+  record("Enterprise access registers read the seeded tenant store", access);
+
+  // A real Enterprise write with a revision-carrying read-back and a reload.
+  await page.navigate(
+    `${baseUrl}/cubi/enterprise/tasks/`,
+    '[data-testid="tasks-register"]',
+    "Enterprise task register",
+  );
+  await page.waitForSelector('[data-testid="tasks-create-toggle"]:not([disabled])', "task creation becomes available", 30000);
+  await page.click('[data-testid="tasks-create-toggle"]');
+  await page.waitForSelector('[data-testid="tasks-create-form"]', "task create form");
+  const taskTitle = `E2E enterprise task ${Date.now()}`;
+  await page.evaluate(`(() => {
+    const form = document.querySelector('[data-testid="tasks-create-form"] form');
+    form.querySelector('input[placeholder="Task title"]').value = ${JSON.stringify(taskTitle)};
+    form.requestSubmit();
+    return true;
+  })()`);
+  await page.waitFor(
+    `Array.from(document.querySelectorAll('[data-testid="tasks-register"] tbody tr')).some((row) => row.textContent.includes(${JSON.stringify(taskTitle)}))`,
+    "created task appears in the register",
+    30000,
+  );
+  const serverTask = await page.evaluate(
+    `fetch("/api/enterprise/tasks?limit=100", { credentials: "same-origin", headers: { Accept: "application/json" }, cache: "no-store" })
+      .then((response) => response.ok ? response.json() : { tasks: [] })
+      .then((payload) => (payload.tasks ?? []).find((task) => task.title === ${JSON.stringify(taskTitle)}) ?? null)`,
+    { awaitPromise: true },
+  );
+  assert(serverTask && serverTask.task_id, "the created task must be readable from the canonical Enterprise API");
+  await page.navigate(
+    `${baseUrl}/cubi/enterprise/tasks/`,
+    '[data-testid="tasks-register"]',
+    "Enterprise task register after reload",
+  );
+  await page.waitFor(
+    `Boolean(Array.from(document.querySelectorAll('[data-testid="tasks-register"] tbody tr')).find((row) => row.textContent.includes(${JSON.stringify(taskTitle)})))`,
+    "task survives a full reload",
+    30000,
+  );
+  record("Enterprise task write persists and is readable through the canonical API", {
+    task_id: serverTask.task_id,
+    revision: serverTask.revision,
+    status: serverTask.status,
+  });
+
+  // Knowledge states its sources instead of claiming published guidance exists.
+  await page.navigate(
+    `${baseUrl}/cubi/enterprise/knowledge/`,
+    '[data-testid="knowledge-cards"]',
+    "Enterprise knowledge center",
+  );
+  await page.waitFor(
+    `document.querySelectorAll('[data-testid="knowledge-cards"] .cubi-loading').length === 0`,
+    "knowledge cards settle",
+    30000,
+  );
+  const knowledge = await page.evaluate(`(() => ({
+    cards: document.querySelectorAll('[data-testid="knowledge-cards"] .cubi-knowledge-card').length,
+    error_blocks: document.querySelectorAll('[data-testid="knowledge-cards"] .cubi-state-error').length,
+    text: document.querySelector('[data-testid="knowledge-cards"]')?.textContent ?? "",
+  }))()`);
+  assert(
+    knowledge.cards > 0 || /No published guidance card|unavailable|not connected/i.test(knowledge.text),
+    "the knowledge center must either list published cards or state its empty/unavailable source: " + knowledge.text.slice(0, 160),
+  );
+  assert(knowledge.error_blocks === 0 || knowledge.cards > 0, "a knowledge read failure must not be presented as guidance");
+  record("Enterprise knowledge center states its real published state", {
+    cards: knowledge.cards,
+  });
+
+  // A directory record goes through the Enterprise workbench store, which owns
+  // the append-only audit trail the audit page reads.
+  await page.navigate(
+    `${baseUrl}/cubi/enterprise/directory/`,
+    '[data-testid="directory-form"]',
+    "Enterprise directory",
+  );
+  await page.waitForSelector('[data-testid="directory-table"]', "directory register table", 30000);
+  const directoryName = `E2E directory ${Date.now()}`;
+  await page.evaluate(`(() => {
+    const form = document.querySelector('[data-testid="directory-form"] form');
+    form.querySelector('input[placeholder="Person or resource name"]').value = ${JSON.stringify(directoryName)};
+    form.requestSubmit();
+    return true;
+  })()`);
+  await page.waitFor(
+    `!document.querySelector('[data-testid="directory-result"]').hidden`,
+    "directory create result",
+    30000,
+  );
+  const directoryCreate = await page.evaluate(`(() => ({
+    result: document.querySelector('[data-testid="directory-result"]')?.textContent ?? "",
+  }))()`);
+  assert(/^Created /.test(directoryCreate.result), "the directory create must be accepted by the server: " + directoryCreate.result);
+  await page.waitFor(
+    `Array.from(document.querySelectorAll('[data-testid="directory-table"] tbody tr')).some((row) => row.textContent.includes(${JSON.stringify(directoryName)}))`,
+    "directory record read back from the server",
+    30000,
+  );
+  record("Enterprise directory write is read back from the workbench store", {
+    name: directoryName,
+  });
+
+  // The audit trail records the Enterprise write.
+  await page.navigate(
+    `${baseUrl}/cubi/enterprise/audit/`,
+    '[data-testid="audit-events"]',
+    "Enterprise audit page",
+  );
+  await page.waitFor(
+    `document.querySelectorAll('[data-testid="audit-table"] tbody tr').length > 0`,
+    "Enterprise audit rows",
+    30000,
+  );
+  const audit = await page.evaluate(
+    `Array.from(document.querySelectorAll('[data-testid="audit-table"] tbody tr')).map((row) => row.textContent).join(" ")`,
+  );
+  assert(/directory/i.test(audit), "the audit trail must record the directory write: " + audit.slice(0, 200));
+  record("Enterprise audit lists the recorded write", { rows: audit.length });
+
+  // Persian keeps the Enterprise shell and flips direction.
+  await page.setSelect(".cubi-lang select", "fa");
+  await page.waitFor(
+    `document.documentElement.dir === "rtl" && document.documentElement.lang === "fa"`,
+    "Enterprise Persian RTL",
+    30000,
+  );
+  const persian = await page.evaluate(`(() => ({
+    dir: document.documentElement.dir,
+    nav: document.querySelector(".cubi-nav a")?.textContent ?? "",
+    engineering_root: Boolean(document.querySelector("#app")),
+  }))()`);
+  assert(persian.dir === "rtl", "Persian must flip the Enterprise document direction");
+  assert(!persian.engineering_root, "the locale switch must not mount Engineering");
+  record("Enterprise locale switch keeps its own document and direction", { dir: persian.dir });
+  await page.setSelect(".cubi-lang select", "en");
+  await page.waitFor(`document.documentElement.dir === "ltr"`, "Enterprise back to LTR", 30000);
+
+  // The Enterprise shell links back to the shared Personal Workbench.
+  await page.click('.cubi-topbar a[href="/workbench/"]');
+  await page.waitFor(`location.pathname === "/workbench/"`, "Enterprise returns to the Personal Workbench", 30000);
+  record("Enterprise returns to the shared Personal Workbench, not Engineering", {});
+}
+
 async function waitForHttp(url, timeoutMs = 60000) {  const deadline = Date.now() + timeoutMs;
   let lastError;
   while (Date.now() < deadline) {
@@ -2679,6 +2951,62 @@ async function main() {
       if (workbenchPage) workbenchPage.cdp.close();
       await workbenchChrome.stop();
       await removeChromeProfile(workbenchChrome.userDataDir);
+    }
+
+    // The Enterprise environment has its own document, its own session gate and
+    // its own stores; this profile must not share storage with Engineering.
+    const enterpriseChrome = await launchChrome();
+    let enterprisePage;
+    try {
+      enterprisePage = new Page(enterpriseChrome.cdp);
+      await enterprisePage.initialize();
+      await enterprisePage.cdp.send("Emulation.setDeviceMetricsOverride", {
+        width: 1440,
+        height: 900,
+        deviceScaleFactor: 1,
+        mobile: false,
+      });
+      await runEnterpriseJourney(enterprisePage, baseUrl);
+    } finally {
+      if (enterprisePage) enterprisePage.cdp.close();
+      await enterpriseChrome.stop();
+      await removeChromeProfile(enterpriseChrome.userDataDir);
+    }
+
+    // A session without an Enterprise entitlement must never see the Enterprise
+    // data area; the server sends it to the Personal Workbench where the
+    // restriction is explained.
+    const denialChrome = await launchChrome();
+    let denialPage;
+    try {
+      denialPage = new Page(denialChrome.cdp);
+      await denialPage.initialize();
+      await denialPage.navigate(`${baseUrl}/login`, 'form[action="/preview/login"]', "planner sign-in for the Enterprise denial");
+      await denialPage.click('button[name="role"][value="planner"]');
+      await denialPage.waitFor(`location.pathname === "/workbench/"`, "planner lands on the Personal Workbench", 30000);
+      await denialPage.waitForSelector(".cp-wb-card-enterprise", "Personal Workbench cards after planner sign-in");
+      await denialPage.cdp.send("Page.navigate", { url: `${baseUrl}/cubi/enterprise/dashboard` });
+      await denialPage.waitFor(`location.pathname === "/workbench/"`, "Enterprise gate returns a planner to the Personal Workbench", 30000);
+      await denialPage.waitFor(
+        `Boolean(document.querySelector(".cp-wb-card-enterprise .cp-wb-restricted"))`,
+        "the Enterprise card explains the missing entitlement",
+        30000,
+      );
+      const denial = await denialPage.evaluate(`(() => ({
+        path: location.pathname,
+        enterprise_link: Boolean(document.querySelector(".cp-wb-card-enterprise a.cp-wb-button")),
+        note: document.querySelector(".cp-wb-card-enterprise .cp-wb-restricted")?.textContent ?? "",
+      }))()`);
+      assert(denial.path === "/workbench/", "a planner must not enter the Enterprise data area");
+      assert(denial.enterprise_link === false, "a planner must not receive an Enterprise open control");
+      assert(/entitlement/i.test(denial.note), "the restriction must name the missing entitlement: " + denial.note);
+      record("server gate returns a non-Enterprise session to the Personal Workbench with the reason", {
+        path: denial.path,
+      });
+    } finally {
+      if (denialPage) denialPage.cdp.close();
+      await denialChrome.stop();
+      await removeChromeProfile(denialChrome.userDataDir);
     }
 
     await page.navigate(
@@ -8043,7 +8371,24 @@ async function main() {
       }
       return /\/ai\/assistant\/turn$/.test(path) && /AI_ASSISTANT_NOT_CONFIGURED/.test(item.body ?? "");
     };
-    const unexpectedFailures = API_FAILURES.filter((item) => !allowedAssistant503(item));
+    // Enterprise portfolio portlets answer 503 with a named code while the
+    // Engineering source is not connected. That is the product's honest state,
+    // and the dashboard renders it; it is not an unexpected server fault.
+    const allowedEngineeringSource503 = (item) => {
+      if (item.status !== 503) return false;
+      let path = "";
+      try {
+        path = new URL(item.url).pathname;
+      } catch {
+        return false;
+      }
+      return (
+        /^\/api\/enterprise\/(portlets|portfolio|evm)(\/|$)/.test(path) &&
+        /ENGINEERING_SOURCE_NOT_CONNECTED/.test(item.body ?? "")
+      );
+    };
+    const allowed = (item) => allowedAssistant503(item) || allowedEngineeringSource503(item);
+    const unexpectedFailures = API_FAILURES.filter((item) => !allowed(item));
     if (unexpectedFailures.length > 0) {
       throw new Error(`API_5XX_RESPONSES: ${JSON.stringify(unexpectedFailures.slice(0, 5))}`);
     }
@@ -8051,7 +8396,9 @@ async function main() {
     // only unexpected console errors are tolerated here.
     record("no uncaught browser exceptions or unexpected API 5xx responses", {
       console_error_count: CONSOLE_ERRORS.length,
-      assistant_not_configured_503: API_FAILURES.length - unexpectedFailures.length,
+      allowed_503: API_FAILURES.length,
+      assistant_not_configured_503: API_FAILURES.filter(allowedAssistant503).length,
+      engineering_source_not_connected_503: API_FAILURES.filter(allowedEngineeringSource503).length,
     });
   } finally {
     page?.cdp.close();
