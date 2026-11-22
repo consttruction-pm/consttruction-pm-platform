@@ -79,7 +79,7 @@ class RoleBasedAuthorizationPolicy:
 
 def default_role_permissions() -> dict[str, FrozenSet[Permission]]:
     """Return the authoritative role-to-permission grants of the default policy."""
-    return {
+    grants: dict[str, FrozenSet[Permission]] = {
         "viewer": frozenset(
             {
                 Permission.PROJECT_READ,
@@ -128,6 +128,11 @@ def default_role_permissions() -> dict[str, FrozenSet[Permission]]:
             }
         ),
     }
+    # The platform owner administers every tenant-level surface. It carries the
+    # union of the project grants so an owner account can actually read and
+    # operate the projects it administers; enterprise task roles stay separate.
+    grants["global_admin"] = frozenset().union(*grants.values())
+    return grants
 
 
 def default_project_policy() -> RoleBasedAuthorizationPolicy:
