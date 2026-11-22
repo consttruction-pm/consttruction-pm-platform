@@ -321,7 +321,7 @@ def test_admin_document_requires_the_tenant_owner_role(app):
 
     # A signed-in non-owner never receives the Global Administration document.
     cookie, _ = login(app)
-    for path in ("/admin", "/admin/"):
+    for path in ("/admin", "/admin/", "/admin/users"):
         status, headers, body = call(app, "GET", path, cookie=cookie)
         assert status == 303, path
         assert headers["location"] == ["/workbench/"], path
@@ -330,10 +330,11 @@ def test_admin_document_requires_the_tenant_owner_role(app):
 
     # The tenant owner is served the same shell the client boots into /admin.
     owner, _ = login(app, "owner@example.test")
-    status, headers, body = call(app, "GET", "/admin", cookie=owner)
-    assert status == 200
-    assert b"CUBI Workspace" in body
-    assert headers["cache-control"] == ["no-store"]
+    for path in ("/admin", "/admin/users"):
+        status, headers, body = call(app, "GET", path, cookie=owner)
+        assert status == 200, path
+        assert b"CUBI Workspace" in body
+        assert headers["cache-control"] == ["no-store"]
 
 
 
