@@ -14,6 +14,14 @@
   },
   "rewrites": [
     {
+      "source": "/workbench/:path*",
+      "destination": "/api/shell?__path=workbench/:path*"
+    },
+    {
+      "source": "/admin/:path*",
+      "destination": "/api/shell?__path=admin/:path*"
+    },
+    {
       "source": "/app",
       "destination": "/api/shell?__path=app"
     },
@@ -127,10 +135,6 @@
     },
     {
       "source": "/workbench/",
-      "destination": "/api/shell?__path=app"
-    },
-    {
-      "source": "/workbench/:path*",
       "destination": "/api/shell?__path=app"
     }
   ],
