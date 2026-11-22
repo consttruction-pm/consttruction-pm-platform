@@ -1,10 +1,17 @@
 # Project Import Review & Staging — Specification
 
-Status: **BLOCKED** for project-level staging until the canonical project
-exchange/import engine from issue #1799 is mounted. The repository today has
-register-level exchange only (`exchange_application.py`): resources, WBS,
-activities, assignments and cost/expense rows. It has no EPS/project,
-relationship, calendar, baseline or document ingestion.
+Status: **PARTIAL**. The source stage now exists:
+`src/construction_pm/importing/` implements contract
+`cubi-reference-import-source.v1`, which reads the whole workbook, validates the
+engineering referential integrity (project/EPS/OBS/WBS/activity/relationship/
+calendar/resource/assignment/baseline/progress) and returns deterministic counts
+and issues without touching a database. See
+[`docs/engineering/CUBI_REFERENCE_PROJECTS_IMPORT_MAPPING.md`](../engineering/CUBI_REFERENCE_PROJECTS_IMPORT_MAPPING.md).
+Staging/apply stays **BLOCKED** until the canonical project exchange/import
+engine from issue #1799 is mounted — the repository today has register-level
+exchange only (`exchange_application.py`): resources, WBS, activities,
+assignments and cost/expense rows. It has no EPS/project, relationship,
+calendar, baseline or document ingestion.
 
 ## Non-negotiable rule
 

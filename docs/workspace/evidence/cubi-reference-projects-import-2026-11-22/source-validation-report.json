@@ -1,0 +1,771 @@
+{
+  "contract_version": "cubi-reference-import-source.v1",
+  "source": {
+    "file": "file_00w9vwwkwjhmoo6vogmd-CUBI_Three_Reference_Projects_Master_Data_v1-1.xlsx",
+    "sha256": "0848454d2b8b77806986eb53cf36e95521d7e789ad8c4f0b2af78acb4e82fa26",
+    "sheets": 94,
+    "projects": [
+      "CUBI-REF-001",
+      "CUBI-REF-002",
+      "CUBI-REF-003"
+    ]
+  },
+  "ok": true,
+  "error_count": 0,
+  "warning_count": 0,
+  "counts": {
+    "README": {
+      "total": 7,
+      "projects": {
+        "CUBI-REF-001": 0,
+        "CUBI-REF-002": 0,
+        "CUBI-REF-003": 0
+      }
+    },
+    "Project Register": {
+      "total": 3,
+      "projects": {
+        "CUBI-REF-001": 1,
+        "CUBI-REF-002": 1,
+        "CUBI-REF-003": 1
+      }
+    },
+    "Project Settings": {
+      "total": 3,
+      "projects": {
+        "CUBI-REF-001": 1,
+        "CUBI-REF-002": 1,
+        "CUBI-REF-003": 1
+      }
+    },
+    "EPS": {
+      "total": 25,
+      "projects": {
+        "CUBI-REF-001": 8,
+        "CUBI-REF-002": 8,
+        "CUBI-REF-003": 9
+      }
+    },
+    "OBS": {
+      "total": 24,
+      "projects": {
+        "CUBI-REF-001": 8,
+        "CUBI-REF-002": 8,
+        "CUBI-REF-003": 8
+      }
+    },
+    "WBS": {
+      "total": 375,
+      "projects": {
+        "CUBI-REF-001": 120,
+        "CUBI-REF-002": 120,
+        "CUBI-REF-003": 135
+      }
+    },
+    "Project Milestones": {
+      "total": 36,
+      "projects": {
+        "CUBI-REF-001": 12,
+        "CUBI-REF-002": 12,
+        "CUBI-REF-003": 12
+      }
+    },
+    "Project Codes": {
+      "total": 15,
+      "projects": {
+        "CUBI-REF-001": 5,
+        "CUBI-REF-002": 5,
+        "CUBI-REF-003": 5
+      }
+    },
+    "Activity Codes": {
+      "total": 540,
+      "projects": {
+        "CUBI-REF-001": 180,
+        "CUBI-REF-002": 180,
+        "CUBI-REF-003": 180
+      }
+    },
+    "Resource Codes": {
+      "total": 90,
+      "projects": {
+        "CUBI-REF-001": 30,
+        "CUBI-REF-002": 30,
+        "CUBI-REF-003": 30
+      }
+    },
+    "Cost Codes": {
+      "total": 24,
+      "projects": {
+        "CUBI-REF-001": 8,
+        "CUBI-REF-002": 8,
+        "CUBI-REF-003": 8
+      }
+    },
+    "Data Dictionary": {
+      "total": 716,
+      "projects": {
+        "CUBI-REF-001": 0,
+        "CUBI-REF-002": 0,
+        "CUBI-REF-003": 0
+      }
+    },
+    "Activities": {
+      "total": 540,
+      "projects": {
+        "CUBI-REF-001": 180,
+        "CUBI-REF-002": 180,
+        "CUBI-REF-003": 180
+      }
+    },
+    "Activity Relationships": {
+      "total": 714,
+      "projects": {
+        "CUBI-REF-001": 238,
+        "CUBI-REF-002": 238,
+        "CUBI-REF-003": 238
+      }
+    },
+    "Activity Constraints": {
+      "total": 30,
+      "projects": {
+        "CUBI-REF-001": 10,
+        "CUBI-REF-002": 10,
+        "CUBI-REF-003": 10
+      }
+    },
+    "Activity Steps": {
+      "total": 540,
+      "projects": {
+        "CUBI-REF-001": 180,
+        "CUBI-REF-002": 180,
+        "CUBI-REF-003": 180
+      }
+    },
+    "Activity Expenses": {
+      "total": 135,
+      "projects": {
+        "CUBI-REF-001": 45,
+        "CUBI-REF-002": 45,
+        "CUBI-REF-003": 45
+      }
+    },
+    "Activity Documents": {
+      "total": 108,
+      "projects": {
+        "CUBI-REF-001": 36,
+        "CUBI-REF-002": 36,
+        "CUBI-REF-003": 36
+      }
+    },
+    "Activity Progress": {
+      "total": 540,
+      "projects": {
+        "CUBI-REF-001": 180,
+        "CUBI-REF-002": 180,
+        "CUBI-REF-003": 180
+      }
+    },
+    "Activity Status History": {
+      "total": 540,
+      "projects": {
+        "CUBI-REF-001": 180,
+        "CUBI-REF-002": 180,
+        "CUBI-REF-003": 180
+      }
+    },
+    "Baselines": {
+      "total": 3,
+      "projects": {
+        "CUBI-REF-001": 1,
+        "CUBI-REF-002": 1,
+        "CUBI-REF-003": 1
+      }
+    },
+    "Baseline Activities": {
+      "total": 540,
+      "projects": {
+        "CUBI-REF-001": 180,
+        "CUBI-REF-002": 180,
+        "CUBI-REF-003": 180
+      }
+    },
+    "Schedule Options": {
+      "total": 3,
+      "projects": {
+        "CUBI-REF-001": 1,
+        "CUBI-REF-002": 1,
+        "CUBI-REF-003": 1
+      }
+    },
+    "Schedule Run Inputs": {
+      "total": 3,
+      "projects": {
+        "CUBI-REF-001": 1,
+        "CUBI-REF-002": 1,
+        "CUBI-REF-003": 1
+      }
+    },
+    "Calendars": {
+      "total": 9,
+      "projects": {
+        "CUBI-REF-001": 3,
+        "CUBI-REF-002": 3,
+        "CUBI-REF-003": 3
+      }
+    },
+    "Calendar Workweeks": {
+      "total": 63,
+      "projects": {
+        "CUBI-REF-001": 0,
+        "CUBI-REF-002": 0,
+        "CUBI-REF-003": 0
+      }
+    },
+    "Calendar Shifts": {
+      "total": 9,
+      "projects": {
+        "CUBI-REF-001": 0,
+        "CUBI-REF-002": 0,
+        "CUBI-REF-003": 0
+      }
+    },
+    "Calendar Exceptions": {
+      "total": 9,
+      "projects": {
+        "CUBI-REF-001": 0,
+        "CUBI-REF-002": 0,
+        "CUBI-REF-003": 0
+      }
+    },
+    "Resource Calendars": {
+      "total": 90,
+      "projects": {
+        "CUBI-REF-001": 30,
+        "CUBI-REF-002": 30,
+        "CUBI-REF-003": 30
+      }
+    },
+    "Activity Calendar Assignments": {
+      "total": 540,
+      "projects": {
+        "CUBI-REF-001": 180,
+        "CUBI-REF-002": 180,
+        "CUBI-REF-003": 180
+      }
+    },
+    "Resource Master": {
+      "total": 90,
+      "projects": {
+        "CUBI-REF-001": 30,
+        "CUBI-REF-002": 30,
+        "CUBI-REF-003": 30
+      }
+    },
+    "Resource Roles": {
+      "total": 90,
+      "projects": {
+        "CUBI-REF-001": 30,
+        "CUBI-REF-002": 30,
+        "CUBI-REF-003": 30
+      }
+    },
+    "Resource Skills": {
+      "total": 270,
+      "projects": {
+        "CUBI-REF-001": 90,
+        "CUBI-REF-002": 90,
+        "CUBI-REF-003": 90
+      }
+    },
+    "Resource Rates": {
+      "total": 90,
+      "projects": {
+        "CUBI-REF-001": 30,
+        "CUBI-REF-002": 30,
+        "CUBI-REF-003": 30
+      }
+    },
+    "Resource Availability": {
+      "total": 90,
+      "projects": {
+        "CUBI-REF-001": 30,
+        "CUBI-REF-002": 30,
+        "CUBI-REF-003": 30
+      }
+    },
+    "Resource Assignments": {
+      "total": 720,
+      "projects": {
+        "CUBI-REF-001": 240,
+        "CUBI-REF-002": 240,
+        "CUBI-REF-003": 240
+      }
+    },
+    "Resource Assignment Spreads": {
+      "total": 720,
+      "projects": {
+        "CUBI-REF-001": 240,
+        "CUBI-REF-002": 240,
+        "CUBI-REF-003": 240
+      }
+    },
+    "Resource Actuals": {
+      "total": 720,
+      "projects": {
+        "CUBI-REF-001": 240,
+        "CUBI-REF-002": 240,
+        "CUBI-REF-003": 240
+      }
+    },
+    "Resource Usage": {
+      "total": 720,
+      "projects": {
+        "CUBI-REF-001": 240,
+        "CUBI-REF-002": 240,
+        "CUBI-REF-003": 240
+      }
+    },
+    "Equipment Register": {
+      "total": 30,
+      "projects": {
+        "CUBI-REF-001": 10,
+        "CUBI-REF-002": 10,
+        "CUBI-REF-003": 10
+      }
+    },
+    "Material Register": {
+      "total": 30,
+      "projects": {
+        "CUBI-REF-001": 10,
+        "CUBI-REF-002": 10,
+        "CUBI-REF-003": 10
+      }
+    },
+    "Labor Register": {
+      "total": 30,
+      "projects": {
+        "CUBI-REF-001": 10,
+        "CUBI-REF-002": 10,
+        "CUBI-REF-003": 10
+      }
+    },
+    "Cost Accounts": {
+      "total": 24,
+      "projects": {
+        "CUBI-REF-001": 8,
+        "CUBI-REF-002": 8,
+        "CUBI-REF-003": 8
+      }
+    },
+    "Project Budgets": {
+      "total": 24,
+      "projects": {
+        "CUBI-REF-001": 8,
+        "CUBI-REF-002": 8,
+        "CUBI-REF-003": 8
+      }
+    },
+    "Activity Budgets": {
+      "total": 540,
+      "projects": {
+        "CUBI-REF-001": 180,
+        "CUBI-REF-002": 180,
+        "CUBI-REF-003": 180
+      }
+    },
+    "Cost Periods": {
+      "total": 66,
+      "projects": {
+        "CUBI-REF-001": 23,
+        "CUBI-REF-002": 21,
+        "CUBI-REF-003": 22
+      }
+    },
+    "Actual Costs": {
+      "total": 24,
+      "projects": {
+        "CUBI-REF-001": 8,
+        "CUBI-REF-002": 8,
+        "CUBI-REF-003": 8
+      }
+    },
+    "Commitments": {
+      "total": 24,
+      "projects": {
+        "CUBI-REF-001": 8,
+        "CUBI-REF-002": 8,
+        "CUBI-REF-003": 8
+      }
+    },
+    "Expenses": {
+      "total": 24,
+      "projects": {
+        "CUBI-REF-001": 8,
+        "CUBI-REF-002": 8,
+        "CUBI-REF-003": 8
+      }
+    },
+    "Cash Flow": {
+      "total": 66,
+      "projects": {
+        "CUBI-REF-001": 23,
+        "CUBI-REF-002": 21,
+        "CUBI-REF-003": 22
+      }
+    },
+    "Earned Value": {
+      "total": 3,
+      "projects": {
+        "CUBI-REF-001": 1,
+        "CUBI-REF-002": 1,
+        "CUBI-REF-003": 1
+      }
+    },
+    "EVM Periods": {
+      "total": 66,
+      "projects": {
+        "CUBI-REF-001": 23,
+        "CUBI-REF-002": 21,
+        "CUBI-REF-003": 22
+      }
+    },
+    "EVM Forecast": {
+      "total": 3,
+      "projects": {
+        "CUBI-REF-001": 1,
+        "CUBI-REF-002": 1,
+        "CUBI-REF-003": 1
+      }
+    },
+    "Cost Variance": {
+      "total": 3,
+      "projects": {
+        "CUBI-REF-001": 1,
+        "CUBI-REF-002": 1,
+        "CUBI-REF-003": 1
+      }
+    },
+    "Schedule Variance": {
+      "total": 3,
+      "projects": {
+        "CUBI-REF-001": 1,
+        "CUBI-REF-002": 1,
+        "CUBI-REF-003": 1
+      }
+    },
+    "Risk Register": {
+      "total": 45,
+      "projects": {
+        "CUBI-REF-001": 15,
+        "CUBI-REF-002": 15,
+        "CUBI-REF-003": 15
+      }
+    },
+    "Risk Responses": {
+      "total": 45,
+      "projects": {
+        "CUBI-REF-001": 15,
+        "CUBI-REF-002": 15,
+        "CUBI-REF-003": 15
+      }
+    },
+    "Issue Register": {
+      "total": 24,
+      "projects": {
+        "CUBI-REF-001": 8,
+        "CUBI-REF-002": 8,
+        "CUBI-REF-003": 8
+      }
+    },
+    "Change Requests": {
+      "total": 12,
+      "projects": {
+        "CUBI-REF-001": 4,
+        "CUBI-REF-002": 4,
+        "CUBI-REF-003": 4
+      }
+    },
+    "Contracts": {
+      "total": 15,
+      "projects": {
+        "CUBI-REF-001": 5,
+        "CUBI-REF-002": 5,
+        "CUBI-REF-003": 5
+      }
+    },
+    "Contract Packages": {
+      "total": 15,
+      "projects": {
+        "CUBI-REF-001": 5,
+        "CUBI-REF-002": 5,
+        "CUBI-REF-003": 5
+      }
+    },
+    "Procurement Register": {
+      "total": 15,
+      "projects": {
+        "CUBI-REF-001": 5,
+        "CUBI-REF-002": 5,
+        "CUBI-REF-003": 5
+      }
+    },
+    "Vendor Register": {
+      "total": 15,
+      "projects": {
+        "CUBI-REF-001": 5,
+        "CUBI-REF-002": 5,
+        "CUBI-REF-003": 5
+      }
+    },
+    "Document Register": {
+      "total": 45,
+      "projects": {
+        "CUBI-REF-001": 15,
+        "CUBI-REF-002": 15,
+        "CUBI-REF-003": 15
+      }
+    },
+    "Document Revisions": {
+      "total": 45,
+      "projects": {
+        "CUBI-REF-001": 15,
+        "CUBI-REF-002": 15,
+        "CUBI-REF-003": 15
+      }
+    },
+    "Quality Register": {
+      "total": 30,
+      "projects": {
+        "CUBI-REF-001": 10,
+        "CUBI-REF-002": 10,
+        "CUBI-REF-003": 10
+      }
+    },
+    "Inspection Requests": {
+      "total": 30,
+      "projects": {
+        "CUBI-REF-001": 10,
+        "CUBI-REF-002": 10,
+        "CUBI-REF-003": 10
+      }
+    },
+    "HSE Register": {
+      "total": 24,
+      "projects": {
+        "CUBI-REF-001": 8,
+        "CUBI-REF-002": 8,
+        "CUBI-REF-003": 8
+      }
+    },
+    "NCR Register": {
+      "total": 24,
+      "projects": {
+        "CUBI-REF-001": 8,
+        "CUBI-REF-002": 8,
+        "CUBI-REF-003": 8
+      }
+    },
+    "Punch List": {
+      "total": 24,
+      "projects": {
+        "CUBI-REF-001": 8,
+        "CUBI-REF-002": 8,
+        "CUBI-REF-003": 8
+      }
+    },
+    "Lessons Learned": {
+      "total": 15,
+      "projects": {
+        "CUBI-REF-001": 5,
+        "CUBI-REF-002": 5,
+        "CUBI-REF-003": 5
+      }
+    },
+    "Organization": {
+      "total": 24,
+      "projects": {
+        "CUBI-REF-001": 8,
+        "CUBI-REF-002": 8,
+        "CUBI-REF-003": 8
+      }
+    },
+    "Project Teams": {
+      "total": 24,
+      "projects": {
+        "CUBI-REF-001": 8,
+        "CUBI-REF-002": 8,
+        "CUBI-REF-003": 8
+      }
+    },
+    "Responsibility Assignments": {
+      "total": 90,
+      "projects": {
+        "CUBI-REF-001": 30,
+        "CUBI-REF-002": 30,
+        "CUBI-REF-003": 30
+      }
+    },
+    "Team Tasks": {
+      "total": 36,
+      "projects": {
+        "CUBI-REF-001": 12,
+        "CUBI-REF-002": 12,
+        "CUBI-REF-003": 12
+      }
+    },
+    "Workflow Templates": {
+      "total": 3,
+      "projects": {
+        "CUBI-REF-001": 1,
+        "CUBI-REF-002": 1,
+        "CUBI-REF-003": 1
+      }
+    },
+    "Workflow Instances": {
+      "total": 3,
+      "projects": {
+        "CUBI-REF-001": 1,
+        "CUBI-REF-002": 1,
+        "CUBI-REF-003": 1
+      }
+    },
+    "Approval Records": {
+      "total": 3,
+      "projects": {
+        "CUBI-REF-001": 1,
+        "CUBI-REF-002": 1,
+        "CUBI-REF-003": 1
+      }
+    },
+    "Forms Register": {
+      "total": 3,
+      "projects": {
+        "CUBI-REF-001": 1,
+        "CUBI-REF-002": 1,
+        "CUBI-REF-003": 1
+      }
+    },
+    "Timesheets": {
+      "total": 30,
+      "projects": {
+        "CUBI-REF-001": 10,
+        "CUBI-REF-002": 10,
+        "CUBI-REF-003": 10
+      }
+    },
+    "Communication Log": {
+      "total": 3,
+      "projects": {
+        "CUBI-REF-001": 1,
+        "CUBI-REF-002": 1,
+        "CUBI-REF-003": 1
+      }
+    },
+    "Audit Import Manifest": {
+      "total": 3,
+      "projects": {
+        "CUBI-REF-001": 1,
+        "CUBI-REF-002": 1,
+        "CUBI-REF-003": 1
+      }
+    },
+    "Dashboard KPIs": {
+      "total": 15,
+      "projects": {
+        "CUBI-REF-001": 5,
+        "CUBI-REF-002": 5,
+        "CUBI-REF-003": 5
+      }
+    },
+    "Portfolio Summary": {
+      "total": 3,
+      "projects": {
+        "CUBI-REF-001": 1,
+        "CUBI-REF-002": 1,
+        "CUBI-REF-003": 1
+      }
+    },
+    "Milestone Trend": {
+      "total": 36,
+      "projects": {
+        "CUBI-REF-001": 12,
+        "CUBI-REF-002": 12,
+        "CUBI-REF-003": 12
+      }
+    },
+    "Planned vs Actual": {
+      "total": 36,
+      "projects": {
+        "CUBI-REF-001": 12,
+        "CUBI-REF-002": 12,
+        "CUBI-REF-003": 12
+      }
+    },
+    "Resource Histogram Data": {
+      "total": 24,
+      "projects": {
+        "CUBI-REF-001": 8,
+        "CUBI-REF-002": 8,
+        "CUBI-REF-003": 8
+      }
+    },
+    "Cost S-Curve Data": {
+      "total": 36,
+      "projects": {
+        "CUBI-REF-001": 12,
+        "CUBI-REF-002": 12,
+        "CUBI-REF-003": 12
+      }
+    },
+    "Progress S-Curve Data": {
+      "total": 36,
+      "projects": {
+        "CUBI-REF-001": 12,
+        "CUBI-REF-002": 12,
+        "CUBI-REF-003": 12
+      }
+    },
+    "EVM Dashboard Data": {
+      "total": 3,
+      "projects": {
+        "CUBI-REF-001": 1,
+        "CUBI-REF-002": 1,
+        "CUBI-REF-003": 1
+      }
+    },
+    "Risk Matrix Data": {
+      "total": 75,
+      "projects": {
+        "CUBI-REF-001": 25,
+        "CUBI-REF-002": 25,
+        "CUBI-REF-003": 25
+      }
+    },
+    "Procurement Dashboard": {
+      "total": 3,
+      "projects": {
+        "CUBI-REF-001": 1,
+        "CUBI-REF-002": 1,
+        "CUBI-REF-003": 1
+      }
+    },
+    "Document Status Dashboard": {
+      "total": 3,
+      "projects": {
+        "CUBI-REF-001": 1,
+        "CUBI-REF-002": 1,
+        "CUBI-REF-003": 1
+      }
+    },
+    "Data Validation": {
+      "total": 42,
+      "projects": {
+        "CUBI-REF-001": 14,
+        "CUBI-REF-002": 14,
+        "CUBI-REF-003": 14
+      }
+    }
+  },
+  "issues": []
+}

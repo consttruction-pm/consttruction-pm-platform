@@ -56,7 +56,7 @@ checks both documents and their independent session gates.
 | 1 | Workbench shell, document route, command panel, HTTP endpoint, context resolver, inspector, status bar, states, authorization, audit log | IMPLEMENTED — see verification below | this branch |
 | 2 | Risk Analysis Studio | WIRED_WRITE | create + edit (`expected_revision`) + audit history against `risk_api.py` |
 | 3 | Project Analysis Studio | WIRED_READ | workspace read v2 + baseline register + canonical earned-value read; `INSUFFICIENT_DATA` when no baseline |
-| 4 | Import staging (7 tabs) | PARTIAL | register exchange only; no project import engine |
+| 4 | Import staging (7 tabs) | PARTIAL | source stage `cubi-reference-import-source.v1` validates the 94-sheet workbook (0 errors); persistence/apply still needs the project import engine (#1799) |
 | 5 | Schedule Scenario Studio | BLOCKED | no revision-bound scenario service (#1989) |
 | 6 | Decision & Approval | WIRED_WRITE in the preview composition; PARTIAL elsewhere | canonical proposal list + approve/reject + execute with `expected_revision`; scenario-specific approvals still wait on #1989 |
 | 7 | Integrated acceptance | PARTIAL | workbench boundary security gates proven; cross-phase (import, scenario, approval) acceptance waits on their contracts |
