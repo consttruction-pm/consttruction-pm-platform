@@ -140,8 +140,13 @@ def test_shell_resolves_each_workspace_route_without_a_second_shell():
     assert shell._workspace_path({"PATH_INFO": "/api/shell", "QUERY_STRING": "__path=enterprise"}) == "/enterprise"
     assert shell._workspace_path({"PATH_INFO": "/api/shell", "QUERY_STRING": "__path=enterprise/"}) == "/enterprise"
     assert shell._workspace_path({"PATH_INFO": "/enterprise/", "QUERY_STRING": ""}) == "/enterprise"
+    # The Personal Workbench and the administration panel are documents of the
+    # same session-gated family and ship no static file of their own.
+    assert shell._workspace_path({"PATH_INFO": "/api/shell", "QUERY_STRING": "__path=workbench"}) == "/workbench"
+    assert shell._workspace_path({"PATH_INFO": "/api/shell", "QUERY_STRING": "__path=admin"}) == "/admin"
     # An unknown rewrite never turns into an arbitrary route.
-    assert shell._workspace_path({"PATH_INFO": "/api/shell", "QUERY_STRING": "__path=admin"}) == "/app"
+    assert shell._workspace_path({"PATH_INFO": "/api/shell", "QUERY_STRING": "__path=docs"}) == "/app"
+    assert shell._workspace_path({"PATH_INFO": "/api/shell", "QUERY_STRING": "__path=etc/passwd"}) == "/app"
 
 def test_canonical_preview_routes_api_and_shell_through_the_same_runtime(monkeypatch):
     monkeypatch.setenv("VERCEL_ENV", "preview")

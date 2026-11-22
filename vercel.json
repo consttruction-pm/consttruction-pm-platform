@@ -30,6 +30,34 @@
       "destination": "/api/shell?__path=app/:path*"
     },
     {
+      "source": "/workbench",
+      "destination": "/api/shell?__path=workbench"
+    },
+    {
+      "source": "/workbench/",
+      "destination": "/api/shell?__path=workbench"
+    },
+    {
+      "source": "/admin",
+      "destination": "/api/shell?__path=admin"
+    },
+    {
+      "source": "/admin/",
+      "destination": "/api/shell?__path=admin"
+    },
+    {
+      "source": "/ai-workbench/",
+      "destination": "/api/shell?__path=ai-workbench"
+    },
+    {
+      "source": "/cubi/",
+      "destination": "/api/shell?__path=cubi"
+    },
+    {
+      "source": "/login/",
+      "destination": "/login.html"
+    },
+    {
       "source": "/enterprise",
       "destination": "/api/shell?__path=enterprise"
     },

@@ -1,7 +1,7 @@
 """Resolve the canonical workspace route behind a Vercel rewrite.
 
-Vercel maps the document routes (``/app``, ``/enterprise``, ``/cubi/*`` and
-``/ai-workbench/*``) onto the same Python function and carries the original
+Vercel maps the document routes (``/app``, ``/workbench``, ``/admin``,
+``/enterprise``, ``/cubi/*`` and ``/ai-workbench/*``) onto the same function and carries the original
 route in the ``__path`` query. This module decides which document the HTTP
 boundary must see. It is shared by both Vercel entrypoints so a route can never
 silently fall back to the Engineering shell.
@@ -15,7 +15,18 @@ from __future__ import annotations
 from typing import Mapping
 from urllib.parse import parse_qs
 
-WORKSPACE_ROUTES = ("app", "enterprise", "cubi", "ai-workbench")
+WORKSPACE_ROUTES = (
+    "app",
+    "enterprise",
+    "cubi",
+    "ai-workbench",
+    # The Personal Workbench and the global administration panel are documents
+    # of the same session-gated workspace family. They ship no static file, so
+    # the deployment rewrites them here; without these segments Vercel answers
+    # NOT_FOUND for /workbench/ and /admin before the identity boundary runs.
+    "workbench",
+    "admin",
+)
 FALLBACK_PATH = "/app"
 
 # The old ``/enterprise`` address is still accepted so the HTTP boundary can

@@ -53,6 +53,16 @@ def test_unknown_or_traversing_paths_fall_back_to_the_engineering_shell() -> Non
     assert _resolve("/random") == "/app"
 
 
+def test_workbench_and_admin_resolve_through_the_shell() -> None:
+    """Both documents ship no static file; the rewrite must keep them addressable."""
+
+    assert _resolve("/api/shell", "__path=workbench") == "/workbench"
+    assert _resolve("/api/shell", "__path=workbench%2F") == "/workbench"
+    assert _resolve("/api/shell", "__path=admin") == "/admin"
+    assert _resolve("/workbench/") == "/workbench"
+    assert _resolve("/admin") == "/admin"
+
+
 def test_rewrite_marker_is_removed_from_the_user_query() -> None:
     assert query_without_rewrite(
         {"QUERY_STRING": "__path=cubi%2Fenterprise%2Fdashboard&project=alpha&lang=fa"}
@@ -80,6 +90,18 @@ def test_vercel_config_routes_every_workspace_document_to_the_shell() -> None:
         assert rewrites["/ai-workbench/:path*"] == (
             "/api/shell?__path=ai-workbench/:path*"
         )
+        # Trailing-slash and no-slash forms both have to be mapped explicitly;
+        # Vercel answers NOT_FOUND for the bare directory otherwise.
+        for source, target in (
+            ("/workbench", "/api/shell?__path=workbench"),
+            ("/workbench/", "/api/shell?__path=workbench"),
+            ("/admin", "/api/shell?__path=admin"),
+            ("/admin/", "/api/shell?__path=admin"),
+            ("/ai-workbench/", "/api/shell?__path=ai-workbench"),
+            ("/cubi/", "/api/shell?__path=cubi"),
+            ("/login/", "/login.html"),
+        ):
+            assert rewrites[source] == target, (config_path.name, source)
 
 
 def test_deployment_builds_stage_the_enterprise_and_workbench_documents() -> None:
