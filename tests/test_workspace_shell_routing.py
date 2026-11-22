@@ -102,6 +102,10 @@ def test_vercel_config_routes_every_workspace_document_to_the_shell() -> None:
         }
         assert rewrites["/cubi"] == "/api/shell?__path=cubi"
         assert rewrites["/cubi/:path*"] == "/api/shell?__path=cubi/:path*"
+        # The Enterprise router builds every href with a trailing slash
+        # (``/cubi/enterprise/dashboard/``); without this rewrite the whole
+        # Enterprise menu answers NOT_FOUND at the edge.
+        assert rewrites["/cubi/:path*/"] == "/api/shell?__path=cubi/:path*"
         assert rewrites["/ai-workbench"] == "/api/shell?__path=ai-workbench"
         assert rewrites["/ai-workbench/:path*"] == (
             "/api/shell?__path=ai-workbench/:path*"
