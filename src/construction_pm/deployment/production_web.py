@@ -186,7 +186,15 @@ class StaticSite:
         directory = self.public.joinpath(*segments)
         if directory.is_dir():
             return _file(directory / "index.html")
-        return _file(self.root.joinpath(*segments))
+        # The assembled deployment root has no nested ``public`` directory, so a
+        # two-level section such as /features/scheduling/ only resolves here.
+        candidate = self.root.joinpath(*segments)
+        direct = _file(candidate)
+        if direct is not None:
+            return direct
+        if candidate.is_dir():
+            return _file(candidate / "index.html")
+        return None
 
 
 def _file(candidate: Path) -> Path | None:

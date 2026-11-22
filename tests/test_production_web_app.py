@@ -665,3 +665,15 @@ def test_change_password_enforces_the_policy_and_csrf(app):
     )
     assert status == 403
     assert json.loads(body)["code"] == "CSRF_TOKEN_INVALID"
+
+
+def test_nested_public_sections_resolve_their_index_document(site_root):
+    """The assembled root has no nested ``public`` dir; two-level sections must still resolve."""
+    from construction_pm.deployment.production_web import StaticSite
+
+    feature = site_root / "features" / "scheduling"
+    feature.mkdir(parents=True)
+    (feature / "index.html").write_text("<title>Scheduling</title>", encoding="utf-8")
+    site = StaticSite(site_root)
+    assert site.resolve("/features/scheduling") == (feature / "index.html").resolve()
+    assert site.resolve("/features/scheduling/") == (feature / "index.html").resolve()
