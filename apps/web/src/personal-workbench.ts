@@ -793,7 +793,7 @@ export async function mountPersonalWorkbench(container: HTMLElement, requestedLo
   const projectsResult = await sessionApi.listProjects();
   const projects: ProjectSummary[] = projectsResult.ok ? projectsResult.data.projects : [];
   const [enterpriseOk, adminOk] = await Promise.all([probeEnterprise(), probeAdmin()]);
-  const environments = resolveEnvironments({ projectsOk: projectsResult.ok && projects.length > 0, enterpriseOk, adminOk });
+  const environments = resolveEnvironments({ projectsOk: projectsResult.ok && (projects.length > 0 || adminOk === "granted"), enterpriseOk, adminOk });
 
   const environmentSection = element("section", "cp-wb-environments");
   environmentSection.append(element("h2", "", copy.environments));
