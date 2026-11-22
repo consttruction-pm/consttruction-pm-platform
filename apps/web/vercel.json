@@ -22,6 +22,10 @@
       "destination": "/api/shell?__path=app"
     },
     {
+      "source": "/app/:path*/",
+      "destination": "/api/shell?__path=app/:path*"
+    },
+    {
       "source": "/app/:path*",
       "destination": "/api/shell?__path=app/:path*"
     },
