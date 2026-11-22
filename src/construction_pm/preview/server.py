@@ -332,6 +332,11 @@ class PreviewApplication:
                 # preview runtime has no password/CSRF handshake, so the demo
                 # session is revoked directly and the cookie is cleared.
                 status, headers, body = self._api_logout(session)
+            elif path.startswith("/api/admin/"):
+                # The fixture-backed preview has no Global Administration
+                # identity or tenant-admin data. Return a definite denial so
+                # ordinary demo personas never see an unverified admin card.
+                status, headers, body = _json(403, {"code": "GLOBAL_ADMIN_REQUIRED"})
             elif path.startswith("/api/"):
                 status, headers, body = self._delegate(environ)
                 if status == 404 and body.strip() == b'{"code":"ROUTE_NOT_FOUND"}':
