@@ -797,6 +797,24 @@ export async function mountGlobalAdmin(container: HTMLElement, locale: string, c
       if (action === "create-user") {
         const result = await client.createUser(buildCreateUserInput(readForm(container)));
         say(result.ok ? `${labels.temporaryPassword}: ${result.data.temporary_password}` : result.code);
+        if (result.ok) {
+          // A created account must appear in the list without a manual reload;
+          // clear the form so a second click cannot create the same address again.
+          for (const field of container.querySelectorAll<HTMLInputElement | HTMLSelectElement>(
+            "section.cp-admin-create input, section.cp-admin-create select",
+          )) {
+            if (field.getAttribute("name") === "locale") {
+              continue;
+            }
+            if (field instanceof HTMLInputElement && field.type === "checkbox") {
+              field.checked = false;
+            } else if (field instanceof HTMLSelectElement) {
+              for (const option of [...field.options]) option.selected = false;
+            } else {
+              field.value = "";
+            }
+          }
+        }
       } else if (action === "edit-roles") {
         const row = editorRow(userId);
         if (!row) return;
@@ -846,7 +864,7 @@ export async function mountGlobalAdmin(container: HTMLElement, locale: string, c
         const result = await client.revokeSessions(userId, confirmPassword);
         say(result.ok ? "OK" : result.code);
       }
-      if (action !== "create-user") await refreshUsers();
+      await refreshUsers();
     } catch (error) {
       say(error instanceof Error ? error.message : String(error));
     }
