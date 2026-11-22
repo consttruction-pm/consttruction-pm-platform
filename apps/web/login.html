@@ -459,14 +459,10 @@
       applyLocale();
       document.getElementById("cp-login-username").focus();
 
-      // A live session skips the form. A reauth=1 request keeps it visible.
-      if (params.get("reauth") !== "1") {
-        fetch("/api/session", { credentials: "same-origin" })
-          .then((response) => {
-            if (response.ok) window.location.replace(nextPath);
-          })
-          .catch(() => {});
-      }
+      // Always require an explicit username and password at the login entry.
+      // Existing sessions must not silently bypass the sign-in screen.
+      // A successful POST creates/rotates the session, then opens the personal
+      // workbench; environment selection happens there, never at /login.
     </script>
   </body>
 </html>
