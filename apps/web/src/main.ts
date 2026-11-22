@@ -4897,7 +4897,7 @@ async function boot(): Promise<void> {
   const container = document.getElementById("app");
   if (!container) throw new Error("APP_ROOT_NOT_FOUND");
 
-  if (window.location.pathname === "/admin" || window.location.pathname === "/admin/") {
+  if (window.location.pathname === "/admin" || window.location.pathname === "/admin/" || window.location.pathname.startsWith("/admin/")) {
     const { GlobalAdminClient, mountGlobalAdmin } = await import("./global-admin.js");
     await mountGlobalAdmin(
       container,
@@ -4907,7 +4907,7 @@ async function boot(): Promise<void> {
     return;
   }
 
-  if (window.location.pathname === "/workbench" || window.location.pathname === "/workbench/") {
+  if (window.location.pathname === "/workbench" || window.location.pathname === "/workbench/" || window.location.pathname.startsWith("/workbench/")) {
     const { mountPersonalWorkbench } = await import("./personal-workbench.js");
     await mountPersonalWorkbench(container);
     return;
