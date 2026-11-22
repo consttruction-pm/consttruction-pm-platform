@@ -38,6 +38,22 @@ def _preview_selected() -> bool:
     return value("VERCEL_ENV") == "preview"
 
 
+def _canonical_preview_selected() -> bool:
+    """Use the PostgreSQL identity runtime for explicitly configured Preview deployments.
+
+    Keep this selector aligned with api/index.py: the workspace document and
+    /api/session must never choose different authentication/session backends.
+    """
+    enabled = os.environ.get("CUBI_PREVIEW_USE_CANONICAL_DATABASE", "").strip().lower()
+    if enabled not in {"1", "true", "yes"}:
+        return False
+    if os.environ.get("VERCEL_ENV", "").strip().lower() == "production":
+        return False
+    if os.environ.get("VERCEL_TARGET_ENV", "").strip().lower() == "production":
+        return False
+    return True
+
+
 def _unavailable(start_response):
     body = (
         "<!doctype html><html lang=\"en\"><meta charset=\"utf-8\">"
@@ -82,6 +98,18 @@ def app(environ, start_response):
     scoped = dict(environ)
     scoped["PATH_INFO"] = _workspace_path(environ)
     scoped["QUERY_STRING"] = _workspace_query(environ)
+    # Keep the shell and API on one identity backend. The fixture adapter
+    # auto-creates demo sessions and must not wrap canonical PostgreSQL login.
+    if _canonical_preview_selected():
+        if get_runtime is None:
+            print(f"cubi: runtime import failed ({_IMPORT_FAILURE})", file=sys.stderr)
+            return _unavailable(start_response)
+        try:
+            runtime = get_runtime()
+        except Exception as error:  # noqa: BLE001 - fail closed, never use demo sessions
+            print(f"cubi: canonical preview shell unavailable ({type(error).__name__})", file=sys.stderr)
+            return _unavailable(start_response)
+        return runtime(scoped, start_response)
     if _preview_selected():
         global _preview_app
         try:
