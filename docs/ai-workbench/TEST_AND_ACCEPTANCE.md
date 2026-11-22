@@ -198,7 +198,9 @@ using the Enterprise persona and the same real stores:
 6. a task is created through the Task API form, read back from
    `/api/enterprise/tasks` and still present after a full reload;
 7. the knowledge centre lists only what the server publishes, or states its
-   empty/unavailable source, and never presents a failed read as guidance;
+   empty/unavailable source, and never presents a failed read as guidance; the
+   publication and translation badges repeat the server's status, and a card
+   painted in the success tone must carry `publication_status: published`;
 8. a directory record is created through the record form, accepted with a blank
    optional email, listed back from `EnterpriseWorkbenchStore` and then found in
    the append-only audit trail on `/cubi/enterprise/audit/`;

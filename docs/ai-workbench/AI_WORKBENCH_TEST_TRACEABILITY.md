@@ -28,6 +28,8 @@ canonical service exists. A placeholder or a skipped test is not a pass.
 | Browser: Enterprise write and audit | directory record created, read back from the store and found in the audit trail | same | PASS |
 | Browser: Enterprise gate | a non-Enterprise session is returned to the Personal Workbench with the restricted note | same | PASS |
 | Blank optional email | a record form submitting `email: ""` is accepted; a malformed address is still rejected | `tests/test_enterprise_workbench_http.py` | PASS |
+| Knowledge status tones | publication/translation badges map server state; only `published` uses the success tone | `apps/web/src/enterprise-knowledge.test.ts` | PASS |
+| Browser: knowledge honesty | a card in the success tone carries `publication_status: published` | `apps/web/e2e/preview-e2e.mjs` | PASS |
 
 Command: `python -m pytest tests/test_ai_workbench_orchestration.py -q`
 

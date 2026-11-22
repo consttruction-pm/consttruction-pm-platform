@@ -125,7 +125,7 @@ Routing:
 | `pytest tests/test_ai_workbench_http.py tests/test_ai_workbench_orchestration.py` | 47 passed |
 | `pytest tests/test_production_web_app.py` | 34 passed |
 | `pytest tests/test_preview_runtime.py` | 26 passed |
-| `npm test` (web) | 1296 + 16 passed, 0 failed |
+| `npm test` (web) | 1298 + 16 passed, 0 failed |
 | `npm run typecheck` | clean |
 | `npm run build` | bundles emitted |
 | `node e2e/preview-e2e.mjs` | 127 recorded checks (see the run log attached to the PR) |

@@ -1273,6 +1273,10 @@ async function runEnterpriseJourney(page, baseUrl) {
   const knowledge = await page.evaluate(`(() => ({
     cards: document.querySelectorAll('[data-testid="knowledge-cards"] .cubi-knowledge-card').length,
     error_blocks: document.querySelectorAll('[data-testid="knowledge-cards"] .cubi-state-error').length,
+    statuses: Array.from(document.querySelectorAll('[data-testid="knowledge-cards"] .cubi-knowledge-card')).map((card) => ({
+      publication: (card.getAttribute("data-testid") ?? "").replace("knowledge-card-", ""),
+      success: Boolean(card.querySelector(".cubi-badge-success")),
+    })),
     text: document.querySelector('[data-testid="knowledge-cards"]')?.textContent ?? "",
   }))()`);
   assert(
@@ -1280,8 +1284,13 @@ async function runEnterpriseJourney(page, baseUrl) {
     "the knowledge center must either list published cards or state its empty/unavailable source: " + knowledge.text.slice(0, 160),
   );
   assert(knowledge.error_blocks === 0 || knowledge.cards > 0, "a knowledge read failure must not be presented as guidance");
+  assert(
+    knowledge.statuses.every((card) => !card.success || card.publication === "published"),
+    "an unpublished card must never be painted as published guidance: " + JSON.stringify(knowledge.statuses),
+  );
   record("Enterprise knowledge center states its real published state", {
     cards: knowledge.cards,
+    statuses: knowledge.statuses.map((card) => card.publication),
   });
 
   // A directory record goes through the Enterprise workbench store, which owns

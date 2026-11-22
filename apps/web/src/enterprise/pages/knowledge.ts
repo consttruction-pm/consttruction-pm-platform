@@ -31,6 +31,37 @@ type SearchState =
 
 let searchState: SearchState = { status: "idle" };
 
+export type KnowledgeBadgeTone = "neutral" | "success" | "warning" | "danger" | "info";
+
+/**
+ * The server owns publication state. The badge must repeat the state it was
+ * given: a draft or rejected card is never painted as published guidance.
+ */
+export function publicationTone(status: string): KnowledgeBadgeTone {
+  switch (status) {
+    case "published": return "success";
+    case "validated": return "info";
+    case "draft": return "warning";
+    case "rejected":
+    case "retired": return "danger";
+    default: return "neutral";
+  }
+}
+
+/** Translation state is independent of source publication for every locale. */
+export function translationTone(status: string): KnowledgeBadgeTone {
+  switch (status) {
+    case "published":
+    case "approved": return "success";
+    case "translated": return "info";
+    case "draft":
+    case "review_required": return "warning";
+    case "missing":
+    case "retired": return "neutral";
+    default: return "neutral";
+  }
+}
+
 export function renderKnowledge(ctx: PageContext, host: HTMLElement): void {
   const intro = section(
     "CUBI Knowledge & PMBOK",
@@ -185,7 +216,7 @@ function searchResults(ctx: PageContext, payload: Record<string, unknown>): HTML
     wrap.append(el("div", { class: "cubi-knowledge-hit" },
       el("div", { class: "cubi-knowledge-hit-head" }, titleNode,
         badge(String(hit.card_type ?? hit.entity_kind ?? "card"), "info"),
-        hit.translation_status ? badge(String(hit.translation_status), "neutral") : null,
+        hit.translation_status ? badge(String(hit.translation_status), translationTone(String(hit.translation_status))) : null,
       ),
       el("p", { class: "desc", text: String(hit.snippet ?? "") }),
       el("div", { class: "cubi-field-hint", text: `Score ${Number(hit.score ?? 0).toFixed(2)} · ${String(hit.scope ?? "central")}${hit.fallback_used ? " · fallback language" : ""}` }),
@@ -200,22 +231,31 @@ function cardsGrid(rows: Record<string, unknown>[]): HTMLElement {
   for (const card of rows) {
     const sourceUrl = typeof card.source_url === "string" ? card.source_url : "";
     const title = String(card.title ?? "Untitled guidance");
+    const publication = String(card.publication_status ?? "unknown");
+    const validation = String(card.validation_status ?? "");
+    const translation = String(card.translation_status ?? "");
     const head = el("div", { class: "cubi-knowledge-card-head" },
       sourceUrl
         ? el("a", { class: "cubi-link", text: title, attrs: { href: sourceUrl, target: "_blank", rel: "noopener noreferrer" } })
         : el("strong", { text: title }),
       badge(String(card.card_type ?? "card"), "info"),
     );
+    const tone = publicationTone(publication);
     const node = el("article", { class: "cubi-knowledge-card" },
       el("header", {}, head,
         el("p", { class: "desc", text: String(card.purpose ?? card.category ?? "") }),
       ),
       el("div", { class: "cubi-knowledge-card-body" },
         el("div", { class: "cubi-field-hint", text: `Source: ${String(card.source_title ?? "—")} · v${String(card.source_version ?? "—")}` }),
-        badge(String(card.publication_status ?? "—"), "success"),
+        badge(publication, tone),
+        validation && validation !== publication
+          ? badge(`validation: ${validation}`, publicationTone(validation))
+          : null,
+        translation ? badge(translation, translationTone(translation)) : null,
         el("span", { class: "cubi-field-hint", text: `Revision ${String(card.revision ?? "—")}` }),
       ),
     );
+    testId(node, `knowledge-card-${publication}`);
     grid.append(node);
   }
   return grid;
