@@ -760,3 +760,11 @@ def test_signup_rejects_foreign_origin(app):
     )
     assert status == 403
     assert json.loads(body)["code"] == "ORIGIN_NOT_ALLOWED"
+
+
+def test_personal_workbench_nested_document_is_session_gated_without_project_selection(app):
+    owner = login(app, email="owner@example.test")
+    for path in ("/workbench/profile", "/workbench/settings"):
+        status, _, body = call(app, "GET", path, cookie=owner)
+        assert status == 200, path
+        assert b"CUBI Workspace" in body
