@@ -525,6 +525,9 @@ function renderLanding(container: HTMLElement): void {
   // product links must be resolved against the root instead of the page.
   const siteRootHref = resolveLandingLocaleFromPath(window.location.pathname) ? "../" : "./";
   const workspaceHref = `${siteRootHref}app/`;
+  // Sign-in is its own document: /app/ is the Engineering shell and would
+  // bounce the visitor through a deep-link round trip before the form.
+  const loginHref = "/login";
   const publicRootHref = resolveLandingLanguageHref("en", window.location.pathname);
   const publicLocaleRootHref = locale === "fa" ? resolveLandingLanguageHref("fa", window.location.pathname) : publicRootHref;
   const publicPageHref = (route: string) => `${publicLocaleRootHref}${route}/`;
@@ -538,7 +541,7 @@ function renderLanding(container: HTMLElement): void {
         </nav>
         <div class="cubi-exact-actions">
           <label class="cubi-language-picker"><span class="sr-only">${c.changeLanguage}</span><select class="cubi-exact-language" id="cubi-language" aria-label="${c.changeLanguage}">${getLandingHomepageLocales().map((code) => { const names: Record<string, string> = { zh: "简体中文", tr: "Türkçe", "zh-Hans": "简体中文", "zh-Hant": "繁體中文" }; return `<option value="${code}"${code === locale ? " selected" : ""}>${names[code] ?? getWorkspaceLocaleDisplayName(code)}</option>`; }).join("")}</select></label>
-          <a href="${workspaceHref}" class="cubi-exact-signin">${t.signIn}</a><a href="${workspaceHref}" class="cubi-exact-start">${t.start} →</a>
+          <a href="${loginHref}" class="cubi-exact-signin">${t.signIn}</a><a href="${workspaceHref}" class="cubi-exact-start">${t.start} →</a>
         </div>
       </header>
       <main>
