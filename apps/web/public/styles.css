@@ -10422,6 +10422,16 @@ body.cp-toolbar-dragging .cp-tool-btn { cursor: grabbing; }
 .cp-admin-table th, .cp-admin-table td { text-align: start; padding: 8px; border-bottom: 1px solid #e3e9f1; vertical-align: top; }
 .cp-admin-table th { background: #f4f7fb; font-weight: 600; }
 .cp-admin-empty { color: #5a6b7d; }
+.cp-admin-create { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 16px; align-items: end; padding: 16px; border: 1px solid #dbe4ee; border-radius: 12px; background: #fff; }
+.cp-admin-create h2 { grid-column: 1 / -1; margin: 0; }
+.cp-admin-create label { display: flex; flex-direction: column; gap: 6px; min-width: 0; color: #5a6b7d; font-size: .82rem; font-weight: 600; }
+.cp-admin-create label:has(input[type="checkbox"]) { flex-direction: row; align-items: center; gap: 8px; }
+.cp-admin-create input, .cp-admin-create select { min-height: 38px; padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #0b1f33; font: inherit; font-size: .9rem; min-width: 0; }
+.cp-admin-create label:has(select[multiple]) { grid-row: span 2; align-self: start; }
+.cp-admin-create select[multiple] { min-height: 140px; max-height: 140px; }
+.cp-admin-create button { justify-self: start; min-height: 38px; padding: 8px 14px; border: 1px solid transparent; border-radius: 8px; background: #1976d2; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+.cp-admin-create button:hover { background: #155fa9; }
+.cp-admin-create output, .cp-admin-create .cp-admin-create-status { grid-column: 1 / -1; }
 @media (max-width: 600px) { .cp-admin-table th:nth-child(4), .cp-admin-table td:nth-child(4) { display: none; } }
 /* Personal Workbench (signed-in entry surface) */
 .cp-wb { --wb-navy:#0f2747; --wb-blue:#1976d2; --wb-copper:#b46a2a; min-height:100vh; padding:0 clamp(1rem,3vw,3rem) 3rem; color:#17202a; background:#f5f7fa; }
@@ -10446,6 +10456,15 @@ body.cp-toolbar-dragging .cp-tool-btn { cursor: grabbing; }
 .cp-wb-identity dl { display:grid; grid-template-columns:max-content 1fr; gap:.4rem 1.2rem; margin:0; font-size:.9rem; }
 .cp-wb-identity dt { color:#667085; font-weight:650; }
 .cp-wb-identity dd { margin:0; color:var(--wb-navy); overflow-wrap:anywhere; }
+.cp-wb-account { margin-top:2rem; padding:1.2rem; border:1px solid #d9e0e7; border-radius:14px; background:#fff; max-width:640px; }
+.cp-wb-account-form { display:grid; gap:.9rem; margin-top:.8rem; }
+.cp-wb-account-field { display:grid; gap:.35rem; font-size:.85rem; color:#667085; font-weight:650; }
+.cp-wb-account-field input { min-height:38px; padding:.45rem .7rem; border:1px solid #d9e0e7; border-radius:8px; background:#fff; color:#17202a; font:inherit; }
+.cp-wb-account-submit { justify-self:start; min-height:38px; padding:.5rem 1rem; border:1px solid transparent; border-radius:8px; background:var(--wb-blue); color:#fff; font:inherit; font-weight:700; cursor:pointer; }
+.cp-wb-account-submit:disabled { opacity:.55; cursor:not-allowed; }
+.cp-wb-account-message { margin:.7rem 0 0; font-size:.88rem; }
+.cp-wb-account-message[data-state="ok"] { color:#0f7b3f; }
+.cp-wb-account-message[data-state="error"] { color:#8a1f1f; }
 .cp-wb-environments,.cp-wb-projects,.cp-wb-tasks,.cp-wb-help { margin-top:2rem; }
 .cp-wb h2 { margin:0 0 .7rem; color:var(--wb-navy); font-size:1.15rem; }
 .cp-wb-cards { display:grid; gap:1rem; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); }

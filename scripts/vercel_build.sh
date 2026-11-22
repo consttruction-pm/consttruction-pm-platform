@@ -15,11 +15,9 @@ npm --prefix apps/web run build
 
 rm -rf public
 mkdir -p public/dist public/client-sync/src
+cp apps/web/index.html apps/web/app.html apps/web/login.html apps/web/styles.css public/
 cp apps/web/enterprise.html apps/web/ai-workbench.html apps/web/ai-workbench.css public/
 cp -R apps/web/public/. public/
-# The canonical stylesheet in apps/web wins over any stale copy that ships
-# inside apps/web/public; the shell links /styles.css either way.
-cp apps/web/index.html apps/web/app.html apps/web/login.html apps/web/styles.css public/
 cp -R apps/web/dist/web/src/. public/dist/
 if [ -d apps/web/dist/client-sync/src ]; then
   cp -R apps/web/dist/client-sync/src/. public/client-sync/src/
