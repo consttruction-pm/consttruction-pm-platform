@@ -12,6 +12,18 @@
       "includeFiles": "vercel-runtime/**"
     }
   },
+  "redirects": [
+    {
+      "source": "/workbench",
+      "destination": "/cubi/workbench",
+      "permanent": false
+    },
+    {
+      "source": "/workbench/:path*",
+      "destination": "/cubi/workbench",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/app",
