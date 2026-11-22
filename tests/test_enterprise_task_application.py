@@ -184,6 +184,23 @@ def test_enterprise_access_requires_explicit_session_entitlement(service):
         )
 
 
+def test_platform_owner_can_read_and_write_enterprise_tasks(service):
+    service._lifecycle.sessions["owner-session"] = SimpleNamespace(
+        user_id="owner",
+        tenant_id="tenant-a",
+        roles=frozenset({"global_admin"}),
+    )
+    stored = service.create_task(
+        "owner-session",
+        {"title": "Owner enters Enterprise"},
+        idempotency_key="owner-create-1",
+    )
+    assert stored.task.created_by_user_id == "owner"
+    assert [item.task.task_id for item in service.list_tasks("owner-session")] == [
+        stored.task.task_id
+    ]
+
+
 def test_enterprise_viewer_can_read_but_cannot_write_personal_tasks(service):
     with pytest.raises(EnterpriseTaskAuthorizationError, match="ENTERPRISE_WRITE_DENIED"):
         service.create_task(
