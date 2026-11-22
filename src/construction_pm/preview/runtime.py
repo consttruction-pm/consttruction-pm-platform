@@ -346,6 +346,10 @@ from construction_pm.wbs_master_repository import (
     WBSParentKind,
 )
 
+from construction_pm.importing.reference_persistence import (
+    ensure_reference_projects,
+)
+
 from .fixtures import (
     CURATED_FIELD_IDS,
     DEFAULT_CALENDAR_VERSION,
@@ -1184,6 +1188,15 @@ def seed_database(connection: sqlite3.Connection) -> None:
     seed_organization_library(form_repository, PREVIEW_TENANT_ID, "preview-admin")
     for fixture in DEMO_PROJECTS:
         seed_demo_project(repositories, store, fixture)
+    # The three DEMO/SYNTHETIC reference projects come from the frozen bundle,
+    # not from a hand-written fixture. They are ordinary projects in the same
+    # repositories and use the same canonical schedule engine.
+    ensure_reference_projects(
+        repositories,
+        store,
+        tenant_id=PREVIEW_TENANT_ID,
+        member_user_ids=DEMO_PROJECT_MEMBER_USER_IDS,
+    )
     connection.commit()
 
 
@@ -1531,6 +1544,16 @@ def open_preview_runtime(
 
     repositories = PreviewRepositories.create(connection)
     store = PreviewStore(connection)
+    # Idempotent for a database that already holds the bundle and a no-op for
+    # every project row that already exists, so a fixed preview database
+    # created before this feature gains the reference projects on next open
+    # without a seed-version bump or a reset.
+    ensure_reference_projects(
+        repositories,
+        store,
+        tenant_id=PREVIEW_TENANT_ID,
+        member_user_ids=DEMO_PROJECT_MEMBER_USER_IDS,
+    )
     form_repository = SQLiteFormBuilderRepository(connection)
     form_binding_provider = PreviewFormBindingProvider(
         store,
@@ -1709,7 +1732,14 @@ def open_preview_runtime(
             expenses=repositories.expenses,
             resolver_provider=_evm_resolver,
             wbs_repository=repositories.wbs,
-            resource_assignments=repositories.resource_assignments,
+            # Assignment cost decomposition is only valid when every
+            # activity's assignment budget equals its baseline budget. The
+            # reference workbook's activity budget covers labour, equipment
+            # and non-resource cost while its assignments price only labour
+            # and equipment, so decomposition would be a fabricated split.
+            # EVM therefore measures at activity level; assignments remain
+            # authoritative for the resource histogram and loading views.
+            resource_assignments=None,
         ),
         policy,
     )
