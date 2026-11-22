@@ -7,12 +7,12 @@ new session reads. Update it in every section PR.
 
 | Field | Value |
 | --- | --- |
-| Last verified `main` | `489b07ccd` (Section 3 merged) |
+| Last verified `main` | `0bb8b972a` (Section 4 merged) |
 | Baseline for this workstream | PR #2101 merged as `6c25964a4` |
 | Canonical page↔Help index | `docs/traceability/{engineering,enterprise}-v26.json` |
 | Help link check | **84/84 rows verified**, report in `evidence/help-link-verification-2026-11-21.json` |
-| Open PR (this section) | Section 4 PR (pending) |
-| Next exact task | Open the Section 4 PR, run CI, merge, then start Section 5 — Resources, Costs and Project Dictionaries |
+| Open PR (this section) | None (Section 4 merged) |
+| Next exact task | Start Section 5 — Resources, Costs and Project Dictionaries |
 | Owner split | Agent 1 implements; Agent 2 documents, traces and specifies tests only |
 
 ## Section plan
@@ -25,7 +25,7 @@ Statuses: `NOT_STARTED`, `IN_PROGRESS`, `DOCUMENTED`, `HELP_VERIFIED`,
 | 1 | Repository audit and documentation ownership map | `MERGED` | `README.md`, `OFFICIAL_HELP_BASELINE.md`, `SPEC_TEMPLATE.md`, this index | PR #2106 → `99e77d01c` | 84/84 Help rows verified; no product files touched |
 | 2 | Engineering workspace and Activities | `MERGED` | `ENGINEERING_WORKSPACE_ACTIVITIES.md` | PR #2107 → `74370eeca` | 18 Help + 16 User Guide URLs; 11 scenarios; 4 documented divergences |
 | 3 | Activity Details and WBS | `MERGED` | `ENGINEERING_ACTIVITY_DETAILS_WBS.md` | PR #2108 → `489b07ccd` | 43 rows, 23 scenarios; 40 Help + 27 User Guide URLs; 8 documented divergences/gaps |
-| 4 | Gantt, Relationships and Calendars | `TEST_SPECIFIED` | `ENGINEERING_GANTT_RELATIONSHIPS_CALENDARS.md` | Section 4 PR | 64 rows, 38 scenarios; 52 Help + 33 User Guide URLs; 17 documented divergences/gaps |
+| 4 | Gantt, Relationships and Calendars | `MERGED` | `ENGINEERING_GANTT_RELATIONSHIPS_CALENDARS.md` | PR #2116 → `0bb8b972a` | 64 rows, 38 scenarios; 52 Help + 33 User Guide URLs; 17 documented divergences/gaps |
 | 5 | Resources, Costs and Project Dictionaries | `NOT_STARTED` | `ENGINEERING_RESOURCES_COSTS_DICTIONARIES.md` | — | roles, assignments, cost fields, codes |
 | 6 | Filters, Layouts and Toolbars | `NOT_STARTED` | `ENGINEERING_FILTERS_LAYOUTS_TOOLBARS.md` | — | filters, grouping, saved layouts, menus |
 | 7 | Documents, Tracking and Reports | `NOT_STARTED` | `ENGINEERING_DOCUMENTS_TRACKING_REPORTS.md` | — | work products, progress, print/report |
@@ -73,10 +73,11 @@ No product implementation file is modified by this workstream.
 | 1 — Foundation | `d27acfc94` | #2106 | green (test 3.11–3.13, typecheck ×4; the two unrelated Vercel projects fail on pre-existing account state) | `99e77d01c` | 84/84 Help rows verified |
 | 2 — Workspace and Activities | `82304984f` | #2107 | green (test 3.11–3.13, typecheck ×4; the two unrelated Vercel projects fail on pre-existing account state) | `74370eeca` | 18 Help URLs, 16 User Guide URLs, 11 scenarios |
 | 3 — Activity Details and WBS | `2f9583cbf` | #2108 | green (test 3.11–3.13, typecheck ×4; the two unrelated Vercel projects fail on pre-existing account state) | `489b07ccd` | 40 Help URLs, 27 User Guide URLs, 23 scenarios |
+| 4 — Gantt, Relationships and Calendars | `d0df98bc3` | #2116 | green (test 3.11–3.13, typecheck ×4, `cubi-web-preview`; the two unrelated Vercel projects fail on pre-existing account state) | `0bb8b972a` | 52 Help URLs, 33 User Guide URLs, 38 scenarios, 17 gaps |
 
 ## Open gaps
 
-- Sections 5–18 are `NOT_STARTED`; Section 4 is `TEST_SPECIFIED` and awaiting PR/CI/merge.
+- Sections 5–18 are `NOT_STARTED`; Sections 1–4 are `MERGED`.
 - Section 3 records deliberate read-only scopes: activity code assignments, step
   editing, notebook persistence and risk-to-activity assignment are not
   available in the read model, and WBS delete does not cascade activity
