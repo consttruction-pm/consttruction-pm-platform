@@ -1,4 +1,5 @@
 import { FetchSessionApi, type ProjectSummary } from "./session-api.js";
+import { withCsrfHeader } from "./csrf.js";
 
 /**
  * Personal Workbench — the signed-in entry surface that sits between the
@@ -22,11 +23,16 @@ type Copy = {
   engineeringNote: string;
   enterprise: string;
   enterpriseNote: string;
+  admin: string;
+  adminNote: string;
   open: string;
   restricted: string;
   enterpriseUnverified: string;
   enterpriseUnverifiedNote: string;
   enterpriseRestrictedNote: string;
+  adminUnverified: string;
+  adminUnverifiedNote: string;
+  adminRestrictedNote: string;
   projects: string;
   projectsEmpty: string;
   tasks: string;
@@ -42,6 +48,13 @@ type Copy = {
   language: string;
   signedOut: string;
   signOut: string;
+  account: string;
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+  changePassword: string;
+  passwordChanged: string;
+  passwordMismatch: string;
 };
 
 export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
@@ -57,11 +70,16 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     engineeringNote: "Projects, WBS, activities, scheduling, resources and reports.",
     enterprise: "CUBI Enterprise",
     enterpriseNote: "Organization, teams, tasks, approvals, workflows and portfolio.",
+    admin: "CUBI Global Administration",
+    adminNote: "Tenant-wide administration: identities, organizations and platform settings.",
     open: "Open environment",
     restricted: "Not authorized for this account",
     enterpriseUnverified: "Enterprise access could not be verified",
     enterpriseUnverifiedNote: "The server did not answer the access check. This is not a denial; retry before assuming the environment is unavailable.",
     enterpriseRestrictedNote: "The server reported no Enterprise entitlement for this account.",
+    adminUnverified: "Global Administration access could not be verified",
+    adminUnverifiedNote: "The server did not answer the access check. This is not a denial; retry before assuming the environment is unavailable.",
+    adminRestrictedNote: "The server reported no Global Administration entitlement for this account.",
     projects: "Authorized projects",
     projectsEmpty: "No projects are authorized for this account yet.",
     tasks: "Assigned tasks",
@@ -77,6 +95,13 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     language: "Language",
     signedOut: "Your session has expired. Sign in to continue.",
     signOut: "Sign out",
+    account: "Account",
+    currentPassword: "Current password",
+    newPassword: "New password",
+    confirmPassword: "Confirm new password",
+    changePassword: "Change password",
+    passwordChanged: "Your password was changed. Other sessions were signed out.",
+    passwordMismatch: "The two new passwords do not match.",
   },
   fa: {
     title: "میزکار شخصی",
@@ -90,11 +115,16 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     engineeringNote: "پروژه‌ها، ساختار شکست کار، فعالیت‌ها، زمان‌بندی، منابع و گزارش‌ها.",
     enterprise: "کوبی سازمانی",
     enterpriseNote: "سازمان، تیم‌ها، وظایف، تأییدها، گردش‌کار و پرتفولیو.",
+    admin: "مدیریت کل کوبی",
+    adminNote: "مدیریت سطح سازمان: هویت‌ها، سازمان‌ها و تنظیمات پلتفرم.",
     open: "ورود به محیط",
     restricted: "برای این حساب مجاز نیست",
     enterpriseUnverified: "دسترسی به محیط سازمانی تأیید نشد",
     enterpriseUnverifiedNote: "سرور به بررسی دسترسی پاسخ نداد. این وضعیت به معنای رد دسترسی نیست؛ پیش از نتیجه‌گیری دوباره تلاش کنید.",
     enterpriseRestrictedNote: "سرور اعلام کرد این حساب مجوز محیط سازمانی ندارد.",
+    adminUnverified: "دسترسی به مدیریت کل تأیید نشد",
+    adminUnverifiedNote: "سرور به بررسی دسترسی پاسخ نداد. این وضعیت به معنای رد دسترسی نیست؛ پیش از نتیجه‌گیری دوباره تلاش کنید.",
+    adminRestrictedNote: "سرور اعلام کرد این حساب مجوز مدیریت کل ندارد.",
     projects: "پروژه‌های مجاز",
     projectsEmpty: "هنوز هیچ پروژه‌ای برای این حساب مجاز نشده است.",
     tasks: "وظایف واگذارشده",
@@ -110,6 +140,13 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     language: "زبان",
     signedOut: "نشست شما پایان یافته است. برای ادامه وارد شوید.",
     signOut: "خروج",
+    account: "حساب کاربری",
+    currentPassword: "رمز فعلی",
+    newPassword: "رمز جدید",
+    confirmPassword: "تکرار رمز جدید",
+    changePassword: "تغییر رمز",
+    passwordChanged: "رمز شما تغییر کرد. نشست‌های دیگر بسته شدند.",
+    passwordMismatch: "رمزهای جدید یکسان نیستند.",
   },
   de: {
     title: "Persönliche Werkbank",
@@ -123,11 +160,16 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     engineeringNote: "Projekte, WBS, Vorgänge, Terminplanung, Ressourcen und Berichte.",
     enterprise: "CUBI Enterprise",
     enterpriseNote: "Organisation, Teams, Aufgaben, Freigaben, Workflows und Portfolio.",
+    admin: "CUBI Globale Administration",
+    adminNote: "Mandantenweite Administration: Identitäten, Organisationen und Plattform-Einstellungen.",
     open: "Umgebung öffnen",
     restricted: "Für dieses Konto nicht freigegeben",
     enterpriseUnverified: "Enterprise-Zugriff konnte nicht geprüft werden",
     enterpriseUnverifiedNote: "Der Server hat die Zugriffsprüfung nicht beantwortet. Das ist keine Ablehnung; bitte erneut versuchen.",
     enterpriseRestrictedNote: "Der Server meldet für dieses Konto keine Enterprise-Berechtigung.",
+    adminUnverified: "Zugriff auf die Globale Administration konnte nicht geprüft werden",
+    adminUnverifiedNote: "Der Server hat die Zugriffsprüfung nicht beantwortet. Das ist keine Ablehnung; bitte erneut versuchen.",
+    adminRestrictedNote: "Der Server meldet für dieses Konto keine Berechtigung für die Globale Administration.",
     projects: "Freigegebene Projekte",
     projectsEmpty: "Für dieses Konto sind noch keine Projekte freigegeben.",
     tasks: "Zugewiesene Aufgaben",
@@ -143,6 +185,13 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     language: "Sprache",
     signedOut: "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.",
     signOut: "Abmelden",
+    account: "Konto",
+    currentPassword: "Aktuelles Passwort",
+    newPassword: "Neues Passwort",
+    confirmPassword: "Neues Passwort bestätigen",
+    changePassword: "Passwort ändern",
+    passwordChanged: "Ihr Passwort wurde geändert. Andere Sitzungen wurden beendet.",
+    passwordMismatch: "Die neuen Passwörter stimmen nicht überein.",
   },
   zh: {
     title: "个人工作台",
@@ -156,11 +205,16 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     engineeringNote: "项目、WBS、活动、排程、资源和报表。",
     enterprise: "CUBI 企业",
     enterpriseNote: "组织、团队、任务、审批、工作流和项目组合。",
+    admin: "CUBI 全局管理",
+    adminNote: "租户级管理：身份、组织与平台设置。",
     open: "进入环境",
     restricted: "此账户未获授权",
     enterpriseUnverified: "无法验证企业环境访问权限",
     enterpriseUnverifiedNote: "服务器未响应访问检查。这并不表示拒绝；请重试后再判断。",
     enterpriseRestrictedNote: "服务器报告此账户没有企业环境授权。",
+    adminUnverified: "无法验证全局管理访问权限",
+    adminUnverifiedNote: "服务器未响应访问检查。这并不表示拒绝；请重试后再判断。",
+    adminRestrictedNote: "服务器报告此账户没有全局管理授权。",
     projects: "已授权项目",
     projectsEmpty: "此账户尚未获得任何项目授权。",
     tasks: "已分配任务",
@@ -176,6 +230,13 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     language: "语言",
     signedOut: "会话已过期，请重新登录。",
     signOut: "退出登录",
+    account: "账户",
+    currentPassword: "当前密码",
+    newPassword: "新密码",
+    confirmPassword: "确认新密码",
+    changePassword: "更改密码",
+    passwordChanged: "密码已更改，其他会话已退出。",
+    passwordMismatch: "两次输入的新密码不一致。",
   },
   ar: {
     title: "مساحة العمل الشخصية",
@@ -189,11 +250,16 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     engineeringNote: "المشاريع وهيكل العمل والأنشطة والجدولة والموارد والتقارير.",
     enterprise: "كوبي المؤسسية",
     enterpriseNote: "المؤسسة والفرق والمهام والموافقات وسير العمل والمحفظة.",
+    admin: "إدارة كوبي الشاملة",
+    adminNote: "إدارة على مستوى المستأجر: الهويات والمنظمات وإعدادات المنصة.",
     open: "الدخول إلى البيئة",
     restricted: "غير مصرح لهذا الحساب",
     enterpriseUnverified: "تعذّر التحقق من الوصول إلى البيئة المؤسسية",
     enterpriseUnverifiedNote: "لم يستجب الخادم لفحص الوصول. هذا ليس رفضًا؛ أعد المحاولة قبل الاستنتاج.",
     enterpriseRestrictedNote: "أبلغ الخادم بعدم وجود تصريح مؤسسي لهذا الحساب.",
+    adminUnverified: "تعذّر التحقق من الوصول إلى الإدارة الشاملة",
+    adminUnverifiedNote: "لم يستجب الخادم لفحص الوصول. هذا ليس رفضًا؛ أعد المحاولة قبل الاستنتاج.",
+    adminRestrictedNote: "أبلغ الخادم بعدم وجود تصريح إدارة شاملة لهذا الحساب.",
     projects: "المشاريع المصرح بها",
     projectsEmpty: "لا توجد مشاريع مصرح بها لهذا الحساب بعد.",
     tasks: "المهام المسندة",
@@ -209,6 +275,13 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     language: "اللغة",
     signedOut: "انتهت جلستك. سجّل الدخول للمتابعة.",
     signOut: "تسجيل الخروج",
+    account: "الحساب",
+    currentPassword: "كلمة المرور الحالية",
+    newPassword: "كلمة المرور الجديدة",
+    confirmPassword: "تأكيد كلمة المرور الجديدة",
+    changePassword: "تغيير كلمة المرور",
+    passwordChanged: "تم تغيير كلمة المرور وإنهاء الجلسات الأخرى.",
+    passwordMismatch: "كلمتا المرور الجديدتان غير متطابقتين.",
   },
   fr: {
     title: "Bureau personnel",
@@ -222,11 +295,16 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     engineeringNote: "Projets, WBS, activités, planification, ressources et rapports.",
     enterprise: "CUBI Entreprise",
     enterpriseNote: "Organisation, équipes, tâches, approbations, workflows et portefeuille.",
+    admin: "Administration globale CUBI",
+    adminNote: "Administration à l’échelle du locataire : identités, organisations et paramètres de la plateforme.",
     open: "Ouvrir l’environnement",
     restricted: "Non autorisé pour ce compte",
     enterpriseUnverified: "L'accès Enterprise n'a pas pu être vérifié",
     enterpriseUnverifiedNote: "Le serveur n'a pas répondu au contrôle d'accès. Ce n'est pas un refus ; réessayez avant de conclure.",
     enterpriseRestrictedNote: "Le serveur indique que ce compte ne dispose d'aucune autorisation Enterprise.",
+    adminUnverified: "L'accès à l'administration globale n'a pas pu être vérifié",
+    adminUnverifiedNote: "Le serveur n'a pas répondu au contrôle d'accès. Ce n'est pas un refus ; réessayez avant de conclure.",
+    adminRestrictedNote: "Le serveur indique que ce compte ne dispose d'aucune autorisation d'administration globale.",
     projects: "Projets autorisés",
     projectsEmpty: "Aucun projet n’est encore autorisé pour ce compte.",
     tasks: "Tâches assignées",
@@ -242,6 +320,13 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     language: "Langue",
     signedOut: "Votre session a expiré. Veuillez vous reconnecter.",
     signOut: "Se déconnecter",
+    account: "Compte",
+    currentPassword: "Mot de passe actuel",
+    newPassword: "Nouveau mot de passe",
+    confirmPassword: "Confirmer le nouveau mot de passe",
+    changePassword: "Changer le mot de passe",
+    passwordChanged: "Votre mot de passe a été modifié. Les autres sessions ont été fermées.",
+    passwordMismatch: "Les deux nouveaux mots de passe ne correspondent pas.",
   },
   ja: {
     title: "パーソナルワークベンチ",
@@ -255,11 +340,16 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     engineeringNote: "プロジェクト、WBS、アクティビティ、スケジューリング、リソース、レポート。",
     enterprise: "CUBI エンタープライズ",
     enterpriseNote: "組織、チーム、タスク、承認、ワークフロー、ポートフォリオ。",
+    admin: "CUBI グローバル管理",
+    adminNote: "テナント全体の管理：ID、組織、プラットフォーム設定。",
     open: "環境を開く",
     restricted: "このアカウントには許可されていません",
     enterpriseUnverified: "エンタープライズへのアクセスを確認できませんでした",
     enterpriseUnverifiedNote: "サーバーがアクセス確認に応答しませんでした。拒否ではありません。再試行してから判断してください。",
     enterpriseRestrictedNote: "このアカウントにはエンタープライズ権限がないとサーバーが報告しました。",
+    adminUnverified: "グローバル管理へのアクセスを確認できませんでした",
+    adminUnverifiedNote: "サーバーがアクセス確認に応答しませんでした。拒否ではありません。再試行してから判断してください。",
+    adminRestrictedNote: "このアカウントにはグローバル管理権限がないとサーバーが報告しました。",
     projects: "許可されたプロジェクト",
     projectsEmpty: "このアカウントに許可されたプロジェクトはまだありません。",
     tasks: "割り当てられたタスク",
@@ -275,6 +365,13 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     language: "言語",
     signedOut: "セッションの有効期限が切れました。再度ログインしてください。",
     signOut: "サインアウト",
+    account: "アカウント",
+    currentPassword: "現在のパスワード",
+    newPassword: "新しいパスワード",
+    confirmPassword: "新しいパスワードの確認",
+    changePassword: "パスワードを変更",
+    passwordChanged: "パスワードを変更しました。他のセッションは終了しました。",
+    passwordMismatch: "新しいパスワードが一致しません。",
   },
   ko: {
     title: "개인 워크벤치",
@@ -288,11 +385,16 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     engineeringNote: "프로젝트, WBS, 활동, 일정, 리소스 및 보고서.",
     enterprise: "CUBI 엔터프라이즈",
     enterpriseNote: "조직, 팀, 작업, 승인, 워크플로 및 포트폴리오.",
+    admin: "CUBI 글로벌 관리",
+    adminNote: "테넌트 전체 관리: ID, 조직 및 플랫폼 설정.",
     open: "환경 열기",
     restricted: "이 계정에는 권한이 없습니다",
     enterpriseUnverified: "엔터프라이즈 접근을 확인하지 못했습니다",
     enterpriseUnverifiedNote: "서버가 접근 확인에 응답하지 않았습니다. 거부가 아니므로 다시 시도한 후 판단하세요.",
     enterpriseRestrictedNote: "서버가 이 계정에 엔터프라이즈 권한이 없다고 보고했습니다.",
+    adminUnverified: "글로벌 관리 접근을 확인하지 못했습니다",
+    adminUnverifiedNote: "서버가 접근 확인에 응답하지 않았습니다. 거부가 아니므로 다시 시도한 후 판단하세요.",
+    adminRestrictedNote: "서버가 이 계정에 글로벌 관리 권한이 없다고 보고했습니다.",
     projects: "권한이 부여된 프로젝트",
     projectsEmpty: "이 계정에 아직 권한이 부여된 프로젝트가 없습니다.",
     tasks: "할당된 작업",
@@ -308,6 +410,13 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     language: "언어",
     signedOut: "세션이 만료되었습니다. 다시 로그인하세요.",
     signOut: "로그아웃",
+    account: "계정",
+    currentPassword: "현재 비밀번호",
+    newPassword: "새 비밀번호",
+    confirmPassword: "새 비밀번호 확인",
+    changePassword: "비밀번호 변경",
+    passwordChanged: "비밀번호가 변경되었습니다. 다른 세션은 로그아웃되었습니다.",
+    passwordMismatch: "새 비밀번호가 일치하지 않습니다.",
   },
   ru: {
     title: "Личное рабочее место",
@@ -321,11 +430,16 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     engineeringNote: "Проекты, СДР, работы, планирование, ресурсы и отчёты.",
     enterprise: "CUBI Предприятие",
     enterpriseNote: "Организация, команды, задачи, согласования, процессы и портфель.",
+    admin: "Глобальное администрирование CUBI",
+    adminNote: "Администрирование всего арендатора: учётные записи, организации и настройки платформы.",
     open: "Открыть среду",
     restricted: "Нет доступа для этой учётной записи",
     enterpriseUnverified: "Не удалось проверить доступ к Enterprise",
     enterpriseUnverifiedNote: "Сервер не ответил на проверку доступа. Это не отказ; повторите попытку, прежде чем делать вывод.",
     enterpriseRestrictedNote: "Сервер сообщил, что у этой учётной записи нет прав Enterprise.",
+    adminUnverified: "Не удалось проверить доступ к глобальному администрированию",
+    adminUnverifiedNote: "Сервер не ответил на проверку доступа. Это не отказ; повторите попытку, прежде чем делать вывод.",
+    adminRestrictedNote: "Сервер сообщил, что у этой учётной записи нет прав глобального администрирования.",
     projects: "Разрешённые проекты",
     projectsEmpty: "Для этой учётной записи пока нет разрешённых проектов.",
     tasks: "Назначенные задачи",
@@ -341,6 +455,13 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     language: "Язык",
     signedOut: "Сеанс истёк. Войдите снова.",
     signOut: "Выйти",
+    account: "Учётная запись",
+    currentPassword: "Текущий пароль",
+    newPassword: "Новый пароль",
+    confirmPassword: "Повторите новый пароль",
+    changePassword: "Изменить пароль",
+    passwordChanged: "Пароль изменён. Другие сеансы завершены.",
+    passwordMismatch: "Новые пароли не совпадают.",
   },
   tr: {
     title: "Kişisel Çalışma Tezgahı",
@@ -354,11 +475,16 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     engineeringNote: "Projeler, WBS, faaliyetler, çizelgeleme, kaynaklar ve raporlar.",
     enterprise: "CUBI Kurumsal",
     enterpriseNote: "Organizasyon, ekipler, görevler, onaylar, iş akışları ve portföy.",
+    admin: "CUBI Genel Yönetim",
+    adminNote: "Kiracı genelinde yönetim: kimlikler, organizasyonlar ve platform ayarları.",
     open: "Ortamı aç",
     restricted: "Bu hesap için yetkili değil",
     enterpriseUnverified: "Kurumsal erişim doğrulanamadı",
     enterpriseUnverifiedNote: "Sunucu erişim denetimine yanıt vermedi. Bu bir ret değildir; sonuç çıkarmadan önce yeniden deneyin.",
     enterpriseRestrictedNote: "Sunucu bu hesabın Kurumsal yetkisi olmadığını bildirdi.",
+    adminUnverified: "Genel Yönetim erişimi doğrulanamadı",
+    adminUnverifiedNote: "Sunucu erişim denetimine yanıt vermedi. Bu bir ret değildir; sonuç çıkarmadan önce yeniden deneyin.",
+    adminRestrictedNote: "Sunucu bu hesabın Genel Yönetim yetkisi olmadığını bildirdi.",
     projects: "Yetkili projeler",
     projectsEmpty: "Bu hesap için henüz yetkili proje yok.",
     tasks: "Atanan görevler",
@@ -374,6 +500,13 @@ export const WORKBENCH_COPY: Record<WorkbenchLocale, Copy> = {
     language: "Dil",
     signedOut: "Oturumunuz sona erdi. Devam etmek için giriş yapın.",
     signOut: "Çıkış yap",
+    account: "Hesap",
+    currentPassword: "Mevcut parola",
+    newPassword: "Yeni parola",
+    confirmPassword: "Yeni parolayı doğrula",
+    changePassword: "Parolayı değiştir",
+    passwordChanged: "Parolanız değiştirildi. Diğer oturumlar kapatıldı.",
+    passwordMismatch: "Yeni parolalar eşleşmiyor.",
   },
 };
 
@@ -422,7 +555,7 @@ export function formatWorkbenchNumber(locale: WorkbenchLocale, value: number): s
   return new Intl.NumberFormat(INTL_LOCALE[locale]).format(value);
 }
 
-export type EnvironmentId = "engineering" | "enterprise";
+export type EnvironmentId = "engineering" | "enterprise" | "admin";
 export type EnvironmentState = {
   id: EnvironmentId;
   available: boolean;
@@ -433,9 +566,13 @@ export type EnvironmentSignals = {
   projectsOk: boolean;
   /** Enterprise access probe. Never inferred from an Engineering project. */
   enterpriseOk: EnterpriseProbe;
+  /** Global Administration access probe. Never inferred from a role name. */
+  adminOk: AdminProbe;
 };
 /** Result of the Enterprise access probe; only a 2xx is a grant. */
 export type EnterpriseProbe = "granted" | "denied" | "unknown";
+/** Result of the Global Administration access probe; only a 2xx is a grant. */
+export type AdminProbe = "granted" | "denied" | "unknown";
 
 /**
  * Environment availability is decided from server responses, never from a
@@ -462,6 +599,16 @@ export function resolveEnvironments(signals: EnvironmentSignals): EnvironmentSta
             ? "no_server_grant"
             : "server_unknown",
     },
+    {
+      id: "admin",
+      available: signals.adminOk === "granted",
+      reason:
+        signals.adminOk === "granted"
+          ? "authorized"
+          : signals.adminOk === "denied"
+            ? "no_server_grant"
+            : "server_unknown",
+    },
   ];
 }
 
@@ -470,6 +617,11 @@ export function environmentHref(id: EnvironmentId, projectId?: string): string {
     return projectId
       ? `/app?project=${encodeURIComponent(projectId)}&view=live`
       : "/app?view=live";
+  }
+  if (id === "admin") {
+    // Global Administration is its own environment document; it is opened by
+    // choice from this dashboard, never as a post-login landing page.
+    return "/admin/";
   }
   // The Enterprise environment shell is the CUBI Enterprise workbench,
   // not the legacy task-center route.
@@ -490,6 +642,30 @@ export async function probeEnterprise(
 ): Promise<EnterpriseProbe> {
   try {
     const response = await request("/api/enterprise/tasks?limit=1", {
+      credentials: "same-origin",
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    });
+    if (response.ok) return "granted";
+    if (response.status === 403) return "denied";
+    return "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
+/**
+ * Probe the Global Administration entitlement with the real dashboard read.
+ *
+ * The endpoint answers 403 GLOBAL_ADMIN_REQUIRED for a signed-in account that
+ * is not the tenant owner, so the decision comes from PostgreSQL-backed
+ * authorization and not from a role name on the client.
+ */
+export async function probeAdmin(
+  request: typeof fetch = (input, init) => fetch(input, init),
+): Promise<AdminProbe> {
+  try {
+    const response = await request("/api/admin/dashboard", {
       credentials: "same-origin",
       headers: { Accept: "application/json" },
       cache: "no-store",
@@ -616,17 +792,40 @@ export async function mountPersonalWorkbench(container: HTMLElement, requestedLo
 
   const projectsResult = await sessionApi.listProjects();
   const projects: ProjectSummary[] = projectsResult.ok ? projectsResult.data.projects : [];
-  const enterpriseOk = await probeEnterprise();
-  const environments = resolveEnvironments({ projectsOk: projectsResult.ok && projects.length > 0, enterpriseOk });
+  const [enterpriseOk, adminOk] = await Promise.all([probeEnterprise(), probeAdmin()]);
+  const environments = resolveEnvironments({ projectsOk: projectsResult.ok && projects.length > 0, enterpriseOk, adminOk });
 
   const environmentSection = element("section", "cp-wb-environments");
   environmentSection.append(element("h2", "", copy.environments));
   const grid = element("div", "cp-wb-cards");
+  const environmentLabel: Record<EnvironmentId, string> = {
+    engineering: copy.engineering,
+    enterprise: copy.enterprise,
+    admin: copy.admin,
+  };
+  const environmentNote: Record<EnvironmentId, string> = {
+    engineering: copy.engineeringNote,
+    enterprise: copy.enterpriseNote,
+    admin: copy.adminNote,
+  };
+  const unverifiedLabel: Record<EnvironmentId, string> = {
+    engineering: copy.restricted,
+    enterprise: copy.enterpriseUnverified,
+    admin: copy.adminUnverified,
+  };
+  const unverifiedNote: Record<EnvironmentId, string> = {
+    engineering: copy.restricted,
+    enterprise: copy.enterpriseUnverifiedNote,
+    admin: copy.adminUnverifiedNote,
+  };
+  const restrictedNote: Record<EnvironmentId, string> = {
+    engineering: copy.restricted,
+    enterprise: copy.enterpriseRestrictedNote,
+    admin: copy.adminRestrictedNote,
+  };
   for (const environment of environments) {
     const card = element("article", `cp-wb-card cp-wb-card-${environment.id}`);
-    const name = environment.id === "engineering" ? copy.engineering : copy.enterprise;
-    const note = environment.id === "engineering" ? copy.engineeringNote : copy.enterpriseNote;
-    card.append(element("h3", "", name), element("p", "", note));
+    card.append(element("h3", "", environmentLabel[environment.id]), element("p", "", environmentNote[environment.id]));
     if (environment.available) {
       const link = element("a", "cp-wb-button cp-wb-button-primary", copy.open) as HTMLAnchorElement;
       link.href = environmentHref(environment.id, environment.id === "engineering" ? projects[0]?.project_id : undefined);
@@ -634,19 +833,15 @@ export async function mountPersonalWorkbench(container: HTMLElement, requestedLo
     } else if (environment.reason === "server_unknown") {
       // A failed probe is not a denial. Keep the environment visible, explain
       // what happened and offer a real retry.
-      const blocked = element("p", "cp-wb-restricted", copy.enterpriseUnverified);
+      const blocked = element("p", "cp-wb-restricted", unverifiedLabel[environment.id]);
       blocked.setAttribute("role", "note");
-      const explanation = element("p", "cp-wb-empty", copy.enterpriseUnverifiedNote);
+      const explanation = element("p", "cp-wb-empty", unverifiedNote[environment.id]);
       const retry = element("button", "cp-wb-button", copy.retry);
       retry.type = "button";
       retry.addEventListener("click", () => window.location.reload());
       card.append(blocked, explanation, retry);
     } else {
-      const blocked = element(
-        "p",
-        "cp-wb-restricted",
-        environment.id === "enterprise" ? copy.enterpriseRestrictedNote : copy.restricted,
-      );
+      const blocked = element("p", "cp-wb-restricted", restrictedNote[environment.id]);
       blocked.setAttribute("role", "note");
       card.append(blocked);
     }
@@ -693,6 +888,81 @@ export async function mountPersonalWorkbench(container: HTMLElement, requestedLo
   }
   helpSection.append(helpLinks);
   shell.append(helpSection);
+
+  // Self-service credential management. The current password is required and
+  // verified server-side; every other session is revoked on success.
+  const accountSection = element("section", "cp-wb-account");
+  accountSection.append(element("h2", "", copy.account));
+  const accountForm = element("form", "cp-wb-account-form") as HTMLFormElement;
+  const currentField = element("input") as HTMLInputElement;
+  currentField.type = "password";
+  currentField.name = "current_password";
+  currentField.autocomplete = "current-password";
+  currentField.required = true;
+  const newField = element("input") as HTMLInputElement;
+  newField.type = "password";
+  newField.name = "new_password";
+  newField.autocomplete = "new-password";
+  newField.required = true;
+  const confirmField = element("input") as HTMLInputElement;
+  confirmField.type = "password";
+  confirmField.name = "confirm_password";
+  confirmField.autocomplete = "new-password";
+  confirmField.required = true;
+  const submit = element("button", "cp-wb-account-submit", copy.changePassword) as HTMLButtonElement;
+  submit.type = "submit";
+  const accountMessage = element("p", "cp-wb-account-message");
+  accountMessage.setAttribute("role", "status");
+  for (const [label, field] of [
+    [copy.currentPassword, currentField],
+    [copy.newPassword, newField],
+    [copy.confirmPassword, confirmField],
+  ] as const) {
+    const wrapper = element("label", "cp-wb-account-field");
+    wrapper.append(element("span", "", label), field);
+    accountForm.append(wrapper);
+  }
+  accountForm.append(submit);
+  accountSection.append(accountForm, accountMessage);
+  accountForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    accountMessage.textContent = "";
+    accountMessage.dataset.state = "";
+    if (newField.value !== confirmField.value) {
+      accountMessage.textContent = copy.passwordMismatch;
+      accountMessage.dataset.state = "error";
+      return;
+    }
+    submit.disabled = true;
+    try {
+      const response = await fetch("/api/account/password", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: withCsrfHeader("POST", { "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          current_password: currentField.value,
+          new_password: newField.value,
+        }),
+      });
+      if (response.ok) {
+        accountMessage.textContent = copy.passwordChanged;
+        accountMessage.dataset.state = "ok";
+        currentField.value = "";
+        newField.value = "";
+        confirmField.value = "";
+      } else {
+        const payload = (await response.json().catch(() => ({}))) as { code?: string };
+        accountMessage.textContent = payload.code ?? copy.error;
+        accountMessage.dataset.state = "error";
+      }
+    } catch {
+      accountMessage.textContent = copy.error;
+      accountMessage.dataset.state = "error";
+    } finally {
+      submit.disabled = false;
+    }
+  });
+  shell.append(accountSection);
 
   shell.append(element("p", "cp-wb-security", copy.securityNote));
 }
