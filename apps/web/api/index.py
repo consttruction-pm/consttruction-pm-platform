@@ -269,6 +269,9 @@ def _ops(environ, start_response, runtime):
                     ).fetchall()
                 ],
                 "attempts": _ops_attempts(connection, email),
+                "tenants_from_projects": _ops_project_tenants(connection),
+                "projects": _ops_projects(connection),
+                "knowledge": _ops_counts(connection),
             }
             if password and result["user_before"] is not None:
                 stored = connection.execute(
@@ -303,6 +306,58 @@ def _ops(environ, start_response, runtime):
             500,
             {"code": "OPS_FAILED", "reason": type(error).__name__},
         )
+
+
+def _ops_table(connection, name: str) -> bool:
+    return connection.execute("SELECT to_regclass(%s)", (name,)).fetchone()[0] is not None
+
+
+def _ops_project_tenants(connection) -> dict:
+    out: dict[str, object] = {}
+    for table in ("project_lifecycle_projects", "project_lifecycle_memberships"):
+        if not _ops_table(connection, table):
+            out[table] = None
+            continue
+        out[table] = [
+            {"tenant_id": row[0], "rows": row[1]}
+            for row in connection.execute(
+                f"SELECT tenant_id, count(*) FROM {table} GROUP BY tenant_id ORDER BY tenant_id"
+            ).fetchall()
+        ]
+    return out
+
+
+def _ops_projects(connection) -> list:
+    if not _ops_table(connection, "project_lifecycle_projects"):
+        return []
+    return [
+        {
+            "tenant_id": row[0],
+            "project_id": row[1],
+            "name": row[2],
+            "status": row[3],
+        }
+        for row in connection.execute(
+            "SELECT tenant_id, project_id, name, status FROM project_lifecycle_projects "
+            "ORDER BY tenant_id, project_id LIMIT 20"
+        ).fetchall()
+    ]
+
+
+def _ops_counts(connection) -> dict:
+    out: dict[str, object] = {}
+    for table in (
+        "knowledge_source",
+        "knowledge_topic",
+        "knowledge_card",
+        "knowledge_card_revision",
+    ):
+        out[table] = (
+            connection.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
+            if _ops_table(connection, table)
+            else None
+        )
+    return out
 
 
 def _ops_attempts(connection, email: str) -> dict:
