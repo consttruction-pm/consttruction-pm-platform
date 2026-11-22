@@ -233,3 +233,23 @@ def test_shipped_html_contains_no_unresolved_merge_markers():
         for path in documents
     }
     assert {name: found for name, found in offenders.items() if found} == {}
+
+def test_supabase_direct_dsn_uses_the_explicit_project_pooler_host(monkeypatch, tmp_path):
+    from construction_pm.deployment.production_runtime import ProductionSettings
+
+    (tmp_path / "index.html").write_text("<!doctype html>", encoding="utf-8")
+    (tmp_path / "app.html").write_text("<!doctype html>", encoding="utf-8")
+    dsn = "postgresql://postgres:secret@db.pbgosszuzemljgoccppk.supabase.co:5432/postgres?sslmode=require"
+    monkeypatch.delenv("CONSTRUCTION_PM_DATABASE_URL", raising=False)
+    monkeypatch.setenv("POSTGRES_URL_NON_POOLING", dsn)
+    monkeypatch.setenv("CUBI_DATABASE_POOLER_HOST", "aws-0-eu-central-1.pooler.supabase.com")
+    monkeypatch.setenv("CONSTRUCTION_PM_SESSION_SECRET", "test-session-secret-with-at-least-32-characters")
+    monkeypatch.setenv("CONSTRUCTION_PM_PUBLIC_ORIGIN", "https://preview.example.test")
+    monkeypatch.setenv("CUBI_WEB_ROOT", str(tmp_path))
+
+    settings = ProductionSettings.from_environment()
+
+    assert settings.database_url == (
+        "postgresql://postgres.pbgosszuzemljgoccppk:secret@"
+        "aws-0-eu-central-1.pooler.supabase.com:6543/postgres?sslmode=require"
+    )
