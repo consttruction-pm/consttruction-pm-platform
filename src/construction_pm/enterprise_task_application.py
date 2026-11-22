@@ -5,7 +5,11 @@ from datetime import datetime, timezone
 from typing import Mapping
 from uuid import uuid4
 
-from .application.authorization import AuthorizationError, Permission
+from .application.authorization import (
+    AuthorizationError,
+    PLATFORM_OWNER_ROLE,
+    Permission,
+)
 from .application.project_lifecycle import ProjectLifecycleError
 from .enterprise_task import (
     EnterpriseTask,
@@ -21,8 +25,16 @@ from .enterprise_task_repository import (
 )
 
 
-_ENTERPRISE_READ_ROLES = frozenset({"enterprise_viewer", "enterprise_user", "enterprise_admin"})
-_ENTERPRISE_WRITE_ROLES = frozenset({"enterprise_user", "enterprise_admin"})
+# The platform owner is the tenant owner: the document gate already admits
+# ``global_admin`` to the Enterprise area and the project policy grants it
+# every permission, so the Enterprise task entitlement has to include it as
+# well instead of locking the owner out of its own data.
+_ENTERPRISE_READ_ROLES = frozenset(
+    {"enterprise_viewer", "enterprise_user", "enterprise_admin", PLATFORM_OWNER_ROLE}
+)
+_ENTERPRISE_WRITE_ROLES = frozenset(
+    {"enterprise_user", "enterprise_admin", PLATFORM_OWNER_ROLE}
+)
 
 
 class EnterpriseTaskAuthorizationError(PermissionError):
