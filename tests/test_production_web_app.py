@@ -768,3 +768,11 @@ def test_personal_workbench_nested_document_is_session_gated_without_project_sel
         status, _, body = call(app, "GET", path, cookie=owner)
         assert status == 200, path
         assert b"CUBI Workspace" in body
+
+
+def test_global_admin_can_open_engineering_project_picker_before_first_project_exists(app):
+    owner = login(app, email="owner@example.test")
+    status, headers, body = call(app, "GET", "/app", cookie=owner)
+    assert status == 200
+    assert b"CUBI Workspace" in body
+    assert headers["cache-control"] == ["no-store"]
