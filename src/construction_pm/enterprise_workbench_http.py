@@ -55,6 +55,14 @@ _KINDS = {
     "settings",
     "forms",
     "directory",
+    "contracts",
+    "contract_packages",
+    "procurement",
+    "vendors",
+    "change_requests",
+    "communication",
+    "responsibilities",
+    "milestones",
 }
 _ADMIN_KINDS = {
     "organizations", "users", "teams", "memberships", "invitations", "roles", "grants",
@@ -83,6 +91,14 @@ _REQUIRED_FIELDS = {
     "settings": ("key",),
     "forms": ("name", "fields"),
     "directory": ("display_name",),
+    "contracts": ("contract_name",),
+    "contract_packages": ("package_name",),
+    "procurement": ("item_description",),
+    "vendors": ("vendor_name",),
+    "change_requests": ("title",),
+    "communication": ("subject",),
+    "responsibilities": ("obs_id", "role"),
+    "milestones": ("milestone_name",),
 }
 _ID_PREFIX = {
     "organizations": "org",
@@ -106,6 +122,14 @@ _ID_PREFIX = {
     "settings": "set",
     "forms": "form",
     "directory": "dir",
+    "contracts": "ctr",
+    "contract_packages": "pkg",
+    "procurement": "prc",
+    "vendors": "ven",
+    "change_requests": "cr",
+    "communication": "comm",
+    "responsibilities": "ram",
+    "milestones": "ms",
 }
 
 
@@ -386,6 +410,51 @@ class EnterpriseWorkbenchStore:
         self._audit(tenant_id, actor_id, "create", kind, record_id, detail={"revision": 1})
         self.connection.commit()
         return self.get(tenant_id, kind, record_id)
+
+    def ensure_record(
+        self,
+        tenant_id: str,
+        kind: str,
+        record_id: str,
+        payload: Mapping[str, object],
+        *,
+        actor_id: str,
+    ) -> bool:
+        """Insert a record with a caller-chosen stable id, or leave it alone.
+
+        This is the import path: the id comes from the source system so a
+        restart can never duplicate a row, and an operator edit is never
+        overwritten because an existing row is returned untouched. The record
+        is audited exactly like a created one.
+        """
+        if kind not in _KINDS:
+            raise EnterpriseApiError(404, "UNKNOWN_KIND")
+        existing = self.connection.execute(
+            "SELECT 1 FROM enterprise_records WHERE tenant_id=? AND kind=? AND record_id=?",
+            (tenant_id, kind, record_id),
+        ).fetchone()
+        if existing is not None:
+            return False
+        now = _iso(_now())
+        stored = {**payload, "status": payload.get("status", "active")}
+        self.connection.execute(
+            "INSERT INTO enterprise_records "
+            "(tenant_id, kind, record_id, revision, payload_json, created_at, updated_at, created_by_user_id) "
+            "VALUES (?,?,?,?,?,?,?,?)",
+            (
+                tenant_id,
+                kind,
+                record_id,
+                1,
+                json.dumps(stored, sort_keys=True, ensure_ascii=False, default=str),
+                now,
+                None,
+                actor_id,
+            ),
+        )
+        self._audit(tenant_id, actor_id, "import", kind, record_id, detail={"revision": 1})
+        self.connection.commit()
+        return True
 
     def update(
         self,

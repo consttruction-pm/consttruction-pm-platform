@@ -349,6 +349,9 @@ from construction_pm.wbs_master_repository import (
 from construction_pm.importing.reference_persistence import (
     ensure_reference_projects,
 )
+from construction_pm.importing.reference_enterprise import (
+    ensure_reference_enterprise,
+)
 
 from .fixtures import (
     CURATED_FIELD_IDS,
@@ -1366,6 +1369,30 @@ def build_calendar_registry(connection: sqlite3.Connection) -> CalendarResolverR
     )
 
 
+def _uses_reference_measurement_calendar(
+    connection: sqlite3.Connection, scope: BackendScope
+) -> bool:
+    """True only for a project imported from the frozen reference bundle.
+
+    The reference workbook dates baseline activities on Sundays although no
+    assigned calendar works Sunday. Its baseline dates are calendar-day
+    offsets, so earned-value measurement uses the seven-day union calendar for
+    these demo projects. The number is still calculated from stored dates and
+    budgets; only the calendar used to interpret them changes, and the import
+    manifest records the source inconsistency.
+    """
+    row = connection.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='cubi_reference_import'"
+    ).fetchone()
+    if row is None:
+        return False
+    found = connection.execute(
+        "SELECT 1 FROM cubi_reference_import WHERE tenant_id=? AND project_id=?",
+        (scope.tenant_id, scope.project_id),
+    ).fetchone()
+    return found is not None
+
+
 @dataclass(frozen=True)
 class PreviewWorkspaceReadProvider:
     """Build the authorized workspace envelope from persisted preview state.
@@ -1716,13 +1743,27 @@ def open_preview_runtime(
             raise P6EarnedValueReadModelError("EVM_PROJECT_CALENDAR_REQUIRED")
         try:
             registry = build_calendar_registry(connection)
-            return registry.resolve(settings.project_calendar)
+            resolver = registry.resolve(settings.project_calendar)
         except PreviewRuntimeError as exc:
             raise P6EarnedValueReadModelError(exc.code) from exc
         except (KeyError, TypeError, ValueError) as exc:
             raise P6EarnedValueReadModelError(
                 "EVM_PROJECT_CALENDAR_UNRESOLVED"
             ) from exc
+        # The DEMO/SYNTHETIC reference workbook dates several baseline
+        # activities on Sundays even though the assigned Site (Mon-Sat) and
+        # Office (Mon-Fri) calendars never work that day. Its baseline dates
+        # are therefore calendar-day offsets rather than working-day offsets.
+        # For the imported reference projects only, measurement uses the union
+        # calendar (all seven days) so every stored baseline date is valid;
+        # the schedule engine still evaluates each activity on its assigned
+        # calendar and the run manifest keeps the CPM result unchanged.
+        # Operator-owned projects never take this path.
+        if _uses_reference_measurement_calendar(connection, scope):
+            return WorkingTimeResolver(
+                WorkingCalendar(working_weekdays=frozenset(range(7)))
+            )
+        return resolver
 
     earned_value_read_api = P6EarnedValueReadModelAPI(
         P6EarnedValueReadModelService(
@@ -2142,6 +2183,15 @@ def open_preview_runtime(
             }
             for user in DEMO_USERS
         ],
+    )
+    # Enterprise-owned register rows for the reference projects. Runs after the
+    # identity catalogue is seeded so the fixtures keep ownership of the
+    # tenant organization, users, roles and starter team.
+    ensure_reference_enterprise(
+        connection,
+        repositories,
+        enterprise_store,
+        tenant_id=PREVIEW_TENANT_ID,
     )
     app = EnterpriseWorkbenchHttpMiddleware(app, lifecycle_api, enterprise_store)
 

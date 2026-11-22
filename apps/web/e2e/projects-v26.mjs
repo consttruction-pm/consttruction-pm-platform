@@ -223,7 +223,7 @@ async function main() {
     await setLanguage(page, "en");
     await openProjectWindow(page);
     const api = await readProjects(page);
-    assert(api.projects.length === 2, `the session should expose two seeded projects, got ${api.projects.length}`);
+    assert(api.projects.length === 5, `the session should expose all five seeded projects, got ${api.projects.length}`);
     assert(api.rps && api.nse, "the seeded project records are not readable");
 
     await scenario("01", "پنجرهٔ Projects دقیقاً پروژه‌های مجاز نشست را از سرور نشان می‌دهد", async () => {

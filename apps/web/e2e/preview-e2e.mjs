@@ -30,6 +30,9 @@ mkdirSync(artifactsDir, { recursive: true });
 const PROJECT_ID = "preview-rps-01";
 const PROJECT_REVISION = 7;
 const TENANT_ID = "cubi-preview-tenant";
+// Every project the preview runtime seeds for an authorized session: the two
+// curated fixtures plus the three imported reference projects.
+const SEEDED_PROJECT_IDS = ["preview-rps-01", "preview-nse-02", "CUBI-REF-001", "CUBI-REF-002", "CUBI-REF-003"];
 const SCREENSHOTS = [];
 const CHECKS = [];
 const EXCEPTIONS = [];
@@ -1159,7 +1162,10 @@ async function runEnterpriseJourney(page, baseUrl) {
     (workbench.engineering_href ?? "").startsWith("/app"),
     "the Engineering card must open /app: " + workbench.engineering_href,
   );
-  assert(workbench.projects.length === 2, "the authorized project list must render both projects");
+  assert(
+    workbench.projects.length === SEEDED_PROJECT_IDS.length,
+    "the authorized project list must render every seeded project: " + JSON.stringify(workbench.projects),
+  );
   assert(workbench.restricted === 0, "an Enterprise administrator must not see a restricted note");
   record("Personal Workbench offers the two environments and starts no workspace itself", {
     cards: workbench.cards,
@@ -3099,11 +3105,14 @@ async function main() {
         name: button.textContent.trim(),
       }))
     )()`);
-    assert(projectButtons.length === 2, "two projects must be selectable");
+    assert(
+      projectButtons.length === SEEDED_PROJECT_IDS.length,
+      `every seeded project must be selectable, got ${JSON.stringify(projectButtons.map((item) => item.id))}`,
+    );
     const projectIds = projectButtons.map((item) => item.id).sort();
     assert(
-      projectIds.includes("preview-rps-01") && projectIds.includes("preview-nse-02"),
-      "both fixture projects must be listed",
+      SEEDED_PROJECT_IDS.every((projectId) => projectIds.includes(projectId)),
+      "every fixture and reference project must be listed",
     );
     assert(
       (await page.text("#cubi-preview-banner"))?.includes("LOCAL PREVIEW"),

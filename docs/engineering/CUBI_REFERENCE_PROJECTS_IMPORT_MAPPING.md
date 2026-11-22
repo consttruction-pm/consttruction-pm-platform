@@ -303,3 +303,175 @@ persistence stage. It does not mean the projects exist; that is the next stage.
   contracts.
 - Supabase/PostgreSQL behaviour is not asserted; the validator reads the
   workbook only.
+
+## 10. Implementation record — what was actually persisted
+
+The analysis above was executed by
+[`src/construction_pm/importing/reference_persistence.py`](../../src/construction_pm/importing/reference_persistence.py)
+(Engineering) and
+[`src/construction_pm/importing/reference_enterprise.py`](../../src/construction_pm/importing/reference_enterprise.py)
+(Enterprise). Both run through the existing canonical repositories. There is no
+parallel store, no shadow project and no second scheduler: the import writes the
+same rows a user would create, then runs the canonical schedule engine.
+
+The import is idempotent. Each project carries a marker row in
+`cubi_reference_import`; Enterprise registers carry
+`cubi_reference_enterprise`. A second run on a warm database creates nothing and
+runs no new calculation. The preview runtime calls both from
+`open_preview_runtime`/`seed_database`, so every preview instance either has the
+three projects or does not start.
+
+### 10.1 Stored counts per project (identical for all three)
+
+| Entity | Rows | Target |
+| --- | ---: | --- |
+| Activities | 180 | `p6_activity` |
+| Relationships | 238 | `p6_relationship` |
+| WBS nodes (root + EPS + WBS) | 129 | `p6_wbs` |
+| Calendars | 3 | `p6_calendar` |
+| Resources (30 labour + 10 equipment) | 40 | `p6_resource` |
+| Assignments | 240 | `p6_resource_assignment` |
+| Assignment spreads / actuals | 240 / 240 | `p6_resource_assignment_spread` |
+| Baseline activities | 180 | `p6_baseline_activity` |
+| Progress rows | 180 | `p6_activity_progress` |
+| Activity codes | 180 | `p6_activity_code` |
+| Constraints | 10 | `p6_activity_constraint` |
+| Expenses | 45 | `p6_activity_expense` |
+| Activity documents | 36 | `p6_activity_document` |
+
+Enterprise: risks 15, issues 8, documents 15, enterprise tasks 12,
+organizations 8, teams 8, responsibilities 30, contracts 5, contract packages 5,
+procurement items 5, vendors 5, change requests 4, communication 1, approvals 1,
+forms 1, workflows 1, timesheets 10, milestones 12. `tests/test_reference_enterprise.py`
+asserts these numbers exactly and asserts that a second import creates nothing.
+
+### 10.2 Decisions taken while applying the mapping
+
+| # | Decision | Why | Where it is visible |
+| --- | --- | --- | --- |
+| D1 | The platform WBS root is `WBS-{project_id}` (`WBSParentKind.PROJECT`); the eight EPS nodes are its level-1 children and the 120 workbook WBS nodes hang below them | The platform allows exactly one project root; EPS cannot become a second root without breaking the invariant | `p6_wbs`, 129 rows per project |
+| D2 | Equipment is imported into the same resource register as labour | Assignments reference `Equipment Register` IDs; without the merge, 240 assignments would be orphaned | 40 resources per project; assignments resolve |
+| D3 | `activities.duration` holds the workbook's *physical percent complete*; real duration comes from `original_duration_days` / `remaining_duration_days` | The source column is a percentage, not a duration | documented here and asserted in the import counts |
+| D4 | Remaining cost is derived as `baseline_budget × (100 − physical%)/100` | The source `remaining_cost_usd` contradicts its own budget and progress columns; the derived value keeps the arithmetic identity | source column recorded as unsupported, not imported as fact |
+| D5 | Baselines are written once and never updated (`PRIMARY`, notes = `DEMO/SYNTHETIC immutable reference baseline`) | A baseline is an immutable snapshot; re-import must not move it | `p6_baseline`, `p6_baseline_activity` |
+| D6 | CPM, float and critical path are computed by the canonical engine after persistence | The workbook explicitly says not to import them | `cubi_reference_schedule_run` |
+| D7 | Baseline endpoints fall on Sundays (26 / 52 / 24 per project) although no assigned calendar works Sunday | Earned value must still be measurable from the immutable baseline; CPM is *not* changed — each activity still evaluates on its own assigned calendar | import counts `baseline_dates_on_sunday`; the EVM resolver uses a 7-day measurement calendar for imported reference projects only |
+
+### 10.3 Canonical schedule runs
+
+Each project has exactly one recorded run. Run ID, input/output hashes, engine
+version, options count, duration and diagnostics are stored in
+`cubi_reference_schedule_run` and are not hand-entered.
+
+| Project | Run ID (prefix) | Engine | Duration | Warnings |
+| --- | --- | --- | ---: | --- |
+| CUBI-REF-001 | `b7883dfe4d98…` | `cubi-preview-engine.v1` | 66 ms | 0 |
+| CUBI-REF-002 | `54c865cb533a…` | `cubi-preview-engine.v1` | 67 ms | 0 |
+| CUBI-REF-003 | `23f726035c58…` | `cubi-preview-engine.v1` | 94 ms | 3 — negative total float on ACT-0138 (−4 d), ACT-0139 (−7 d), ACT-0141 (−3 d) |
+
+The three warnings are real engine output for the source data; they are reported,
+not suppressed and not "fixed" by editing dates.
+
+### 10.4 Earned value from the canonical read model
+
+Data date 2026-11-22, currency USD, ETC method `REMAINING_COST`. These are the
+values the API returns; nothing is computed in the browser.
+
+| Project | PV | EV | AC | CPI | SPI | BAC | EAC | VAC |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| CUBI-REF-001 | 185,888,888.737 | 185,839,305.404 | 190,671,249.93 | 0.974658 | 0.999733 | 244,999,999.80 | 249,831,944.32 | −4,831,944.52 |
+| CUBI-REF-002 | 79,057,324.414 | 79,004,660.790 | 80,973,416.02 | 0.975686 | 0.999334 | 98,499,999.60 | 100,468,754.83 | −1,968,755.23 |
+| CUBI-REF-003 | 107,485,532.563 | 107,453,958.489 | 110,184,861.19 | 0.975215 | 0.999706 | 137,500,000.20 | 140,230,902.90 | −2,730,902.70 |
+
+TCPI is not produced by the canonical engine and is therefore not reported. It
+is not fabricated and no placeholder is shown.
+
+## 11. Connected surfaces and their exact sources
+
+| Surface | Project | API it reads | Revision / data date | Status |
+| --- | --- | --- | --- | --- |
+| Personal Workbench | all five visible projects | `GET /api/projects` | revision per project | connected |
+| Engineering project picker | `CUBI-REF-001/002/003` | `GET /api/projects` | revision 1 | connected |
+| Engineering workspace | `CUBI-REF-001` | `GET /api/projects/{id}/p6/activities` etc. | revision 1 | connected — 180 rows rendered |
+| AI Workbench context | `CUBI-REF-001` | `GET /api/projects/{id}/workbench/context` | revision 1, data date 2026-11-22 | connected |
+| AI Workbench · project analysis | `CUBI-REF-001` | `GET /api/v2/workspace/control-room/read`, `GET …/p6/baselines`, `POST …/p6/earned-value` | revision 1 | connected — 180 activities / 129 WBS / 238 relationships / 44 critical; CPI/SPI/EAC rendered from the read model |
+| AI Workbench · risk analysis | `CUBI-REF-001` | `GET /api/projects/{id}/risks` | revision 1 | connected — 15 risks |
+| AI Workbench · scenario studio | — | none | — | **not connected** — no revision-bound scenario service is mounted; the studio is rendered BLOCKED and offers no control |
+| AI Workbench · import staging | — | exchange preview only | — | partial by design |
+| Assistant conversation | `CUBI-REF-001` | deterministic command planner | revision 1 | provider-gated — no AI provider is configured in this environment, so free-form answers are unavailable; the planner reports `INTENT_NOT_RESOLVED` rather than inventing an answer |
+| Enterprise project register | `CUBI-REF-001/002/003` | `GET /api/projects` | revision 1 | connected — 5 of 5 |
+| Enterprise project portal · resources | `CUBI-REF-001` | `GET /api/projects/{id}/p6/resources` | revision 1 | connected — 40 rows |
+| Enterprise project portal · documents | `CUBI-REF-001` | `GET /api/projects/{id}/documents` | revision 1 | connected — 15 rows (identity and review state; no binary content) |
+| Enterprise project portal · risks & issues | `CUBI-REF-001` | `GET /api/projects/{id}/risks`, `…/p6/issues` | revision 1 | connected — 15 risks, 8 issues |
+| Enterprise tasks / timesheets | `CUBI-REF-001` | `GET /api/enterprise/tasks`, `GET /api/enterprise/timesheets` | revision 1 | connected — 12 tasks, 10 timesheets |
+| Enterprise organization & access | `CUBI-REF-001` | `GET /api/enterprise/{organizations,teams,responsibilities}` | revision 1 | connected — 8 / 8 / 30 |
+| Enterprise Risk/Document/EPS register pages | — | `GET /api/enterprise/{risks,documents,eps}` | — | these pages render the **Enterprise-owned** generic register, which is a different record set; the imported risk/document registers are read in the project portal and the assistant. They are reported as an intentional split, not silently matched |
+| Enterprise dashboard / portfolio indicators | — | `GET /api/enterprise/{portlets,portfolio,evm}` | — | **503 `ENGINEERING_SOURCE_NOT_CONNECTED`** in the preview runtime; dashboards say so and do not calculate |
+| Scenario Workspace | — | none | — | **not connected** — no scenario service, no separate scheduler; reachable from the assistant studio, which is BLOCKED |
+| Return path | — | `/workbench/` | — | fixed in this branch: the deployment now serves the Personal Workbench shell at `/workbench/` instead of a 404 |
+
+## 12. Browser evidence and reproduction
+
+Captured with headless Chromium against the fixed preview
+`https://cubi-web-preview-git-feat-referenc-7043fd-foroughichamshir-7811.vercel.app`
+(read-only demo session) and against a local full-stack preview of the same
+commit for the Enterprise document, which the deployed preview does not expose
+to the anonymous planner persona. Screenshots and the JSON evidence files are in
+the mission report, not committed as binary noise.
+
+| Screenshot | Proves |
+| --- | --- |
+| `01-personal-workbench.png` | post-login landing, five authorized projects, both environments |
+| `02-engineering-project-picker.png` | `CUBI-REF-001/002/003` selectable next to the fixtures |
+| `03-engineering-CUBI-REF-001.png` | 180 activity rows rendered for the reference project |
+| `04-enterprise-request-landed-on-workbench.png` | the Enterprise gate returns a planner to the Personal Workbench |
+| `05-return-path-workbench.png` | `/workbench/` answers 200 with the workbench cards |
+| `06-assistant-workbench.png` | the assistant pins `CUBI-REF-001` revision 1, data date 2026-11-22 |
+| `08-assistant-evm-CUBI-REF-001.png` | CPI 0.974658 / SPI 0.999733 / EAC 249,831,944.32 rendered from the read model |
+| `assistant-studio-schedule-scenario.png` | scenario studio BLOCKED with its reason |
+| `local-enterprise-*.png`, `local-portal-*.png` | Enterprise register, portal tabs and the reference rows |
+
+Reproduce:
+
+```bash
+python -m pytest -q tests/test_reference_projects_import.py tests/test_reference_enterprise.py \
+  tests/test_reference_api.py tests/test_preview_runtime.py
+node apps/web/e2e/preview-e2e.mjs      # local full-stack browser E2E
+```
+
+## 13. Twenty-point proof
+
+| # | Requirement | Evidence | Verdict |
+| --- | --- | --- | --- |
+| 1 | Repo inspected before changes; main SHA recorded | `6bf5088d` → `42f5e967` → `fa62d4fd` | done |
+| 2 | No environment, admin account or login path changed | no env/secret/account change in any commit; preview session is the existing demo one | done |
+| 3 | Three projects registered as demo reference projects | `cubi_reference_import` COMPLETE × 3 | done |
+| 4 | Visibility for authorized preview users without weakening tenant isolation | rows joined through `preview_project` + `preview_project_member`; `cubi-preview-tenant` only | done |
+| 5 | Not auto-enabled in production | import runs from the preview runtime only; production selects its own runtime | done |
+| 6 | Engineering is the single source of truth | all schedule/resource/cost tables are the canonical ones; no parallel store | done |
+| 7 | Enterprise reads Engineering through APIs | portal reads `/api/projects/{id}/…` | done |
+| 8 | All 94 sheets analysed with counts, PK/FK and dispositions | inventory CSV + §2–§6 | done |
+| 9 | Nothing silently dropped | every sheet has a disposition; unmapped Enterprise sheets listed explicitly | done |
+| 10 | Project Master, EPS, WBS, activities, relationships, calendars persisted | 1 project, 129 WBS nodes, 180 activities, 238 relationships, 3 calendars each | done |
+| 11 | Baselines immutable | baseline written once; re-import creates nothing | done |
+| 12 | Resources, assignments, loading, progress, cost persisted | 40 resources, 240 assignments, 240 spreads, 180 progress rows | done |
+| 13 | Canonical CPM executed with a recorded run | three `SUCCESS` runs with run ID, hashes, options, duration, warnings | done |
+| 14 | No CPM/float hand-entered | every date/float in the UI comes from the engine snapshot | done |
+| 15 | Capacity/histogram and baseline-vs-actual validated | capacity segments 93, rate facts 123, baseline comparison reads the immutable baseline | done |
+| 16 | All EVM indicators calculated, not fabricated | PV/EV/AC/CV/SV/CPI/SPI/ETC/EAC/VAC per project; TCPI reported as not produced | done |
+| 17 | Enterprise, assistant and scenario connected to the same project IDs | §11 table, including the honest not-connected rows | done (partial where stated) |
+| 18 | Personal Workbench landing and constant return path | screenshots 01/04/05; `/workbench/` fix | done |
+| 19 | Real browser evidence on the fixed Preview | screenshots 01–08 + JSON, fixed alias URL | done |
+| 20 | Tests, migrations, APIs and PRs reported | Python suite, E2E suites, PR #2123 (merged) and #2124 (this branch) | done |
+
+## 14. Not claimed
+
+- No PostgreSQL/Supabase verification: the preview runtime is SQLite; a
+  PostgreSQL run needs `CONSTRUCTION_PM_DATABASE_URL` and is not asserted here.
+- No AI provider is configured, so free-form conversation is unavailable; the
+  deterministic planner is what answers, and it refuses to invent data.
+- No scenario service exists, so the Scenario Workspace is reported as not
+  connected rather than simulated.
+- Enterprise portlet/indicator/EVM routes remain a preview-runtime stub (503).
+- Committed baseline dates on Sundays are a source property; the measurement
+  calendar that makes EVM possible is documented in D7 and does not alter CPM.
