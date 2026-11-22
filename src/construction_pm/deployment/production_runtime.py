@@ -610,6 +610,22 @@ class ProductionRuntime:
             self._initialized = True
 
     def _readiness(self) -> dict[str, object]:
+        # A successful TCP/SELECT 1 probe is not sufficient readiness for this
+        # application: its API repositories depend on the versioned production
+        # schema. Health probes bypass the normal request wrapper, so initialize
+        # the additive migration registry here before reporting ready.
+        try:
+            self._initialize()
+        except Exception as error:  # noqa: BLE001 - health boundary must fail closed
+            print(
+                f"cubi: readiness initialization failed ({type(error).__name__})",
+                file=sys.stderr,
+            )
+            return {
+                "status": "not_ready",
+                "components": [{"name": "database", "healthy": False}],
+                "schema": {"version": None, "tables": None, "drift": None},
+            }
         try:
             connection = self.pool.acquire()
         except Exception:
@@ -624,7 +640,7 @@ class ProductionRuntime:
         self.pool.release(connection, healthy=True)
         report = getattr(self, "migration_report", None)
         return {
-            "status": "ready" if healthy else "not_ready",
+            "status": "ready" if healthy and report is not None and report.ok else "not_ready",
             "components": [{"name": "database", "healthy": healthy}],
             "schema": {
                 "version": None if report is None else report.ledger_version,
