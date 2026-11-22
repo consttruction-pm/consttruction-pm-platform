@@ -685,8 +685,9 @@ def test_change_password_rehashes_revokes_old_sessions_and_keeps_the_caller(app)
     status, _, _ = call(app, "GET", "/app", cookie=session)
     assert status == 302
     # The rotated token still works.
-    status, _, body = call(app, "GET", "/app", cookie=rotated_session)
-    assert status == 200 and b"CUBI Workspace" in body
+    status, headers, _ = call(app, "GET", "/app", cookie=rotated_session)
+    assert status == 303
+    assert headers["location"] == ["/workbench/"]
     # The old password no longer authenticates; the new one does.
     status, _, _ = call(
         app, "POST", "/api/session", body={"email": "engineer@example.test", "password": PASSWORD}
@@ -763,7 +764,7 @@ def test_signup_rejects_foreign_origin(app):
 
 
 def test_personal_workbench_nested_document_is_session_gated_without_project_selection(app):
-    owner = login(app, email="owner@example.test")
+    owner, _ = login(app, email="owner@example.test")
     for path in ("/workbench/profile", "/workbench/settings"):
         status, _, body = call(app, "GET", path, cookie=owner)
         assert status == 200, path
@@ -771,7 +772,7 @@ def test_personal_workbench_nested_document_is_session_gated_without_project_sel
 
 
 def test_global_admin_can_open_engineering_project_picker_before_first_project_exists(app):
-    owner = login(app, email="owner@example.test")
+    owner, _ = login(app, email="owner@example.test")
     status, headers, body = call(app, "GET", "/app", cookie=owner)
     assert status == 200
     assert b"CUBI Workspace" in body
