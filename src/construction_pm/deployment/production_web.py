@@ -760,7 +760,13 @@ class ProductionWebApp:
             query = parse_qs(str(environ.get("QUERY_STRING", "") or ""), keep_blank_values=False)
             project_values = query.get("project", [])
             project_id = project_values[0].strip() if len(project_values) == 1 else ""
-            if not project_id or not self._project_is_authorized(environ, project_id):
+            roles = frozenset(getattr(session, "roles", ()) or ())
+            # The platform owner must be able to open the Engineering
+            # project picker before the first project exists. A selected
+            # project still has to pass the same server-side authorization.
+            if (not project_id and PLATFORM_OWNER_ROLE not in roles) or (
+                project_id and not self._project_is_authorized(environ, project_id)
+            ):
                 return 303, [
                     ("Location", f"{WORKBENCH_PATH}/"),
                     ("Cache-Control", "no-store"),
