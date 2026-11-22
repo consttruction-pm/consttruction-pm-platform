@@ -121,6 +121,7 @@ def test_project_configuration_targets_the_authenticated_runtime():
     rewrites = {entry["source"]: entry["destination"] for entry in config["rewrites"]}
     assert rewrites["/app"] == "/api/shell?__path=app"
     assert rewrites["/app/"] == "/api/shell?__path=app"
+    assert rewrites["/app/:path*/"] == "/api/shell?__path=app/:path*"
     assert rewrites["/enterprise"] == "/api/shell?__path=enterprise"
     assert rewrites["/enterprise/"] == "/api/shell?__path=enterprise"
     assert rewrites["/api/:path*"] == "/api?__path=:path*"
