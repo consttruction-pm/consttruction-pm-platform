@@ -6,6 +6,7 @@ import {
   WORKBENCH_LOCALES,
   environmentHref,
   formatWorkbenchDate,
+  probeAdmin,
   probeEnterprise,
   formatWorkbenchNumber,
   resolveEnvironments,
@@ -50,19 +51,24 @@ test("locale resolution normalizes regional tags and falls back to English", () 
 });
 
 test("environment availability follows server responses, not a role list", () => {
-  const granted = resolveEnvironments({ projectsOk: true, enterpriseOk: "granted" });
+  const granted = resolveEnvironments({ projectsOk: true, enterpriseOk: "granted", adminOk: "granted" });
   assert.deepEqual(granted, [
     { id: "engineering", available: true, reason: "authorized" },
     { id: "enterprise", available: true, reason: "authorized" },
+    { id: "admin", available: true, reason: "authorized" },
   ]);
-  const engineeringOnly = resolveEnvironments({ projectsOk: true, enterpriseOk: "denied" });
+  const engineeringOnly = resolveEnvironments({ projectsOk: true, enterpriseOk: "denied", adminOk: "denied" });
   assert.equal(engineeringOnly[0].available, true);
   assert.equal(engineeringOnly[1].available, false);
   assert.equal(engineeringOnly[1].reason, "no_server_grant");
-  const unknown = resolveEnvironments({ projectsOk: false, enterpriseOk: "unknown" });
+  assert.equal(engineeringOnly[2].available, false);
+  assert.equal(engineeringOnly[2].reason, "no_server_grant");
+  const unknown = resolveEnvironments({ projectsOk: false, enterpriseOk: "unknown", adminOk: "unknown" });
   assert.equal(unknown[0].available, false);
   assert.equal(unknown[1].available, false);
   assert.equal(unknown[1].reason, "server_unknown");
+  assert.equal(unknown[2].available, false);
+  assert.equal(unknown[2].reason, "server_unknown");
 });
 
 test("the enterprise probe treats only a 2xx as a grant and never hides on a fault", async () => {
@@ -76,11 +82,28 @@ test("the enterprise probe treats only a 2xx as a grant and never hides on a fau
   assert.equal(await probeEnterprise(async () => { throw new TypeError("offline"); }), "unknown");
 });
 
-test("environment links stay inside the two real product entries", () => {
+test("the admin probe asks the real dashboard endpoint and rejects a role-name shortcut", async () => {
+  const seen: string[] = [];
+  const respond = (status: number) => async (input: RequestInfo | URL) => {
+    seen.push(String(input));
+    return new Response("{}", { status });
+  };
+  assert.equal(await probeAdmin(respond(200)), "granted");
+  assert.equal(await probeAdmin(respond(403)), "denied");
+  assert.equal(await probeAdmin(respond(401)), "unknown");
+  assert.equal(await probeAdmin(respond(503)), "unknown");
+  assert.equal(await probeAdmin(async () => { throw new TypeError("offline"); }), "unknown");
+  for (const url of seen) assert.equal(url, "/api/admin/dashboard");
+});
+
+test("environment links stay inside the real product entries", () => {
   assert.equal(environmentHref("engineering"), "/app?view=live");
   assert.equal(environmentHref("engineering", "preview-rps-01"), "/app?project=preview-rps-01&view=live");
   assert.equal(environmentHref("engineering", "a b/c"), "/app?project=a%20b%2Fc&view=live");
   assert.equal(environmentHref("enterprise"), "/cubi/enterprise/dashboard");
+  assert.equal(environmentHref("admin"), "/admin/");
+  // The admin href ignores a project: Global Administration is tenant-wide.
+  assert.equal(environmentHref("admin", "preview-rps-01"), "/admin/");
 });
 
 test("dates and numbers are locale aware", () => {
