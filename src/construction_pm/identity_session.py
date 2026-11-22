@@ -250,6 +250,14 @@ class IdentityStore(Protocol):
 
     def find_user_by_email(self, email: str) -> IdentityUser | None: ...
 
+    def find_user_by_id(self, user_id: str) -> IdentityUser | None: ...
+
+    def set_password(self, user_id: str, password_hash: str, *, when: datetime) -> None: ...
+
+    def revoke_user_sessions(
+        self, user_id: str, *, when: datetime, keep_hash: str | None = None
+    ) -> int: ...
+
     def record_attempt(
         self,
         *,
@@ -417,6 +425,61 @@ class IdentityService:
             user_id=user.user_id, tenant_id=user.tenant_id, roles=user.roles,
             created_at=now, expires_at=session.expires_at,
         )
+
+    def change_password(
+        self,
+        token: str,
+        current_password: str,
+        new_password: str,
+        *,
+        ip_hash: str = "",
+    ) -> IssuedSession:
+        """Change the password of the signed-in account.
+
+        The current password is verified against the stored scrypt hash, the new
+        one must satisfy the password policy, only the new hash is stored, every
+        other session of the account is revoked and a fresh session is issued so
+        the caller stays signed in with the new credential.
+        """
+        session = self.resolve(token)
+        if session is None:
+            raise IdentityError("SESSION_REQUIRED")
+        user = self._store.find_user_by_id(session.user_id)
+        if user is None or not user.active or not self._account_open(user, _as_utc(self._clock())):
+            raise IdentityError("AUTHENTICATION_FAILED")
+        if not verify_password(current_password, user.password_hash):
+            raise IdentityError("CURRENT_PASSWORD_INVALID")
+        problem = password_policy_error(new_password)
+        if problem is not None:
+            raise IdentityError(problem)
+        if verify_password(new_password, user.password_hash):
+            raise IdentityError("PASSWORD_UNCHANGED")
+        now = _as_utc(self._clock())
+        self._store.set_password(user.user_id, hash_password(new_password), when=now)
+        # The presented session is revoked with the rest; a new one is issued
+        # below so the browser does not keep a token that predates the change.
+        self._store.revoke_user_sessions(user.user_id, when=now)
+        fresh_token = new_session_token()
+        stored = StoredSession(
+            token_hash=token_hash(fresh_token),
+            user_id=user.user_id,
+            tenant_id=user.tenant_id,
+            roles=user.roles,
+            created_at=now,
+            last_seen_at=now,
+            expires_at=now + self._session_ttl,
+        )
+        self._store.save_session(stored)
+        return IssuedSession(
+            token=fresh_token,
+            csrf_token=csrf_token(self._csrf_secret, fresh_token),
+            user_id=user.user_id,
+            tenant_id=user.tenant_id,
+            roles=user.roles,
+            created_at=now,
+            expires_at=stored.expires_at,
+        )
+
 
     @staticmethod
     def _account_open(user: IdentityUser, now: datetime) -> bool:
@@ -656,6 +719,33 @@ class _SqlIdentityStore:
             f"{self.placeholder} WHERE user_id={self.placeholder}",
             (when.isoformat(), user_id),
         )
+
+    def set_password(self, user_id: str, password_hash: str, *, when: datetime) -> None:
+        """Store only the new scrypt hash and clear the forced-change flag."""
+
+        self.connection.execute(
+            "UPDATE identity_users SET password_hash="
+            f"{self.placeholder}, password_changed_at={self.placeholder}, "
+            f"must_change_password=FALSE WHERE user_id={self.placeholder}",
+            (password_hash, when.isoformat(), user_id),
+        )
+
+    def revoke_user_sessions(
+        self, user_id: str, *, when: datetime, keep_hash: str | None = None
+    ) -> int:
+        """Revoke every live session of one user, optionally keeping one token."""
+
+        sql = (
+            "UPDATE identity_sessions SET revoked_at="
+            f"{self.placeholder} WHERE user_id={self.placeholder} "
+            "AND revoked_at IS NULL"
+        )
+        params: list[Any] = [when.isoformat(), user_id]
+        if keep_hash is not None:
+            sql += f" AND token_hash<>{self.placeholder}"
+            params.append(keep_hash)
+        rows = self.connection.execute(sql + " RETURNING token_hash", tuple(params)).fetchall()
+        return len(rows)
 
     def delete_attempts_before(self, cutoff: datetime) -> None:
         self.connection.execute(
