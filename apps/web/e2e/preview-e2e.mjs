@@ -1060,29 +1060,44 @@ async function runAiWorkbenchJourney(page, baseUrl) {
     impact_warnings: pendingDecision.impact.warnings,
   });
 
-  await page.setSelect('[data-workbench="locale"]', "fa");
-  await page.waitFor(
-    `document.documentElement.dir === "rtl" && document.querySelectorAll("#aiw-tabs button").length === 5`,
-    "Persian RTL workbench with the full studio registry",
-    30000,
+  // All ten product locales keep the studio registry and the right direction.
+  const workbenchLocales = [
+    ["en", "ltr"], ["fa", "rtl"], ["de", "ltr"], ["zh", "ltr"], ["ar", "rtl"],
+    ["fr", "ltr"], ["ja", "ltr"], ["ko", "ltr"], ["ru", "ltr"], ["tr", "ltr"],
+  ];
+  const localeObservations = [];
+  for (const [option, dir] of workbenchLocales) {
+    await page.setSelect('[data-workbench="locale"]', option);
+    await page.waitFor(
+      `document.documentElement.dir === ${JSON.stringify(dir)} && document.documentElement.lang.split("-")[0] === ${JSON.stringify(option)} && document.querySelectorAll("#aiw-tabs button").length === 5`,
+      `workbench ${option} keeps five studios in ${dir}`,
+      30000,
+    );
+    const observed = await page.evaluate(`(() => ({
+      lang: document.documentElement.lang,
+      dir: document.documentElement.dir,
+      command: document.querySelector("#aiw-command h2")?.textContent ?? "",
+      fallback: Boolean(document.querySelector("[data-locale-fallback]")),
+      tabs: document.querySelectorAll("#aiw-tabs button").length,
+    }))()`);
+    localeObservations.push({ option, ...observed });
+    if (option === "fa") await page.screenshot("ai-workbench-fa.png");
+  }
+  const englishCommand = localeObservations.find((entry) => entry.option === "en")?.command ?? "";
+  const persianCommand = localeObservations.find((entry) => entry.option === "fa")?.command ?? "";
+  assert(
+    persianCommand && persianCommand !== englishCommand,
+    "Persian must translate the workbench shell instead of mirroring English: " + JSON.stringify({ englishCommand, persianCommand }),
   );
-  const persian = await page.evaluate(`(() => ({
-    lang: document.documentElement.lang,
-    dir: document.documentElement.dir,
-    fallback: Boolean(document.querySelector("[data-locale-fallback]")),
-    tabs: document.querySelectorAll("#aiw-tabs button").length,
-  }))()`);
-  assert(persian.lang === "fa" && persian.dir === "rtl", "Persian must flip the document direction");
-  assert(persian.tabs === 5, "the studio registry must survive the locale switch");
-  await page.screenshot("ai-workbench-fa.png");
   await page.setSelect('[data-workbench="locale"]', "en");
   await page.waitFor(
     `document.documentElement.dir === "ltr" && document.documentElement.lang === "en" && document.querySelectorAll("#aiw-tabs button").length === 5`,
     "English LTR workbench with the full studio registry",
     30000,
   );
-  record("locale switch keeps the studio shell and flips direction", {
-    persian_fallback_notice: persian.fallback,
+  record("locale switch covers all ten product locales, keeps the five studios and flips direction", {
+    locales: localeObservations.map((entry) => `${entry.option}:${entry.dir}`),
+    persian_fallback_notice: localeObservations.find((entry) => entry.option === "fa")?.fallback ?? false,
   });
 }
 
@@ -1343,21 +1358,40 @@ async function runEnterpriseJourney(page, baseUrl) {
   assert(/directory/i.test(audit), "the audit trail must record the directory write: " + audit.slice(0, 200));
   record("Enterprise audit lists the recorded write", { rows: audit.length });
 
-  // Persian keeps the Enterprise shell and flips direction.
-  await page.setSelect(".cubi-lang select", "fa");
-  await page.waitFor(
-    `document.documentElement.dir === "rtl" && document.documentElement.lang === "fa"`,
-    "Enterprise Persian RTL",
-    30000,
-  );
-  const persian = await page.evaluate(`(() => ({
-    dir: document.documentElement.dir,
-    nav: document.querySelector(".cubi-nav a")?.textContent ?? "",
-    engineering_root: Boolean(document.querySelector("#app")),
-  }))()`);
-  assert(persian.dir === "rtl", "Persian must flip the Enterprise document direction");
-  assert(!persian.engineering_root, "the locale switch must not mount Engineering");
-  record("Enterprise locale switch keeps its own document and direction", { dir: persian.dir });
+  // All ten product locales keep their own Enterprise document and direction.
+  const enterpriseLocales = [
+    ["en", "en", "ltr"], ["fa", "fa", "rtl"], ["de", "de", "ltr"], ["zh", "zh", "ltr"],
+    ["ar", "ar", "rtl"], ["fr", "fr", "ltr"], ["ja", "ja", "ltr"], ["ko", "ko", "ltr"],
+    ["ru", "ru", "ltr"], ["tr", "tr-TR", "ltr"],
+  ];
+  const enterpriseObservations = [];
+  for (const [option, lang, dir] of enterpriseLocales) {
+    await page.setSelect(".cubi-lang select", option);
+    await page.waitFor(
+      `document.documentElement.lang === ${JSON.stringify(lang)} && document.documentElement.dir === ${JSON.stringify(dir)}`,
+      `Enterprise ${option} keeps its own document in ${dir}`,
+      30000,
+    );
+    const observed = await page.evaluate(`(() => ({
+      lang: document.documentElement.lang,
+      dir: document.documentElement.dir,
+      nav: Array.from(document.querySelectorAll(".cubi-nav a")).slice(0, 4).map((link) => link.textContent.trim()).join("|"),
+      engineering_root: Boolean(document.querySelector("#app")),
+    }))()`);
+    assert(!observed.engineering_root, `the ${option} locale switch must not mount Engineering`);
+    enterpriseObservations.push({ option, ...observed });
+  }
+  const englishNav = enterpriseObservations.find((entry) => entry.option === "en")?.nav ?? "";
+  for (const entry of enterpriseObservations) {
+    if (entry.option === "en") continue;
+    assert(
+      entry.nav && entry.nav !== englishNav,
+      `the ${entry.option} locale must translate the Enterprise navigation: ${entry.nav} vs ${englishNav}`,
+    );
+  }
+  record("Enterprise locale switch serves all ten product locales in its own document", {
+    locales: enterpriseObservations.map((entry) => `${entry.option}:${entry.dir}`),
+  });
   await page.setSelect(".cubi-lang select", "en");
   await page.waitFor(`document.documentElement.dir === "ltr"`, "Enterprise back to LTR", 30000);
 

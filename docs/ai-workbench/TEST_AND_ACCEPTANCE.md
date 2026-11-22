@@ -168,8 +168,10 @@ the real WSGI runtime, real SQLite stores and the real API composition:
     its WBS node and no `CURRENT_STATE_UNAVAILABLE`/`ACTIVITY_ID_EXISTS`
     warning; rejecting records the decision; a reload shows the rejected
     proposal with no live control and the activity was never created;
-14. switching to Persian flips direction while keeping five studios, then back
-    to English.
+14. the locale switch is exercised across all ten product locales (`en`, `fa`,
+    `de`, `zh`, `ar`, `fr`, `ja`, `ko`, `ru`, `tr`): each keeps the five studios,
+    sets its document language, flips direction only for `fa`/`ar`, and Persian
+    translates the shell instead of mirroring English; the run ends in English.
 
 Screenshots: `ai-workbench-en.png`, `ai-workbench-fa.png` under
 `apps/web/e2e/artifacts/`.
@@ -204,7 +206,10 @@ using the Enterprise persona and the same real stores:
 8. a directory record is created through the record form, accepted with a blank
    optional email, listed back from `EnterpriseWorkbenchStore` and then found in
    the append-only audit trail on `/cubi/enterprise/audit/`;
-9. switching to Persian keeps the Enterprise document and flips direction;
+9. the Enterprise locale switch is exercised across all ten product locales:
+   each keeps the Enterprise document (no Engineering root), sets `html lang`
+   (including `tr-TR`), flips direction only for `fa`/`ar`, and translates the
+   sidebar instead of mirroring English;
 10. a non-Enterprise session (planner) is returned by the server gate to
     `/workbench/` with the restricted note and no Enterprise link.
 
