@@ -124,12 +124,15 @@ def test_project_configuration_targets_the_authenticated_runtime():
     assert rewrites["/enterprise"] == "/api/shell?__path=enterprise"
     assert rewrites["/enterprise/"] == "/api/shell?__path=enterprise"
     assert rewrites["/api/:path*"] == "/api?__path=:path*"
-    redirects = {entry["source"]: entry["destination"] for entry in config["redirects"]}
+    redirects = {entry["source"]: entry["destination"] for entry in config.get("redirects", [])}
     # The Enterprise document links back to ``/workbench/``; the deployment must
-    # resolve that address to the canonical Personal Workbench document instead
-    # of the platform 404.
-    assert redirects["/workbench"] == "/cubi/workbench"
-    assert redirects["/workbench/:path*"] == "/cubi/workbench"
+    # serve the Personal Workbench document there instead of the platform 404.
+    # It is the same application shell as ``/app``: the client router keys the
+    # Personal Workbench off the address, so the address must stay ``/workbench/``.
+    assert rewrites["/workbench"] == "/api/shell?__path=app"
+    assert rewrites["/workbench/"] == "/api/shell?__path=app"
+    assert rewrites["/workbench/:path*"] == "/api/shell?__path=app"
+    assert "/workbench" not in redirects
     headers = {
         entry["source"]: {item["key"]: item["value"] for item in entry["headers"]}
         for entry in config["headers"]
