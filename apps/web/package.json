@@ -22,5 +22,8 @@
     "@types/node": "^24.0.0",
     "tsx": "^4.19.2",
     "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@vercel/speed-insights": "^2.1.0"
   }
 }
