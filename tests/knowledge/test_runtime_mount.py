@@ -284,6 +284,9 @@ def test_preview_composition_serves_knowledge_beside_the_real_lifecycle_app(tmp_
         assert {project["project_id"] for project in payload["projects"]} == {
             "preview-rps-01",
             "preview-nse-02",
+            "CUBI-REF-001",
+            "CUBI-REF-002",
+            "CUBI-REF-003",
         }
         assert (tmp_path / "knowledge.sqlite3").exists()
     finally:

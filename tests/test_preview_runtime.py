@@ -160,9 +160,12 @@ def test_preview_runtime_serves_real_calculated_reads_and_rejects_stale_revision
         health = runtime.health()
         assert health["mode"] == "local-full-stack-preview"
         assert health["seed_version"] == "cubi-preview-seed.v4"
-        assert health["project_count"] == 2
-        assert health["demo_project_count"] == 2
-        assert health["activity_count"] == 20
+        # Two curated fixtures plus the three DEMO/SYNTHETIC reference
+        # projects persisted from the frozen bundle.
+        assert health["project_count"] == 5
+        assert health["demo_project_count"] == 5
+        # 20 fixture activities + 180 per reference project.
+        assert health["activity_count"] == 560
 
         session = runtime.sessions.create(DEMO_USERS_BY_ROLE["planner"])
         status, _, body = _request(
@@ -179,7 +182,13 @@ def test_preview_runtime_serves_real_calculated_reads_and_rejects_stale_revision
             project["project_id"]: project
             for project in json.loads(body)["projects"]
         }
-        assert set(projects) == {"preview-rps-01", "preview-nse-02"}
+        assert set(projects) == {
+            "preview-rps-01",
+            "preview-nse-02",
+            "CUBI-REF-001",
+            "CUBI-REF-002",
+            "CUBI-REF-003",
+        }
         rps = projects["preview-rps-01"]
         assert rps["name"] == "Riverside Pump Station Upgrade"
         assert rps["start_date"] == "2026-09-21"
@@ -246,7 +255,8 @@ def test_preview_v2_workspace_read_projects_persisted_wbs_tree(
 ) -> None:
     runtime = open_preview_runtime(tmp_path / "preview.sqlite3", reset=True)
     try:
-        assert runtime.health()["wbs_node_count"] == 10
+        # 10 fixture nodes + root/EPS/WBS nodes for the three reference projects.
+        assert runtime.health()["wbs_node_count"] == 413
         planner = runtime.sessions.create(DEMO_USERS_BY_ROLE["planner"])
         status, _, body = _request(
             runtime.app,
@@ -1103,7 +1113,8 @@ def test_preview_resource_capacity_read_uses_registered_effective_dated_ceilings
 
     runtime = open_preview_runtime(database, reset=True)
     try:
-        assert runtime.health()["capacity_segment_count"] == 3
+        # 3 fixture segments + 30 labour availability segments per reference project.
+        assert runtime.health()["capacity_segment_count"] == 93
         planner = runtime.sessions.create(DEMO_USERS_BY_ROLE["planner"])
         status, _, body = _request(
             runtime.app,
@@ -1200,7 +1211,8 @@ def test_preview_resource_master_round_trip_seeds_facts_and_persists_hierarchy(
 
     runtime = open_preview_runtime(database, reset=True)
     try:
-        assert runtime.health()["resource_count"] == 2
+        # 2 fixture resources + 30 labour and 10 equipment resources per project.
+        assert runtime.health()["resource_count"] == 122
         planner = runtime.sessions.create(DEMO_USERS_BY_ROLE["planner"])
         viewer = runtime.sessions.create(DEMO_USERS_BY_ROLE["viewer"])
 
@@ -1834,7 +1846,8 @@ def test_preview_resource_rate_read_uses_registered_effective_dated_prices(
 
     runtime = open_preview_runtime(database, reset=True)
     try:
-        assert runtime.health()["rate_fact_count"] == 3
+        # 3 fixture facts + 30 labour rates and 10 equipment rates per project.
+        assert runtime.health()["rate_fact_count"] == 123
         planner = runtime.sessions.create(DEMO_USERS_BY_ROLE["planner"])
         status, _, body = _request(
             runtime.app,
