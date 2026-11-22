@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import mimetypes
+import io
 import os
 import traceback
 from pathlib import Path
@@ -431,6 +432,8 @@ class ProductionWebApp:
             return _json(200 if ready else 503, report, cache="no-store")
         if path == "/api/session" and method == "POST":
             return self._login(environ)
+        if path == "/api/signup" and method == "POST":
+            return self._signup(environ)
         if path == "/api/session" and method == "DELETE":
             return self._logout(environ)
         if path.startswith(API_PREFIX):
@@ -470,7 +473,7 @@ class ProductionWebApp:
             return _json(400, {"code": "LOGIN_REQUEST_INVALID"}, cache="no-store")
         if not isinstance(payload, dict):
             return _json(400, {"code": "LOGIN_REQUEST_INVALID"}, cache="no-store")
-        email = payload.get("email")
+        email = payload.get("username", payload.get("email"))
         password = payload.get("password")
         if not isinstance(email, str) or not isinstance(password, str):
             return _json(400, {"code": "LOGIN_REQUEST_INVALID"}, cache="no-store")
@@ -512,6 +515,45 @@ class ProductionWebApp:
             cache="no-store",
             extra=headers,
         )
+
+    def _signup(
+        self, environ: Mapping[str, Any]
+    ) -> tuple[int, list[tuple[str, str]], bytes]:
+        if not self._origin_allowed(environ):
+            return _json(403, {"code": "ORIGIN_NOT_ALLOWED"}, cache="no-store")
+        if _header(environ, "content-type").split(";")[0].strip().lower() != "application/json":
+            return _json(400, {"code": "SIGNUP_REQUEST_INVALID"}, cache="no-store")
+        try:
+            payload = json.loads(_read_body(environ, LOGIN_BODY_LIMIT).decode("utf-8") or "{}")
+        except (IdentityError, UnicodeDecodeError, json.JSONDecodeError):
+            return _json(400, {"code": "SIGNUP_REQUEST_INVALID"}, cache="no-store")
+        if not isinstance(payload, dict):
+            return _json(400, {"code": "SIGNUP_REQUEST_INVALID"}, cache="no-store")
+        username, password = payload.get("username"), payload.get("password")
+        if not isinstance(username, str) or not isinstance(password, str):
+            return _json(400, {"code": "SIGNUP_REQUEST_INVALID"}, cache="no-store")
+        try:
+            issued = self.identity.register(
+                username, password, display_name=str(payload.get("display_name") or ""),
+                ip_hash=hash_client_ip(self._ip_secret, _client_ip(environ)),
+            )
+        except IdentityError as error:
+            if error.code == "AUTHENTICATION_THROTTLED":
+                return _json(429, {"code": error.code}, cache="no-store",
+                             extra=[("Retry-After", "900")])
+            if error.code == "USERNAME_TAKEN":
+                return _json(409, {"code": error.code}, cache="no-store")
+            return _json(400, {"code": error.code}, cache="no-store")
+        max_age = max(1, int((issued.expires_at - issued.created_at).total_seconds()))
+        headers = [
+            ("Set-Cookie", session_cookie_header(name=SESSION_COOKIE_NAME, value=issued.token,
+                max_age=max_age, secure=self.secure_cookies)),
+            ("Set-Cookie", csrf_cookie_header(name=CSRF_COOKIE_NAME, value=issued.csrf_token,
+                max_age=max_age, secure=self.secure_cookies)),
+        ]
+        return _json(201, {"user_id": issued.user_id, "tenant_id": issued.tenant_id,
+            "roles": sorted(issued.roles), "expires_at": issued.expires_at.isoformat()},
+            cache="no-store", extra=headers)
 
     def _logout(
         self, environ: Mapping[str, Any]
@@ -598,6 +640,16 @@ class ProductionWebApp:
                 ("Location", f"{LOGIN_PATH}?{quote('next')}={quote(target)}"),
                 ("Cache-Control", "no-store"),
             ], b""
+        requested_path = str(environ.get("PATH_INFO", APP_PATH) or APP_PATH).rstrip("/")
+        if requested_path == APP_PATH:
+            query = parse_qs(str(environ.get("QUERY_STRING", "") or ""), keep_blank_values=False)
+            project_values = query.get("project", [])
+            project_id = project_values[0].strip() if len(project_values) == 1 else ""
+            if not project_id or not self._project_is_authorized(environ, project_id):
+                return 303, [
+                    ("Location", f"{WORKBENCH_PATH}/"),
+                    ("Cache-Control", "no-store"),
+                ], b""
         page = self.site.resolve("/app")
         if page is None:
             return _json(503, {"code": "APP_SHELL_MISSING"}, cache="no-store")
@@ -605,6 +657,32 @@ class ProductionWebApp:
             ("Content-Type", "text/html; charset=utf-8"),
             ("Cache-Control", "no-store"),
         ], page.read_bytes()
+
+    def _project_is_authorized(self, environ: Mapping[str, Any], project_id: str) -> bool:
+        """Resolve the caller's actual project register before serving Engineering."""
+        probe = dict(environ)
+        probe["REQUEST_METHOD"] = "GET"
+        probe["PATH_INFO"] = "/api/projects"
+        probe["QUERY_STRING"] = ""
+        probe["CONTENT_LENGTH"] = "0"
+        probe["wsgi.input"] = io.BytesIO(b"")
+        captured: dict[str, Any] = {}
+
+        def capture_start_response(status: str, headers: list[tuple[str, str]], exc_info=None):
+            captured["status"] = int(str(status).split()[0])
+
+        try:
+            body = b"".join(self.api_app(probe, capture_start_response))
+            if captured.get("status") != 200:
+                return False
+            payload = json.loads(body.decode("utf-8"))
+            projects = payload.get("projects", []) if isinstance(payload, dict) else []
+            return isinstance(projects, list) and any(
+                isinstance(project, dict) and project.get("project_id") == project_id
+                for project in projects
+            )
+        except (TypeError, ValueError, UnicodeDecodeError):
+            return False
 
     def _workbench(
         self, method: str, environ: Mapping[str, Any]

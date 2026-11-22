@@ -331,3 +331,35 @@ def test_loopback_http_harness_may_opt_out_of_secure_cookies():
         }
     )
     assert settings["secure_cookies"] is False
+
+
+
+def test_username_normalization_is_case_insensitive_and_strict():
+    from construction_pm.identity_session import normalize_username
+    assert normalize_username("  Jalal.F  ") == "jalal.f"
+    for bad in ("ab", "has space", "name@example.test", "_starts-with-symbol", "x" * 33):
+        with pytest.raises(IdentityError):
+            normalize_username(bad)
+
+
+def test_signup_creates_a_least_privilege_account_and_username_login(store):
+    service = _service(store)
+    issued = service.register("New.Planner", PASSWORD, display_name="New Planner")
+    assert issued.roles == frozenset({"viewer"})
+    user = store.find_user_by_username("new.planner")
+    assert user is not None
+    assert user.username == "new.planner"
+    assert user.email.endswith("@accounts.cubi.invalid")
+    assert service.resolve(issued.token) is not None
+    assert service.login("NEW.PLANNER", PASSWORD).user_id == issued.user_id
+
+
+def test_signup_rejects_duplicate_username_and_weak_password(store):
+    service = _service(store)
+    service.register("same.user", PASSWORD)
+    with pytest.raises(IdentityError) as duplicate:
+        service.register("SAME.USER", PASSWORD)
+    assert duplicate.value.code == "USERNAME_TAKEN"
+    with pytest.raises(IdentityError) as weak:
+        service.register("another.user", "short")
+    assert weak.value.code == "PASSWORD_TOO_SHORT"

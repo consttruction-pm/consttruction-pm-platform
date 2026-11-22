@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator, Mapping
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, quote, urlsplit, urlunsplit
 
 from ..activity_master_repository import PostgresActivityMasterRepository
 from ..ai_action_activity_tools import (
@@ -137,6 +137,29 @@ class ProductionSettings:
         database_url = env.get("CONSTRUCTION_PM_DATABASE_URL", "").strip()
         if not database_url.startswith(("postgresql://", "postgres://")):
             raise ProductionConfigurationError("CONSTRUCTION_PM_DATABASE_URL_INVALID")
+
+        # Serverless Preview can opt into Supabase Shared Pooler transaction
+        # mode without ever copying or exposing the stored database password.
+        # The host must come from the Supabase Connect dialog; never synthesize
+        # its cluster index from the project region.
+        pooler_host = env.get("CUBI_DATABASE_POOLER_HOST", "").strip().lower()
+        if pooler_host:
+            if not re.fullmatch(r"aws-\d+-[a-z0-9-]+\.pooler\.supabase\.com", pooler_host):
+                raise ProductionConfigurationError("CUBI_DATABASE_POOLER_HOST_INVALID")
+            direct = urlsplit(database_url)
+            project = re.fullmatch(r"db\.([a-z0-9]+)\.supabase\.co", direct.hostname or "")
+            if project is None or direct.password is None:
+                raise ProductionConfigurationError("CUBI_DATABASE_POOLER_SOURCE_INVALID")
+            pooler_user = quote(f"postgres.{project.group(1)}", safe=".")
+            userinfo = f"{pooler_user}:{direct.password}"
+            database_url = urlunsplit((
+                direct.scheme,
+                f"{userinfo}@{pooler_host}:6543",
+                direct.path,
+                direct.query,
+                direct.fragment,
+            ))
+
         schema = env.get("CONSTRUCTION_PM_DB_SCHEMA", "").strip()
         if schema and not _SCHEMA_IDENTIFIER.fullmatch(schema):
             raise ProductionConfigurationError("CONSTRUCTION_PM_DB_SCHEMA_INVALID")
@@ -253,6 +276,9 @@ class PostgresConnectionPool:
             autocommit=False,
             connect_timeout=self._connect_timeout,
             options=options,
+            # Supabase Shared Pooler transaction mode does not support
+            # server-side prepared statements.
+            prepare_threshold=None,
         )
 
     def acquire(self) -> Any:
@@ -584,6 +610,22 @@ class ProductionRuntime:
             self._initialized = True
 
     def _readiness(self) -> dict[str, object]:
+        # A successful TCP/SELECT 1 probe is not sufficient readiness for this
+        # application: its API repositories depend on the versioned production
+        # schema. Health probes bypass the normal request wrapper, so initialize
+        # the additive migration registry here before reporting ready.
+        try:
+            self._initialize()
+        except Exception as error:  # noqa: BLE001 - health boundary must fail closed
+            print(
+                f"cubi: readiness initialization failed ({type(error).__name__})",
+                file=sys.stderr,
+            )
+            return {
+                "status": "not_ready",
+                "components": [{"name": "database", "healthy": False}],
+                "schema": {"version": None, "tables": None, "drift": None},
+            }
         try:
             connection = self.pool.acquire()
         except Exception:
@@ -598,7 +640,7 @@ class ProductionRuntime:
         self.pool.release(connection, healthy=True)
         report = getattr(self, "migration_report", None)
         return {
-            "status": "ready" if healthy else "not_ready",
+            "status": "ready" if healthy and report is not None and report.ok else "not_ready",
             "components": [{"name": "database", "healthy": healthy}],
             "schema": {
                 "version": None if report is None else report.ledger_version,

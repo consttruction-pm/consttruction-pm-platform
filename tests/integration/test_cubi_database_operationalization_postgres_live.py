@@ -295,24 +295,24 @@ def test_migration_ledger_is_versioned_idempotent_and_reports_drift():
     schema = _schema_name("cubi_mig")
     connection, first = _apply_drift_free_schema(schema)
     try:
-        assert first.ledger_version == 12
-        assert len(first.applied) == 12
+        assert first.ledger_version == 13
+        assert len(first.applied) == 13
         assert first.already_applied == ()
-        assert first.table_count == 58
+        assert first.table_count == 59
         assert first.drift is None
 
         second = apply_migrations(connection)
         assert second.applied == ()
-        assert second.already_applied == tuple(range(1, 13))
+        assert second.already_applied == tuple(range(1, 14))
         assert second.drift is None
-        assert second.table_count == 58
+        assert second.table_count == 59
 
         rows = connection.execute(
             f"SELECT version, name, checksum, step_revision, runtime_version "
             f"FROM {LEDGER_TABLE} ORDER BY version"
         ).fetchall()
-        assert [row[0] for row in rows] == list(range(1, 13))
-        assert all(row[2] and row[3] >= 1 and row[4] == 12 for row in rows)
+        assert [row[0] for row in rows] == list(range(1, 14))
+        assert all(row[2] and row[3] >= 1 and row[4] == 13 for row in rows)
 
         # An edited history is reported, never silently accepted.
         connection.execute(
@@ -363,8 +363,8 @@ def test_runtime_readiness_uses_the_migrated_schema(runtime):
     assert status == 200
     readiness = json.loads(body)
     assert readiness["status"] == "ready"
-    assert readiness["schema"]["version"] == 12
-    assert readiness["schema"]["tables"] == 58
+    assert readiness["schema"]["version"] == 13
+    assert readiness["schema"]["tables"] == 59
 
 
 # ---------------------------------------------------------------------------
@@ -1132,3 +1132,37 @@ def test_knowledge_survives_and_reports_missing_coverage(runtime):
     assert status == 200
     listing = json.loads(body)
     assert any(entry.get("title") == title for entry in listing["entries"])
+
+
+
+def test_username_signup_is_durable_and_duplicate_recovery_keeps_postgres_usable(runtime):
+    suffix = runtime.test_ids["suffix"]
+    username = f"signup-{suffix}"
+    status, headers, body = call(
+        runtime, "POST", "/api/signup",
+        body={"username": username, "password": "signup password battery staple"},
+    )
+    assert status == 201, body
+    created = json.loads(body)
+    assert created["roles"] == ["viewer"]
+    session_cookie = next(
+        value.split(";", 1)[0] for value in headers["set-cookie"]
+        if value.startswith("cp_session=")
+    )
+    status, _, body = call(runtime, "GET", "/api/session", cookie=session_cookie)
+    assert status == 200
+    assert json.loads(body)["user_id"] == created["user_id"]
+
+    status, _, body = call(
+        runtime, "POST", "/api/signup",
+        body={"username": username.upper(), "password": "signup password battery staple"},
+    )
+    assert status == 409
+    assert json.loads(body)["code"] == "USERNAME_TAKEN"
+
+    status, _, body = call(
+        runtime, "POST", "/api/signup",
+        body={"username": f"signup-next-{suffix}", "password": "signup password battery staple"},
+    )
+    assert status == 201, body
+

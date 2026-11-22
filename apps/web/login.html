@@ -90,6 +90,8 @@
         cursor: pointer;
       }
       .cp-login-footer { margin-top: 20px; font-size: 12px; color: #5a6b7f; }
+      .cp-login-forgot { margin-top: 12px; padding: 0; border: 0; background: none; color: #1f6feb; font: inherit; font-size: 13px; cursor: pointer; }
+      .cp-login-forgot-help { margin: 8px 0 0; color: #5a6b7f; font-size: 12px; line-height: 1.5; }
       @media (max-height: 760px) {
         .cp-login-page { padding: 16px; }
         .cp-login-card { padding: 24px; }
@@ -125,8 +127,8 @@
         <p class="cp-login-error" id="cp-login-error" role="alert" hidden></p>
         <form id="cp-login-form" novalidate>
           <div class="cp-login-field">
-            <label for="cp-login-email" data-i18n="email">Email</label>
-            <input id="cp-login-email" name="email" type="email" autocomplete="username"
+            <label for="cp-login-username" data-i18n="username">Username</label>
+            <input id="cp-login-username" name="username" type="text" autocomplete="username"
                    required spellcheck="false" autocapitalize="none" />
           </div>
           <div class="cp-login-field">
@@ -137,6 +139,9 @@
           <button class="cp-login-submit" id="cp-login-submit" type="submit" data-i18n="submit">
             Sign in
           </button>
+          <button class="cp-login-submit" id="cp-signup-submit" type="button" style="margin-top:10px;background:#d97732" data-i18n="signup">Sign up</button>
+          <button class="cp-login-forgot" id="cp-forgot-password" type="button" data-i18n="forgot">Forgot password?</button>
+          <p class="cp-login-forgot-help" id="cp-forgot-help" data-i18n="forgotHelp" hidden>Contact your CUBI administrator to request a secure password reset.</p>
         </form>
         <p class="cp-login-footer" data-i18n="footer">
           Access is limited to the projects your account is a member of.
@@ -150,140 +155,180 @@
           product: "Construction planning workspace",
           title: "Sign in",
           lead: "Use your organization account to open the workspace.",
-          email: "Email",
+          username: "Username",
           password: "Password",
           submit: "Sign in",
+          signup: "Sign up",
           working: "Signing in…",
           footer: "Access is limited to the projects your account is a member of.",
-          failed: "Email or password is incorrect.",
+          failed: "Username or password is incorrect.",
+          usernameTaken: "That username is already in use.",
+          forgot: "Forgot password?",
+          forgotHelp: "Contact your CUBI administrator to request a secure password reset.",
           throttled: "Too many attempts. Wait a few minutes and try again.",
-          invalid: "Enter your email and password.",
+          invalid: "Enter your username and password.",
           network: "The workspace service is unreachable. Try again.",
         },
         fa: {
           product: "محیط برنامه‌ریزی ساخت",
           title: "ورود",
           lead: "برای ورود به میزکار از حساب سازمانی خود استفاده کنید.",
-          email: "ایمیل",
+          username: "نام کاربری",
           password: "گذرواژه",
           submit: "ورود",
+          signup: "ثبت‌نام",
           working: "در حال ورود…",
           footer: "دسترسی فقط به پروژه‌هایی است که حساب شما عضو آن‌هاست.",
-          failed: "ایمیل یا گذرواژه نادرست است.",
+          failed: "نام کاربری یا گذرواژه نادرست است.",
+          usernameTaken: "این نام کاربری قبلاً ثبت شده است.",
+          forgot: "گذرواژه را فراموش کرده‌اید؟",
+          forgotHelp: "برای دریافت بازنشانی امن گذرواژه با مدیر CUBI خود تماس بگیرید.",
           throttled: "تلاش‌های بیش از حد. چند دقیقه بعد دوباره امتحان کنید.",
-          invalid: "ایمیل و گذرواژه را وارد کنید.",
+          invalid: "نام کاربری و گذرواژه را وارد کنید.",
           network: "سرویس میزکار در دسترس نیست. دوباره تلاش کنید.",
         },
         de: {
           product: "Arbeitsbereich für Bauplanung",
           title: "Anmelden",
           lead: "Melden Sie sich mit Ihrem Organisationskonto an, um den Arbeitsbereich zu öffnen.",
-          email: "E-Mail",
+          username: "Benutzername",
           password: "Passwort",
           submit: "Anmelden",
+          signup: "Registrieren",
           working: "Anmeldung läuft…",
           footer: "Der Zugriff ist auf Projekte beschränkt, in denen Ihr Konto Mitglied ist.",
-          failed: "E-Mail oder Passwort ist falsch.",
+          failed: "Benutzername oder Passwort ist falsch.",
+          usernameTaken: "Dieser Benutzername ist bereits vergeben.",
+          forgot: "Passwort vergessen?",
+          forgotHelp: "Wenden Sie sich an Ihren CUBI-Administrator, um eine sichere Passwortzurücksetzung anzufordern.",
           throttled: "Zu viele Versuche. Warten Sie einige Minuten und versuchen Sie es erneut.",
-          invalid: "Geben Sie E-Mail und Passwort ein.",
+          invalid: "Geben Sie Benutzername und Passwort ein.",
           network: "Der Arbeitsbereichsdienst ist nicht erreichbar. Versuchen Sie es erneut.",
         },
         zh: {
           product: "施工计划工作区",
           title: "登录",
           lead: "使用您的组织账户打开工作区。",
-          email: "电子邮箱",
+          username: "用户名",
           password: "密码",
           submit: "登录",
+          signup: "注册",
           working: "正在登录…",
           footer: "访问仅限您的账户所属的项目。",
-          failed: "邮箱或密码不正确。",
+          failed: "用户名或密码不正确。",
+          usernameTaken: "此用户名已被使用。",
+          forgot: "忘记密码？",
+          forgotHelp: "请联系您的 CUBI 管理员申请安全的密码重置。",
           throttled: "尝试次数过多。请等待几分钟后重试。",
-          invalid: "请输入邮箱和密码。",
+          invalid: "请输入用户名和密码。",
           network: "无法连接工作区服务，请重试。",
         },
         ar: {
           product: "مساحة عمل تخطيط الإنشاءات",
           title: "تسجيل الدخول",
           lead: "استخدم حساب مؤسستك لفتح مساحة العمل.",
-          email: "البريد الإلكتروني",
+          username: "اسم المستخدم",
           password: "كلمة المرور",
           submit: "تسجيل الدخول",
+          signup: "إنشاء حساب",
           working: "جارٍ تسجيل الدخول…",
           footer: "الوصول مقصور على المشاريع التي يعد حسابك عضوًا فيها.",
-          failed: "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
+          failed: "اسم المستخدم أو كلمة المرور غير صحيحة.",
+          usernameTaken: "اسم المستخدم هذا مستخدم بالفعل.",
+          forgot: "هل نسيت كلمة المرور؟",
+          forgotHelp: "تواصل مع مسؤول CUBI لطلب إعادة تعيين آمنة لكلمة المرور.",
           throttled: "محاولات كثيرة جدًا. انتظر بضع دقائق ثم أعد المحاولة.",
-          invalid: "أدخل بريدك الإلكتروني وكلمة المرور.",
+          invalid: "أدخل اسم المستخدم وكلمة المرور.",
           network: "خدمة مساحة العمل غير متاحة. أعد المحاولة.",
         },
         fr: {
           product: "Espace de travail de planification de construction",
           title: "Connexion",
           lead: "Utilisez votre compte d’organisation pour ouvrir l’espace de travail.",
-          email: "E-mail",
+          username: "Nom d’utilisateur",
           password: "Mot de passe",
           submit: "Se connecter",
+          signup: "Créer un compte",
           working: "Connexion…",
           footer: "L’accès est limité aux projets dont votre compte est membre.",
-          failed: "L’e-mail ou le mot de passe est incorrect.",
+          failed: "Le nom d’utilisateur ou le mot de passe est incorrect.",
+          usernameTaken: "Ce nom d’utilisateur est déjà utilisé.",
+          forgot: "Mot de passe oublié ?",
+          forgotHelp: "Contactez votre administrateur CUBI pour demander une réinitialisation sécurisée du mot de passe.",
           throttled: "Trop de tentatives. Attendez quelques minutes puis réessayez.",
-          invalid: "Saisissez votre e-mail et votre mot de passe.",
+          invalid: "Saisissez votre nom d’utilisateur et votre mot de passe.",
           network: "Le service de l’espace de travail est injoignable. Réessayez.",
         },
         ja: {
           product: "建設計画ワークスペース",
           title: "サインイン",
           lead: "組織のアカウントでワークスペースを開きます。",
-          email: "メールアドレス",
+          username: "ユーザー名",
           password: "パスワード",
           submit: "サインイン",
+          signup: "新規登録",
           working: "サインインしています…",
           footer: "アクセスは、アカウントがメンバーであるプロジェクトに限られます。",
-          failed: "メールアドレスまたはパスワードが正しくありません。",
+          failed: "ユーザー名またはパスワードが正しくありません。",
+          usernameTaken: "このユーザー名は既に使用されています。",
+          forgot: "パスワードをお忘れですか？",
+          forgotHelp: "安全なパスワードリセットについて CUBI 管理者にお問い合わせください。",
           throttled: "試行回数が多すぎます。数分待ってから再度お試しください。",
-          invalid: "メールアドレスとパスワードを入力してください。",
+          invalid: "ユーザー名とパスワードを入力してください。",
           network: "ワークスペースサービスに接続できません。もう一度お試しください。",
         },
         ko: {
           product: "건설 계획 작업 공간",
           title: "로그인",
           lead: "조직 계정으로 작업 공간을 여십시오.",
-          email: "이메일",
+          username: "사용자 이름",
           password: "비밀번호",
           submit: "로그인",
+          signup: "가입하기",
           working: "로그인 중…",
           footer: "접근은 계정이 구성원인 프로젝트로 제한됩니다.",
-          failed: "이메일 또는 비밀번호가 올바르지 않습니다.",
+          failed: "사용자 이름 또는 비밀번호가 올바르지 않습니다.",
+          usernameTaken: "이미 사용 중인 사용자 이름입니다.",
+          forgot: "비밀번호를 잊으셨나요?",
+          forgotHelp: "안전한 비밀번호 재설정을 요청하려면 CUBI 관리자에게 문의하세요.",
           throttled: "시도가 너무 많습니다. 몇 분 후 다시 시도하십시오.",
-          invalid: "이메일과 비밀번호를 입력하십시오.",
+          invalid: "사용자 이름과 비밀번호를 입력하십시오.",
           network: "작업 공간 서비스에 연결할 수 없습니다. 다시 시도하십시오.",
         },
         ru: {
           product: "Рабочая область планирования строительства",
           title: "Вход",
           lead: "Используйте учётную запись организации, чтобы открыть рабочую область.",
-          email: "Электронная почта",
+          username: "Имя пользователя",
           password: "Пароль",
           submit: "Войти",
+          signup: "Зарегистрироваться",
           working: "Вход…",
           footer: "Доступ ограничен проектами, в которых ваша учётная запись является участником.",
-          failed: "Неверная электронная почта или пароль.",
+          failed: "Неверное имя пользователя или пароль.",
+          usernameTaken: "Это имя пользователя уже занято.",
+          forgot: "Забыли пароль?",
+          forgotHelp: "Обратитесь к администратору CUBI для безопасного сброса пароля.",
           throttled: "Слишком много попыток. Подождите несколько минут и повторите попытку.",
-          invalid: "Введите электронную почту и пароль.",
+          invalid: "Введите имя пользователя и пароль.",
           network: "Сервис рабочей области недоступен. Повторите попытку.",
         },
         tr: {
           product: "İnşaat planlama çalışma alanı",
           title: "Giriş yap",
           lead: "Çalışma alanını açmak için kuruluş hesabınızı kullanın.",
-          email: "E-posta",
+          username: "Kullanıcı adı",
           password: "Parola",
           submit: "Giriş yap",
+          signup: "Kaydol",
           working: "Giriş yapılıyor…",
           footer: "Erişim, hesabınızın üye olduğu projelerle sınırlıdır.",
-          failed: "E-posta veya parola yanlış.",
+          failed: "Kullanıcı adı veya parola yanlış.",
+          usernameTaken: "Bu kullanıcı adı zaten kullanılıyor.",
+          forgot: "Parolanızı mı unuttunuz?",
+          forgotHelp: "Güvenli parola sıfırlama talep etmek için CUBI yöneticinizle iletişime geçin.",
           throttled: "Çok fazla deneme. Birkaç dakika bekleyip tekrar deneyin.",
-          invalid: "E-postanızı ve parolanızı girin.",
+          invalid: "Kullanıcı adınızı ve parolanızı girin.",
           network: "Çalışma alanı hizmetine ulaşılamıyor. Tekrar deneyin.",
         },
       };
@@ -327,6 +372,9 @@
       const form = document.getElementById("cp-login-form");
       const errorBox = document.getElementById("cp-login-error");
       const submit = document.getElementById("cp-login-submit");
+      const signup = document.getElementById("cp-signup-submit");
+      const forgot = document.getElementById("cp-forgot-password");
+      const forgotHelp = document.getElementById("cp-forgot-help");
       const localeSelect = document.getElementById("cp-login-locale");
 
       function applyLocale() {
@@ -359,30 +407,31 @@
         applyLocale();
       });
 
-      form.addEventListener("submit", async (event) => {
-        event.preventDefault();
-        const email = document.getElementById("cp-login-email").value.trim();
+      async function authenticate(endpoint) {
+        const username = document.getElementById("cp-login-username").value.trim();
         const password = document.getElementById("cp-login-password").value;
         const copy = COPY[locale];
-        if (!email || !password) {
+        if (!username || !password) {
           showError(copy.invalid);
           return;
         }
         showError("");
         submit.disabled = true;
-        submit.textContent = copy.working;
+        signup.disabled = true;
+        submit.textContent = endpoint === "/api/signup" ? (copy.signup || "Sign up") : copy.working;
         try {
-          const response = await fetch("/api/session", {
+          const response = await fetch(endpoint, {
             method: "POST",
             credentials: "same-origin",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password }),
+            body: JSON.stringify({ username, password }),
           });
           if (response.ok) {
-            window.location.assign(nextPath);
+            window.location.assign("/workbench/");
             return;
           }
-          if (response.status === 429) showError(copy.throttled);
+          if (response.status === 409) showError(copy.usernameTaken);
+          else if (response.status === 429) showError(copy.throttled);
           else if (response.status === 401) showError(copy.failed);
           else if (response.status === 400) showError(copy.invalid);
           else showError(copy.network);
@@ -390,12 +439,25 @@
           showError(copy.network);
         } finally {
           submit.disabled = false;
+          signup.disabled = false;
           submit.textContent = COPY[locale].submit;
+          signup.textContent = COPY[locale].signup || "Sign up";
         }
+      }
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        await authenticate("/api/session");
+      });
+      signup.addEventListener("click", async () => {
+        await authenticate("/api/signup");
+      });
+      forgot.addEventListener("click", () => {
+        forgotHelp.hidden = !forgotHelp.hidden;
       });
 
       applyLocale();
-      document.getElementById("cp-login-email").focus();
+      document.getElementById("cp-login-username").focus();
 
       // A live session skips the form. A reauth=1 request keeps it visible.
       if (params.get("reauth") !== "1") {
