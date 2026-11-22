@@ -174,7 +174,39 @@ the real WSGI runtime, real SQLite stores and the real API composition:
 Screenshots: `ai-workbench-en.png`, `ai-workbench-fa.png` under
 `apps/web/e2e/artifacts/`.
 
-## 5. Acceptance gates
+## 5. Enterprise environment journey (same browser run)
+
+The same managed run drives the Enterprise environment from its own document,
+using the Enterprise persona and the same real stores:
+
+1. `/cubi/login/` is served by the preview server; the page declares the demo
+   endpoint in `meta[name="cubi-login-path"]` and renders persona buttons that
+   post to `/preview/login`, not a credential form posting to `/api/session`
+   (which the preview does not implement);
+2. the Enterprise persona lands on the shared Personal Workbench, which shows
+   the signed-in identity, both environment cards, both authorized projects and
+   no restricted note; the Enterprise card links to `/cubi/enterprise/dashboard`
+   and the Engineering card to `/app`;
+3. the Enterprise dashboard is its own document (no `#app` root, `cubi-body`),
+   renders the full sidebar (20+ targets, all `/cubi/`, `/workbench/` or `/app`,
+   zero `/enterprise` links) and links back to `/workbench/`;
+4. portlets answer 503 `ENGINEERING_SOURCE_NOT_CONNECTED` and the page states
+   that honestly; the browser check tolerates only that recorded code on
+   `/api/enterprise/{portlets,portfolio,evm}` and still fails every other 5xx;
+5. the access registers read the seeded tenant store (users, roles, teams,
+   organizations);
+6. a task is created through the Task API form, read back from
+   `/api/enterprise/tasks` and still present after a full reload;
+7. the knowledge centre lists only what the server publishes, or states its
+   empty/unavailable source, and never presents a failed read as guidance;
+8. a directory record is created through the record form, accepted with a blank
+   optional email, listed back from `EnterpriseWorkbenchStore` and then found in
+   the append-only audit trail on `/cubi/enterprise/audit/`;
+9. switching to Persian keeps the Enterprise document and flips direction;
+10. a non-Enterprise session (planner) is returned by the server gate to
+    `/workbench/` with the restricted note and no Enterprise link.
+
+## 6. Acceptance gates
 
 | Gate | Requirement |
 |---|---|

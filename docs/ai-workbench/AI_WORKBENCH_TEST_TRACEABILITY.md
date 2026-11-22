@@ -23,6 +23,11 @@ canonical service exists. A placeholder or a skipped test is not a pass.
 | Assistant fallback classification | only provider-unavailable codes fall back; stale/denied do not | `apps/web/src/workbench-model.test.ts` | PASS |
 | Transcript rendering | canonical messages, escaped, link to Decision & Approval, no approval control | `apps/web/src/workbench-render.test.ts` | PASS |
 | Browser: assistant first | canonical turn attempted; unconfigured 503 disclosed and routed to the planner | `apps/web/e2e/preview-e2e.mjs` | PASS |
+| Browser: Enterprise sign-in | preview sign-in posts to the declared `/preview/login`, never to an unimplemented credential route | same | PASS |
+| Browser: Enterprise environment | own document, full sidebar, no `/enterprise` links, workbench return link | same | PASS |
+| Browser: Enterprise write and audit | directory record created, read back from the store and found in the audit trail | same | PASS |
+| Browser: Enterprise gate | a non-Enterprise session is returned to the Personal Workbench with the restricted note | same | PASS |
+| Blank optional email | a record form submitting `email: ""` is accepted; a malformed address is still rejected | `tests/test_enterprise_workbench_http.py` | PASS |
 
 Command: `python -m pytest tests/test_ai_workbench_orchestration.py -q`
 

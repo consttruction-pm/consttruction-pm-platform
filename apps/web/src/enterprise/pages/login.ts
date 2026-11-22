@@ -1,6 +1,7 @@
 import type { PublicPageContext } from "../app.js";
 import { ApiError, api, probe, type CapabilityProbe } from "../api.js";
 import { BASE_PATH, safeNextPath } from "../router.js";
+import { resolveWorkspaceLoginPath } from "../../workspace-visual-demo-route.js";
 import { badge, el } from "../ui.js";
 import { labelled, note, section, sectionBody, testId, textInput } from "./shared.js";
 
@@ -18,6 +19,16 @@ const HELP_TOC = "https://docs.oracle.com/cd/G48897_01/p6help/en/toc.htm";
 export function renderLogin(ctx: PublicPageContext, host: HTMLElement): void {
   const next = safeNextPath(ctx.query.get("next"));
   const wrap = el("div", { class: "cubi-auth-wrap" });
+
+  // The deployed runtime signs in with the product credential form below. The
+  // local preview has no password directory and declares its demo sign-in in a
+  // meta tag; posting the email form there would fail, so offer the real path.
+  const loginPath = resolveWorkspaceLoginPath();
+  if (loginPath !== "/login") {
+    renderPreviewSignIn(ctx, wrap, loginPath, next);
+    host.append(wrap);
+    return;
+  }
 
   const card = el("div", { class: "cubi-auth-card" });
   card.append(
@@ -117,15 +128,22 @@ export function renderLogin(ctx: PublicPageContext, host: HTMLElement): void {
 
 function previewPanel(ctx: PublicPageContext, next: string, health: CapabilityProbe): HTMLElement {
   const card = section("Local preview demo identity", "This panel exists only on the local preview server. It creates a demo session for a fixed persona and is not a production credential.");
+  sectionBody(card, demoGrid(next), note(`${ctx.t("common.localOnly")}. Health ${health.status} · ${health.code}. No production account is contacted.`));
+  testId(card, "login-preview-panel");
+  return card;
+}
+
+const PREVIEW_PERSONAS = [
+  { role: "enterprise", name: "Enterprise administrator", detail: "Enterprise admin entitlement plus project administration. Best for this workbench." },
+  { role: "admin", name: "Project administrator", detail: "Project administration without an Enterprise entitlement." },
+  { role: "planner", name: "Planner", detail: "Planning and scheduling in Engineering; read-only Enterprise." },
+  { role: "viewer", name: "Viewer", detail: "Read-only project access." },
+];
+
+function demoGrid(next: string, action = "/preview/login"): HTMLElement {
   const grid = el("div", { class: "cubi-demo-grid" });
-  const personas = [
-    { role: "enterprise", name: "Enterprise administrator", detail: "Enterprise admin entitlement plus project administration. Best for this workbench." },
-    { role: "admin", name: "Project administrator", detail: "Project administration without an Enterprise entitlement." },
-    { role: "planner", name: "Planner", detail: "Planning and scheduling in Engineering; read-only Enterprise." },
-    { role: "viewer", name: "Viewer", detail: "Read-only project access." },
-  ];
-  for (const persona of personas) {
-    const form = el("form", { attrs: { method: "post", action: "/preview/login" } });
+  for (const persona of PREVIEW_PERSONAS) {
+    const form = el("form", { attrs: { method: "post", action } });
     const nextInput = el("input");
     nextInput.type = "hidden";
     nextInput.name = "next";
@@ -136,9 +154,30 @@ function previewPanel(ctx: PublicPageContext, next: string, health: CapabilityPr
     row.append(el("div", {}, el("strong", { text: persona.name }), el("p", { class: "cubi-field-hint", text: persona.detail })), form);
     grid.append(row);
   }
-  sectionBody(card, grid, note(`${ctx.t("common.localOnly")}. Health ${health.status} · ${health.code}. No production account is contacted.`));
-  testId(card, "login-preview-panel");
-  return card;
+  return grid;
+}
+
+/**
+ * Local preview sign-in. The preview server has no password directory and
+ * declares its demo endpoint in a meta tag, so the production credential form
+ * is replaced with persona buttons instead of failing on submit.
+ */
+function renderPreviewSignIn(
+  ctx: PublicPageContext,
+  wrap: HTMLElement,
+  loginPath: string,
+  next: string,
+): void {
+  const card = el("div", { class: "cubi-auth-card" });
+  card.append(
+    el("span", { class: "cubi-eyebrow", text: "LOCAL PREVIEW" }),
+    el("h1", { text: ctx.t("page.login.title") }),
+    el("p", { class: "desc", text: "This server is the local full-stack preview. It holds no password directory; choose a demo persona. No production account is contacted and no production session is created." }),
+    demoGrid(next, loginPath),
+    note(`${ctx.t("common.localOnly")}. The demo session is issued by ${loginPath}, and Enterprise entitlements are still checked server-side.`),
+  );
+  testId(card, "login-preview-signin");
+  wrap.append(card);
 }
 
 function securityLine(title: string, body: string): HTMLElement {

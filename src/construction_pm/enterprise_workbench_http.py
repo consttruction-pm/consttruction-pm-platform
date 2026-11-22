@@ -869,6 +869,10 @@ class EnterpriseWorkbenchHttpMiddleware:
         }:
             raise EnterpriseApiError(400, "MEMBERSHIP_ROLE_INVALID")
         email = payload.get("email")
+        if isinstance(email, str) and not email.strip():
+            # Forms submit untouched optional text fields as "". A blank email
+            # means "not provided", not an invalid address.
+            email = None
         if email is not None and (not isinstance(email, str) or not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email)):
             raise EnterpriseApiError(400, "EMAIL_INVALID")
         EnterpriseWorkbenchHttpMiddleware._validate_kind_fields(kind, payload)
