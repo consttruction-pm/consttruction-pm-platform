@@ -484,11 +484,29 @@ def _status(value: object) -> tuple[ActivityStatus, ActivityStatusCode]:
 
 
 def _counts(entry: Mapping[str, object]) -> dict[str, int]:
-    return {
+    counts = {
         key: len(value)
         for key, value in entry.items()
         if isinstance(value, list)
     }
+    # Data-quality observation, recorded rather than repaired. The workbook
+    # dates baseline activities on Sundays although no assigned calendar works
+    # Sunday, so its baseline dates are calendar-day offsets. Earned value is
+    # measured over the seven-day union calendar for these demo projects; see
+    # ``_uses_reference_measurement_calendar`` in the preview runtime.
+    sundays = 0
+    for row in _rows(entry, "baseline_activities"):
+        for field in ("baseline_start", "baseline_finish"):
+            value = _text(row.get(field))
+            if not value:
+                continue
+            try:
+                if date.fromisoformat(value).weekday() == 6:
+                    sundays += 1
+            except ValueError:
+                continue
+    counts["baseline_dates_on_sunday"] = sundays
+    return counts
 
 
 def _clear_partial_project(
