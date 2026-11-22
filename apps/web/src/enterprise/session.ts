@@ -17,6 +17,9 @@ export type EnvironmentAccess = {
 };
 
 export function enterpriseTier(roles: readonly string[]): EnterpriseTier | null {
+  // The platform owner administers the whole tenant, Enterprise included; the
+  // server grants global_admin inside /cubi/enterprise/* and its task API.
+  if (roles.includes("global_admin")) return "admin";
   if (roles.includes("enterprise_admin")) return "admin";
   if (roles.includes("enterprise_user")) return "user";
   if (roles.includes("enterprise_viewer")) return "viewer";

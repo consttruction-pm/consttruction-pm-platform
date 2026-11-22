@@ -290,3 +290,13 @@ def test_unknown_cookie_is_replaced_not_appended():
     assert "cp_session=token-1" in forwarded
     assert "theme=dark" in forwarded
     assert headers["set-cookie"].startswith("cp_session=token-1")
+
+
+def test_fixture_preview_denies_global_administration_for_demo_personas():
+    runtime = _Runtime()
+    app = vercel_preview.VercelPreviewApplication(_echo, runtime, role="enterprise")
+    status, headers, body = _call(app, "GET", "/api", "__path=admin/dashboard")
+    assert status == 403
+    assert json.loads(body) == {"code": "GLOBAL_ADMIN_REQUIRED"}
+    assert headers["set-cookie"].startswith("cp_session=token-1")
+    assert runtime.sessions.created == [DEMO_USERS_BY_ROLE["enterprise"]]

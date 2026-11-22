@@ -124,8 +124,9 @@ def _session_token(environ: Mapping[str, object]) -> str:
 
 def _json_response(start_response, status: int, payload: dict[str, object]):
     body = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    reason = {200: "OK", 403: "Forbidden"}.get(status, "Service Unavailable")
     start_response(
-        f"{status} {'OK' if status == 200 else 'Service Unavailable'}",
+        f"{status} {reason}",
         [
             ("Content-Type", "application/json; charset=utf-8"),
             ("Content-Length", str(len(body))),
@@ -194,6 +195,14 @@ class VercelPreviewApplication:
                 return start_response(status, resolved, exc_info)
             return start_response(status, resolved)
 
+        if path == "/api/admin/dashboard":
+            # The fixture-backed demo runtime has no real global-admin
+            # identity or tenant administration data. Report a definite
+            # denial (not 404/unknown), so non-owner demo personas never see
+            # an unverified Global Administration card.
+            return _json_response(
+                capture, 403, {"code": "GLOBAL_ADMIN_REQUIRED"}
+            )
         return self.application(scoped, capture)
 
     def _ensure_session(self, environ: dict[str, object]) -> str | None:

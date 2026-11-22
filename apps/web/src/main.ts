@@ -79,6 +79,7 @@ import {
   rememberWorkspaceProject,
 } from "./workspace-preferences.js";
 import { getWorkspaceShellLabels } from "./shell-labels.js";
+import { moduleMenuFromPath } from "./workspace-module-routes.js";
 import { renderLandingPage } from "./landing.js";
 import { getAvailableWorkspaceLocales, getWorkspaceLocaleDirection, getWorkspaceLocaleDisplayName, translateWorkspaceUiText } from "./workspace-localization.js";
 import { createWorkspaceLanguageSelect } from "./workspace-language-switch.js";
@@ -523,7 +524,10 @@ function rememberOpenedProject(userId: string, projectId: string): void {
 }
 
 function applyRememberedMenu(workspace: WorkspaceState): WorkspaceState {
-  const menu = readWorkspaceMenuPreference();
+  // A module address such as /app/wbs/ wins over the last window the browser
+  // remembered, so a bookmarked or refreshed module link opens that module.
+  const menu =
+    moduleMenuFromPath(window.location.pathname) ?? readWorkspaceMenuPreference();
   return menu ? { ...workspace, activeMenu: menu } : workspace;
 }
 
@@ -4893,7 +4897,7 @@ async function boot(): Promise<void> {
   const container = document.getElementById("app");
   if (!container) throw new Error("APP_ROOT_NOT_FOUND");
 
-  if (window.location.pathname === "/admin" || window.location.pathname === "/admin/") {
+  if (window.location.pathname === "/admin" || window.location.pathname === "/admin/" || window.location.pathname.startsWith("/admin/")) {
     const { GlobalAdminClient, mountGlobalAdmin } = await import("./global-admin.js");
     await mountGlobalAdmin(
       container,
@@ -4903,7 +4907,7 @@ async function boot(): Promise<void> {
     return;
   }
 
-  if (window.location.pathname === "/workbench" || window.location.pathname === "/workbench/") {
+  if (window.location.pathname === "/workbench" || window.location.pathname === "/workbench/" || window.location.pathname.startsWith("/workbench/")) {
     const { mountPersonalWorkbench } = await import("./personal-workbench.js");
     await mountPersonalWorkbench(container);
     return;

@@ -13,6 +13,7 @@ import importlib.util
 import io
 import json
 import os
+import re
 from pathlib import Path
 
 import pytest
@@ -121,6 +122,7 @@ def test_project_configuration_targets_the_authenticated_runtime():
     rewrites = {entry["source"]: entry["destination"] for entry in config["rewrites"]}
     assert rewrites["/app"] == "/api/shell?__path=app"
     assert rewrites["/app/"] == "/api/shell?__path=app"
+    assert rewrites["/app/:path*/"] == "/api/shell?__path=app/:path*"
     assert rewrites["/enterprise"] == "/api/shell?__path=enterprise"
     assert rewrites["/enterprise/"] == "/api/shell?__path=enterprise"
     assert rewrites["/api/:path*"] == "/api?__path=:path*"
@@ -129,9 +131,12 @@ def test_project_configuration_targets_the_authenticated_runtime():
     # serve the Personal Workbench document there instead of the platform 404.
     # It is the same application shell as ``/app``: the client router keys the
     # Personal Workbench off the address, so the address must stay ``/workbench/``.
-    assert rewrites["/workbench"] == "/api/shell?__path=app"
-    assert rewrites["/workbench/"] == "/api/shell?__path=app"
-    assert rewrites["/workbench/:path*"] == "/api/shell?__path=app"
+    assert rewrites["/workbench"] == "/api/shell?__path=workbench"
+    assert rewrites["/workbench/"] == "/api/shell?__path=workbench"
+    assert rewrites["/workbench/:path*"] == "/api/shell?__path=workbench/:path*"
+    assert rewrites["/admin"] == "/api/shell?__path=admin"
+    assert rewrites["/admin/"] == "/api/shell?__path=admin"
+    assert rewrites["/admin/:path*"] == "/api/shell?__path=admin/:path*"
     assert "/workbench" not in redirects
     headers = {
         entry["source"]: {item["key"]: item["value"] for item in entry["headers"]}
@@ -148,8 +153,13 @@ def test_shell_resolves_each_workspace_route_without_a_second_shell():
     assert shell._workspace_path({"PATH_INFO": "/api/shell", "QUERY_STRING": "__path=enterprise"}) == "/enterprise"
     assert shell._workspace_path({"PATH_INFO": "/api/shell", "QUERY_STRING": "__path=enterprise/"}) == "/enterprise"
     assert shell._workspace_path({"PATH_INFO": "/enterprise/", "QUERY_STRING": ""}) == "/enterprise"
+    # The Personal Workbench and the administration panel are documents of the
+    # same session-gated family and ship no static file of their own.
+    assert shell._workspace_path({"PATH_INFO": "/api/shell", "QUERY_STRING": "__path=workbench"}) == "/workbench"
+    assert shell._workspace_path({"PATH_INFO": "/api/shell", "QUERY_STRING": "__path=admin"}) == "/admin"
     # An unknown rewrite never turns into an arbitrary route.
-    assert shell._workspace_path({"PATH_INFO": "/api/shell", "QUERY_STRING": "__path=admin"}) == "/app"
+    assert shell._workspace_path({"PATH_INFO": "/api/shell", "QUERY_STRING": "__path=docs"}) == "/app"
+    assert shell._workspace_path({"PATH_INFO": "/api/shell", "QUERY_STRING": "__path=etc/passwd"}) == "/app"
 
 def test_canonical_preview_routes_api_and_shell_through_the_same_runtime(monkeypatch):
     monkeypatch.setenv("VERCEL_ENV", "preview")
@@ -193,3 +203,53 @@ def test_supabase_session_pooler_integration_dsn_is_accepted(monkeypatch, tmp_pa
 
     assert settings.database_url == dsn
     assert settings.public_origin == "https://preview.example.test"
+
+
+def test_shipped_html_contains_no_unresolved_merge_markers():
+    """The public documents are served verbatim.
+
+    A conflict marker left in a committed page is not a build error: Vercel
+    serves it and the marker becomes visible text on the live preview. Guard
+    every HTML document the project ships, including the nested locales.
+    """
+
+    documents = [*WEB_ROOT.glob("*.html"), *WEB_ROOT.glob("public/**/*.html")]
+    assert documents, "the project ships HTML documents"
+
+    def markers(text: str) -> list[str]:
+        found = []
+        for number, line in enumerate(text.splitlines(), start=1):
+            stripped = line.strip()
+            if (
+                stripped.startswith("<<<<<<<")
+                or stripped.startswith(">>>>>>>")
+                or re.fullmatch(r"={7}", stripped)
+            ):
+                found.append(f"{number}:{line}")
+        return found
+
+    offenders = {
+        str(path.relative_to(WEB_ROOT)): markers(path.read_text(encoding="utf-8"))
+        for path in documents
+    }
+    assert {name: found for name, found in offenders.items() if found} == {}
+
+def test_supabase_direct_dsn_uses_the_explicit_project_pooler_host(monkeypatch, tmp_path):
+    from construction_pm.deployment.production_runtime import ProductionSettings
+
+    (tmp_path / "index.html").write_text("<!doctype html>", encoding="utf-8")
+    (tmp_path / "app.html").write_text("<!doctype html>", encoding="utf-8")
+    dsn = "postgresql://postgres:secret@db.pbgosszuzemljgoccppk.supabase.co:5432/postgres?sslmode=require"
+    monkeypatch.delenv("CONSTRUCTION_PM_DATABASE_URL", raising=False)
+    monkeypatch.setenv("POSTGRES_URL_NON_POOLING", dsn)
+    monkeypatch.setenv("CUBI_DATABASE_POOLER_HOST", "aws-0-eu-central-1.pooler.supabase.com")
+    monkeypatch.setenv("CONSTRUCTION_PM_SESSION_SECRET", "test-session-secret-with-at-least-32-characters")
+    monkeypatch.setenv("CONSTRUCTION_PM_PUBLIC_ORIGIN", "https://preview.example.test")
+    monkeypatch.setenv("CUBI_WEB_ROOT", str(tmp_path))
+
+    settings = ProductionSettings.from_environment()
+
+    assert settings.database_url == (
+        "postgresql://postgres.pbgosszuzemljgoccppk:secret@"
+        "aws-0-eu-central-1.pooler.supabase.com:6543/postgres?sslmode=require"
+    )
