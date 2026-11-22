@@ -94,6 +94,16 @@ def identity() -> IdentityService:
             password_hash=hash_password(PASSWORD),
         )
     )
+    store.upsert_user(
+        IdentityUser(
+            user_id="user-owner",
+            tenant_id="tenant-owner",
+            email="owner@example.test",
+            display_name="Owner",
+            roles=frozenset({"global_admin"}),
+            password_hash=hash_password(PASSWORD),
+        )
+    )
     return IdentityService(store, csrf_secret=SECRET)
 
 
@@ -151,9 +161,9 @@ def call(
     return int(str(captured["status"]).split()[0]), headers_out, payload
 
 
-def login(app) -> tuple[str, str]:
+def login(app, email: str = "engineer@example.test") -> tuple[str, str]:
     status, headers, body = call(
-        app, "POST", "/api/session", body={"email": "engineer@example.test", "password": PASSWORD}
+        app, "POST", "/api/session", body={"email": email, "password": PASSWORD}
     )
     assert status == 200, body
     cookies = headers["set-cookie"]
@@ -289,12 +299,42 @@ def test_ai_workbench_document_is_gated_and_served_as_its_own_shell(app):
     assert b".aiw-shell" in body
 
 
-def test_login_page_redirects_an_authenticated_user_to_the_next_target(app):
+def test_login_page_sends_an_authenticated_user_to_the_personal_workbench(app):
     cookie, _ = login(app)
-    status, headers, _ = call(app, "GET", "/login", cookie=cookie, query="next=%2Fapp%3Fproject%3Dp1")
-    assert status == 303
-    # Engineering deep links are canonicalised to explicit live mode.
-    assert headers["location"] == ["/app?project=p1&view=live"]
+    for query in (
+        "next=%2Fapp%3Fproject%3Dp1",
+        "next=%2Fadmin",
+        "next=%2Fcubi%2Fenterprise%2Fdashboard",
+        "",
+    ):
+        status, headers, _ = call(app, "GET", "/login", cookie=cookie, query=query)
+        assert status == 303, query
+        # Every role, the tenant owner included, starts on the Workbench.
+        assert headers["location"] == ["/workbench/"], query
+
+
+def test_admin_document_requires_the_tenant_owner_role(app):
+    # Anonymous: the sign-in page, with the admin document remembered.
+    status, headers, _ = call(app, "GET", "/admin")
+    assert status == 302
+    assert headers["location"][0] == "/login?next=/admin"
+
+    # A signed-in non-owner never receives the Global Administration document.
+    cookie, _ = login(app)
+    for path in ("/admin", "/admin/"):
+        status, headers, body = call(app, "GET", path, cookie=cookie)
+        assert status == 303, path
+        assert headers["location"] == ["/workbench/"], path
+        assert b"CUBI Workspace" not in body
+        assert headers["cache-control"] == ["no-store"]
+
+    # The tenant owner is served the same shell the client boots into /admin.
+    owner, _ = login(app, "owner@example.test")
+    status, headers, body = call(app, "GET", "/admin", cookie=owner)
+    assert status == 200
+    assert b"CUBI Workspace" in body
+    assert headers["cache-control"] == ["no-store"]
+
 
 
 def test_login_page_sanitizes_open_redirect_targets(app):
@@ -591,7 +631,110 @@ def test_safe_next_defaults_to_the_personal_workbench_and_preserves_real_deep_li
     assert _safe_next("/ai-workbench?project=a/b") == "/ai-workbench"
 
 
+def test_module_deep_link_without_session_redirects_to_login_and_keeps_target(app):
+    for path in ("/app/activities/", "/app/wbs/", "/app/calendars/", "/app/activities"):
+        status, headers, body = call(app, "GET", path)
+        assert status == 302, (path, status, body)
+        assert headers["location"][0] == "/login?next=" + path
 
+
+def test_module_deep_link_with_session_serves_the_workspace_shell(app):
+    session, _ = login(app)
+    for path in ("/app/activities/", "/app/wbs/", "/app/calendars/", "/app/activities"):
+        status, headers, body = call(app, "GET", path, cookie=session)
+        assert status == 200, (path, status)
+        assert headers["content-type"] == ["text/html; charset=utf-8"]
+        assert b"CUBI Workspace" in body
+        assert headers["cache-control"] == ["no-store"]
+
+
+def test_app_shell_does_not_hijack_files_under_the_app_prefix(site_root):
+    from construction_pm.deployment.production_web import StaticSite
+
+    (site_root / "app").mkdir()
+    (site_root / "app" / "theme.css").write_text("body{}", encoding="utf-8")
+    site = StaticSite(site_root)
+    assert site.resolve("/app/theme.css") == site_root / "app" / "theme.css"
+    assert site.resolve("/app/activities/") == site_root / "app.html"
+
+
+def _change_password(app, session, csrf, current, new):
+    return call(
+        app,
+        "POST",
+        "/api/account/password",
+        body={"current_password": current, "new_password": new},
+        cookie=session,
+        headers={"X-CSRF-Token": csrf},
+    )
+
+
+def test_change_password_rehashes_revokes_old_sessions_and_keeps_the_caller(app):
+    session, csrf = login(app)
+    new_password = "a-different long passphrase 42"
+    status, headers, body = _change_password(app, session, csrf, PASSWORD, new_password)
+    assert status == 200, body
+    cookies = headers["set-cookie"]
+    rotated = next(value for value in cookies if value.startswith("cp_session="))
+    rotated_session = rotated.split(";", 1)[0]
+    assert rotated_session != session
+    assert "httponly" in rotated.lower()
+
+    # The old token is gone: it can no longer reach the workspace.
+    status, _, _ = call(app, "GET", "/app", cookie=session)
+    assert status == 302
+    # The rotated token still works.
+    status, _, body = call(app, "GET", "/app", cookie=rotated_session)
+    assert status == 200 and b"CUBI Workspace" in body
+    # The old password no longer authenticates; the new one does.
+    status, _, _ = call(
+        app, "POST", "/api/session", body={"email": "engineer@example.test", "password": PASSWORD}
+    )
+    assert status == 401
+    status, _, _ = call(
+        app,
+        "POST",
+        "/api/session",
+        body={"email": "engineer@example.test", "password": new_password},
+    )
+    assert status == 200
+
+
+def test_change_password_rejects_the_wrong_current_password(app):
+    session, csrf = login(app)
+    status, _, body = _change_password(app, session, csrf, "wrong password", "another long passphrase 9")
+    assert status == 403
+    assert json.loads(body)["code"] == "CURRENT_PASSWORD_INVALID"
+    status, _, _ = call(app, "POST", "/api/session", body={"email": "engineer@example.test", "password": PASSWORD})
+    assert status == 200
+
+
+def test_change_password_enforces_the_policy_and_csrf(app):
+    session, csrf = login(app)
+    status, _, body = _change_password(app, session, csrf, PASSWORD, "short")
+    assert status == 400
+    assert json.loads(body)["code"] == "PASSWORD_TOO_SHORT"
+    status, _, body = call(
+        app,
+        "POST",
+        "/api/account/password",
+        body={"current_password": PASSWORD, "new_password": "a long enough passphrase 7"},
+        cookie=session,
+    )
+    assert status == 403
+    assert json.loads(body)["code"] == "CSRF_TOKEN_INVALID"
+
+
+def test_nested_public_sections_resolve_their_index_document(site_root):
+    """The assembled root has no nested ``public`` dir; two-level sections must still resolve."""
+    from construction_pm.deployment.production_web import StaticSite
+
+    feature = site_root / "features" / "scheduling"
+    feature.mkdir(parents=True)
+    (feature / "index.html").write_text("<title>Scheduling</title>", encoding="utf-8")
+    site = StaticSite(site_root)
+    assert site.resolve("/features/scheduling") == (feature / "index.html").resolve()
+    assert site.resolve("/features/scheduling/") == (feature / "index.html").resolve()
 def test_signup_creates_persisted_viewer_session(app):
     status, headers, body = call(
         app, "POST", "/api/signup",
