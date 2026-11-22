@@ -13,6 +13,7 @@ import importlib.util
 import io
 import json
 import os
+import re
 from pathlib import Path
 
 import pytest
@@ -121,6 +122,7 @@ def test_project_configuration_targets_the_authenticated_runtime():
     rewrites = {entry["source"]: entry["destination"] for entry in config["rewrites"]}
     assert rewrites["/app"] == "/api/shell?__path=app"
     assert rewrites["/app/"] == "/api/shell?__path=app"
+    assert rewrites["/app/:path*/"] == "/api/shell?__path=app/:path*"
     assert rewrites["/enterprise"] == "/api/shell?__path=enterprise"
     assert rewrites["/enterprise/"] == "/api/shell?__path=enterprise"
     assert rewrites["/api/:path*"] == "/api?__path=:path*"
@@ -148,8 +150,13 @@ def test_shell_resolves_each_workspace_route_without_a_second_shell():
     assert shell._workspace_path({"PATH_INFO": "/api/shell", "QUERY_STRING": "__path=enterprise"}) == "/enterprise"
     assert shell._workspace_path({"PATH_INFO": "/api/shell", "QUERY_STRING": "__path=enterprise/"}) == "/enterprise"
     assert shell._workspace_path({"PATH_INFO": "/enterprise/", "QUERY_STRING": ""}) == "/enterprise"
+    # The Personal Workbench and the administration panel are documents of the
+    # same session-gated family and ship no static file of their own.
+    assert shell._workspace_path({"PATH_INFO": "/api/shell", "QUERY_STRING": "__path=workbench"}) == "/workbench"
+    assert shell._workspace_path({"PATH_INFO": "/api/shell", "QUERY_STRING": "__path=admin"}) == "/admin"
     # An unknown rewrite never turns into an arbitrary route.
-    assert shell._workspace_path({"PATH_INFO": "/api/shell", "QUERY_STRING": "__path=admin"}) == "/app"
+    assert shell._workspace_path({"PATH_INFO": "/api/shell", "QUERY_STRING": "__path=docs"}) == "/app"
+    assert shell._workspace_path({"PATH_INFO": "/api/shell", "QUERY_STRING": "__path=etc/passwd"}) == "/app"
 
 def test_canonical_preview_routes_api_and_shell_through_the_same_runtime(monkeypatch):
     monkeypatch.setenv("VERCEL_ENV", "preview")
@@ -193,3 +200,33 @@ def test_supabase_session_pooler_integration_dsn_is_accepted(monkeypatch, tmp_pa
 
     assert settings.database_url == dsn
     assert settings.public_origin == "https://preview.example.test"
+
+
+def test_shipped_html_contains_no_unresolved_merge_markers():
+    """The public documents are served verbatim.
+
+    A conflict marker left in a committed page is not a build error: Vercel
+    serves it and the marker becomes visible text on the live preview. Guard
+    every HTML document the project ships, including the nested locales.
+    """
+
+    documents = [*WEB_ROOT.glob("*.html"), *WEB_ROOT.glob("public/**/*.html")]
+    assert documents, "the project ships HTML documents"
+
+    def markers(text: str) -> list[str]:
+        found = []
+        for number, line in enumerate(text.splitlines(), start=1):
+            stripped = line.strip()
+            if (
+                stripped.startswith("<<<<<<<")
+                or stripped.startswith(">>>>>>>")
+                or re.fullmatch(r"={7}", stripped)
+            ):
+                found.append(f"{number}:{line}")
+        return found
+
+    offenders = {
+        str(path.relative_to(WEB_ROOT)): markers(path.read_text(encoding="utf-8"))
+        for path in documents
+    }
+    assert {name: found for name, found in offenders.items() if found} == {}
