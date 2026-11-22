@@ -349,6 +349,9 @@ from construction_pm.wbs_master_repository import (
 from construction_pm.importing.reference_persistence import (
     ensure_reference_projects,
 )
+from construction_pm.importing.reference_enterprise import (
+    ensure_reference_enterprise,
+)
 
 from .fixtures import (
     CURATED_FIELD_IDS,
@@ -2142,6 +2145,15 @@ def open_preview_runtime(
             }
             for user in DEMO_USERS
         ],
+    )
+    # Enterprise-owned register rows for the reference projects. Runs after the
+    # identity catalogue is seeded so the fixtures keep ownership of the
+    # tenant organization, users, roles and starter team.
+    ensure_reference_enterprise(
+        connection,
+        repositories,
+        enterprise_store,
+        tenant_id=PREVIEW_TENANT_ID,
     )
     app = EnterpriseWorkbenchHttpMiddleware(app, lifecycle_api, enterprise_store)
 
