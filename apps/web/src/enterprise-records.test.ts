@@ -53,3 +53,11 @@ test("recordsToCsv with no rows still returns the header row", () => {
   const csv = recordsToCsv([], [["Name", (item: Row) => String(item.name)]]);
   assert.equal(csv, '\uFEFF"Name"');
 });
+
+test("sortRecords follows the active locale collation instead of code-point order", () => {
+  const words = ["Zebra", "Äpfel", "Ameise"].map((title, index) => ({ record_id: `w-${index}`, title }));
+  const german = sortRecords(words, "title", 1, "de").map((row) => row.title);
+  assert.deepEqual(german, ["Ameise", "Äpfel", "Zebra"]);
+  const codePoint = [...words].sort((left, right) => (String(left.title) < String(right.title) ? -1 : 1)).map((row) => row.title);
+  assert.notDeepEqual(codePoint, german, "code-point order puts Ä after Z; a German collation must not");
+});

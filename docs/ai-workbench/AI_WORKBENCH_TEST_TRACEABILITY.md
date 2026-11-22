@@ -30,6 +30,9 @@ canonical service exists. A placeholder or a skipped test is not a pass.
 | Blank optional email | a record form submitting `email: ""` is accepted; a malformed address is still rejected | `tests/test_enterprise_workbench_http.py` | PASS |
 | Knowledge status tones | publication/translation badges map server state; only `published` uses the success tone | `apps/web/src/enterprise-knowledge.test.ts` | PASS |
 | Browser: knowledge honesty | a card in the success tone carries `publication_status: published` | `apps/web/e2e/preview-e2e.mjs` | PASS |
+| Browser: ten locales (Workbench) | `en`,`fa`,`de`,`zh`,`ar`,`fr`,`ja`,`ko`,`ru`,`tr` keep five studios; `fa`/`ar` flip to RTL; Persian does not mirror English | `apps/web/e2e/preview-e2e.mjs` | PASS |
+| Browser: ten locales (Enterprise) | every locale keeps the Enterprise document, sets `html lang` (incl. `tr-TR`) and translates the sidebar | `apps/web/e2e/preview-e2e.mjs` | PASS |
+| Locale collation | `sortRecords` follows German collation instead of code-point order | `apps/web/src/enterprise-records.test.ts` | PASS |
 
 Command: `python -m pytest tests/test_ai_workbench_orchestration.py -q`
 
