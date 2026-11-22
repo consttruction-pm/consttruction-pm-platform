@@ -824,6 +824,11 @@ export async function mountPersonalWorkbench(container: HTMLElement, requestedLo
     admin: copy.adminRestrictedNote,
   };
   for (const environment of environments) {
+    // A definitive 403 means the account is not entitled to Global Admin;
+    // do not show a disabled admin environment to ordinary users. A failed
+    // probe remains visible as unverified so transient outages are not
+    // mistaken for a denial.
+    if (environment.id === "admin" && environment.reason === "no_server_grant") continue;
     const card = element("article", `cp-wb-card cp-wb-card-${environment.id}`);
     card.append(element("h3", "", environmentLabel[environment.id]), element("p", "", environmentNote[environment.id]));
     if (environment.available) {
