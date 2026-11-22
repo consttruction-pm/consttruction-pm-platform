@@ -319,10 +319,10 @@
         normalize(navigator.language) ||
         "en";
 
-      const nextParam = params.get("next") || "";
-      const nextPath = nextParam.startsWith("/") && !nextParam.startsWith("//") && !nextParam.includes("\\")
-        ? nextParam
-        : "/workbench/";
+      // Sign-in always lands on the Personal Workbench. It is the only place
+      // where an authorized environment is chosen, and no role (the tenant
+      // owner included) may skip it by carrying a ?next= environment target.
+      const landingPath = "/workbench/";
 
       const form = document.getElementById("cp-login-form");
       const errorBox = document.getElementById("cp-login-error");
@@ -379,7 +379,7 @@
             body: JSON.stringify({ email, password }),
           });
           if (response.ok) {
-            window.location.assign(nextPath);
+            window.location.assign(landingPath);
             return;
           }
           if (response.status === 429) showError(copy.throttled);
@@ -401,7 +401,7 @@
       if (params.get("reauth") !== "1") {
         fetch("/api/session", { credentials: "same-origin" })
           .then((response) => {
-            if (response.ok) window.location.replace(nextPath);
+            if (response.ok) window.location.replace(landingPath);
           })
           .catch(() => {});
       }

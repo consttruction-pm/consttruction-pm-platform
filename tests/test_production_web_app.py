@@ -89,6 +89,16 @@ def identity() -> IdentityService:
             password_hash=hash_password(PASSWORD),
         )
     )
+    store.upsert_user(
+        IdentityUser(
+            user_id="user-owner",
+            tenant_id="tenant-owner",
+            email="owner@example.test",
+            display_name="Owner",
+            roles=frozenset({"global_admin"}),
+            password_hash=hash_password(PASSWORD),
+        )
+    )
     return IdentityService(store, csrf_secret=SECRET)
 
 
@@ -146,9 +156,9 @@ def call(
     return int(str(captured["status"]).split()[0]), headers_out, payload
 
 
-def login(app) -> tuple[str, str]:
+def login(app, email: str = "engineer@example.test") -> tuple[str, str]:
     status, headers, body = call(
-        app, "POST", "/api/session", body={"email": "engineer@example.test", "password": PASSWORD}
+        app, "POST", "/api/session", body={"email": email, "password": PASSWORD}
     )
     assert status == 200, body
     cookies = headers["set-cookie"]
@@ -271,12 +281,41 @@ def test_ai_workbench_document_is_gated_and_served_as_its_own_shell(app):
     assert b".aiw-shell" in body
 
 
-def test_login_page_redirects_an_authenticated_user_to_the_next_target(app):
+def test_login_page_sends_an_authenticated_user_to_the_personal_workbench(app):
     cookie, _ = login(app)
-    status, headers, _ = call(app, "GET", "/login", cookie=cookie, query="next=%2Fapp%3Fproject%3Dp1")
-    assert status == 303
-    # Engineering deep links are canonicalised to explicit live mode.
-    assert headers["location"] == ["/app?project=p1&view=live"]
+    for query in (
+        "next=%2Fapp%3Fproject%3Dp1",
+        "next=%2Fadmin",
+        "next=%2Fcubi%2Fenterprise%2Fdashboard",
+        "",
+    ):
+        status, headers, _ = call(app, "GET", "/login", cookie=cookie, query=query)
+        assert status == 303, query
+        # Every role, the tenant owner included, starts on the Workbench.
+        assert headers["location"] == ["/workbench/"], query
+
+
+def test_admin_document_requires_the_tenant_owner_role(app):
+    # Anonymous: the sign-in page, with the admin document remembered.
+    status, headers, _ = call(app, "GET", "/admin")
+    assert status == 302
+    assert headers["location"][0] == "/login?next=/admin"
+
+    # A signed-in non-owner never receives the Global Administration document.
+    cookie, _ = login(app)
+    for path in ("/admin", "/admin/"):
+        status, headers, body = call(app, "GET", path, cookie=cookie)
+        assert status == 303, path
+        assert headers["location"] == ["/workbench/"], path
+        assert b"CUBI Workspace" not in body
+        assert headers["cache-control"] == ["no-store"]
+
+    # The tenant owner is served the same shell the client boots into /admin.
+    owner, _ = login(app, "owner@example.test")
+    status, headers, body = call(app, "GET", "/admin", cookie=owner)
+    assert status == 200
+    assert b"CUBI Workspace" in body
+    assert headers["cache-control"] == ["no-store"]
 
 
 def test_login_page_sanitizes_open_redirect_targets(app):

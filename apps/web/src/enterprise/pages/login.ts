@@ -70,8 +70,10 @@ export function renderLogin(ctx: PublicPageContext, host: HTMLElement): void {
     submit.textContent = "Signing in…";
     void api.login(email.value.trim(), password.value)
       .then(() => {
-        // Reload so the shell bootstraps from the server-issued session.
-        window.location.assign(next);
+        // Sign-in always lands on the Personal Workbench: no role — the tenant
+        // owner included — may skip the dashboard and open an environment
+        // straight from the login form.
+        window.location.assign("/workbench/");
       })
       .catch((cause: unknown) => {
         submit.disabled = false;

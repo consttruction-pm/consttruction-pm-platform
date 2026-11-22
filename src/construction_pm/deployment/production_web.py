@@ -54,8 +54,12 @@ CUBI_PUBLIC_PATHS = frozenset(
     {CUBI_PATH, CUBI_PATH + "/", CUBI_PATH + "/login", CUBI_PATH + "/login/"}
 )
 CUBI_ENTERPRISE_PREFIX = CUBI_PATH + "/enterprise"
+# The tenant owner role. It is the only role allowed into the Global
+# Administration document (/admin); every other authenticated account is sent
+# back to the Personal Workbench, where the environment is chosen.
+PLATFORM_OWNER_ROLE = "global_admin"
 ENTERPRISE_ACCESS_ROLES = frozenset(
-    {"enterprise_admin", "enterprise_user", "enterprise_viewer", "global_admin"}
+    {"enterprise_admin", "enterprise_user", "enterprise_viewer", PLATFORM_OWNER_ROLE}
 )
 API_PREFIX = "/api/"
 LOGIN_BODY_LIMIT = 8_192
@@ -710,6 +714,18 @@ class ProductionWebApp:
         page = self.site.resolve("/app")
         if page is None:
             return _json(503, {"code": "APP_SHELL_MISSING"}, cache="no-store")
+        path = str(environ.get("PATH_INFO", APP_PATH))
+        if path in (ADMIN_PATH, ADMIN_PATH + "/"):
+            # Global Administration is an environment, not a login landing
+            # page. An account without the owner role must not receive the
+            # /admin document directly: send it back to the Workbench, which
+            # is the only place an authorized environment is chosen.
+            roles = frozenset(getattr(session, "roles", ()) or ())
+            if PLATFORM_OWNER_ROLE not in roles:
+                return 303, [
+                    ("Location", f"{WORKBENCH_PATH}/"),
+                    ("Cache-Control", "no-store"),
+                ], b""
         return 200, [
             ("Content-Type", "text/html; charset=utf-8"),
             ("Cache-Control", "no-store"),
@@ -800,9 +816,11 @@ class ProductionWebApp:
         session = self.identity.resolve(cookies.get(SESSION_COOKIE_NAME, ""))
         query = parse_qs(str(environ.get("QUERY_STRING", "") or ""), keep_blank_values=True)
         if session is not None and query.get("reauth", [""])[0] not in {"1", "true"}:
-            target = _safe_next(query.get("next", [""])[0])
+            # Sign-in always lands on the Personal Workbench: no role — the
+            # tenant owner included — may skip the dashboard and jump straight
+            # into an environment from the login surface.
             return 303, [
-                ("Location", target),
+                ("Location", f"{WORKBENCH_PATH}/"),
                 ("Cache-Control", "no-store"),
             ], b""
         page = self.site.resolve("/login.html")
@@ -869,6 +887,7 @@ __all__ = [
     "WORKBENCH_PATH",
     "WORKSPACE_PATHS",
     "CUBI_PUBLIC_PATHS",
+    "PLATFORM_OWNER_ROLE",
     "LOGIN_PATH",
     "ProductionWebApp",
     "StaticSite",
