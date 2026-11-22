@@ -14,8 +14,24 @@
   },
   "rewrites": [
     {
+      "source": "/workbench",
+      "destination": "/api/shell?__path=workbench"
+    },
+    {
+      "source": "/workbench/",
+      "destination": "/api/shell?__path=workbench"
+    },
+    {
       "source": "/workbench/:path*",
       "destination": "/api/shell?__path=workbench/:path*"
+    },
+    {
+      "source": "/admin",
+      "destination": "/api/shell?__path=admin"
+    },
+    {
+      "source": "/admin/",
+      "destination": "/api/shell?__path=admin"
     },
     {
       "source": "/admin/:path*",
@@ -36,22 +52,6 @@
     {
       "source": "/app/:path*",
       "destination": "/api/shell?__path=app/:path*"
-    },
-    {
-      "source": "/workbench",
-      "destination": "/api/shell?__path=workbench"
-    },
-    {
-      "source": "/workbench/",
-      "destination": "/api/shell?__path=workbench"
-    },
-    {
-      "source": "/admin",
-      "destination": "/api/shell?__path=admin"
-    },
-    {
-      "source": "/admin/",
-      "destination": "/api/shell?__path=admin"
     },
     {
       "source": "/ai-workbench/",
@@ -128,14 +128,6 @@
     {
       "source": "/api/:path*",
       "destination": "/api?__path=:path*"
-    },
-    {
-      "source": "/workbench",
-      "destination": "/api/shell?__path=app"
-    },
-    {
-      "source": "/workbench/",
-      "destination": "/api/shell?__path=app"
     }
   ],
   "headers": [
