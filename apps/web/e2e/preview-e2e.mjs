@@ -3134,7 +3134,7 @@ async function main() {
       options: document.querySelectorAll("button[data-project-id]").length,
     }))()`);
     assert(
-      languageBeforeSwitch.options === 2,
+      languageBeforeSwitch.options === projectButtons.length,
       "the selection step must still be rendered before the language switch",
     );
     const switchWorkspaceLanguage = async (target) => {
@@ -3153,7 +3153,7 @@ async function main() {
       assert(
         probe.lang === target &&
           probe.dir === (target === "fa" ? "rtl" : "ltr") &&
-          probe.options === 2 &&
+          probe.options === projectButtons.length &&
           probe.stored === target,
         `switching to ${target} must keep the project-selection step and persist the choice: ` +
           JSON.stringify(probe),
