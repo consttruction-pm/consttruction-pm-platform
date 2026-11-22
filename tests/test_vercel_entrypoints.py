@@ -13,6 +13,7 @@ import importlib.util
 import io
 import json
 import os
+import re
 from pathlib import Path
 
 import pytest
@@ -190,3 +191,33 @@ def test_supabase_session_pooler_integration_dsn_is_accepted(monkeypatch, tmp_pa
 
     assert settings.database_url == dsn
     assert settings.public_origin == "https://preview.example.test"
+
+
+def test_shipped_html_contains_no_unresolved_merge_markers():
+    """The public documents are served verbatim.
+
+    A conflict marker left in a committed page is not a build error: Vercel
+    serves it and the marker becomes visible text on the live preview. Guard
+    every HTML document the project ships, including the nested locales.
+    """
+
+    documents = [*WEB_ROOT.glob("*.html"), *WEB_ROOT.glob("public/**/*.html")]
+    assert documents, "the project ships HTML documents"
+
+    def markers(text: str) -> list[str]:
+        found = []
+        for number, line in enumerate(text.splitlines(), start=1):
+            stripped = line.strip()
+            if (
+                stripped.startswith("<<<<<<<")
+                or stripped.startswith(">>>>>>>")
+                or re.fullmatch(r"={7}", stripped)
+            ):
+                found.append(f"{number}:{line}")
+        return found
+
+    offenders = {
+        str(path.relative_to(WEB_ROOT)): markers(path.read_text(encoding="utf-8"))
+        for path in documents
+    }
+    assert {name: found for name, found in offenders.items() if found} == {}
