@@ -767,7 +767,7 @@ class ProductionWebApp:
         if page is None:
             return _json(503, {"code": "APP_SHELL_MISSING"}, cache="no-store")
         path = str(environ.get("PATH_INFO", APP_PATH))
-        if path in (ADMIN_PATH, ADMIN_PATH + "/"):
+        if path == ADMIN_PATH or path.startswith(ADMIN_PATH + "/"):
             # Global Administration is an environment, not a login landing
             # page. An account without the owner role must not receive the
             # /admin document directly: send it back to the Workbench, which
