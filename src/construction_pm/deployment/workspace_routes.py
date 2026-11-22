@@ -1,7 +1,7 @@
 """Resolve the canonical workspace route behind a Vercel rewrite.
 
-Vercel maps the document routes (``/app``, ``/enterprise``, ``/cubi/*`` and
-``/ai-workbench/*``) onto the same Python function and carries the original
+Vercel maps the document routes (``/app``, ``/workbench``, ``/admin``,
+``/enterprise``, ``/cubi/*`` and ``/ai-workbench/*``) onto the same function and carries the original
 route in the ``__path`` query. This module decides which document the HTTP
 boundary must see. It is shared by both Vercel entrypoints so a route can never
 silently fall back to the Engineering shell.
@@ -15,7 +15,18 @@ from __future__ import annotations
 from typing import Mapping
 from urllib.parse import parse_qs
 
-WORKSPACE_ROUTES = ("app", "enterprise", "cubi", "ai-workbench")
+WORKSPACE_ROUTES = (
+    "app",
+    "enterprise",
+    "cubi",
+    "ai-workbench",
+    # The Personal Workbench and the global administration panel are documents
+    # of the same session-gated workspace family. They ship no static file, so
+    # the deployment rewrites them here; without these segments Vercel answers
+    # NOT_FOUND for /workbench/ and /admin before the identity boundary runs.
+    "workbench",
+    "admin",
+)
 FALLBACK_PATH = "/app"
 
 # The old ``/enterprise`` address is still accepted so the HTTP boundary can
@@ -73,7 +84,17 @@ def query_without_rewrite(environ: Mapping[str, object]) -> str:
     values = parse_qs(
         str(environ.get("QUERY_STRING", "") or ""), keep_blank_values=True
     )
-    values.pop("__path", None)
+    marker = values.pop("__path", None)
+    # Vercel also exposes the matched ``:path*`` segment as a query parameter
+    # named ``path``. It is a copy of the route, not user input: leaving it in
+    # place makes /app/wbs/ look like a stray query and collapses the deep link
+    # to /app. Drop it only when it reproduces the rewritten tail exactly.
+    if marker:
+        tail = marker[0].split("?", 1)[0].strip("/")
+        tail = tail.split("/", 1)[1] if "/" in tail else ""
+        copied = values.get("path")
+        if tail and copied and len(copied) == 1 and copied[0].rstrip("/") == tail:
+            values.pop("path", None)
     return "&".join(
         f"{quote(key)}={quote(value)}"
         for key, items in values.items()
