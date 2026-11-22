@@ -124,8 +124,9 @@ def _session_token(environ: Mapping[str, object]) -> str:
 
 def _json_response(start_response, status: int, payload: dict[str, object]):
     body = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    reason = {200: "OK", 403: "Forbidden"}.get(status, "Service Unavailable")
     start_response(
-        f"{status} {{200: 'OK', 403: 'Forbidden'}.get(status, 'Service Unavailable')}",
+        f"{status} {reason}",
         [
             ("Content-Type", "application/json; charset=utf-8"),
             ("Content-Length", str(len(body))),
