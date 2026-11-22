@@ -2407,3 +2407,19 @@ def test_ai_workbench_shell_is_gated_and_never_served_as_the_workspace(
         assert headers["location"] == "/ai-workbench"
     finally:
         runtime.close()
+
+
+def test_preview_global_administration_is_denied_for_demo_personas(tmp_path: Path) -> None:
+    runtime = open_preview_runtime(
+        tmp_path / "global-admin-denied.sqlite3",
+        web_root=_web_root(tmp_path),
+        reset=True,
+    )
+    try:
+        app = build_preview_application(runtime)
+        for path in ("/api/admin/dashboard", "/api/admin/users"):
+            status, _, body = _request(app, "GET", path)
+            assert status == 403
+            assert json.loads(body) == {"code": "GLOBAL_ADMIN_REQUIRED"}
+    finally:
+        runtime.close()
