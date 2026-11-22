@@ -63,6 +63,22 @@ def test_workbench_and_admin_resolve_through_the_shell() -> None:
     assert _resolve("/admin") == "/admin"
 
 
+def test_rewrite_copies_the_matched_segment_into_a_path_parameter() -> None:
+    """Vercel publishes ``:path*`` twice; the copy must not look like user input."""
+
+    assert query_without_rewrite({"QUERY_STRING": "__path=app/wbs&path=wbs"}) == ""
+    assert query_without_rewrite(
+        {"QUERY_STRING": "__path=app/activities/&path=activities/&project=head-office"}
+    ) == "project=head-office"
+    assert query_without_rewrite(
+        {"QUERY_STRING": "__path=cubi/enterprise/dashboard&path=enterprise/dashboard"}
+    ) == ""
+    assert query_without_rewrite({"QUERY_STRING": "__path=cubi/roles&path=roles&lang=fa"}) == "lang=fa"
+    # A real user-supplied path parameter is never dropped.
+    assert query_without_rewrite({"QUERY_STRING": "path=user-supplied"}) == "path=user-supplied"
+    assert query_without_rewrite({"QUERY_STRING": "__path=app&path=something-else"}) == "path=something-else"
+
+
 def test_rewrite_marker_is_removed_from_the_user_query() -> None:
     assert query_without_rewrite(
         {"QUERY_STRING": "__path=cubi%2Fenterprise%2Fdashboard&project=alpha&lang=fa"}

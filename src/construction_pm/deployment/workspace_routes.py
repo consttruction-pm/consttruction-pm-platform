@@ -84,7 +84,17 @@ def query_without_rewrite(environ: Mapping[str, object]) -> str:
     values = parse_qs(
         str(environ.get("QUERY_STRING", "") or ""), keep_blank_values=True
     )
-    values.pop("__path", None)
+    marker = values.pop("__path", None)
+    # Vercel also exposes the matched ``:path*`` segment as a query parameter
+    # named ``path``. It is a copy of the route, not user input: leaving it in
+    # place makes /app/wbs/ look like a stray query and collapses the deep link
+    # to /app. Drop it only when it reproduces the rewritten tail exactly.
+    if marker:
+        tail = marker[0].split("?", 1)[0].strip("/")
+        tail = tail.split("/", 1)[1] if "/" in tail else ""
+        copied = values.get("path")
+        if tail and copied and len(copied) == 1 and copied[0].rstrip("/") == tail:
+            values.pop("path", None)
     return "&".join(
         f"{quote(key)}={quote(value)}"
         for key, items in values.items()
