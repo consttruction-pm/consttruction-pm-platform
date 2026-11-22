@@ -54,8 +54,17 @@ class AuthorizationPolicy(Protocol):
     def is_allowed(self, context: AuthorizationContext, permission: Permission) -> bool: ...
 
 
+PLATFORM_OWNER_ROLE = "global_admin"
+
+
 class RoleBasedAuthorizationPolicy:
-    """Framework/provider-neutral role-to-permission policy."""
+    """Framework/provider-neutral role-to-permission policy.
+
+    ``global_admin`` is the tenant's platform owner and is deliberately absent
+    from the P6 administration matrix, which documents only the project roles.
+    An owner still has to operate the projects it administers, so the role is
+    granted every permission here instead of being appended to the matrix.
+    """
 
     def __init__(self, role_permissions: dict[str, FrozenSet[Permission]]) -> None:
         self._role_permissions = {
@@ -65,6 +74,8 @@ class RoleBasedAuthorizationPolicy:
 
     def is_allowed(self, context: AuthorizationContext, permission: Permission) -> bool:
         context.validate()
+        if PLATFORM_OWNER_ROLE in context.roles:
+            return True
         return any(
             permission in self._role_permissions.get(role, frozenset())
             for role in context.roles
