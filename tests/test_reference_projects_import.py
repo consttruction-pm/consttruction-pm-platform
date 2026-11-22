@@ -6,6 +6,13 @@ import pytest
 from openpyxl import Workbook
 
 from construction_pm.importing import build_report
+from construction_pm.importing.reference_bundle import (
+    BUNDLE_CONTRACT,
+    build_bundle,
+    dumps,
+    load_bundle,
+    write_bundle,
+)
 
 PROJECTS = ("REF-1", "REF-2", "REF-3")
 
@@ -139,3 +146,32 @@ def test_equipment_assignment_resolves_through_the_equipment_register(tmp_path):
 def test_project_count_must_be_three(tmp_path):
     report = build_report(_write(tmp_path, projects=PROJECTS[:2]))
     assert "PROJECT_COUNT" in {issue.code for issue in report.errors}
+
+
+def test_bundle_freezes_engineering_rows_per_project(tmp_path):
+    bundle = build_bundle(build_report(_write(tmp_path)).dataset)
+    assert bundle["contract"] == BUNDLE_CONTRACT
+    assert bundle["source"]["classification"] == "DEMO/SYNTHETIC"
+    assert bundle["source"]["status_date"] == "2026-11-22"
+    entry = bundle["projects"]["REF-1"]
+    assert entry["project"]["project_id"] == "REF-1"
+    assert len(entry["activities"]) == 2
+    assert len(entry["resource_assignments"]) == 2
+    assert {row["resource_id"] for row in entry["resource_assignments"]} == {
+        "REF-1-H1",
+        "REF-1-EQ1",
+    }
+    assert entry["calendar_workweeks"][0]["start_time"] == "08:00"
+    assert "earned_value" not in entry
+    assert "Earned Value" in bundle["excluded"]
+
+
+def test_bundle_serialisation_is_deterministic(tmp_path):
+    report = build_report(_write(tmp_path))
+    bundle = build_bundle(report.dataset)
+    assert dumps(bundle) == dumps(bundle)
+    first = write_bundle(bundle, tmp_path / "a.json.gz")
+    second = write_bundle(bundle, tmp_path / "b.json.gz")
+    assert first.read_bytes() == second.read_bytes()
+    loaded = load_bundle(first)
+    assert loaded["projects"]["REF-2"]["project"]["project_name"] == "Project REF-2"

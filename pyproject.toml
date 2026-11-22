@@ -19,7 +19,11 @@ test = ["pytest>=8", "psycopg[binary]>=3.2,<4", "pypdf>=5,<7"]
 validation = ["pmcontrols>=0.2.1,<0.3"]
 
 [tool.setuptools.package-data]
-construction_pm = ["assets/fonts/*.ttf", "assets/fonts/LICENSE.txt"]
+construction_pm = [
+    "assets/fonts/*.ttf",
+    "assets/fonts/LICENSE.txt",
+    "importing/data/*.json.gz",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
