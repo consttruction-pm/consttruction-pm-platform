@@ -28,6 +28,12 @@ run("npm", ["run", "build"]);
 
 const baseUrl =
   process.env.SITE_BASE_URL ||
+  // On a preview the immutable deployment URL changes on every commit, so the
+  // OG/canonical tags would advertise a stale host. The branch alias is the
+  // stable address the team shares, and it is the one that may be renamed.
+  (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_BRANCH_URL
+    ? `https://${process.env.VERCEL_BRANCH_URL}`
+    : "") ||
   (process.env.VERCEL_PROJECT_PRODUCTION_URL
     ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
     : "") ||
