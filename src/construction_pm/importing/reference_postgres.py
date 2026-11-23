@@ -341,7 +341,7 @@ def ensure_reference_projects_postgres(
     engine_version: str = REFERENCE_ENGINE_VERSION,
     initialize_schema: bool = True,
 ) -> ReferenceImportOutcome:
-    """Register the three reference projects as durable, shared tenant data."""
+    """Register the bundle's shared project records as durable tenant data."""
 
     if initialize_schema:
         initialize_reference_postgres_schema(connection)
