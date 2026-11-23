@@ -109,7 +109,7 @@ test("shared build workspace opens from its separate list and is not added to pe
   const bootstrap = new ProjectBootstrap(setup.dependencies);
   const state = await bootstrap.start("CUBI-DAM-001");
   assert.equal(state?.status, "ready");
-  assert.equal(state?.sharedReference, true);
+  if (state?.status === "ready") assert.equal(state.sharedReference, true);
   assert.deepEqual(sharedOpened, ["CUBI-DAM-001"]);
   assert.deepEqual(bootstrap.openableProjects(), []);
   assert.deepEqual(bootstrap.projectTabs(), { open: [], active: "" });
