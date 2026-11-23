@@ -52,6 +52,11 @@ class ProjectLifecycleAPI:
     def list_projects(self, session_id: str, *, now: datetime) -> ProjectListResponse:
         return ProjectListResponse(self._service.list_projects(session_id, now=now))
 
+    def list_shared_reference_projects(self, session_id: str, *, now: datetime) -> ProjectListResponse:
+        return ProjectListResponse(
+            self._service.list_shared_reference_projects(session_id, now=now)
+        )
+
     def open_project(
         self, session_id: str, project_id: str, *, now: datetime
     ) -> ProjectContextResponse:
