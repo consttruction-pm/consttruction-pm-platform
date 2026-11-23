@@ -101,7 +101,11 @@ export class ProjectBootstrap {
     const sharedPreferred = preferredProjectId
       ? this.sharedProjects.find((project) => project.project_id === preferredProjectId)
       : undefined;
-    if (sharedPreferred) return this.openProject(sharedPreferred.project_id, generation, locale);
+    if (sharedPreferred) {
+      this.tabs = { open: [], active: "" };
+      this.dependencies.rememberProjectTabsForUser?.(session.data.user_id, this.tabs);
+      return this.openProject(sharedPreferred.project_id, generation, locale);
+    }
 
     if (this.projects.length === 0) {
       this.tabs = { open: [], active: "" };
