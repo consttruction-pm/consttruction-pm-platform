@@ -15,6 +15,12 @@ def test_dam_reference_bundle_is_large_deterministic_and_integrated() -> None:
     assert list(first["projects"]) == [PROJECT_ID]
 
     entry = first["projects"][PROJECT_ID]
+    assert first["source"]["classification"] == "SHARED_BUILD_PROJECT"
+    assert first["source"]["synthetic_source_data"] is True
+    assert "DEMO" not in entry["project"]["description"].upper()
+    assert "under development" in entry["project"]["description"].lower()
+    assert "Synthetic" not in entry["baselines"][0]["baseline_name"]
+    assert "synthetic" not in entry["project_budgets"][0]["budget_type"].lower()
     assert len(entry["activities"]) == 720
     assert len(entry["wbs"]) == 192
     assert len(entry["activity_relationships"]) == 730
