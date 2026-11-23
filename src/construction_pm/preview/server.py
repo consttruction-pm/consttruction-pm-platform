@@ -835,8 +835,6 @@ class PreviewApplication:
             description = {
                 "planner": "Read projects, edit activities, save layouts and publish schedule snapshots.",
                 "viewer": "Read-only project access. Writes are denied by the server.",
-                "reviewer": "Reference Testing Workspace: read the three shared reference projects, read reports and run canonical calculations. Source edits are denied.",
-                "test_operator": "Reference Testing Workspace: reviewer capabilities plus scenario creation. Source edits are denied.",
                 "admin": "Planner capabilities plus project creation.",
                 "enterprise": "Enterprise administrator. Opens the /cubi Enterprise Workbench with the enterprise_admin tier.",
                 "newcomer": "A new account with no project yet. Use it to create and open the first project.",
@@ -865,7 +863,7 @@ class PreviewApplication:
             "<strong>Shared demo data:</strong> all visitors see the same fixture projects in read-only mode. "
             "The real CUBI WSGI API and Shared Domain/Calculation Core power the workspace; no production data is used."
             if self.public_demo
-            else "<strong>Demo data:</strong> the demo fixtures, including the three shared reference projects, are seeded into a guarded local SQLite database. The workspace reads and recalculates through the real WSGI API and Shared Domain/Calculation Core. No production system is contacted."
+            else "<strong>Demo data:</strong> two fixture projects are seeded into a guarded local SQLite database. The workspace reads and recalculates through the real WSGI API and Shared Domain/Calculation Core. No production system is contacted."
         )
         fa_notice = (
             "این یک پیش‌نمایش عمومی و فقط‌خواندنی با داده‌های آزمایشی مشترک است. اطلاعات محرمانه یا واقعی پروژه را وارد نکنید؛ داده‌ها ممکن است بازنشانی شوند."
