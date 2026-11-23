@@ -462,7 +462,11 @@ class ProjectContext:
     shared_reference: bool = False
 
     def authorization_context(self, roles: frozenset[str]) -> AuthorizationContext:
-        effective_roles = roles | (frozenset({"shared_reference_reader"}) if self.shared_reference else frozenset())
+        effective_roles = roles | (
+            frozenset({"shared_reference_reader"})
+            if self.shared_reference
+            else frozenset()
+        )
         return AuthorizationContext(
             tenant_id=self.tenant_id,
             project_id=self.project_id,
