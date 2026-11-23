@@ -109,7 +109,7 @@ These are semantic CUBI icon IDs, not claims that Oracle uses the same glyph art
 | `brand-cubi` | CUBI mark | Navigate to CUBI entry; no vendor logo | CUBI-owned brand rule | Text mark "CB" is rendered |
 | `nav-dashboard` | Dashboard navigation | Open Enterprise dashboard | 9038, 6608, 6665 | Sidebar currently renders text links without icon glyph |
 | `nav-portfolio` | Portfolio navigation | Open portfolio analysis | 9038, 6611, 14087 | Text-only |
-| `nav-projects` | Projects navigation | Open project register | 9038, 6636 | Text-only |
+| `nav-projects` | Projects navigation | Open project register | 9038, 6636 | ENT-07 draws the registered SVG in the sidebar |
 | `nav-eps` | EPS navigation | Open hierarchy view | 6621, 44026 | Text-only |
 | `nav-access` | Access navigation | Open organization/access control | 43794, 6597, 36451 | Text-only |
 | `nav-directory` | Directory navigation | Browse authorized people/teams | 43794 | Text-only |
@@ -133,17 +133,17 @@ These are semantic CUBI icon IDs, not claims that Oracle uses the same glyph art
 | `top-workbench` | Personal Workbench link | Return to one shared Personal Workbench | 9038 concept; CUBI-owned routing | Text link |
 | `top-engineering-switch` | Engineering switch | Switch authorized environment without logout | CUBI-owned | Text link |
 | `top-language` | Locale selector | Change locale, direction and formatting | CUBI localization standard | Select control |
-| `top-help` | Help (?) | Open official contextual Help topic for current page | Each page's exact Help links below | Current link opens only TOC; must become contextual |
+| `top-help` | Help (?) | Open official contextual Help topic for current page | Each page's exact Help links below | Registered SVG control in the Enterprise topbar; still opens the official topic set, not a per-page anchor |
 | `top-user` | User/avatar menu | Show authenticated identity and allowed account actions | 43794; CUBI identity model | Avatar initials |
-| `action-refresh` | Refresh | Re-read authoritative server source | Common UI / data refresh | Some pages have text refresh buttons |
-| `action-search` | Search | Filter current register without changing source data | 6607 | Present on selected registers |
-| `action-filter` | Filter | Open explicit filter criteria and apply/clear | 9027 | Present on selected registers |
-| `action-sort` | Sort | Toggle deterministic sort with visible direction | Grouping/sorting Help | Select controls on selected pages |
+| `action-refresh` | Refresh | Re-read authoritative server source | Common UI / data refresh | ENT-07 draws the registered SVG and re-reads `/api/projects` |
+| `action-search` | Search | Filter current register without changing source data | 6607 | ENT-07 `projects-search` SVG filters name/id/domain and keeps `q` in the URL |
+| `action-filter` | Filter | Open explicit filter criteria and apply/clear | 9027 | ENT-07 `projects-filter-status` filters on the statuses the server returned |
+| `action-sort` | Sort | Toggle deterministic sort with visible direction | Grouping/sorting Help | ENT-07 `projects-sort` sorts name/revision/start/finish and exposes `aria-sort` on the headers |
 | `action-columns` | Columns | Show/hide/reorder columns; persist view | About Columns / UI | Not verified on all registers |
 | `action-group` | Group | Group/ungroup rows by selected field | Grouping/sorting Help | Not verified |
 | `action-view` | View/layout | Choose saved view/layout | 44026, 7827 | Page-dependent |
 | `action-add` | Add/Create | Open validated create form; permission-gated | Page-specific create topic | Page-dependent |
-| `action-open` | Open/details | Open selected record/detail page | 9038, page topic | Page-dependent |
+| `action-open` | Open/details | Open selected record/detail page | 9038, page topic | ENT-07 `project-open` opens the selected project portal and keeps it in the URL |
 | `action-edit` | Edit | Enter edit state only when authorized | Page-specific topic | Page-dependent |
 | `action-save` | Save | Validate, submit with expected revision, show outcome | Creating/modifying data; page topic | Page-dependent |
 | `action-cancel` | Cancel/close | Close without unintended persistence | Common dialog behavior | Page-dependent |
@@ -154,7 +154,7 @@ These are semantic CUBI icon IDs, not claims that Oracle uses the same glyph art
 | `action-import` | Import/upload | Validate schema, preview errors, idempotency and audit | 6604 | No Enterprise integration route currently |
 | `action-help` | Contextual help | Open the exact page topic, not generic TOC | 9038 / page-specific | Current generic TOC link is insufficient |
 
-**Current icon parity finding:** `app.ts` builds sidebar links with text only. `styles.ts` defines a generic 16×16 square `.cubi-icon` pseudo-element, but the current sidebar renderer does not attach a per-page icon ID to links. This is not icon-by-icon parity. The CSS bell is a hand-drawn glyph, not a verified Help-matched icon. Every page remains visually unaccepted until the icon inventory above is implemented and screenshot-compared. Do not mark this document itself as proof that icons were implemented.
+**Current icon parity finding (updated by ENT-07):** ENT-07 now renders all thirteen of its registered icons as real inline SVG through `enterprise/icons.ts` (`nav-projects`, `projects-search`, `projects-filter-status`, `projects-sort`, `project-open`, the six `project-*` tab icons, `action-refresh`, `top-help`). The rest of the shell still builds sidebar links with text only. `styles.ts` defines a generic 16×16 square `.cubi-icon` pseudo-element, but the current sidebar renderer does not attach a per-page icon ID to links. This is not icon-by-icon parity. The CSS bell is a hand-drawn glyph, not a verified Help-matched icon. Every page remains visually unaccepted until the icon inventory above is implemented and screenshot-compared. Do not mark this document itself as proof that icons were implemented.
 
 ---
 
@@ -220,12 +220,14 @@ For every icon below, the semantic key is mandatory. If the matching Help page h
 - **Acceptance:** Distinguish portfolio from project register. Chart types, legends, thresholds, labels and scorecard fields must match Help topic behavior. No interpolated trend, fabricated KPI or client-side approval. Decision writes must be revision-bound and auditable.
 
 ### ENT-07 — Projects register and project portal
-- **Route / source:** `/cubi/enterprise/projects/`; `pages/projects.ts`.
+- **Route / source:** `/cubi/enterprise/projects/`; `pages/projects.ts`, `pages/shared.ts`, `icons.ts`.
 - **Inheritance:** Enterprise shell → project register → selected-project detail tabs.
-- **Help:** 6636, 6621, 44026, project details and preferences child topics.
-- **Features:** Search, status filter, sort by name/revision/start/finish; select project; tabs Overview, Engineering, Resources, Documents, Risk, Reports; project detail; links to Engineering and portfolio.
-- **Icon register:** `nav-projects`, `projects-search`, `projects-filter-status`, `projects-sort`, `project-open`, `project-overview`, `project-engineering`, `project-resources`, `project-documents`, `project-risks`, `project-reports`, `action-refresh`, `top-help`.
-- **Acceptance:** Project list and every tab must respect project-level read authorization. Engineering tab is a link/read-model boundary, not a second schedule engine. Every displayed value includes source/revision. Project creation is not implied unless separately specified and permission-tested.
+- **Help:** [About Projects (6636)](https://docs.oracle.com/cd/G48897_01/p6help/en/6636.htm), [About EPS (6621)](https://docs.oracle.com/cd/G48897_01/p6help/en/6621.htm), [Configuring EPS Views (44026)](https://docs.oracle.com/cd/G48897_01/p6help/en/44026.htm), [Working with the P6 User Interface (9038)](https://docs.oracle.com/cd/G48897_01/p6help/en/9038.htm), project details and preferences child topics.
+- **Features:** Register from `GET /api/projects` (no hardcoded rows); the three shared reference projects plus every authorized project, each once; search by name/id/domain; status filter; sort by name/revision/start/finish; shown/total count; receipt time; real server refresh; loading/empty/error/disconnected states; selection, tab, filters and sort kept in the URL. Six tabs read official project-scoped routes: Overview (`/api/projects/{id}`), Engineering (probe of `/p6/workspace`, `/p6/issues`, `/p6/earned-value`), Resources (`/p6/resources`), Documents (`/documents`), Risks & Issues (`/risks`, `/p6/issues`), Reports (`/reports`, `/reports/catalogue`). Engineering signals drive Schedule/WBS/Activities/CPM/Progress/EVM and Enterprise never computes them; every tab states its source path, revision where supplied, and whether it is connected.
+- **Icon register:** `nav-projects`, `projects-search`, `projects-filter-status`, `projects-sort`, `project-open`, `project-overview`, `project-engineering`, `project-resources`, `project-documents`, `project-risks`, `project-reports`, `action-refresh`, `top-help` — all drawn as SVG from `enterprise/icons.ts`.
+- **Acceptance:** Project list and every tab must respect project-level read authorization. Same-tenant users without membership still see the three shared references and gain no write grant. Engineering tab is a link/read-model boundary, not a second schedule engine. Every displayed value includes source/revision where the server supplies it; absent sources are marked Not Connected and nothing is fabricated. Project creation is not implied.
+- **Status:** Implemented and verified in the local full-stack Preview runtime (unit + browser E2E). Official-hosted Preview verification is blocked: the documented branch alias returns `DEPLOYMENT_NOT_FOUND`; no Vercel token is available. Visual parity is not claimed.
+- **Evidence record:** [ENT-07 — Projects register and project portal](pages/ENT-07-projects-register.md).
 
 ### ENT-08 — Organization and access governance
 - **Route / source:** `/cubi/enterprise/access/`; `pages/access.ts`.

@@ -221,9 +221,10 @@ class PostgresProjectRepository(ProjectRepository):
     def list_for_user(self, tenant_id: str, user_id: str) -> tuple[ProjectSummary, ...]:
         rows = self._connection.execute(
             self._SELECT
-            + "LEFT JOIN project_lifecycle_memberships m "
-            "ON m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
-            "WHERE p.tenant_id=%s AND (m.user_id=%s OR EXISTS ("
+            + "WHERE p.tenant_id=%s AND (EXISTS ("
+            "SELECT 1 FROM project_lifecycle_memberships m "
+            "WHERE m.tenant_id=p.tenant_id AND m.project_id=p.project_id AND m.user_id=%s) "
+            "OR EXISTS ("
             "SELECT 1 FROM cubi_reference_project r "
             "WHERE r.tenant_id=p.tenant_id AND r.project_id=p.project_id)) "
             "ORDER BY p.project_id",
@@ -234,9 +235,10 @@ class PostgresProjectRepository(ProjectRepository):
     def get_for_user(self, tenant_id: str, project_id: str, user_id: str) -> ProjectSummary | None:
         row = self._connection.execute(
             self._SELECT
-            + "LEFT JOIN project_lifecycle_memberships m "
-            "ON m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
-            "WHERE p.tenant_id=%s AND p.project_id=%s AND (m.user_id=%s OR EXISTS ("
+            + "WHERE p.tenant_id=%s AND p.project_id=%s AND (EXISTS ("
+            "SELECT 1 FROM project_lifecycle_memberships m "
+            "WHERE m.tenant_id=p.tenant_id AND m.project_id=p.project_id AND m.user_id=%s) "
+            "OR EXISTS ("
             "SELECT 1 FROM cubi_reference_project r "
             "WHERE r.tenant_id=p.tenant_id AND r.project_id=p.project_id))",
             (tenant_id, project_id, user_id),

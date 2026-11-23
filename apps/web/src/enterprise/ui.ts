@@ -251,7 +251,7 @@ export function toolbar(...items: (Node | null)[]): HTMLElement {
 }
 
 export function tabs<T extends string>(
-  items: { id: T; label: string }[],
+  items: { id: T; label: string; icon?: Node; testId?: string }[],
   selected: T,
   onChange: (id: T) => void,
 ): HTMLElement {
@@ -259,9 +259,11 @@ export function tabs<T extends string>(
   for (const item of items) {
     const tab = el("button", {
       class: `cubi-tab ${item.id === selected ? "is-selected" : ""}`.trim(),
-      text: item.label,
       attrs: { role: "tab", type: "button", "aria-selected": item.id === selected ? "true" : "false" },
     });
+    if (item.icon) tab.append(item.icon);
+    tab.append(el("span", { text: item.label }));
+    if (item.testId) tab.dataset.testid = item.testId;
     tab.addEventListener("click", () => onChange(item.id));
     bar.append(tab);
   }
