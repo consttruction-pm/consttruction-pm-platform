@@ -18,6 +18,7 @@ from typing import Iterable
 from .authorization import (
     AuthorizationContext,
     AuthorizationError,
+    Permission,
     RoleBasedAuthorizationPolicy,
 )
 
@@ -29,11 +30,11 @@ REFERENCE_WORKSPACE_ROLES: frozenset[str] = frozenset(
 
 # Permissions that change the source project. A scenario is a separate,
 # revision-bound artifact and must not be implemented as an edit of these rows.
-_SOURCE_MUTATION_PERMISSIONS = frozenset(
+_SOURCE_MUTATION_PERMISSIONS: frozenset[Permission] = frozenset(
     {
-        "project.write",
-        "project.admin",
-        "project.schedule",
+        Permission.PROJECT_WRITE,
+        Permission.PROJECT_ADMIN,
+        Permission.PROJECT_SCHEDULE,
     }
 )
 
@@ -54,21 +55,19 @@ class ReferenceReadOnlyPolicy:
         return self._reference_ids
 
     def is_allowed(
-        self, context: AuthorizationContext, permission: object
+        self, context: AuthorizationContext, permission: Permission
     ) -> bool:
         if (
             context.project_id in self._reference_ids
-            and str(getattr(permission, "value", permission))
-            in _SOURCE_MUTATION_PERMISSIONS
+            and permission in _SOURCE_MUTATION_PERMISSIONS
         ):
             return False
         return self._delegate.is_allowed(context, permission)
 
-    def require(self, context: AuthorizationContext, permission: object) -> None:
+    def require(self, context: AuthorizationContext, permission: Permission) -> None:
         if not self.is_allowed(context, permission):
-            value = getattr(permission, "value", permission)
             raise AuthorizationError(
-                f"authorization denied for permission={value}"
+                f"authorization denied for permission={permission.value}"
             )
 
 
