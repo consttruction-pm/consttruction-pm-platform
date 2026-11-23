@@ -562,7 +562,11 @@ def _ensure_tasks(
             priority=EnterpriseTaskPriority.NORMAL,
             description=(
                 f"Assigned role: {row.get('assigned_role')}. "
-                "DEMO/SYNTHETIC reference team task."
+                + (
+                    "Shared in-progress project task record."
+                    if project_id == "CUBI-DAM-001"
+                    else "DEMO/SYNTHETIC reference team task."
+                )
             ),
             project_id=project_id or None,
             due_at=due,
@@ -606,7 +610,11 @@ def _enterprise_kind_rows(
     def add(kind: str, record_id: object, payload: dict[str, object]) -> None:
         if not record_id:
             return
-        body = {**payload, "project_id": project, "demo": True}
+        body = {
+            **payload,
+            "project_id": project,
+            "demo": project != "CUBI-DAM-001",
+        }
         rows.setdefault(kind, []).append((str(record_id), body))
 
     for row in _rows(entry, "organization"):
@@ -732,7 +740,11 @@ def _enterprise_kind_rows(
                 "overtime_hours": row.get("overtime_hours"),
                 "hours": _decimal(row.get("regular_hours")) + _decimal(row.get("overtime_hours")),
                 "approval_status": row.get("approval_status"),
-                "source": "workbook",
+                "source": (
+                    "Initial project timesheet data"
+                    if project == "CUBI-DAM-001"
+                    else "workbook"
+                ),
             },
         )
     return rows
