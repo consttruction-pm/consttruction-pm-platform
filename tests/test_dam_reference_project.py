@@ -29,6 +29,36 @@ def test_dam_reference_bundle_is_large_deterministic_and_integrated() -> None:
     assert len(entry["resource_assignments"]) == 1_440
     assert len(entry["baseline_activities"]) == 720
     assert len(entry["activity_progress"]) == 720
+    assert len(entry["risk_register"]) == 24
+    assert len(entry["risk_responses"]) == 24
+    assert len(entry["issue_register"]) == 30
+    assert len(entry["document_register"]) == 36
+    assert len(entry["document_revisions"]) == 48
+    assert len(entry["team_tasks"]) == 48
+    assert len(entry["organization"]) == 6
+    assert len(entry["project_teams"]) == 6
+    assert len(entry["responsibility_assignments"]) == 12
+    assert len(entry["contracts"]) == 1
+    assert len(entry["contract_packages"]) == 12
+    assert len(entry["procurement_register"]) == 24
+    assert len(entry["vendor_register"]) == 12
+    assert len(entry["change_requests"]) == 12
+    assert len(entry["communication_log"]) == 24
+    assert len(entry["approval_records"]) == 24
+    assert len(entry["forms_register"]) == 12
+    assert len(entry["project_milestones"]) == 24
+    assert len(entry["workflow_templates"]) == 6
+    assert len(entry["workflow_instances"]) == 36
+    assert len(entry["timesheets"]) == 144
+
+    assert all(row["related_activity_id"] in activity_ids for row in entry["team_tasks"])
+    assert all(row["related_activity_id"] in activity_ids for row in entry["issue_register"])
+    assert all(row["activity_id"] in activity_ids for row in entry["project_milestones"])
+    assert all(row["activity_id"] in activity_ids for row in entry["activity_documents"])
+    assert all(row["wbs_id"] in wbs_ids for row in entry["risk_register"])
+    assert all(row["vendor_id"] in {v["vendor_id"] for v in entry["vendor_register"]} for row in entry["procurement_register"])
+    assert all(row["risk_id"] in {risk["risk_id"] for risk in entry["risk_register"]} for row in entry["risk_responses"])
+    assert all("DEMO" not in row["task_title"].upper() for row in entry["team_tasks"])
 
     activity_ids = {row["activity_id"] for row in entry["activities"]}
     wbs_ids = {row["wbs_id"] for row in entry["wbs"]}
