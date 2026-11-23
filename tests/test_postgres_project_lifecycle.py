@@ -309,7 +309,7 @@ def test_defaults_application_is_appended_and_read_back_scoped():
     assert "JOIN project_lifecycle_memberships" in c.calls[2][0]
 
 
-def test_personal_project_list_excludes_shared_reference_registry_rows():
+def test_personal_project_list_excludes_only_dam_build_workspace():
     c = FakeConnection()
     PostgresProjectRepository(c).list_for_user("t1", "u1")
     sql, params = c.calls[0]
