@@ -60,6 +60,24 @@ def test_dam_reference_bundle_is_large_deterministic_and_integrated() -> None:
     assert all(row["wbs_id"] in wbs_ids for row in entry["risk_register"])
     assert all(row["vendor_id"] in {v["vendor_id"] for v in entry["vendor_register"]} for row in entry["procurement_register"])
     assert all(row["risk_id"] in {risk["risk_id"] for risk in entry["risk_register"]} for row in entry["risk_responses"])
+    status_date = entry["project"]["status_date"]
+    assert all(row["date_raised"] <= status_date for row in entry["issue_register"])
+    assert all(row["date_raised"] <= status_date for row in entry["change_requests"])
+    assert all(row["revision_date"] <= status_date for row in entry["document_revisions"])
+    assert all(
+        row["decision_date"] is None or row["decision_date"] <= status_date
+        for row in entry["approval_records"]
+    )
+    assert all(
+        row["baseline_date"] <= status_date
+        for row in entry["project_milestones"]
+        if row["milestone_status"] == "Achieved"
+    )
+    assert all(
+        row["forecast_date"] > status_date
+        for row in entry["project_milestones"]
+        if row["milestone_status"] != "Achieved"
+    )
     assert all("DEMO" not in row["task_title"].upper() for row in entry["team_tasks"])
 
     resource_ids = {
