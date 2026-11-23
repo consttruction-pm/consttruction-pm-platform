@@ -302,7 +302,7 @@ def _build_enterprise_records(
     ]
     risk_register = []
     risk_responses = []
-    risk_categories = ("schedule", "geotechnical", "procurement", "environmental", "quality", "HSE", "interface", "cost")
+    risk_categories = ("schedule", "engineering", "procurement", "external", "quality", "hse", "interface", "cost")
     risk_titles = (
         "Unexpected weak rock at foundation level", "River diversion flood event",
         "Long-lead turbine delivery delay", "Concrete thermal control exceedance",
