@@ -404,8 +404,9 @@ def _persist_project(
         wbs_by_activity=dict(wbs_by_activity),
         demo=False,
         created_at=clock,
-        description=(
-            f"{project.get('sector', '')} — {project.get('contract_type', '')} "
+        description=str(
+            project.get("description")
+            or f"{project.get('sector', '')} — {project.get('contract_type', '')} "
             "(shared in-progress project workspace)"
         ).strip(" —"),
         start_date=_text(project.get("planned_start")),
