@@ -69,7 +69,7 @@ export type ToastKind = "info" | "error";
 export type PageContext = {
   session: SessionInfo;
   projects: ProjectSummary[];
-  sharedProjects: ProjectSummary[];
+  sharedProjects?: ProjectSummary[];
   locale: EnterpriseLocale;
   t: (key: string, vars?: Record<string, string | number>) => string;
   query: URLSearchParams;
