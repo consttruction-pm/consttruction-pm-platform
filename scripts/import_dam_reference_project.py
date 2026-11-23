@@ -41,11 +41,26 @@ def _connect(dsn: str):
 
 def _preflight(connection, tenant_id: str) -> dict[str, object]:
     rows = connection.execute(
-        "SELECT c.relname, c.relrowsecurity "
+        "SELECT c.relname, c.relrowsecurity, "
+        "EXISTS (SELECT 1 FROM pg_policy p WHERE p.polrelid=c.oid "
+        "AND p.polname='cubi_block_direct_api_clients'), "
+        "has_table_privilege('anon', c.oid, 'SELECT'), "
+        "has_table_privilege('anon', c.oid, 'INSERT'), "
+        "has_table_privilege('anon', c.oid, 'UPDATE'), "
+        "has_table_privilege('anon', c.oid, 'DELETE'), "
+        "has_table_privilege('authenticated', c.oid, 'SELECT'), "
+        "has_table_privilege('authenticated', c.oid, 'INSERT'), "
+        "has_table_privilege('authenticated', c.oid, 'UPDATE'), "
+        "has_table_privilege('authenticated', c.oid, 'DELETE') "
         "FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace "
         "WHERE n.nspname='public' AND c.relkind IN ('r','p') ORDER BY c.relname"
     ).fetchall()
-    unprotected = [str(name) for name, enabled in rows if not bool(enabled)]
+    unprotected = [
+        str(row[0]) for row in rows if not bool(row[1]) or not bool(row[2])
+    ]
+    direct_client_access = [
+        str(row[0]) for row in rows if any(bool(value) for value in row[3:])
+    ]
     missing = connection.execute(
         "SELECT required.table_name FROM (VALUES "
         "('project_lifecycle_projects'),('cubi_reference_project'),"
@@ -74,10 +89,11 @@ def _preflight(connection, tenant_id: str) -> dict[str, object]:
     ).fetchone()
     return {
         "public_table_count": len(rows),
-        "rls_disabled_tables": unprotected,
+        "rls_or_policy_missing_tables": unprotected,
+        "direct_client_privilege_tables": direct_client_access,
         "missing_required_tables": [str(row[0]) for row in missing],
         "project_already_exists": exists is not None,
-        "ready": not unprotected and not missing,
+        "ready": not unprotected and not direct_client_access and not missing,
     }
 
 def main(argv: list[str] | None = None) -> int:
