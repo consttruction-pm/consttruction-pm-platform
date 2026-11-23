@@ -193,7 +193,7 @@ def build_dam_reference_bundle() -> dict[str, object]:
             "lag": 0,
         })
     for index in range(1, len(PACKAGES)):
-        previous_leaf = (index * 6) - 1
+        previous_leaf = (index * 6) - 2
         next_leaf = index * 6
         relationships.append({
             "relationship_id": f"DAM-REL-{len(relationships) + 1:05d}",
