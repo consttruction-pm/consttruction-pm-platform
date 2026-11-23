@@ -5,6 +5,7 @@ import {
   emptyLine,
   note,
   pageActions,
+  projectFilterOptions,
   readLocalJson,
   section,
   sectionBody,
@@ -121,7 +122,7 @@ function build(ctx: PageContext, state: DashboardState, paint: () => void): HTML
     paint();
   }), "dashboard-selector");
   const projectFilter = testId(selectControl(
-    [{ value: "", label: "No project filter" }, ...ctx.projects.map((project) => ({ value: project.project_id, label: project.name }))],
+    projectFilterOptions(ctx.projects, ctx.sharedProjects ?? [], "No project filter"),
     state.projectId,
     (value) => {
       state.projectId = value;
