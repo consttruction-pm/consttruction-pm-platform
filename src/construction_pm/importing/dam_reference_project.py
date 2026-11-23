@@ -249,8 +249,12 @@ def _build_enterprise_records(
             "milestone_id": f"DAM-MS-{index:03d}",
             "milestone_name": title,
             "activity_id": activity_ids[(index * 17) % len(activity_ids)],
-            "baseline_date": _working_date(120 + index * 14).isoformat(),
-            "forecast_date": _working_date(125 + index * 14).isoformat(),
+            "baseline_date": _working_date(
+                120 + index * 14 if index <= 4 else 230 + (index - 4) * 10
+            ).isoformat(),
+            "forecast_date": _working_date(
+                125 + index * 14 if index <= 4 else 235 + (index - 4) * 10
+            ).isoformat(),
             "milestone_status": ("Achieved" if index <= 4 else "At Risk" if index % 6 == 0 else "Forecast"),
         }
         for index, title in enumerate((
