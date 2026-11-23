@@ -91,6 +91,7 @@ class RoleBasedAuthorizationPolicy:
 def default_role_permissions() -> dict[str, FrozenSet[Permission]]:
     """Return the authoritative role-to-permission grants of the default policy."""
     return {
+        "shared_reference_reader": frozenset({Permission.PROJECT_READ}),
         "viewer": frozenset(
             {
                 Permission.PROJECT_READ,
