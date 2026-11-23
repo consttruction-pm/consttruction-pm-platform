@@ -1,4 +1,4 @@
-"""Durable PostgreSQL registration of the three reference projects.
+"""Durable PostgreSQL registration of shared project bundles.
 
 The frozen bundle is the source of truth for the rows; this module is the
 production adapter. It composes the same PostgreSQL repositories the
@@ -19,10 +19,10 @@ project.
 
 Shared visibility
 -----------------
-Every imported project is registered in ``cubi_reference_project``. Both project
-repositories (PostgreSQL and preview) list a registered reference project for
-any authenticated member of the tenant without copying a membership row.
-Authorization is unchanged: writes still require the server-side policy.
+Every imported project is registered in ``cubi_reference_project``. Existing
+CUBI-REF reference projects retain their ordinary list visibility. CUBI-DAM-001
+is exposed through a separate shared-workspace list and gets only a registry-
+verified read-only authorization exception. No membership rows are copied.
 """
 
 from __future__ import annotations
@@ -79,7 +79,11 @@ from construction_pm.schedule_input_snapshot_repository import (
 )
 from construction_pm.wbs_master_repository import PostgresWBSMasterRepository
 
-from .reference_enterprise import EnterpriseImportResult, ensure_reference_enterprise
+from .reference_enterprise import (
+    EnterpriseImportResult,
+    _ensure_state_table,
+    ensure_reference_enterprise,
+)
 from .reference_journal import PostgresReferenceJournal
 from .reference_persistence import (
     REFERENCE_ACTOR_ID,
@@ -292,6 +296,7 @@ def initialize_reference_enterprise_schema(connection) -> None:
     PostgresEnterpriseWorkbenchStore(connection).initialize()
     PostgresEnterpriseTaskRepository(connection).initialize()
     PostgresBudgetStore(connection).initialize()
+    _ensure_state_table(connection, dialect="postgres")
 
 
 def initialize_reference_postgres_schema(connection) -> None:
