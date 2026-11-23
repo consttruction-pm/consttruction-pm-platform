@@ -254,6 +254,7 @@ export class FetchSessionApi implements SessionApi {
     return result.ok ? { ok: true, data: null } : result;
   }
   listProjects() { return this.request<{ projects: ProjectSummary[] }>("/api/projects"); }
+  listSharedProjects() { return this.request<{ projects: ProjectSummary[] }>("/api/shared-projects"); }
 
   openProject(projectId: string) {
     return this.request<{ context: ProjectContext }>(
