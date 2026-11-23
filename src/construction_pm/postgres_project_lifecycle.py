@@ -224,7 +224,10 @@ class PostgresProjectRepository(ProjectRepository):
             + "WHERE p.tenant_id=%s AND (EXISTS ("
             "SELECT 1 FROM project_lifecycle_memberships m "
             "WHERE m.tenant_id=p.tenant_id AND m.project_id=p.project_id AND m.user_id=%s) "
-            ") "
+            "OR EXISTS ("
+            "SELECT 1 FROM cubi_reference_project r "
+            "WHERE r.tenant_id=p.tenant_id AND r.project_id=p.project_id "
+            "AND r.project_id <> 'CUBI-DAM-001')) "
             "ORDER BY p.project_id",
             (tenant_id, user_id),
         ).fetchall()
@@ -246,7 +249,7 @@ class PostgresProjectRepository(ProjectRepository):
     def list_shared_reference_for_user(self, tenant_id: str) -> tuple[ProjectSummary, ...]:
         rows = self._connection.execute(
             self._SELECT
-            + "WHERE p.tenant_id=%s AND EXISTS ("
+            + "WHERE p.tenant_id=%s AND p.project_id='CUBI-DAM-001' AND EXISTS ("
             "SELECT 1 FROM cubi_reference_project r "
             "WHERE r.tenant_id=p.tenant_id AND r.project_id=p.project_id) "
             "ORDER BY p.project_id",
@@ -257,7 +260,7 @@ class PostgresProjectRepository(ProjectRepository):
     def is_shared_reference_project(self, tenant_id: str, project_id: str) -> bool:
         row = self._connection.execute(
             "SELECT 1 FROM cubi_reference_project "
-            "WHERE tenant_id=%s AND project_id=%s",
+            "WHERE tenant_id=%s AND project_id=%s AND project_id='CUBI-DAM-001'",
             (tenant_id, project_id),
         ).fetchone()
         return row is not None
