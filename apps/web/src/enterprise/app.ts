@@ -16,6 +16,7 @@ import {
   translator,
   type EnterpriseLocale,
 } from "./i18n.js";
+import { enterpriseIcon, type EnterpriseIconName } from "./icons.js";
 import {
   BASE_PATH,
   ROUTES,
@@ -199,9 +200,29 @@ export function publicHelpUrl(): string {
   return "https://docs.oracle.com/cd/G48897_01/p6help/en/toc.htm";
 }
 
+/**
+ * Top-bar Help control (icon register `top-help`). The visible graphic is a
+ * real SVG; the localised label is exposed to assistive technology and as the
+ * native tooltip, so the control is never an unexplained "?" glyph.
+ */
+function helpButton(label: string): HTMLAnchorElement {
+  const anchor = link(publicHelpUrl(), "", true, "cubi-btn cubi-btn-ghost cubi-icon-only");
+  anchor.append(enterpriseIcon("top-help", label));
+  anchor.title = label;
+  anchor.setAttribute("aria-label", label);
+  return anchor;
+}
+
 function sessionGate(nextPath: string): void {
   navigate(`${pageHref("login")}?next=${encodeURIComponent(nextPath)}`, { replace: true });
 }
+
+/**
+ * Shell navigation entries that carry a registered semantic icon. Only the
+ * Projects register is in the ENT-07 icon register; every other entry keeps its
+ * text-only rendering.
+ */
+const NAV_ICONS: Partial<Record<PageId, EnterpriseIconName>> = { projects: "nav-projects" };
 
 function renderShell(): void {
   const root = document.getElementById("cubi-app");
@@ -219,7 +240,10 @@ function renderShell(): void {
     const section = el("div", { class: "cubi-nav-group" });
     section.append(el("span", { class: "cubi-nav-label", text: state.t(labelKey) }));
     for (const id of ids) {
-      const item = el("a", { text: state.t(routeById(id).titleKey) });
+      const item = el("a");
+      const iconName = NAV_ICONS[id];
+      if (iconName) item.append(enterpriseIcon(iconName));
+      item.append(el("span", { text: state.t(routeById(id).titleKey) }));
       item.href = appHref(id);
       if (state.page === id) item.setAttribute("aria-current", "page");
       section.append(item);
@@ -269,7 +293,7 @@ function renderShell(): void {
   }
   topActions.append(
     languageSelect(),
-    link(publicHelpUrl(), "?", true, "cubi-btn cubi-btn-ghost"),
+    helpButton(state.t("nav.help")),
   );
   topbar.append(crumbs, topActions);
   installTopbarShortcuts();

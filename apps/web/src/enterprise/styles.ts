@@ -254,6 +254,38 @@ p { margin: 0; }
 .cubi-toolbar { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
 .cubi-toolbar .cubi-input { width: auto; min-width: 170px; }
 
+/* ---------- semantic icons (ENT-07) ----------
+ * Drawn inline SVG, one stroke weight, inherits the control colour. These are
+ * real graphics, not the legacy flat cubi-icon squares.
+ */
+.cubi-svg-icon { width: 16px; height: 16px; flex: none; vertical-align: -2px; }
+.cubi-svg-icon.lg { width: 18px; height: 18px; }
+.cubi-icon-flip { transform: scaleX(-1); }
+[dir="rtl"] .cubi-icon-rtl { transform: scaleX(-1); }
+.cubi-icon-btn { display: inline-flex; align-items: center; gap: 7px; }
+.cubi-icon-only { padding-inline: 9px; min-width: 34px; justify-content: center; }
+.cubi-icon-only .cubi-svg-icon { width: 17px; height: 17px; }
+.cubi-tab { display: inline-flex; align-items: center; gap: 7px; }
+.cubi-tab .cubi-svg-icon { color: currentColor; opacity: .85; }
+.cubi-tab.is-selected .cubi-svg-icon { opacity: 1; }
+.cubi-nav a .cubi-svg-icon { color: #8fa9bf; }
+.cubi-nav a:hover .cubi-svg-icon { color: #fff; }
+.cubi-nav a[aria-current="page"] .cubi-svg-icon { color: var(--cubi-gold-500); }
+.cubi-toolbar-field { display: inline-flex; align-items: center; gap: 6px; color: var(--cubi-slate-600); font-size: 12px; }
+.cubi-toolbar-field .cubi-svg-icon { color: var(--cubi-slate-500); }
+.cubi-sort-btn { display: inline-flex; align-items: center; gap: 5px; background: none; border: none; padding: 0; font: inherit; color: inherit; cursor: pointer; }
+.cubi-sort-btn:hover { color: var(--cubi-navy-800); }
+.cubi-sort-btn .cubi-svg-icon { width: 13px; height: 13px; opacity: .8; }
+.cubi-table th[aria-sort] { cursor: default; }
+.cubi-table th[aria-sort="ascending"] .cubi-svg-icon, .cubi-table th[aria-sort="descending"] .cubi-svg-icon { opacity: 1; color: var(--cubi-navy-800); }
+.cubi-btn:disabled, .cubi-btn[aria-disabled="true"] { opacity: .55; cursor: not-allowed; }
+.cubi-freshness { display: inline-flex; align-items: center; gap: 6px; color: var(--cubi-slate-500); font-size: 11.5px; }
+.cubi-freshness .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--cubi-emerald-500, #0f8a5f); flex: none; }
+.cubi-freshness.is-busy .dot { background: var(--cubi-gold-500); }
+.cubi-freshness.is-stale .dot { background: var(--cubi-red-600); }
+.cubi-register-toolbar { align-items: flex-end; }
+.cubi-register-toolbar .cubi-toolbar-group { margin-inline-start: auto; }
+
 /* ---------- split / detail ---------- */
 .cubi-split { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(300px, 1fr); gap: 16px; align-items: start; }
 .cubi-detail { position: sticky; top: 78px; }

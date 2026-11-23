@@ -1,373 +1,929 @@
 import type { PageContext } from "../app.js";
-import { ApiError, api, probe, type CapabilityProbe, type DocumentRecord, type ResourceRecord } from "../api.js";
+import {
+  ApiError,
+  api,
+  probe,
+  type CapabilityProbe,
+  type DocumentRecord,
+  type ProjectSummary,
+  type ResourceRecord,
+} from "../api.js";
+import { enterpriseIcon, type EnterpriseIconName } from "../icons.js";
 import { pageHref } from "../router.js";
 import { formatDate, formatDateTime } from "../session.js";
-import { badge, el, stateBlock, tabs } from "../ui.js";
+import { badge, el, stateBlock, tabs, type Translator } from "../ui.js";
 import {
+  connectionList,
   detailList,
   emptyLine,
   note,
   pageActions,
   section,
   sectionBody,
-  sourceStamp,
-  sourceState,
   selectControl,
+  sourceState,
   testId,
   textInput,
 } from "./shared.js";
 
 /**
- * Page 8 — Enterprise projects and project portal.
+ * Page 8 — Enterprise projects register and project portal (ENT-07).
  *
- * The register is real. Each details tab reads an official project-scoped route
- * and reports its exact state. Schedule authority stays in Engineering; this
- * portal links to it instead of re-implementing it.
+ * The register is the server project read. Every tab reads an official
+ * project-scoped route and reports its exact state, source and revision. The
+ * page never calculates a schedule, CPM, progress or earned value: those stay
+ * authoritative in the Engineering environment.
  */
 
 type TabId = "overview" | "engineering" | "resources" | "documents" | "risk" | "reports";
+type SortKey = "name" | "revision" | "start" | "finish";
+type StaleCheck = () => boolean;
 
-const TABS: { id: TabId; label: string }[] = [
-  { id: "overview", label: "Overview" },
-  { id: "engineering", label: "Engineering source" },
-  { id: "resources", label: "Resources" },
-  { id: "documents", label: "Documents" },
-  { id: "risk", label: "Risks & issues" },
-  { id: "reports", label: "Reports" },
+const TAB_IDS: readonly TabId[] = ["overview", "engineering", "resources", "documents", "risk", "reports"];
+
+const TABS: readonly { id: TabId; labelKey: string; icon: EnterpriseIconName }[] = [
+  { id: "overview", labelKey: "ent07.tab.overview", icon: "project-overview" },
+  { id: "engineering", labelKey: "ent07.tab.engineering", icon: "project-engineering" },
+  { id: "resources", labelKey: "ent07.tab.resources", icon: "project-resources" },
+  { id: "documents", labelKey: "ent07.tab.documents", icon: "project-documents" },
+  { id: "risk", labelKey: "ent07.tab.risks", icon: "project-risks" },
+  { id: "reports", labelKey: "ent07.tab.reports", icon: "project-reports" },
 ];
 
-let activeTab: TabId = "overview";
+const SORT_KEYS: readonly SortKey[] = ["name", "revision", "start", "finish"];
+
+const SORT_LABEL_KEYS: Record<SortKey, string> = {
+  name: "ent07.register.sortName",
+  revision: "ent07.register.sortRevision",
+  start: "ent07.register.sortStart",
+  finish: "ent07.register.sortFinish",
+};
+
+/** Bumped once per page mount; invalidates work from a previous route. */
+let pageEpoch = 0;
+/** Bumped on every repaint; invalidates work for a tab that is no longer shown. */
+let paintEpoch = 0;
 
 export function renderProjects(ctx: PageContext, host: HTMLElement): void {
-  const projects = ctx.projects;
-  const requested = ctx.query.get("project") ?? "";
-  const selected = projects.find((project) => project.project_id === requested) ?? projects[0] ?? null;
+  const pageToken = ++pageEpoch;
+  const query = ctx.query;
+  const requested = query.get("project") ?? "";
+  const initialTab: TabId = isTab(query.get("tab")) ? (query.get("tab") as TabId) : "overview";
 
-  const register = section("Enterprise project register", "Every project visible to this session, with its server revision. Selecting a project opens its portal below.");
-  if (projects.length === 0) {
-    sectionBody(register, emptyLine("No project is visible to this session. Create or join a project in the Engineering environment first."));
-  } else {
-    const toolbar = el("div", { class: "cubi-toolbar" });
-    const search = testId(textInput({ placeholder: "Search project, id or domain" }), "projects-search");
-    const statuses = [...new Set(projects.map((project) => project.status || "unknown"))].sort();
-    let statusFilter = "all";
-    let sortKey = "name";
-    const statusControl = testId(selectControl(
-      [{ value: "all", label: "All statuses" }, ...statuses.map((status) => ({ value: status, label: status }))],
-      "all",
-      (value) => { statusFilter = value; paintTable(); },
-    ), "projects-status-filter");
-    const sortControl = testId(selectControl([
-      { value: "name", label: "Sort: name" },
-      { value: "revision", label: "Sort: revision (high first)" },
-      { value: "start", label: "Sort: start date" },
-      { value: "finish", label: "Sort: finish date" },
-    ], "name", (value) => { sortKey = value; paintTable(); }), "projects-sort");
-    const count = el("span", { class: "cubi-field-hint", attrs: { "aria-live": "polite" } });
-    const tableHost = el("div");
-    toolbar.append(search, statusControl, sortControl, count);
-    search.addEventListener("input", () => paintTable());
+  let projects: ProjectSummary[] = ctx.projects;
+  let selected: ProjectSummary | null =
+    projects.find((project) => project.project_id === requested) ?? projects[0] ?? null;
+  let receivedAt = new Date();
+  let busy = false;
+  let lastError: unknown = null;
+  let loadedOnce = projects.length > 0;
+  let tab: TabId = initialTab;
+  /** Updates the toolbar while a refresh is in flight, without a repaint. */
+  let syncBusy: (() => void) | null = null;
 
-    const paintTable = (): void => {
-      const needle = search.value.trim().toLocaleLowerCase();
-      const rows = projects
-        .filter((project) => {
-          if (statusFilter !== "all" && (project.status || "unknown") !== statusFilter) return false;
-          if (!needle) return true;
-          return `${project.name} ${project.project_id} ${project.business_domain ?? ""}`.toLocaleLowerCase().includes(needle);
-        })
-        .sort((left, right) => {
-          if (sortKey === "revision") return right.revision - left.revision;
-          if (sortKey === "start") return String(left.start_date ?? "").localeCompare(String(right.start_date ?? ""));
-          if (sortKey === "finish") return String(left.finish_date ?? "").localeCompare(String(right.finish_date ?? ""));
-          return left.name.localeCompare(right.name, ctx.locale);
-        });
-      count.textContent = `${rows.length} of ${projects.length} projects returned by the server`;
-      const table = el("div", { class: "cubi-table-wrap" });
-      const node = el("table", { class: "cubi-table" });
-      node.append(el("thead", {}, el("tr", {},
-        el("th", { text: "Project" }),
-        el("th", { text: "Status" }),
-        el("th", { text: "Domain" }),
-        el("th", { text: "Revision" }),
-        el("th", { text: "Start" }),
-        el("th", { text: "Finish" }),
-        el("th", { text: "" }),
-      )));
-      const body = el("tbody");
-      if (rows.length === 0) {
-        body.append(el("tr", {}, el("td", { class: "cubi-table-empty", text: "No project matches the current filter.", attrs: { colspan: "7" } })));
+  const filters = {
+    q: query.get("q") ?? "",
+    status: query.get("status") ?? "all",
+    sort: isSort(query.get("sort")) ? (query.get("sort") as SortKey) : ("name" as SortKey),
+  };
+
+  const tabParam = (id: TabId): string | null => (id === "overview" ? null : id);
+
+  const hrefFor = (projectId: string | null, targetTab: TabId = tab): string =>
+    pageHref("projects", {
+      project: projectId,
+      tab: tabParam(targetTab),
+      q: filters.q || null,
+      status: filters.status !== "all" ? filters.status : null,
+      sort: filters.sort !== "name" ? filters.sort : null,
+    });
+
+  /** Keep the selection, tab and toolbar state in the address bar. */
+  const rememberUrl = (): void => {
+    const href = hrefFor(selected?.project_id ?? null);
+    const current = `${window.location.pathname}${window.location.search}`;
+    if (current !== href) window.history.replaceState({}, "", href);
+  };
+
+  const paint = (): void => {
+    paintEpoch += 1;
+    host.replaceChildren();
+    buildRegister();
+    if (selected) buildPortal(selected);
+    rememberUrl();
+  };
+
+  const refresh = async (): Promise<void> => {
+    if (busy) return;
+    busy = true;
+    lastError = null;
+    syncBusy?.();
+    try {
+      const rows = await api.listProjects();
+      if (pageToken !== pageEpoch) return;
+      projects = rows;
+      receivedAt = new Date();
+      const wanted = selected?.project_id ?? null;
+      selected =
+        (wanted ? rows.find((project) => project.project_id === wanted) ?? null : null) ?? rows[0] ?? null;
+      loadedOnce = true;
+      busy = false;
+      paint();
+    } catch (error) {
+      if (pageToken !== pageEpoch) return;
+      busy = false;
+      if (errorKind(error) === "unauthenticated") {
+        ctx.onUnauthorized();
+        return;
       }
-      for (const project of rows) {
-        const open = el("a", { class: "cubi-btn cubi-btn-ghost", text: "Open portal", attrs: { href: pageHref("projects", { project: project.project_id }) } });
-        body.append(el("tr", { class: project.project_id === selected?.project_id ? "is-selected" : undefined },
-          el("td", {}, el("strong", { text: project.name }), el("div", { class: "cubi-field-hint", text: project.project_id })),
-          el("td", {}, badge(project.status || "unknown", project.status === "active" ? "success" : "neutral")),
-          el("td", { text: project.business_domain || "—" }),
-          el("td", { text: String(project.revision) }),
-          el("td", { text: formatDate(project.start_date, ctx.locale) }),
-          el("td", { text: formatDate(project.finish_date, ctx.locale) }),
-          el("td", {}, open),
-        ));
-      }
-      node.append(body);
-      table.append(node);
-      tableHost.replaceChildren(table);
+      lastError = error;
+      loadedOnce = true;
+      paint();
+    }
+  };
+
+  const navigateTo = (projectId: string | null, targetTab: TabId): void => {
+    ctx.navigate(hrefFor(projectId, targetTab));
+  };
+
+  function buildRegister(): void {
+    const t = ctx.t;
+    const register = section(t("ent07.register.title"), t("ent07.register.description"));
+    testId(register, "projects-register");
+
+    const retry = (): void => {
+      void refresh();
     };
-    paintTable();
-    sectionBody(register, toolbar, tableHost);
-  }
-  testId(register, "projects-register");
-  host.append(register);
 
-  if (!selected) return;
-
-  const portal = section(selected.name, "Project portal — one place to read the project and reach its owned sources.");
-  const tabBar = tabs(TABS, activeTab, (id) => {
-    activeTab = id;
-    ctx.navigate(pageHref("projects", { project: selected.project_id }));
-  });
-  const tabHost = el("div");
-  sectionBody(portal, tabBar, tabHost);
-  testId(portal, "projects-portal");
-  host.append(portal);
-  void renderTab(ctx, tabHost, selected);
-}
-
-async function renderTab(ctx: PageContext, host: HTMLElement, project: PageContext["projects"][number]): Promise<void> {
-  host.replaceChildren(el("div", { class: "cubi-loading" }, el("div", { class: "cubi-spinner" }), el("span", { text: ctx.t("common.loading") })));
-  if (activeTab === "overview") {
-    host.replaceChildren(
-      el("div", { class: "cubi-split" },
-        el("div", {},
-          detailList([
-            ["Project", project.name],
-            ["Project ID", project.project_id],
-            ["Tenant", project.tenant_id ?? ctx.session.tenant_id],
-            ["Status", project.status || "—"],
-            ["Business domain", project.business_domain || "—"],
-            ["Responsible manager", project.obs_responsible_manager || "—"],
-            ["Website", project.website_url || "—"],
-          ]),
-          sourceStamp("/api/projects", project.revision, null, ctx.locale),
-        ),
-        el("div", {},
-          detailList([
-            ["Start", formatDate(project.start_date, ctx.locale)],
-            ["Finish", formatDate(project.finish_date, ctx.locale)],
-            ["Date system", project.date_system || "—"],
-            ["Checkout", project.checkout_state || "—"],
-            ["Revision", String(project.revision)],
-          ]),
-          note("Schedule, activities, progress and earned value are authoritative in Engineering. This portal reads only official project-scoped routes."),
-        ),
-      ),
-      pageActions(linkButton("Open Engineering workspace", "/app/"), linkButton("Portfolio view", pageHref("portfolio", { project: project.project_id }))),
-    );
-    return;
-  }
-
-  if (activeTab === "engineering") {
-    const [workspace, issues, evm] = await Promise.all([
-      probe(`/api/projects/${encodeURIComponent(project.project_id)}/p6/workspace`),
-      probe(`/api/projects/${encodeURIComponent(project.project_id)}/p6/issues`),
-      probe(`/api/projects/${encodeURIComponent(project.project_id)}/p6/earned-value`),
-    ]);
-    host.replaceChildren(
-      note("The official route to schedule detail is the Engineering workspace. No schedule, CPM, WBS or activity data is recomputed in Enterprise.", "warning"),
-      connectionListLocal(ctx, [["Project workspace read", workspace], ["Issue register", issues], ["Earned-value source", evm]]),
-      pageActions(linkButton("Open schedule in Engineering", "/app/")),
-    );
-    return;
-  }
-
-  if (activeTab === "resources") {
-    const capability = await probe(`/api/projects/${encodeURIComponent(project.project_id)}/p6/resources`);
-    if (capability.state !== "available") {
-      host.replaceChildren(sourceState(capability, ctx.t, { title: "Resource projection", source: "Engineering resource read model", detail: "Resources remain owned by Engineering.", retry: () => { void renderTab(ctx, host, project); } }));
+    if (!projects.length) {
+      if (!loadedOnce && !lastError) {
+        sectionBody(register, stateBlock("loading", t("common.loading"), t("ent07.register.description")));
+        host.append(register);
+        return;
+      }
+      if (lastError) {
+        sectionBody(register, registerFailure(ctx, lastError, retry));
+        host.append(register);
+        return;
+      }
+      sectionBody(
+        register,
+        stateBlock("empty", t("ent07.register.emptyTitle"), t("ent07.register.emptyBody"), [
+          actionButton(t("ent07.register.refresh"), retry, "cubi-btn cubi-btn-secondary", "action-refresh"),
+        ]),
+      );
+      host.append(register);
       return;
     }
-    try {
-      const rows = await api.listResources(project.project_id);
-      host.replaceChildren(rows.length ? resourcesTable(rows) : emptyLine("No resource is registered for this project."),
-        sourceStamp("Engineering resource read model", "per resource", null, ctx.locale));
-    } catch (error) {
-      host.replaceChildren(requestError(ctx, host, error, () => { void renderTab(ctx, host, project); }));
-    }
-    return;
+
+    const statuses = [...new Set(projects.map((project) => project.status || "unknown"))].sort();
+    const tableHost = el("div");
+    const count = el("span", { class: "cubi-field-hint", attrs: { "aria-live": "polite" } });
+    testId(count, "projects-count");
+    const freshnessText = el("span");
+    const freshness = el("span", { class: "cubi-freshness", attrs: { "aria-live": "polite" } },
+      el("span", { class: "dot" }),
+      freshnessText,
+    );
+    testId(freshness, "projects-freshness");
+    const sortSelect = selectControl(
+      SORT_KEYS.map((key) => ({ value: key, label: t(SORT_LABEL_KEYS[key]) })),
+      filters.sort,
+      (value) => {
+        filters.sort = value as SortKey;
+        paintRows();
+        rememberUrl();
+      },
+    );
+    sortSelect.setAttribute("aria-label", t("ent07.register.sortLabel"));
+    sortSelect.title = t("ent07.register.sortLabel");
+    testId(sortSelect, "projects-sort");
+
+    const statusSelect = selectControl(
+      [{ value: "all", label: t("ent07.register.allStatuses") }, ...statuses.map((status) => ({ value: status, label: statusLabel(status, t) }))],
+      filters.status,
+      (value) => {
+        filters.status = value;
+        paintRows();
+        rememberUrl();
+      },
+    );
+    statusSelect.setAttribute("aria-label", t("ent07.register.statusLabel"));
+    statusSelect.title = t("ent07.register.statusLabel");
+    testId(statusSelect, "projects-filter-status");
+
+    const search = textInput({
+      type: "search",
+      placeholder: t("ent07.register.searchPlaceholder"),
+      value: filters.q,
+      name: "project-search",
+    });
+    search.setAttribute("aria-label", t("ent07.register.searchLabel"));
+    search.title = t("ent07.register.searchLabel");
+    testId(search, "projects-search");
+    search.addEventListener("input", () => {
+      filters.q = search.value;
+      paintRows();
+      rememberUrl();
+    });
+
+    const refreshControl = actionButton(
+      busy ? t("ent07.register.refreshing") : t("ent07.register.refresh"),
+      () => {
+        void refresh();
+      },
+      "cubi-btn cubi-btn-secondary cubi-icon-btn",
+      "action-refresh",
+    );
+    refreshControl.disabled = busy;
+    refreshControl.title = t("ent07.register.refresh");
+    testId(refreshControl, "projects-refresh");
+
+    const label = refreshControl.querySelector("span");
+    syncBusy = () => {
+      refreshControl.disabled = busy;
+      if (label) label.textContent = busy ? t("ent07.register.refreshing") : t("ent07.register.refresh");
+      freshness.className = `cubi-freshness${busy ? " is-busy" : lastError ? " is-stale" : ""}`;
+    };
+
+    const toolbar = el(
+      "div",
+      { class: "cubi-toolbar cubi-register-toolbar" },
+      el("label", { class: "cubi-toolbar-field", title: t("ent07.register.searchLabel") }, enterpriseIcon("projects-search"), search),
+      el("label", { class: "cubi-toolbar-field", title: t("ent07.register.statusLabel") }, enterpriseIcon("projects-filter-status"), statusSelect),
+      el("label", { class: "cubi-toolbar-field", title: t("ent07.register.sortLabel") }, enterpriseIcon("projects-sort"), sortSelect),
+      el("div", { class: "cubi-toolbar-group" }, refreshControl, freshness),
+    );
+
+    const epsPanel = el(
+      "div",
+      { class: "cubi-note" },
+      el("strong", { text: `${t("ent07.register.epsTitle")}: ` }),
+      badge(t("common.notConnected"), "neutral"),
+      el("span", { text: ` ${t("ent07.register.epsBody")}` }),
+    );
+    testId(epsPanel, "projects-eps");
+
+    const paintRows = (): void => {
+      const rows = rowsFor(projects, filters, ctx.locale);
+      count.textContent = t("ent07.register.count", { shown: rows.length, total: projects.length });
+      freshnessText.textContent = t("ent07.register.received", {
+        time: formatDateTime(receivedAt.toISOString(), ctx.locale),
+      });
+      freshness.className = `cubi-freshness${busy ? " is-busy" : lastError ? " is-stale" : ""}`;
+      tableHost.replaceChildren(buildTable(ctx, rows, selected, filters.sort, (key) => {
+        filters.sort = key;
+        sortSelect.value = key;
+        paintRows();
+        rememberUrl();
+      }, (projectId) => {
+        navigateTo(projectId, tab);
+      }, (projectId) => hrefFor(projectId, tab)));
+      if (lastError && projects.length) {
+        tableHost.prepend(registerFailure(ctx, lastError, () => {
+          void refresh();
+        }));
+      }
+    };
+
+    sectionBody(register, toolbar, count, epsPanel, tableHost);
+    host.append(register);
+    paintRows();
   }
 
-  if (activeTab === "documents") {
-    const capability = await probe(`/api/projects/${encodeURIComponent(project.project_id)}/documents`);
-    if (capability.state !== "available") {
-      host.replaceChildren(sourceState(capability, ctx.t, { title: "Document register", source: "Project document store", retry: () => { void renderTab(ctx, host, project); } }));
+  function buildPortal(project: ProjectSummary): void {
+    const t = ctx.t;
+    const portal = section(
+      project.name,
+      `${t("ent07.field.projectId")}: ${project.project_id} · ${t("common.revision")}: ${project.revision}`,
+    );
+    testId(portal, "projects-portal");
+
+    const paintToken = paintEpoch;
+    const tabBar = tabs(
+      TABS.map((entry) => ({
+        id: entry.id,
+        label: t(entry.labelKey),
+        icon: enterpriseIcon(entry.icon),
+        testId: `tab-${entry.id}`,
+      })),
+      tab,
+      (id) => {
+        tab = id;
+        navigateTo(project.project_id, id);
+      },
+    );
+    const tabHost = el("div");
+    testId(tabHost, "project-tab-body");
+    sectionBody(portal, tabBar, tabHost);
+    host.append(portal);
+    void renderTab(ctx, tabHost, project, tab, pageToken, paintToken, receivedAt);
+  }
+
+  /** A register that arrived empty is not evidence of an empty account. */
+  const start = (): void => {
+    if (projects.length) {
+      paint();
       return;
     }
-    try {
-      const rows = await api.listDocuments(project.project_id);
-      host.replaceChildren(rows.length ? documentsTable(rows) : emptyLine("No document is registered for this project."),
-        sourceStamp("Project document register", "per document", null, ctx.locale));
-    } catch (error) {
-      host.replaceChildren(requestError(ctx, host, error, () => { void renderTab(ctx, host, project); }));
-    }
-    return;
-  }
+    paint();
+    void refresh();
+  };
 
-  if (activeTab === "risk") {
-    const [risksProbe, issuesProbe] = await Promise.all([
-      probe(`/api/projects/${encodeURIComponent(project.project_id)}/risks`),
-      probe(`/api/projects/${encodeURIComponent(project.project_id)}/p6/issues`),
-    ]);
-    const blocks: HTMLElement[] = [];
-    if (risksProbe.state === "available") {
-      const rows = await api.listRisks(project.project_id);
-      blocks.push(rows.length ? recordsTable("Risk", rows) : emptyLine("No risk is registered."));
-    } else {
-      blocks.push(sourceState(risksProbe, ctx.t, { title: "Risk register", source: "Project risk API" }));
-    }
-    if (issuesProbe.state === "available") {
-      const rows = await api.listIssues(project.project_id);
-      blocks.push(rows.length ? recordsTable("Issue", rows) : emptyLine("No issue is registered."));
-    } else {
-      blocks.push(sourceState(issuesProbe, ctx.t, { title: "Issue register", source: "Engineering issue API" }));
-    }
-    host.replaceChildren(...blocks, sourceStamp("Project risk and issue registers", "per record", null, ctx.locale));
-    return;
-  }
-
-  const [catalogueProbe, definitionsProbe] = await Promise.all([
-    probe(`/api/projects/${encodeURIComponent(project.project_id)}/reports/catalogue`),
-    probe(`/api/projects/${encodeURIComponent(project.project_id)}/reports`),
-  ]);
-  const blocks: HTMLElement[] = [];
-  if (definitionsProbe.state === "available") {
-    const rows = await api.listReports(project.project_id);
-    blocks.push(rows.length ? simpleRows("Report", rows) : emptyLine("No report definition is registered."));
-  } else {
-    blocks.push(sourceState(definitionsProbe, ctx.t, { title: "Report definitions", source: "Existing report runtime" }));
-  }
-  if (catalogueProbe.state === "available") {
-    const catalogue = await api.reportCatalogue(project.project_id);
-    blocks.push(el("h3", { text: "Catalogue" }), simpleRows("Catalogue entry", catalogue));
-  } else {
-    blocks.push(sourceState(catalogueProbe, ctx.t, { title: "Report catalogue", source: "Existing report runtime" }));
-  }
-  host.replaceChildren(...blocks, sourceStamp("Report runtime", "per definition", null, ctx.locale));
+  start();
 }
 
-function resourcesTable(rows: ResourceRecord[]): HTMLElement {
-  const table = el("div", { class: "cubi-table-wrap" });
-  const node = el("table", { class: "cubi-table" });
-  node.append(el("thead", {}, el("tr", {},
-    el("th", { text: "Resource" }),
-    el("th", { text: "Type" }),
-    el("th", { text: "Unit" }),
-    el("th", { text: "Calendar" }),
-    el("th", { text: "Active" }),
-    el("th", { text: "Revision" }),
-  )));
+/* --------------------------------------------------------------------------
+ * Register rendering
+ * ----------------------------------------------------------------------- */
+
+function buildTable(
+  ctx: PageContext,
+  rows: ProjectSummary[],
+  selected: ProjectSummary | null,
+  sort: SortKey,
+  onSort: (key: SortKey) => void,
+  onOpen: (projectId: string) => void,
+  hrefForProject: (projectId: string) => string,
+): HTMLElement {
+  const t = ctx.t;
+  const wrapper = el("div", { class: "cubi-table-wrap" });
+  testId(wrapper, "projects-table");
+  const table = el("table", { class: "cubi-table" });
+  table.append(el("caption", { class: "cubi-visually-hidden", text: t("ent07.register.title") }));
+
+  const sortable = (key: SortKey, label: string): HTMLElement => {
+    const active = sort === key;
+    const th = el("th", {
+      attrs: {
+        scope: "col",
+        ...(active ? { "aria-sort": key === "revision" ? "descending" : "ascending" } : {}),
+      },
+    });
+    const control = el("button", { class: "cubi-sort-btn", attrs: { type: "button" } });
+    control.append(el("span", { text: label }), enterpriseIcon("projects-sort"));
+    control.title = `${t("ent07.register.sortLabel")}: ${label}`;
+    control.addEventListener("click", () => onSort(key));
+    th.append(control);
+    return th;
+  };
+
+  const headRow = el("tr");
+  headRow.append(
+    sortable("name", t("ent07.register.colProject")),
+    el("th", { text: t("ent07.register.colStatus"), attrs: { scope: "col" } }),
+    el("th", { text: t("ent07.register.colDomain"), attrs: { scope: "col" } }),
+    sortable("revision", t("common.revision")),
+    sortable("start", t("ent07.register.colStart")),
+    sortable("finish", t("ent07.register.colFinish")),
+    el("th", { text: t("ent07.register.colActions"), attrs: { scope: "col" } }),
+  );
+  table.append(el("thead", {}, headRow));
+
   const body = el("tbody");
-  for (const row of rows.slice(0, 100)) {
-    body.append(el("tr", {},
-      el("td", {}, el("strong", { text: row.name }), el("div", { class: "cubi-field-hint", text: row.resource_id })),
-      el("td", { text: row.resource_type }),
-      el("td", { text: row.unit_of_measure || "—" }),
-      el("td", { text: row.calendar_id || "—" }),
-      el("td", {}, badge(row.is_active ? "active" : "inactive", row.is_active ? "success" : "neutral")),
-      el("td", { text: String(row.record_revision) }),
-    ));
+  if (!rows.length) {
+    body.append(
+      el("tr", {}, el("td", {
+        class: "cubi-table-empty",
+        text: t("ent07.register.noMatch"),
+        attrs: { colspan: "7" },
+      })),
+    );
   }
-  node.append(body);
-  table.append(node);
-  return table;
-}
+  for (const project of rows) {
+    const isSelected = project.project_id === selected?.project_id;
+    const row = el("tr", {
+      class: `cubi-row-action${isSelected ? " is-selected" : ""}`,
+      attrs: { tabindex: "0", "data-project-id": project.project_id },
+    });
+    if (isSelected) row.setAttribute("aria-current", "true");
+    row.addEventListener("click", () => onOpen(project.project_id));
+    row.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        onOpen(project.project_id);
+      }
+    });
 
-function documentsTable(rows: DocumentRecord[]): HTMLElement {
-  const table = el("div", { class: "cubi-table-wrap" });
-  const node = el("table", { class: "cubi-table" });
-  node.append(el("thead", {}, el("tr", {},
-    el("th", { text: "Document" }),
-    el("th", { text: "Type" }),
-    el("th", { text: "Status" }),
-    el("th", { text: "Revision" }),
-    el("th", { text: "Updated" }),
-  )));
-  const body = el("tbody");
-  for (const row of rows.slice(0, 100)) {
-    body.append(el("tr", {},
-      el("td", {}, el("strong", { text: row.title }), el("div", { class: "cubi-field-hint", text: row.document_id })),
-      el("td", { text: String(row.document_type ?? "—") }),
-      el("td", {}, badge(String(row.status ?? "—"), "neutral")),
-      el("td", { text: String(row.revision ?? "—") }),
-      el("td", { text: String(row.updated_at ?? "—") }),
-    ));
+    const open = el("a", { class: "cubi-btn cubi-btn-ghost cubi-icon-btn" });
+    open.href = hrefForProject(project.project_id);
+    open.append(enterpriseIcon("project-open"), el("span", { text: t("ent07.register.open") }));
+    open.title = t("ent07.register.open");
+    open.addEventListener("click", (event) => event.stopPropagation());
+
+    row.append(
+      el("td", {}, el("strong", { text: project.name }), el("div", { class: "cubi-field-hint", text: project.project_id })),
+      el("td", {}, badge(statusLabel(project.status, t), statusTone(project.status))),
+      el("td", { text: project.business_domain || "—" }),
+      el("td", { text: String(project.revision) }),
+      el("td", { text: formatDate(project.start_date, ctx.locale) }),
+      el("td", { text: formatDate(project.finish_date, ctx.locale) }),
+      el("td", {}, open),
+    );
+    body.append(row);
   }
-  node.append(body);
-  table.append(node);
-  return table;
+  table.append(body);
+  wrapper.append(table);
+  return wrapper;
 }
 
-function recordsTable(kind: string, rows: Record<string, unknown>[]): HTMLElement {
-  const table = el("div", { class: "cubi-table-wrap" });
-  const node = el("table", { class: "cubi-table" });
-  node.append(el("thead", {}, el("tr", {}, el("th", { text: kind }), el("th", { text: "Status" }), el("th", { text: "Severity" }), el("th", { text: "Revision" }))));
-  const body = el("tbody");
-  rows.slice(0, 100).forEach((row, index) => {
-    body.append(el("tr", {},
-      el("td", {}, el("strong", { text: String(row.title ?? row.name ?? row[`${kind.toLowerCase()}_id`] ?? `${kind} ${index + 1}`) })),
-      el("td", { text: String(row.status ?? "—") }),
-      el("td", { text: String(row.severity ?? row.rating ?? "—") }),
-      el("td", { text: String(row.revision ?? row.record_revision ?? "—") }),
-    ));
-  });
-  node.append(body);
-  table.append(node);
-  return table;
-}
-
-function simpleRows(kind: string, rows: Record<string, unknown>[]): HTMLElement {
-  const table = el("div", { class: "cubi-table-wrap" });
-  const node = el("table", { class: "cubi-table" });
-  node.append(el("thead", {}, el("tr", {}, el("th", { text: kind }), el("th", { text: "Subject" }), el("th", { text: "Revision" }))));
-  const body = el("tbody");
-  rows.slice(0, 100).forEach((row, index) => {
-    body.append(el("tr", {},
-      el("td", {}, el("strong", { text: String(row.name ?? row.report_id ?? row.id ?? `${kind} ${index + 1}`) })),
-      el("td", { text: String(row.subject ?? row.description ?? "—") }),
-      el("td", { text: String(row.revision ?? "—") }),
-    ));
-  });
-  node.append(body);
-  table.append(node);
-  return table;
-}
-
-function connectionListLocal(ctx: PageContext, entries: [string, CapabilityProbe][]): HTMLElement {
-  const wrap = el("div", { class: "cubi-conn" });
-  for (const [label, capability] of entries) {
-    wrap.append(el("div", { class: "cubi-conn-row" },
-      el("span", {}, el("strong", { text: label }), el("span", { class: "path", text: ` ${capability.path}` })),
-      el("span", {}, badge(`${capability.status || "—"}`, capability.state === "available" ? "success" : capability.state === "forbidden" ? "warning" : "neutral"), el("span", { text: " " }), badge(capability.state, capability.state === "available" ? "success" : "neutral")),
-    ));
-  }
-  return wrap;
-}
-
-function requestError(ctx: PageContext, host: HTMLElement, error: unknown, retry: () => void): HTMLElement {
+function registerFailure(ctx: PageContext, error: unknown, retry: () => void): HTMLElement {
+  const t = ctx.t;
+  const kind = errorKind(error);
   const detail = error instanceof ApiError ? `${error.code} (HTTP ${error.status})` : String(error);
-  return stateBlock("error", "The source could not be read", `${detail}. Nothing was substituted.`, [retryElement(retry, ctx)]);
+  const action = actionButton(t("common.retry"), retry, "cubi-btn cubi-btn-secondary");
+  if (kind === "forbidden") {
+    return stateBlock("forbidden", t("ent07.register.title"), `${t("common.forbidden")} ${detail}`, [action]);
+  }
+  if (kind === "disconnected") {
+    return stateBlock("unavailable", t("ent07.register.disconnectedTitle"), `${t("ent07.register.disconnectedBody")} (${detail})`, [action]);
+  }
+  return stateBlock("error", t("ent07.register.errorTitle"), `${detail} — ${t("ent07.register.disconnectedBody")}`, [action]);
 }
 
-function retryElement(retry: () => void, ctx: PageContext): HTMLElement {
-  const button = el("button", { class: "cubi-btn cubi-btn-secondary", text: ctx.t("common.retry"), attrs: { type: "button" } });
-  button.addEventListener("click", retry);
-  return button;
+/* --------------------------------------------------------------------------
+ * Portal tabs
+ * ----------------------------------------------------------------------- */
+
+async function renderTab(
+  ctx: PageContext,
+  host: HTMLElement,
+  project: ProjectSummary,
+  tab: TabId,
+  pageToken: number,
+  paintToken: number,
+  receivedAt: Date,
+): Promise<void> {
+  const t = ctx.t;
+  const stale: StaleCheck = () => pageToken !== pageEpoch || paintToken !== paintEpoch;
+  const retry = (): void => {
+    void renderTab(ctx, host, project, tab, pageToken, paintToken, receivedAt);
+  };
+  host.replaceChildren(stateBlock("loading", t("common.loading"), project.name));
+
+  try {
+    if (tab === "overview") {
+      let live = project;
+      try {
+        live = await api.getProject(project.project_id);
+      } catch (error) {
+        if (stale()) return;
+        if (errorKind(error) === "unauthenticated") {
+          ctx.onUnauthorized();
+          return;
+        }
+        host.replaceChildren(projectReadFailure(ctx, error, retry));
+        return;
+      }
+      if (stale()) return;
+      host.replaceChildren(overviewBody(ctx, live, receivedAt));
+      return;
+    }
+
+    if (tab === "engineering") {
+      const [workspace, issues, evm] = await Promise.all([
+        probe(`/api/projects/${encodeURIComponent(project.project_id)}/p6/workspace`),
+        probe(`/api/projects/${encodeURIComponent(project.project_id)}/p6/issues`),
+        probe(`/api/projects/${encodeURIComponent(project.project_id)}/p6/earned-value`),
+      ]);
+      if (stale()) return;
+      const connections = connectionList(
+        [
+          { label: t("ent07.engineering.workspace"), probe: workspace },
+          { label: t("ent07.engineering.issues"), probe: issues },
+          { label: t("ent07.engineering.evm"), probe: evm },
+        ],
+        t,
+      );
+      testId(connections, "engineering-connections");
+      host.replaceChildren(
+        el("p", { class: "desc", text: t("ent07.engineering.description") }),
+        note(t("ent07.overview.boundary"), "warning"),
+        connections,
+        stampLine(t, `/api/projects/${project.project_id}/p6/*`, project.revision, receivedAt, ctx.locale),
+        pageActions(actionLink(t("ent07.engineering.open"), "/app/", "project-engineering")),
+      );
+      return;
+    }
+
+    if (tab === "resources") {
+      const capability = await probe(`/api/projects/${encodeURIComponent(project.project_id)}/p6/resources`);
+      if (stale()) return;
+      if (capability.state !== "available") {
+        host.replaceChildren(
+          sourceState(capability, t, {
+            title: t("ent07.resources.title"),
+            source: t("ent07.resources.description"),
+            retry,
+          }),
+        );
+        return;
+      }
+      const rows = await api.listResources(project.project_id);
+      if (stale()) return;
+      host.replaceChildren(
+        el("p", { class: "desc", text: t("ent07.resources.description") }),
+        rows.length ? resourcesTable(rows, t) : emptyLine(t("ent07.resources.empty")),
+        stampLine(t, `/api/projects/${project.project_id}/p6/resources`, project.revision, receivedAt, ctx.locale),
+      );
+      return;
+    }
+
+    if (tab === "documents") {
+      const capability = await probe(`/api/projects/${encodeURIComponent(project.project_id)}/documents`);
+      if (stale()) return;
+      if (capability.state !== "available") {
+        host.replaceChildren(
+          sourceState(capability, t, {
+            title: t("ent07.documents.title"),
+            source: t("ent07.documents.description"),
+            retry,
+          }),
+        );
+        return;
+      }
+      const rows = await api.listDocuments(project.project_id);
+      if (stale()) return;
+      host.replaceChildren(
+        el("p", { class: "desc", text: t("ent07.documents.description") }),
+        rows.length ? documentsTable(rows, t) : emptyLine(t("ent07.documents.empty")),
+        stampLine(
+          t,
+          `/api/projects/${project.project_id}/documents`,
+          t("common.notProvided"),
+          receivedAt,
+          ctx.locale,
+        ),
+      );
+      return;
+    }
+
+    if (tab === "risk") {
+      const [risksCapability, issuesCapability] = await Promise.all([
+        probe(`/api/projects/${encodeURIComponent(project.project_id)}/risks`),
+        probe(`/api/projects/${encodeURIComponent(project.project_id)}/p6/issues`),
+      ]);
+      if (stale()) return;
+      const blocks: HTMLElement[] = [el("p", { class: "desc", text: t("ent07.risks.description") })];
+      if (risksCapability.state === "available") {
+        const risks = await api.listRisks(project.project_id);
+        if (stale()) return;
+        blocks.push(risks.length ? risksTable(risks, t) : emptyLine(t("ent07.risks.empty")));
+      } else {
+        blocks.push(
+          sourceState(risksCapability, t, {
+            title: t("ent07.risks.title"),
+            source: "/api/projects/{id}/risks",
+            retry,
+          }),
+        );
+      }
+      blocks.push(el("h3", { class: "cubi-card-title", text: t("ent07.risks.issuesTitle") }));
+      if (issuesCapability.state === "available") {
+        const issues = await api.listIssues(project.project_id);
+        if (stale()) return;
+        blocks.push(issues.length ? issuesTable(issues, t) : emptyLine(t("ent07.risks.issuesEmpty")));
+      } else {
+        blocks.push(
+          sourceState(issuesCapability, t, {
+            title: t("ent07.risks.issuesTitle"),
+            source: "/api/projects/{id}/p6/issues",
+            retry,
+          }),
+        );
+      }
+      blocks.push(stampLine(t, `/api/projects/${project.project_id}/risks`, project.revision, receivedAt, ctx.locale));
+      host.replaceChildren(...blocks);
+      return;
+    }
+
+    const [catalogueCapability, definitionsCapability] = await Promise.all([
+      probe(`/api/projects/${encodeURIComponent(project.project_id)}/reports/catalogue`),
+      probe(`/api/projects/${encodeURIComponent(project.project_id)}/reports`),
+    ]);
+    if (stale()) return;
+    const blocks: HTMLElement[] = [el("p", { class: "desc", text: t("ent07.reports.description") })];
+    if (definitionsCapability.state === "available") {
+      const rows = await api.listReports(project.project_id);
+      if (stale()) return;
+      blocks.push(rows.length ? reportsTable(rows, t) : emptyLine(t("ent07.reports.empty")));
+    } else {
+      blocks.push(
+        sourceState(definitionsCapability, t, {
+          title: t("ent07.reports.title"),
+          source: "/api/projects/{id}/reports",
+          retry,
+        }),
+      );
+    }
+    blocks.push(el("h3", { class: "cubi-card-title", text: t("ent07.reports.catalogue") }));
+    if (catalogueCapability.state === "available") {
+      const catalogue = await api.reportCatalogue(project.project_id);
+      if (stale()) return;
+      blocks.push(catalogue.length ? catalogueTable(catalogue, t) : emptyLine(t("ent07.reports.catalogueEmpty")));
+    } else {
+      blocks.push(
+        sourceState(catalogueCapability, t, {
+          title: t("ent07.reports.catalogue"),
+          source: "/api/projects/{id}/reports/catalogue",
+          retry,
+        }),
+      );
+    }
+    blocks.push(stampLine(t, `/api/projects/${project.project_id}/reports`, project.revision, receivedAt, ctx.locale));
+    host.replaceChildren(...blocks);
+  } catch (error) {
+    if (stale()) return;
+    if (errorKind(error) === "unauthenticated") {
+      ctx.onUnauthorized();
+      return;
+    }
+    host.replaceChildren(projectReadFailure(ctx, error, retry));
+  }
 }
 
-function linkButton(text: string, href: string): HTMLElement {
-  const anchor = el("a", { class: "cubi-btn cubi-btn-secondary", text });
+function overviewBody(ctx: PageContext, project: ProjectSummary, receivedAt: Date): HTMLElement {
+  const t = ctx.t;
+  const body = el(
+    "div",
+    {},
+    el("p", { class: "desc", text: t("ent07.overview.description") }),
+    el(
+      "div",
+      { class: "cubi-split" },
+      el(
+        "div",
+        {},
+        el("h3", { class: "cubi-card-title", text: t("ent07.overview.identity") }),
+        detailList([
+          [t("ent07.field.project"), project.name],
+          [t("ent07.field.projectId"), project.project_id],
+          [t("ent07.field.tenant"), project.tenant_id ?? ctx.session.tenant_id],
+          [t("ent07.field.revision"), String(project.revision)],
+          [t("common.status"), statusLabel(project.status, t)],
+          [t("ent07.field.domain"), project.business_domain || "—"],
+          [t("ent07.field.manager"), project.obs_responsible_manager || "—"],
+          [t("ent07.field.website"), project.website_url || "—"],
+        ]),
+        stampLine(t, `/api/projects/${project.project_id}`, project.revision, receivedAt, ctx.locale),
+      ),
+      el(
+        "div",
+        {},
+        el("h3", { class: "cubi-card-title", text: t("ent07.overview.schedule") }),
+        detailList([
+          [t("ent07.field.start"), formatDate(project.start_date, ctx.locale)],
+          [t("ent07.field.finish"), formatDate(project.finish_date, ctx.locale)],
+          [t("ent07.field.dateSystem"), project.date_system || "—"],
+          [t("ent07.field.checkout"), project.checkout_state || "—"],
+        ]),
+        note(t("ent07.overview.boundary"), "info"),
+      ),
+    ),
+    pageActions(
+      actionLink(t("ent07.overview.openEngineering"), "/app/", "project-engineering"),
+      actionLink(t("ent07.overview.openPortfolio"), pageHref("portfolio", { project: project.project_id })),
+    ),
+  );
+  testId(body, "project-overview");
+  return body;
+}
+
+function projectReadFailure(ctx: PageContext, error: unknown, retry: () => void): HTMLElement {
+  const t = ctx.t;
+  const kind = errorKind(error);
+  const detail = error instanceof ApiError ? `${error.code} (HTTP ${error.status})` : String(error);
+  const action = actionButton(t("common.retry"), retry, "cubi-btn cubi-btn-secondary");
+  if (kind === "forbidden") {
+    return stateBlock("forbidden", t("ent07.tab.overview"), `${t("common.forbidden")} ${detail}`, [action]);
+  }
+  if (kind === "disconnected") {
+    return stateBlock("unavailable", t("ent07.register.disconnectedTitle"), `${t("ent07.register.disconnectedBody")} (${detail})`, [action]);
+  }
+  return stateBlock("error", t("ent07.register.errorTitle"), `${detail}`, [action]);
+}
+
+/* --------------------------------------------------------------------------
+ * Tab tables
+ * ----------------------------------------------------------------------- */
+
+function resourcesTable(rows: ResourceRecord[], t: Translator): HTMLElement {
+  return simpleTable(
+    [t("ent07.resources.colResource"), t("ent07.resources.colType"), t("ent07.resources.colUnit"), t("ent07.resources.colCalendar"), t("ent07.resources.colActive"), t("common.revision")],
+    rows,
+    (row) => [
+      el("span", {}, el("strong", { text: row.name }), el("div", { class: "cubi-field-hint", text: row.resource_id })),
+      row.resource_type,
+      row.unit_of_measure || "—",
+      row.calendar_id || "—",
+      badge(row.is_active ? t("status.active") : t("common.unavailable"), row.is_active ? "success" : "neutral"),
+      String(row.record_revision),
+    ],
+    "tab-resources-table",
+  );
+}
+
+function documentsTable(rows: DocumentRecord[], t: Translator): HTMLElement {
+  return simpleTable(
+    [t("ent07.documents.colDocument"), t("ent07.documents.colType"), t("common.status")],
+    rows,
+    (row) => [
+      el("span", {}, el("strong", { text: row.title }), el("div", { class: "cubi-field-hint", text: row.document_id })),
+      String(row.resource_type ?? row.document_type ?? "—"),
+      badge(String(row.status ?? "—"), "neutral"),
+    ],
+    "tab-documents-table",
+  );
+}
+
+function risksTable(rows: Record<string, unknown>[], t: Translator): HTMLElement {
+  return simpleTable(
+    [t("ent07.risks.colRecord"), t("common.status"), t("ent07.risks.colSeverity"), t("common.revision")],
+    rows,
+    (row, index) => [
+      el("span", {}, el("strong", { text: String(row.title ?? row.risk_id ?? `#${index + 1}`) }), el("div", { class: "cubi-field-hint", text: String(row.risk_id ?? "") })),
+      String(row.status ?? "—"),
+      String(row.exposure_level ?? row.severity ?? row.rating ?? "—"),
+      String(row.revision ?? row.record_revision ?? "—"),
+    ],
+    "tab-risks-table",
+  );
+}
+
+function issuesTable(rows: Record<string, unknown>[], t: Translator): HTMLElement {
+  return simpleTable(
+    [t("ent07.risks.colRecord"), t("common.status"), t("ent07.risks.colSeverity"), t("common.revision")],
+    rows,
+    (row, index) => {
+      const issue = (row.issue ?? row) as Record<string, unknown>;
+      return [
+        el("span", {}, el("strong", { text: String(issue.title ?? issue.issue_id ?? `#${index + 1}`) }), el("div", { class: "cubi-field-hint", text: String(issue.issue_id ?? "") })),
+        String(issue.status ?? "—"),
+        String(issue.priority ?? "—"),
+        String(issue.record_revision ?? issue.revision ?? "—"),
+      ];
+    },
+    "tab-issues-table",
+  );
+}
+
+function reportsTable(rows: Record<string, unknown>[], t: Translator): HTMLElement {
+  return simpleTable(
+    [t("ent07.reports.colReport"), t("ent07.reports.colSubject"), t("common.revision")],
+    rows,
+    (row) => [
+      el("span", {}, el("strong", { text: String(row.name ?? row.report_id ?? "—") }), el("div", { class: "cubi-field-hint", text: String(row.report_id ?? "") })),
+      String(row.subject ?? "—"),
+      String(row.record_revision ?? row.revision ?? "—"),
+    ],
+    "tab-reports-table",
+  );
+}
+
+function catalogueTable(rows: Record<string, unknown>[], t: Translator): HTMLElement {
+  return simpleTable(
+    [t("ent07.reports.colSubject"), t("ent07.reports.colReport")],
+    rows,
+    (row) => [
+      el("span", {}, el("strong", { text: String(row.label ?? row.subject ?? "—") }), el("div", { class: "cubi-field-hint", text: String(row.subject ?? "") })),
+      String(Array.isArray(row.fields) ? `${(row.fields as unknown[]).length} ${t("common.details")}` : "—"),
+    ],
+    "tab-catalogue-table",
+  );
+}
+
+function simpleTable<T>(
+  labels: string[],
+  rows: T[],
+  render: (row: T, index: number) => (Node | string)[],
+  testid?: string,
+): HTMLElement {
+  const wrapper = el("div", { class: "cubi-table-wrap" });
+  if (testid) testId(wrapper, testid);
+  const table = el("table", { class: "cubi-table" });
+  table.append(el("thead", {}, el("tr", {}, ...labels.map((label) => el("th", { text: label, attrs: { scope: "col" } })))));
+  const body = el("tbody");
+  rows.slice(0, 200).forEach((row, index) => {
+    const tr = el("tr");
+    for (const cell of render(row, index)) tr.append(el("td", {}, cell));
+    body.append(tr);
+  });
+  table.append(body);
+  wrapper.append(table);
+  return wrapper;
+}
+
+/* --------------------------------------------------------------------------
+ * Small helpers
+ * ----------------------------------------------------------------------- */
+
+function isTab(value: string | null): boolean {
+  return Boolean(value) && (TAB_IDS as readonly string[]).includes(value as string);
+}
+
+function isSort(value: string | null): boolean {
+  return Boolean(value) && (SORT_KEYS as readonly string[]).includes(value as string);
+}
+
+function statusLabel(status: string | null | undefined, t: Translator): string {
+  if (!status) return t("ent07.register.unknownStatus");
+  const known: Record<string, string> = {
+    active: "status.active",
+    completed: "status.completed",
+    pending: "status.pending",
+    draft: "status.draft",
+    archived: "status.archived",
+    locked: "status.locked",
+  };
+  const key = known[status.toLowerCase()];
+  return key ? t(key) : status;
+}
+
+function statusTone(status: string | null | undefined): "success" | "neutral" | "warning" | "danger" {
+  switch ((status ?? "").toLowerCase()) {
+    case "active":
+      return "success";
+    case "completed":
+      return "neutral";
+    case "locked":
+    case "archived":
+      return "warning";
+    default:
+      return "neutral";
+  }
+}
+
+function rowsFor(projects: ProjectSummary[], filters: { q: string; status: string; sort: SortKey }, locale: string): ProjectSummary[] {
+  const needle = filters.q.trim().toLocaleLowerCase(locale);
+  return projects
+    .filter((project) => {
+      if (filters.status !== "all" && (project.status || "unknown") !== filters.status) return false;
+      if (!needle) return true;
+      return `${project.name} ${project.project_id} ${project.business_domain ?? ""}`.toLocaleLowerCase(locale).includes(needle);
+    })
+    .sort((left, right) => {
+      switch (filters.sort) {
+        case "revision":
+          return right.revision - left.revision;
+        case "start":
+          return String(left.start_date ?? "").localeCompare(String(right.start_date ?? ""));
+        case "finish":
+          return String(left.finish_date ?? "").localeCompare(String(right.finish_date ?? ""));
+        default:
+          return left.name.localeCompare(right.name, locale);
+      }
+    });
+}
+
+function errorKind(error: unknown): "forbidden" | "unauthenticated" | "disconnected" | "error" {
+  if (error instanceof ApiError) {
+    if (error.status === 401) return "unauthenticated";
+    if (error.status === 403) return "forbidden";
+    if (error.status === 0) return "disconnected";
+  }
+  return "error";
+}
+
+function stampLine(
+  t: Translator,
+  source: string,
+  revision: number | string | null | undefined,
+  receivedAt: Date,
+  locale: string,
+): HTMLElement {
+  const parts = [
+    `${t("common.source")}: ${source}`,
+    `${t("common.revision")}: ${revision ?? "—"}`,
+    t("ent07.register.received", { time: formatDateTime(receivedAt.toISOString(), locale) }),
+  ];
+  return el("p", { class: "cubi-note", text: parts.join(" · ") });
+}
+
+function actionLink(text: string, href: string, icon?: EnterpriseIconName): HTMLAnchorElement {
+  const anchor = el("a", { class: "cubi-btn cubi-btn-secondary cubi-icon-btn" });
   anchor.href = href;
+  if (icon) anchor.append(enterpriseIcon(icon));
+  anchor.append(el("span", { text }));
   return anchor;
 }
 
+function actionButton(text: string, onClick: () => void, className: string, icon?: EnterpriseIconName): HTMLButtonElement {
+  const button = el("button", { class: className, attrs: { type: "button" } });
+  if (icon) button.append(enterpriseIcon(icon));
+  button.append(el("span", { text }));
+  button.addEventListener("click", onClick);
+  return button;
+}
+
+/** Kept because the page previously re-exported the formatter for its callers. */
 export { formatDateTime };
+
+/* Pure helpers are exported for the ENT-07 unit tests. */
+export {
+  TABS as PROJECT_TABS,
+  rowsFor as filterAndSortProjects,
+  statusLabel as projectStatusLabel,
+  isTab as isProjectTab,
+  isSort as isProjectSort,
+  errorKind as projectErrorKind,
+};

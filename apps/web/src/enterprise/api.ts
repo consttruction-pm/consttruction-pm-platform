@@ -80,10 +80,14 @@ export type ResourceRecord = {
 export type DocumentRecord = {
   document_id: string;
   title: string;
+  /** The document register names the category `resource_type`. */
+  resource_type?: string;
   document_type?: string;
   status?: string;
   revision?: number;
   updated_at?: string;
+  storage_ref?: string;
+  content_hash?: string;
   [key: string]: unknown;
 };
 
@@ -228,6 +232,17 @@ export const api = {
     return payload.projects ?? [];
   },
 
+  /**
+   * Read one project. The server re-authorizes the request for this project,
+   * so a 403 here is a real answer about the selected project, not a UI gate.
+   */
+  getProject: async (projectId: string) => {
+    const payload = await request<{ project: ProjectSummary }>(
+      `/api/projects/${encodeURIComponent(projectId)}`,
+    );
+    return payload.project;
+  },
+
   listTasks: async (projectId?: string | null) => {
     const query = projectId ? `?project_id=${encodeURIComponent(projectId)}` : "";
     return request<{ contract_version: string; tasks: EnterpriseTask[] }>(`/api/enterprise/tasks${query}`);
@@ -325,12 +340,12 @@ export const api = {
   },
   listReports: async (projectId: string) => {
     const payload = await request<
-      { definitions?: ReportDefinition[]; catalogue?: ReportDefinition[] } | ReportDefinition[]
+      { reports?: ReportDefinition[]; definitions?: ReportDefinition[]; catalogue?: ReportDefinition[] } | ReportDefinition[]
     >(`/api/projects/${encodeURIComponent(projectId)}/reports`);
-    const rows = Array.isArray(payload) ? payload : payload.definitions ?? [];
-    // The runtime also exposes a subject catalogue on this route. Only stored
-    // definitions carry a report_id, so catalogue descriptors are not reported
-    // as saved reports.
+    // The route answers with `{catalogue, reports}`; `definitions` is kept as a
+    // compatibility read only. Catalogue descriptors carry no report_id, so
+    // they are never reported as saved reports.
+    const rows = Array.isArray(payload) ? payload : payload.reports ?? payload.definitions ?? [];
     return rows.filter((row) => Boolean(row && row.report_id));
   },
   listReportRuns: async (projectId: string, reportId: string) => {

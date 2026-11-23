@@ -1215,6 +1215,302 @@ async function runEnterpriseJourney(page, baseUrl) {
   });
   await page.screenshot("enterprise-dashboard.png");
 
+  // ENT-07 — the projects register reads the real project list and the project
+  // portal reads each official project-scoped route. No schedule, CPM or EVM
+  // value is computed here; Engineering stays authoritative.
+  await page.navigate(
+    `${baseUrl}/cubi/enterprise/projects/`,
+    '[data-testid="projects-register"]',
+    "Enterprise projects register",
+  );
+  await page.waitFor(
+    `document.querySelectorAll('[data-testid="projects-table"] tbody tr').length === ${SEEDED_PROJECT_IDS.length}`,
+    "the register lists every seeded project exactly once",
+    30000,
+  );
+  const register = await page.evaluate(`(() => {
+    const rows = Array.from(document.querySelectorAll('[data-testid="projects-table"] tbody tr'));
+    const nav = document.querySelector('.cubi-nav a[href="/cubi/enterprise/projects/"]');
+    return {
+      ids: rows.map((row) => row.getAttribute("data-project-id")),
+      names: rows.map((row) => row.querySelector("strong")?.textContent ?? ""),
+      count: document.querySelector('[data-testid="projects-count"]')?.textContent ?? "",
+      freshness: document.querySelector('[data-testid="projects-freshness"]')?.textContent ?? "",
+      nav_svg: Boolean(nav && nav.querySelector("svg.cubi-svg-icon")),
+      help_svg: Boolean(document.querySelector('.cubi-topbar a.cubi-icon-only svg.cubi-svg-icon')),
+      tab_svgs: Array.from(document.querySelectorAll('.cubi-tab svg.cubi-svg-icon')).length,
+      legacy_icons: document.querySelectorAll('.cubi-icon').length,
+      eps: document.querySelector('[data-testid="projects-eps"]')?.textContent ?? "",
+      selected_url: location.search,
+      portal: document.querySelector('[data-testid="projects-portal"]')?.textContent ?? "",
+    };
+  })()`);
+  assert(
+    SEEDED_PROJECT_IDS.every((projectId) => register.ids.includes(projectId)),
+    "every seeded project, including the three references, must be listed once: " + JSON.stringify(register.ids),
+  );
+  assert(
+    register.names.includes("Regional Water Treatment & Transmission Program"),
+    "the CUBI-REF-002 name must come from the shared reference bundle: " + JSON.stringify(register.names),
+  );
+  assert(register.count === `${SEEDED_PROJECT_IDS.length} of ${SEEDED_PROJECT_IDS.length} projects`, "the register must report the server total: " + register.count);
+  assert(/Received /.test(register.freshness), "the register must report when the list was received: " + register.freshness);
+  assert(register.nav_svg, "the Projects navigation item must draw its registered SVG icon");
+  assert(register.help_svg, "the topbar help control must draw its registered SVG icon");
+  assert(register.tab_svgs === 6, "each of the six portal tabs must draw its registered icon: " + register.tab_svgs);
+  assert(register.legacy_icons === 0, "no control may fall back to the legacy flat icon span");
+  assert(/EPS/.test(register.eps), "the EPS hierarchy must be announced where it belongs");
+  assert(/Source not connected/i.test(register.eps), "an EPS source that is absent must be reported, not invented");
+  assert(register.selected_url.includes("project=CUBI-REF-003"), "the first server-ordered project must be selected in the URL: " + register.selected_url);
+  record("ENT-07 register lists the three references and every seeded project from the server", {
+    ids: register.ids,
+    count: register.count,
+    freshness: register.freshness,
+    tab_icons: register.tab_svgs,
+  });
+
+  // Search is a real client filter over the server list; the URL keeps it.
+  await page.setInput('[data-testid="projects-search"]', "CUBI-REF-002");
+  await page.waitFor(
+    `document.querySelectorAll('[data-testid="projects-table"] tbody tr').length === 1
+      && document.querySelector('[data-testid="projects-count"]').textContent === "1 of ${SEEDED_PROJECT_IDS.length} projects"`,
+    "search narrows the register to CUBI-REF-002",
+    30000,
+  );
+  const searchState = await page.evaluate(`(() => ({
+    id: document.querySelector('[data-testid="projects-table"] tbody tr')?.getAttribute("data-project-id") ?? "",
+    url: location.search,
+  }))()`);
+  assert(searchState.id === "CUBI-REF-002", "search must match the project id: " + searchState.id);
+  assert(searchState.url.includes("q=CUBI-REF-002"), "search must stay in the URL: " + searchState.url);
+  await page.setInput('[data-testid="projects-search"]', "");
+  await page.waitFor(
+    `document.querySelectorAll('[data-testid="projects-table"] tbody tr').length === ${SEEDED_PROJECT_IDS.length}`,
+    "clearing search restores every project",
+    30000,
+  );
+
+  // The status filter reads the statuses the server actually returned.
+  const statusOptions = await page.evaluate(
+    `Array.from(document.querySelectorAll('[data-testid="projects-filter-status"] option')).map((option) => option.value)`,
+  );
+  assert(statusOptions.includes("all") && statusOptions.includes("active"), "the status filter must offer the real statuses: " + JSON.stringify(statusOptions));
+  await page.setSelect('[data-testid="projects-filter-status"]', "active");
+  await page.waitFor(
+    `document.querySelectorAll('[data-testid="projects-table"] tbody tr').length === ${SEEDED_PROJECT_IDS.length}`,
+    "the active filter keeps every active project",
+    30000,
+  );
+  await page.setSelect('[data-testid="projects-filter-status"]', "all");
+
+  // Sort by revision descending: the register's newest data comes first.
+  await page.setSelect('[data-testid="projects-sort"]', "revision");
+  await page.waitFor(
+    `document.querySelector('[data-testid="projects-table"] tbody tr')?.getAttribute("data-project-id") === "${PROJECT_ID}"`,
+    "revision sort puts the highest revision first",
+    30000,
+  );
+  const sorted = await page.evaluate(
+    `Array.from(document.querySelectorAll('[data-testid="projects-table"] tbody tr')).map((row) => row.getAttribute("data-project-id"))`,
+  );
+  assert(sorted[0] === PROJECT_ID, "revision 7 must sort first: " + JSON.stringify(sorted));
+  await page.setSelect('[data-testid="projects-sort"]', "name");
+
+  // Selecting the reference project opens its portal and keeps it in the URL.
+  await page.click('[data-testid="projects-table"] tbody tr[data-project-id="CUBI-REF-002"]');
+  await page.waitFor(
+    `location.search.includes("project=CUBI-REF-002") && Boolean(document.querySelector('[data-testid="project-overview"]'))`,
+    "selecting CUBI-REF-002 opens its portal",
+    30000,
+  );
+  const overview = await page.evaluate(`(() => ({
+    url: location.search,
+    portal: document.querySelector('[data-testid="projects-portal"]')?.textContent ?? "",
+    body: document.querySelector('[data-testid="project-overview"]')?.textContent ?? "",
+    selected_row: document.querySelector('[data-testid="projects-table"] tr.is-selected')?.getAttribute("data-project-id") ?? "",
+    read_url: performance.getEntriesByType("resource").map((entry) => entry.name).filter((name) => name.includes("/api/projects/CUBI-REF-002")),
+  }))()`);
+  assert(overview.url.includes("project=CUBI-REF-002"), "the selection must stay in the URL: " + overview.url);
+  assert(overview.portal.includes("CUBI-REF-002"), "the portal must identify the selected project");
+  assert(overview.body.includes("Regional Water Treatment & Transmission Program"), "the Overview must show the live project name");
+  assert(/Revision/.test(overview.body), "the Overview must show the server revision and receipt state");
+  assert(overview.selected_row === "CUBI-REF-002", "the selected register row must be marked");
+  assert(
+    overview.read_url.some((url) => /\/api\/projects\/CUBI-REF-002$/.test(url)),
+    "the Overview must read the project from its own API: " + JSON.stringify(overview.read_url),
+  );
+  record("ENT-07 selection survives in the URL and the Overview reads /api/projects/{id}", {
+    url: overview.url,
+    selected_row: overview.selected_row,
+  });
+
+  // Every portal tab reports a real source state for the selected project.
+  await page.click('[data-testid="tab-engineering"]');
+  await page.waitFor(
+    `Boolean(document.querySelector('[data-testid="engineering-connections"]'))
+      && document.querySelector('[data-testid="project-tab-body"]').textContent.includes("Source not connected")`,
+    "Engineering reports its connection state instead of computing",
+    30000,
+  );
+  const engineering = await page.evaluate(`(() => ({
+    rows: Array.from(document.querySelectorAll('[data-testid="engineering-connections"] .cubi-conn-row')).map((row) => row.textContent.trim()),
+    body: document.querySelector('[data-testid="project-tab-body"]')?.textContent ?? "",
+  }))()`);
+  assert(engineering.rows.length === 3, "Engineering must report the three real sources: " + JSON.stringify(engineering.rows));
+  assert(engineering.rows.some((row) => row.includes("/p6/workspace")), "the workspace route must be reported by path");
+  assert(!/\bEVM\b.*\bCPI\b/.test(engineering.body), "Enterprise must not calculate or display a fabricated EVM value");
+
+  await page.click('[data-testid="tab-resources"]');
+  await page.waitFor(
+    `document.querySelectorAll('[data-testid="tab-resources-table"] tbody tr').length === 40`,
+    "the Resources tab lists the project resource master",
+    30000,
+  );
+  const resources = await page.evaluate(`(() => ({
+    rows: document.querySelectorAll('[data-testid="tab-resources-table"] tbody tr').length,
+    body: document.querySelector('[data-testid="project-tab-body"]')?.textContent ?? "",
+  }))()`);
+  assert(/\/api\/projects\/CUBI-REF-002\/p6\/resources/.test(resources.body), "Resources must name its real source");
+
+  await page.click('[data-testid="tab-documents"]');
+  await page.waitFor(
+    `document.querySelectorAll('[data-testid="tab-documents-table"] tbody tr').length === 15`,
+    "the Documents tab lists the project document register",
+    30000,
+  );
+
+  await page.click('[data-testid="tab-risk"]');
+  await page.waitFor(
+    `document.querySelectorAll('[data-testid="tab-risks-table"] tbody tr').length === 15
+      && document.querySelectorAll('[data-testid="tab-issues-table"] tbody tr').length === 8`,
+    "the Risks & Issues tab lists both registers",
+    30000,
+  );
+
+  await page.click('[data-testid="tab-reports"]');
+  await page.waitFor(
+    `document.querySelectorAll('[data-testid="tab-catalogue-table"] tbody tr').length === 3
+      && Boolean(document.querySelector('[data-testid="tab-reports-table"]')) === false`,
+    "the Reports tab lists the real catalogue and states the empty definition list",
+    30000,
+  );
+  const reports = await page.evaluate(`(() => ({
+    catalogue: document.querySelectorAll('[data-testid="tab-catalogue-table"] tbody tr').length,
+    body: document.querySelector('[data-testid="project-tab-body"]')?.textContent ?? "",
+  }))()`);
+  assert(/no reports|not connected|empty/i.test(reports.body) || reports.catalogue === 3, "Reports must state its real state: " + reports.body.slice(0, 200));
+  record("ENT-07 portal tabs read the selected project's official routes", {
+    engineering_sources: engineering.rows.length,
+    resources: resources.rows,
+    documents: 15,
+    risks: 15,
+    issues: 8,
+    report_subjects: reports.catalogue,
+  });
+
+  // Switching projects must not leave the previous project's data on screen.
+  await page.click('[data-testid="tab-overview"]');
+  await page.waitForSelector('[data-testid="project-overview"]', "Overview tab", 30000);
+  await page.click('[data-testid="projects-table"] tbody tr[data-project-id="CUBI-REF-001"]');
+  await page.waitFor(
+    `location.search.includes("project=CUBI-REF-001")
+      && (document.querySelector('[data-testid="project-overview"]')?.textContent ?? "").includes("CUBI-REF-001")
+      && !(document.querySelector('[data-testid="project-overview"]')?.textContent ?? "").includes("Regional Water")`,
+    "switching the project replaces the portal data",
+    30000,
+  );
+  record("ENT-07 never leaves the previous project's data on the new selection", {});
+
+  // A real server refresh re-reads the list and keeps the selection.
+  const listReadsBefore = await page.evaluate(
+    `performance.getEntriesByType("resource").filter((entry) => /\\/api\\/projects$/.test(entry.name)).length`,
+  );
+  const beforeRefresh = await page.text('[data-testid="projects-freshness"]');
+  await page.click('[data-testid="projects-refresh"]');
+  await page.waitFor(
+    `performance.getEntriesByType("resource").filter((entry) => /\\/api\\/projects$/.test(entry.name)).length > ${listReadsBefore}
+      && !document.querySelector('[data-testid="projects-refresh"]').disabled`,
+    "refresh re-reads the server list",
+    30000,
+  );
+  const afterRefresh = await page.evaluate(`(() => ({
+    freshness: document.querySelector('[data-testid="projects-freshness"]')?.textContent ?? "",
+    url: location.search,
+    rows: document.querySelectorAll('[data-testid="projects-table"] tbody tr').length,
+  }))()`);
+  assert(afterRefresh.rows === SEEDED_PROJECT_IDS.length, "refresh must keep every project");
+  assert(afterRefresh.url.includes("project=CUBI-REF-001"), "refresh must keep the selection in the URL");
+  record("ENT-07 refresh re-reads the server and updates the receipt time", {
+    before: beforeRefresh,
+    after: afterRefresh.freshness,
+  });
+
+  await page.click('[data-testid="tab-overview"]');
+  await page.waitForSelector('[data-testid="project-overview"]', "Overview before screenshots", 30000);
+  await page.scrollTo('[data-testid="projects-register"]');
+  await page.screenshot("enterprise-projects-register.png");
+  await page.scrollTo('[data-testid="projects-portal"]');
+  await page.screenshot("enterprise-projects-portal.png");
+
+  // The register and portal keep their layout and terminology in Persian RTL.
+  await page.setSelect(".cubi-lang select", "fa");
+  await page.waitFor(
+    `document.documentElement.dir === "rtl"
+      && (document.querySelector('[data-testid="projects-register"] h2.cubi-card-title')?.textContent ?? "").includes("فهرست")`,
+    "the register translates and flips to RTL in Persian",
+    30000,
+  );
+  const persian = await page.evaluate(`(() => ({
+    dir: document.documentElement.dir,
+    title: document.querySelector('[data-testid="projects-register"] h2.cubi-card-title')?.textContent ?? "",
+    tabs: Array.from(document.querySelectorAll('.cubi-tab')).map((tab) => tab.textContent.trim()),
+    count: document.querySelector('[data-testid="projects-count"]')?.textContent ?? "",
+  }))()`);
+  assert(persian.dir === "rtl", "Persian must render RTL");
+  assert(persian.tabs.length === 6 && persian.tabs.every((label) => /[\u0600-\u06FF]/.test(label)), "the six tabs must be labelled in Persian: " + JSON.stringify(persian.tabs));
+  assert(/\d/.test(persian.count), "the localized count must keep the real numbers");
+  await page.screenshot("enterprise-projects-fa.png");
+  await page.setSelect(".cubi-lang select", "en");
+  await page.waitFor(`document.documentElement.dir === "ltr"`, "the register returns to LTR", 30000);
+
+  // A phone viewport must not lose the register toolbar or the portal.
+  await page.cdp.send("Emulation.setDeviceMetricsOverride", {
+    width: 390,
+    height: 844,
+    deviceScaleFactor: 2,
+    mobile: true,
+  });
+  await page.navigate(
+    `${baseUrl}/cubi/enterprise/projects/?project=CUBI-REF-002`,
+    '[data-testid="projects-register"]',
+    "Enterprise projects on a phone",
+  );
+  await page.waitFor(
+    `document.querySelectorAll('[data-testid="projects-table"] tbody tr').length === ${SEEDED_PROJECT_IDS.length}`,
+    "the phone register still lists every project",
+    30000,
+  );
+  const mobile = await page.evaluate(`(() => ({
+    width: document.documentElement.scrollWidth,
+    viewport: window.innerWidth,
+    toolbar: document.querySelectorAll('.cubi-register-toolbar [data-testid]').length,
+    portal: Boolean(document.querySelector('[data-testid="projects-portal"]')),
+    hidden_tabs: Array.from(document.querySelectorAll('.cubi-tab')).filter((tab) => tab.getBoundingClientRect().width === 0).length,
+  }))()`);
+  assert(mobile.width <= mobile.viewport + 2, "the phone layout must not scroll horizontally: " + JSON.stringify(mobile));
+  assert(mobile.toolbar >= 4, "the search, status, sort and refresh controls must remain on a phone: " + mobile.toolbar);
+  assert(mobile.portal, "the portal must remain reachable on a phone");
+  assert(mobile.hidden_tabs === 0, "no tab may collapse to zero width on a phone");
+  await page.scrollTo('[data-testid="projects-register"]');
+  await page.screenshot("enterprise-projects-mobile.png");
+  await page.cdp.send("Emulation.setDeviceMetricsOverride", {
+    width: 1440,
+    height: 900,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+  record("ENT-07 keeps the register, portal and its tools on a phone viewport", mobile);
+
   // Seeded identity registers are read from the Enterprise store.
   await page.navigate(
     `${baseUrl}/cubi/enterprise/access/`,
@@ -8025,23 +8321,29 @@ async function main() {
     const firstRun = await page.evaluate(`(() => ({
       heading: document.querySelector(".cp-project-selection h1")?.textContent?.trim() ?? "",
       description: document.querySelector(".cp-project-selection > p")?.textContent?.trim() ?? "",
-      projectOptions: document.querySelectorAll(".cp-project-option").length,
+      projectOptions: Array.from(document.querySelectorAll(".cp-project-option")).map((option) => option.dataset.projectId),
       hasCreateForm: Boolean(document.querySelector('.cp-project-create-form input[name="projectName"]')),
       hasErrorPage: Boolean(document.querySelector(".cp-shell-error")),
       rawMessageKey: /error\\.[a-z0-9._-]+/i.test(document.body.textContent ?? ""),
       documentLang: document.documentElement.lang,
       documentDir: document.documentElement.dir,
     }))()`);
-    assert(firstRun.projectOptions === 0, "the first-run account must not receive fixture projects");
+    // The three shared reference projects are visible to every authenticated
+    // tenant user with no membership row; the newcomer's own fixtures must not
+    // leak, and the create form must remain the real next step.
+    assert(
+      JSON.stringify(firstRun.projectOptions) === JSON.stringify(["CUBI-REF-003", "CUBI-REF-002", "CUBI-REF-001"]),
+      "the first-run account must receive exactly the three shared reference projects: " + JSON.stringify(firstRun.projectOptions),
+    );
     assert(firstRun.hasCreateForm, "the first-run page must offer the real create-project form");
-    assert(!firstRun.hasErrorPage, "zero projects must not render as a dead-end error page");
+    assert(!firstRun.hasErrorPage, "shared references must not render as a dead-end error page");
     assert(!firstRun.rawMessageKey, "no raw error message key may be shown to the user");
-    assert(firstRun.heading === "Create your first project", "the first-run heading must explain the next step");
+    assert(firstRun.heading === "Select project", "the first-run heading must offer the real next step");
 
     await page.setSelect("[data-bootstrap-language]", "fa");
     await page.waitFor(
       `document.documentElement.lang === "fa" && document.documentElement.dir === "rtl" &&
-       (document.querySelector(".cp-project-selection h1")?.textContent ?? "").includes("اولین پروژه")`,
+       (document.querySelector(".cp-project-selection h1")?.textContent ?? "").includes("انتخاب پروژه")`,
       "Persian first-run page",
     );
 
