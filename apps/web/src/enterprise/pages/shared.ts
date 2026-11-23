@@ -183,7 +183,7 @@ export function selectControl(options: { value: string; label: string; disabled?
     if ((option.group ?? null) !== activeGroup) {
       activeGroup = option.group ?? null;
       if (activeGroup) {
-        const group = el("optgroup");
+        const group = document.createElement("optgroup");
         group.label = activeGroup;
         control.append(group);
         target = group;
