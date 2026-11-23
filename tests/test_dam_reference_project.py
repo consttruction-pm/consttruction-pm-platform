@@ -15,6 +15,8 @@ def test_dam_reference_bundle_is_large_deterministic_and_integrated() -> None:
     assert list(first["projects"]) == [PROJECT_ID]
 
     entry = first["projects"][PROJECT_ID]
+    activity_ids = {row["activity_id"] for row in entry["activities"]}
+    wbs_ids = {row["wbs_id"] for row in entry["wbs"]}
     assert first["source"]["classification"] == "SHARED_BUILD_PROJECT"
     assert first["source"]["synthetic_source_data"] is True
     assert "DEMO" not in entry["project"]["description"].upper()
@@ -60,8 +62,6 @@ def test_dam_reference_bundle_is_large_deterministic_and_integrated() -> None:
     assert all(row["risk_id"] in {risk["risk_id"] for risk in entry["risk_register"]} for row in entry["risk_responses"])
     assert all("DEMO" not in row["task_title"].upper() for row in entry["team_tasks"])
 
-    activity_ids = {row["activity_id"] for row in entry["activities"]}
-    wbs_ids = {row["wbs_id"] for row in entry["wbs"]}
     resource_ids = {
         row["resource_id"] for row in entry["resource_master"]
     } | {row["equipment_id"] for row in entry["equipment_register"]}
