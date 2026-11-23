@@ -69,6 +69,7 @@ export type ToastKind = "info" | "error";
 export type PageContext = {
   session: SessionInfo;
   projects: ProjectSummary[];
+  sharedProjects: ProjectSummary[];
   locale: EnterpriseLocale;
   t: (key: string, vars?: Record<string, string | number>) => string;
   query: URLSearchParams;
@@ -115,6 +116,7 @@ const RENDERERS: Record<Exclude<PageId, "login" | "not-found">, Renderer> = {
 type AppState = {
   session: SessionInfo | null;
   projects: ProjectSummary[];
+  sharedProjects: ProjectSummary[];
   locale: EnterpriseLocale;
   page: PageId;
   booting: boolean;
@@ -125,6 +127,7 @@ type AppState = {
 const state: AppState = {
   session: null,
   projects: [],
+  sharedProjects: [],
   locale: readLocalePreference(),
   page: resolvePage(window.location.pathname),
   booting: true,
@@ -318,6 +321,7 @@ function renderShell(): void {
   const ctx: PageContext = {
     session,
     projects: state.projects,
+    sharedProjects: state.sharedProjects,
     locale: state.locale,
     t: state.t,
     query,
@@ -596,11 +600,12 @@ async function doSignOut(): Promise<void> {
 
 async function loadProjects(): Promise<void> {
   if (!state.session) return;
-  try {
-    state.projects = await api.listProjects();
-  } catch {
-    state.projects = [];
-  }
+  const [personal, shared] = await Promise.allSettled([
+    api.listProjects(),
+    api.listSharedProjects(),
+  ]);
+  state.projects = personal.status === "fulfilled" ? personal.value : [];
+  state.sharedProjects = shared.status === "fulfilled" ? shared.value : [];
 }
 
 async function bootstrap(): Promise<void> {
