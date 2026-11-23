@@ -14,6 +14,14 @@ class Permission(str, Enum):
     PROJECT_WRITE = "project.write"
     PROJECT_SCHEDULE = "project.schedule"
     PROJECT_ADMIN = "project.admin"
+    # Reference Testing Workspace capabilities. Reporting, running a canonical
+    # calculation and working on a scenario are separate grants: a reviewer may
+    # read a reference project and ask the one schedule engine to calculate it
+    # without being allowed to edit the source project or create scenarios.
+    REPORT_READ = "report.read"
+    CALCULATION_RUN = "calculation.run"
+    SCENARIO_READ = "scenario.read"
+    SCENARIO_WRITE = "scenario.write"
     # Form Builder capabilities are separate grants, not aliases of project write.
     FORM_READ = "form.read"
     FORM_CREATE = "form.create"
@@ -78,20 +86,42 @@ class RoleBasedAuthorizationPolicy:
 
 
 def default_role_permissions() -> dict[str, FrozenSet[Permission]]:
-    """Return the authoritative role-to-permission grants of the default policy."""
+    """Return the authoritative role-to-permission grants of the default policy.
+
+    ``viewer``, ``reviewer`` and ``test_operator`` are the three roles of the
+    shared Reference Testing Workspace. None of them carries ``project.write``
+    or ``project.admin``: the reference dataset is shared, so a reviewer reads
+    and calculates it but never changes the source project. Scenario work is
+    bounded by ``scenario.*`` instead of project write.
+    """
+    read_only = frozenset(
+        {
+            Permission.PROJECT_READ,
+            Permission.FORM_READ,
+            Permission.KNOWLEDGE_READ,
+            Permission.REPORT_READ,
+        }
+    )
+    reviewer = read_only | frozenset(
+        {
+            Permission.CALCULATION_RUN,
+            Permission.SCENARIO_READ,
+        }
+    )
+    test_operator = reviewer | frozenset({Permission.SCENARIO_WRITE})
     return {
-        "viewer": frozenset(
-            {
-                Permission.PROJECT_READ,
-                Permission.FORM_READ,
-                Permission.KNOWLEDGE_READ,
-            }
-        ),
+        "viewer": read_only,
+        "reviewer": reviewer,
+        "test_operator": test_operator,
         "planner": frozenset(
             {
                 Permission.PROJECT_READ,
                 Permission.PROJECT_WRITE,
                 Permission.PROJECT_SCHEDULE,
+                Permission.REPORT_READ,
+                Permission.CALCULATION_RUN,
+                Permission.SCENARIO_READ,
+                Permission.SCENARIO_WRITE,
                 Permission.FORM_READ,
                 Permission.FORM_CREATE,
                 Permission.FORM_DESIGN,
@@ -110,6 +140,10 @@ def default_role_permissions() -> dict[str, FrozenSet[Permission]]:
                 Permission.PROJECT_WRITE,
                 Permission.PROJECT_SCHEDULE,
                 Permission.PROJECT_ADMIN,
+                Permission.REPORT_READ,
+                Permission.CALCULATION_RUN,
+                Permission.SCENARIO_READ,
+                Permission.SCENARIO_WRITE,
                 Permission.FORM_READ,
                 Permission.FORM_CREATE,
                 Permission.FORM_DESIGN,

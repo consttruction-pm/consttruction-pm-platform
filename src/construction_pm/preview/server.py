@@ -830,6 +830,8 @@ class PreviewApplication:
             description = {
                 "planner": "Read projects, edit activities, save layouts and publish schedule snapshots.",
                 "viewer": "Read-only project access. Writes are denied by the server.",
+                "reviewer": "Reference Testing Workspace: read the three shared reference projects, read reports and run canonical calculations. Source edits are denied.",
+                "test_operator": "Reference Testing Workspace: reviewer capabilities plus scenario creation. Source edits are denied.",
                 "admin": "Planner capabilities plus project creation.",
                 "enterprise": "Enterprise administrator. Opens the /cubi Enterprise Workbench with the enterprise_admin tier.",
                 "newcomer": "A new account with no project yet. Use it to create and open the first project.",
