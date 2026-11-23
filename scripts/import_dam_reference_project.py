@@ -150,6 +150,11 @@ def main(argv: list[str] | None = None) -> int:
         imported = next((item for item in outcome.projects if item.project_id == PROJECT_ID), None)
         if imported is None:
             raise RuntimeError("DAM_PROJECT_IMPORT_NOT_CONFIRMED")
+        enterprise = next(
+            (item for item in outcome.enterprise if item.project_id == PROJECT_ID), None
+        )
+        if enterprise is None or enterprise.status != "COMPLETE" or enterprise.missing:
+            raise RuntimeError("DAM_ENTERPRISE_IMPORT_NOT_COMPLETE")
         # Canonical importer commits only after schedule snapshot and engine
         # success; verify the project is registered and its run is successful.
         manifest = next((item for item in outcome.manifests if item["project_id"] == PROJECT_ID), None)
@@ -160,7 +165,9 @@ def main(argv: list[str] | None = None) -> int:
             "project_revision": imported.project_revision,
             "snapshot_id": imported.snapshot.snapshot_id,
             "schedule_status": imported.manifest.status,
-            "counts": dict(imported.counts),
+            "engineering_counts": dict(imported.counts),
+            "enterprise_counts": dict(enterprise.present),
+            "enterprise_status": enterprise.status,
             "manifest": manifest,
         }, indent=2, default=str))
         return 0
