@@ -241,6 +241,97 @@ def _initialize_reference_enterprise(connection: Any) -> None:
     initialize_reference_enterprise_schema(connection)
 
 
+def _harden_public_data_api(connection: Any) -> None:
+    """Keep every public table behind the CUBI server boundary.
+
+    The browser does not use Supabase's direct table API. Only the CUBI server
+    connection (postgres/service_role) may access these tables. Restrictive
+    policies are installed for the Supabase client roles so a future permissive
+    policy cannot accidentally reopen a table.
+    """
+    existing_roles = {
+        str(row[0])
+        for row in connection.execute(
+            "SELECT rolname FROM pg_roles WHERE rolname IN ('anon', 'authenticated')"
+        ).fetchall()
+    }
+    client_roles = tuple(role for role in ("anon", "authenticated") if role in existing_roles)
+    for role in client_roles:
+        connection.execute(
+            f"REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM {role}"
+        )
+        connection.execute(
+            f"REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM {role}"
+        )
+
+    role_sql = ", ".join(client_roles)
+    if role_sql:
+        connection.execute(
+            """
+            DO $
+            DECLARE item record;
+            BEGIN
+              FOR item IN
+                SELECT c.oid::regclass AS table_name
+                FROM pg_class c
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+                WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')
+              LOOP
+                EXECUTE format('ALTER TABLE %s ENABLE ROW LEVEL SECURITY', item.table_name);
+                IF NOT EXISTS (
+                  SELECT 1 FROM pg_policy p
+                  WHERE p.polrelid = item.table_name::oid
+                    AND p.polname = 'cubi_block_direct_api_clients'
+                ) THEN
+                  EXECUTE format(
+                    'CREATE POLICY cubi_block_direct_api_clients ON %s '
+                    'AS RESTRICTIVE FOR ALL TO %s USING (false) WITH CHECK (false)',
+                    item.table_name,
+                    %s
+                  );
+                END IF;
+              END LOOP;
+            END $
+            """ % ("'" + role_sql.replace("'", "''") + "'")
+        )
+        current = connection.execute("SELECT current_user").fetchone()
+        if current and str(current[0]) == "postgres":
+            for role in client_roles:
+                connection.execute(
+                    f"ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public "
+                    f"REVOKE ALL ON TABLES FROM {role}"
+                )
+                connection.execute(
+                    f"ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public "
+                    f"REVOKE ALL ON SEQUENCES FROM {role}"
+                )
+                connection.execute(
+                    f"ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public "
+                    f"REVOKE EXECUTE ON FUNCTIONS FROM {role}"
+                )
+            connection.execute(
+                "ALTER DEFAULT PRIVILEGES FOR ROLE postgres "
+                "REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC"
+            )
+    else:
+        connection.execute(
+            """
+            DO $
+            DECLARE item record;
+            BEGIN
+              FOR item IN
+                SELECT c.oid::regclass AS table_name
+                FROM pg_class c
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+                WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')
+              LOOP
+                EXECUTE format('ALTER TABLE %s ENABLE ROW LEVEL SECURITY', item.table_name);
+              END LOOP;
+            END $
+            """
+        )
+
+
 PRODUCTION_STEPS: tuple[MigrationStep, ...] = (
     MigrationStep(1, "identity", 1, _initialize_identity),
     MigrationStep(2, "global-administration", 1, _initialize_global_administration),
@@ -260,6 +351,7 @@ PRODUCTION_STEPS: tuple[MigrationStep, ...] = (
     MigrationStep(13, "username-identity-and-password-reset", 1, _initialize_username_identity),
     MigrationStep(14, "reference-engineering", 1, _initialize_reference_engineering),
     MigrationStep(15, "reference-enterprise", 1, _initialize_reference_enterprise),
+    MigrationStep(16, "public-data-api-hardening", 1, _harden_public_data_api),
 )
 
 
