@@ -39,7 +39,7 @@ def _connect(dsn: str):
     import psycopg
     return psycopg.connect(dsn, autocommit=False, connect_timeout=15)
 
-def _preflight(connection) -> dict[str, object]:
+def _preflight(connection, tenant_id: str) -> dict[str, object]:
     rows = connection.execute(
         "SELECT c.relname, c.relrowsecurity "
         "FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace "
@@ -64,7 +64,7 @@ def _preflight(connection) -> dict[str, object]:
     exists = connection.execute(
         "SELECT 1 FROM public.project_lifecycle_projects "
         "WHERE tenant_id=%s AND project_id=%s",
-        ("cubi-platform", PROJECT_ID),
+        (tenant_id, PROJECT_ID),
     ).fetchone()
     return {
         "public_table_count": len(rows),
@@ -78,15 +78,13 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tenant", default="cubi-platform")
     parser.add_argument("--dsn")
-    parser.add_argument("--preflight-only", action="store_true", default=True)
     parser.add_argument("--apply", action="store_true",
                         help="persist only after all read-only preflight gates pass")
-    parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
 
     connection = _connect(_dsn(args.dsn))
     try:
-        audit = _preflight(connection)
+        audit = _preflight(connection, args.tenant)
         if args.tenant != "cubi-platform":
             # The current canonical owner tenant was verified during the
             # read-only account audit. A different tenant needs explicit review.
