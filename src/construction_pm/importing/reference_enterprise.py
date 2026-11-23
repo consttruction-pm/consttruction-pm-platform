@@ -14,8 +14,9 @@ This module writes those rows into the same stores the product uses:
 * every other row -> ``EnterpriseWorkbenchStore`` (generic revisioned register)
 
 Nothing here computes a schedule, a float, a cost or an earned value. Each row
-is a fact from the frozen bundle; derived analytics stay with the canonical
-services.
+is a fact from the bundle; derived analytics stay with the canonical services.
+CUBI-DAM-001 records are persisted with demo=false and in-progress working
+labels; the existing CUBI-REF projects retain their previous demo flags.
 
 Idempotency: every record keeps the workbook identity and is inserted only when
 it is absent, so a restart never duplicates a row and never overwrites an
