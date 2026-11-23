@@ -860,7 +860,7 @@ class PreviewApplication:
             "<strong>Shared demo data:</strong> all visitors see the same fixture projects in read-only mode. "
             "The real CUBI WSGI API and Shared Domain/Calculation Core power the workspace; no production data is used."
             if self.public_demo
-            else "<strong>Demo data:</strong> two fixture projects are seeded into a guarded local SQLite database. The workspace reads and recalculates through the real WSGI API and Shared Domain/Calculation Core. No production system is contacted."
+            else "<strong>Demo data:</strong> the demo fixtures, including the three shared reference projects, are seeded into a guarded local SQLite database. The workspace reads and recalculates through the real WSGI API and Shared Domain/Calculation Core. No production system is contacted."
         )
         fa_notice = (
             "این یک پیش‌نمایش عمومی و فقط‌خواندنی با داده‌های آزمایشی مشترک است. اطلاعات محرمانه یا واقعی پروژه را وارد نکنید؛ داده‌ها ممکن است بازنشانی شوند."
