@@ -71,12 +71,17 @@ export function renderProjects(ctx: PageContext, host: HTMLElement): void {
   const initialTab: TabId = isTab(query.get("tab")) ? (query.get("tab") as TabId) : "overview";
 
   let projects: ProjectSummary[] = ctx.projects;
+  let sharedProjects: ProjectSummary[] = ctx.sharedProjects;
   let selected: ProjectSummary | null =
-    projects.find((project) => project.project_id === requested) ?? projects[0] ?? null;
+    projects.find((project) => project.project_id === requested)
+    ?? sharedProjects.find((project) => project.project_id === requested)
+    ?? projects[0]
+    ?? sharedProjects[0]
+    ?? null;
   let receivedAt = new Date();
   let busy = false;
   let lastError: unknown = null;
-  let loadedOnce = projects.length > 0;
+  let loadedOnce = projects.length > 0 || sharedProjects.length > 0;
   let tab: TabId = initialTab;
   /** Updates the toolbar while a refresh is in flight, without a repaint. */
   let syncBusy: (() => void) | null = null;
@@ -109,6 +114,7 @@ export function renderProjects(ctx: PageContext, host: HTMLElement): void {
     paintEpoch += 1;
     host.replaceChildren();
     buildRegister();
+    buildSharedWorkspace();
     if (selected) buildPortal(selected);
     rememberUrl();
   };
@@ -119,13 +125,21 @@ export function renderProjects(ctx: PageContext, host: HTMLElement): void {
     lastError = null;
     syncBusy?.();
     try {
-      const rows = await api.listProjects();
+      const [personalResult, sharedResult] = await Promise.allSettled([
+        api.listProjects(),
+        api.listSharedProjects(),
+      ]);
       if (pageToken !== pageEpoch) return;
-      projects = rows;
+      if (personalResult.status === "rejected") throw personalResult.reason;
+      projects = personalResult.value;
+      sharedProjects = sharedResult.status === "fulfilled" ? sharedResult.value : [];
       receivedAt = new Date();
       const wanted = selected?.project_id ?? null;
-      selected =
-        (wanted ? rows.find((project) => project.project_id === wanted) ?? null : null) ?? rows[0] ?? null;
+      selected = (wanted
+        ? projects.find((project) => project.project_id === wanted)
+          ?? sharedProjects.find((project) => project.project_id === wanted)
+          ?? null
+        : null) ?? projects[0] ?? sharedProjects[0] ?? null;
       loadedOnce = true;
       busy = false;
       paint();
@@ -291,11 +305,31 @@ export function renderProjects(ctx: PageContext, host: HTMLElement): void {
     paintRows();
   }
 
+  function buildSharedWorkspace(): void {
+    if (!sharedProjects.length) return;
+    const shared = section(
+      "Shared build workspace",
+      "In-progress Engineering and Enterprise workspace. It is intentionally separate from the user-owned Projects register and portfolio counts.",
+    );
+    testId(shared, "shared-build-workspace");
+    const rows = el("div", { class: "cubi-list" });
+    for (const project of sharedProjects) {
+      const open = actionLink("Open shared workspace", hrefFor(project.project_id, "overview"), "project-open");
+      rows.append(el("div", { class: "cubi-list-item" },
+        el("div", {}, el("strong", { text: project.name }), el("div", { class: "cubi-field-hint", text: project.project_id })),
+        open,
+      ));
+    }
+    sectionBody(shared, rows);
+    host.append(shared);
+  }
+
   function buildPortal(project: ProjectSummary): void {
     const t = ctx.t;
+    const isShared = sharedProjects.some((item) => item.project_id === project.project_id);
     const portal = section(
       project.name,
-      `${t("ent07.field.projectId")}: ${project.project_id} · ${t("common.revision")}: ${project.revision}`,
+      `${isShared ? "Shared in-progress workspace" : t("ent07.field.projectId")}: ${project.project_id} · ${t("common.revision")}: ${project.revision}`,
     );
     testId(portal, "projects-portal");
 
@@ -322,7 +356,7 @@ export function renderProjects(ctx: PageContext, host: HTMLElement): void {
 
   /** A register that arrived empty is not evidence of an empty account. */
   const start = (): void => {
-    if (projects.length) {
+    if (projects.length || sharedProjects.length) {
       paint();
       return;
     }
