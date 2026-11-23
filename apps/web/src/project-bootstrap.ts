@@ -96,7 +96,7 @@ export class ProjectBootstrap {
       ? await this.dependencies.sessionApi.listSharedProjects()
       : null;
     if (!this.isCurrent(generation)) return null;
-    this.sharedProjects = sharedResult?.ok ? sharedResult.data.projects : [];
+    this.sharedProjects = sharedResult && sharedResult.ok ? sharedResult.data.projects : [];
 
     const sharedPreferred = preferredProjectId
       ? this.sharedProjects.find((project) => project.project_id === preferredProjectId)
