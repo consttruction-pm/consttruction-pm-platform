@@ -312,7 +312,8 @@ def test_shared_build_project_is_separate_from_personal_register_and_read_only_w
     assert [p.project_id for p in shared] == ["CUBI-DAM-001"]
     context = service.open_project("session-a", "CUBI-DAM-001", now=now)
     assert context.shared_reference is True
-    assert context.authorization_context(session.roles).roles == frozenset({"shared_reference_reader"})
+    assert context.authorization_context(session.roles).roles == frozenset()
+    assert context.authorization_context(session.roles).shared_reference is True
     with pytest.raises(AuthorizationError):
         service.authorize_project(
             "session-a", "CUBI-DAM-001", Permission.PROJECT_WRITE, now=now
