@@ -482,7 +482,7 @@ def _counts(entry: Mapping[str, object]) -> dict[str, int]:
     # Data-quality observation, recorded rather than repaired. The workbook
     # dates baseline activities on Sundays although no assigned calendar works
     # Sunday, so its baseline dates are calendar-day offsets. Earned value is
-    # measured over the seven-day union calendar for these demo projects; see
+    # measured over the seven-day union calendar for these shared reference workspaces; see
     # ``_uses_reference_measurement_calendar`` in the preview runtime.
     sundays = 0
     for row in _rows(entry, "baseline_activities"):
