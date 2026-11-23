@@ -236,7 +236,7 @@
       sharedTitle.textContent = sharedProject.name + " · " + sharedProject.project_id;
       sharedEngineering.href = "/app?project=" + encodeURIComponent(sharedProject.project_id) + "&view=live";
       sharedEnterprise.hidden = !enterprise;
-      if (enterprise) sharedEnterprise.href = "/enterprise?project=" + encodeURIComponent(sharedProject.project_id);
+      if (enterprise) sharedEnterprise.href = "/enterprise/projects?project=" + encodeURIComponent(sharedProject.project_id);
     }
 
     meta.hidden = false;
