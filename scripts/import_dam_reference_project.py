@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Preflight and, when explicitly permitted, import the shared dam QA project.
+"""Preflight and, when explicitly permitted, import the shared dam build workspace.
 
 This command never runs migrations or changes authentication, sessions,
 memberships, roles, or the three frozen CUBI-REF projects. It imports one
