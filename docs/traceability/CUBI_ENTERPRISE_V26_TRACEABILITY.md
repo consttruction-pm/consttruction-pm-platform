@@ -3,7 +3,7 @@
 **Help baseline:** P6 EPPM V26 (G48897-01, May 2026)
 **Rows:** 16 · **Generated from:** `docs/traceability/enterprise-v26.json`
 
-Every CUBI Enterprise page is mapped to its P6 EPPM V26 Help topic and to an owning canonical module. The EPPM Help set is HTML-only; it has no page-numbered PDF baseline. This document is internal traceability: no Oracle, Primavera or P6 name may appear in customer-facing UI.
+**Inventory warning:** This generated 16-row registry is the initial traceability baseline, not the current complete route inventory. The current Enterprise router declares 26 PageIds under `/cubi/*`; canonical route differences and the per-page Help/icon register are reconciled in [ENTERPRISE_PAGE_BY_PAGE_ICON_HELP_CROSSWALK.md](ENTERPRISE_PAGE_BY_PAGE_ICON_HELP_CROSSWALK.md). Use that crosswalk for all new Enterprise work. Do not infer that the 16 rows cover every current page. The EPPM Help set is HTML-only; it has no page-numbered PDF baseline. This document is internal traceability: no Oracle, Primavera or P6 name may appear in customer-facing UI.
 
 ## Status legend
 
