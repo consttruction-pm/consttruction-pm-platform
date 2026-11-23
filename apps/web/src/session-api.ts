@@ -199,6 +199,7 @@ export type SessionApi = {
   login?(email: string, password: string): Promise<ApiResult<Session>>;
   logout?(): Promise<ApiResult<null>>;
   listProjects(): Promise<ApiResult<{ projects: ProjectSummary[] }>>;
+  listSharedProjects?(): Promise<ApiResult<{ projects: ProjectSummary[] }>>;
   openProject(projectId: string): Promise<ApiResult<{ context: ProjectContext }>>;
   createProject(
     projectId: string,
