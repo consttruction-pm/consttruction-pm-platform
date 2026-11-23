@@ -29,6 +29,7 @@ import {
 
 export function renderPortfolio(ctx: PageContext, host: HTMLElement): void {
   const projects = ctx.projects;
+  const sharedProjects = ctx.sharedProjects ?? [];
   const selectedId = ctx.query.get("project") ?? projects[0]?.project_id ?? "";
   const selected = projects.find((project) => project.project_id === selectedId) ?? projects[0] ?? null;
 
@@ -119,14 +120,14 @@ export function renderPortfolio(ctx: PageContext, host: HTMLElement): void {
   testId(register, "portfolio-register");
   host.append(register);
 
-  if (ctx.sharedProjects.length) {
+  if (sharedProjects.length) {
     const shared = section(
       "Shared build workspace",
       "In-progress shared project data for Engineering and Enterprise construction. This workspace is deliberately excluded from personal portfolio totals and the user-owned project register.",
     );
     testId(shared, "portfolio-shared-build-workspace");
     const rows = el("div", { class: "cubi-list" });
-    for (const project of ctx.sharedProjects) {
+    for (const project of sharedProjects) {
       const open = linkButton("Open shared workspace", pageHref("projects", { project: project.project_id }));
       rows.append(el("div", { class: "cubi-list-item" },
         el("div", {}, el("strong", { text: project.name }), el("div", { class: "cubi-field-hint", text: project.project_id })),
