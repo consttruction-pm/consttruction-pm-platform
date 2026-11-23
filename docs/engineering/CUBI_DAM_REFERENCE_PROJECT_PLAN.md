@@ -3,13 +3,13 @@
 **Tracking:** [Issue #2132](https://github.com/consttruction-pm/consttruction-pm-platform/issues/2132)  
 **Related P0 wizard work:** [Issue #2131](https://github.com/consttruction-pm/consttruction-pm-platform/issues/2131)  
 **Target branch:** `fix/p0-p6-v26-project-creation-wizard`  
-**Status:** audit complete; implementation/persistence blocked by schema and access gates. No production data has been written.
+**Status:** shared in-progress build workspace; implementation/persistence blocked by remaining schema and application-access work. No project data has yet been inserted.
 
 ## Product contract
 
-Create `CUBI-DAM-001` — Large Reservoir Dam and Hydropower Development — as a large, synthetic EPC planning project. TEMPORARY PROJECT-SCOPED EXCEPTION: display and read access to this project must not depend on the user's project role, team membership or project assignment. Every signed-in user must be able to find and open it from the relevant Engineering panels so all pages can be tested. This is not a global authentication/authorization bypass: keep login, tenant boundaries, environment permissions, admin controls and all other projects' role checks unchanged. For this shared reference dataset, keep destructive writes and edits guarded against accidental corruption unless a separate explicit test-write mode is implemented.
+Create `CUBI-DAM-001` — Large Reservoir Dam and Hydropower Development — as the shared in-progress Engineering/Enterprise build workspace. It must behave like persisted operational project data, not like a finished sample/demo. TEMPORARY PROJECT-SCOPED EXCEPTION: display and read access to this project must not depend on the user's project role, team membership or project assignment. Every signed-in user must be able to find and open it from the relevant Engineering panels so all pages can be tested. This is not a global authentication/authorization bypass: keep login, tenant boundaries, environment permissions, admin controls and all other projects' role checks unchanged. For this shared reference dataset, keep destructive writes and edits guarded against accidental corruption unless a separate explicit test-write mode is implemented.
 
-All Engineering pages under test must read the same canonical project/revision data from PostgreSQL. No page-local fixtures, duplicated project records, Excel source retention, or hardcoded CPM results. Keep `CUBI-REF-001/002/003` immutable.
+The shared build workspace is an explicit exception to ordinary user-owned projects: it must be discoverable through a separate shared-workspace entry in Engineering and Enterprise, and must not be mixed into users' personal project registers, project counts, or portfolio lists. Keep it in-progress and do not present it as completed, approved, or production-historical data. All Engineering and Enterprise pages under test must read the same canonical project/revision data from PostgreSQL. No page-local fixtures, duplicated project records, Excel source retention, or hardcoded CPM results. Keep `CUBI-REF-001/002/003` immutable.
 
 ## P6 Professional V26 Help crosswalk
 
@@ -77,6 +77,10 @@ Read-only checks against canonical Supabase project `pbgosszuzemljgoccppk`:
 5. Build deterministic generator in code; validate WBS/activities/relationships/resources/assignments/calendars before persistence. Persist via canonical repositories/application services in one transaction and invoke shared schedule engine.
 6. Run API, Postgres, browser and regression checks using disposable identities/projects. Verify all pages read the same project revision and reference projects remain unchanged.
 7. Only after all gates pass, create the shared project through the authenticated session and publish it to all users. No production DB mutation, merge, deployment or alias change before approval gates.
+
+## Updated product clarification (2026-11-24)
+
+`CUBI-DAM-001` is a temporary shared build workspace, not an ordinary customer-owned project and not a finished demo. It must be available to signed-in users in both Engineering and Enterprise for end-to-end construction and verification. It must be excluded from `/api/projects` and all ordinary user-owned project registers/portfolio counts; expose it through a separately labelled shared-workspace surface. Its underlying facts are persisted once and consumed by both environments. Do not create project membership rows for every user. The shared exception grants read access only; write/schedule permissions remain controlled by explicit project policy or a controlled test-write capability. Tenant boundaries, login, environment authorization and admin controls remain in force.
 
 ## Current stop conditions
 
