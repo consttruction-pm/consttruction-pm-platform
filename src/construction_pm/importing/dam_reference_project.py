@@ -101,8 +101,6 @@ def build_dam_reference_bundle() -> dict[str, object]:
     activity_rows = []
     progress_rows = []
     baseline_rows = []
-    activity_to_leaf = {}
-    activity_to_index = {}
     activity_ids = []
     for leaf_index, leaf_id in enumerate(leaf_ids):
         package_index = leaf_package[leaf_id]
@@ -140,8 +138,6 @@ def build_dam_reference_bundle() -> dict[str, object]:
                 "actual_finish": None if actual_finish is None else actual_finish.isoformat(),
                 "calendar_id": calendar_id,
             })
-            activity_to_leaf[activity_id] = leaf_id
-            activity_to_index[activity_id] = global_index
             activity_ids.append(activity_id)
             budget = Decimal(25000 + (global_index % 19) * 7250)
             progress_rows.append({
@@ -352,7 +348,6 @@ def build_dam_reference_bundle() -> dict[str, object]:
         "resource_assignment_spreads": [],
         "activity_expenses": [],
         "expenses": [],
-        "project_budgets": project_budgets,
     }
     canonical = json.dumps(entry, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     bundle = {
