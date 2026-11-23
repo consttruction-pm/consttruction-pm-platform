@@ -42,7 +42,7 @@ The Engineering workspace is a separate application and calculation authority. E
 | documents | `/cubi/enterprise/documents/` | `pages/registers.ts` | Enterprise read model | About Documents / Document Reviews |
 | eps | `/cubi/enterprise/eps/` | `pages/registers.ts` | Enterprise project hierarchy | EPS / Configuring EPS Views |
 | memberActivities | `/cubi/enterprise/member-activities/` | `pages/member-activities.ts` | Enterprise read-only bridge | Team Member Activities / status updates; Engineering remains owner |
-| timesheets | `/cubi/enterprise/timesheets/` | `pages/registers.ts` | Enterprise | About Timesheets / Approving or Rejecting Timesheets |
+| timesheets | `/cubi/enterprise/timesheets/` | `pages/registers.ts` | Enterprise | [About Timesheets](https://docs.oracle.com/cd/G48897_01/p6help/en/6610.htm) / [Working with Timesheets](https://docs.oracle.com/cd/G48897_01/p6help/en/6670.htm) / [Approving or Rejecting Timesheets](https://docs.oracle.com/cd/G48897_01/p6help/en/7847.htm) |
 | notifications | `/cubi/enterprise/notifications/` | `pages/registers.ts` | Enterprise | Email Notifications / Notifications settings |
 | settings | `/cubi/enterprise/settings/` | `pages/registers.ts` | Enterprise | My Preferences / Application Settings |
 | forms | `/cubi/enterprise/forms/` | `pages/registers.ts` | CUBI-owned | No exact equivalent; shared CUBI Form Builder |
@@ -88,7 +88,7 @@ The following official EPPM Help topics are the source of behavior. The main tab
 - [About Dashboards](https://docs.oracle.com/cd/G48897_01/p6help/en/6608.htm), [Working with Dashboards](https://docs.oracle.com/cd/G48897_01/p6help/en/6665.htm), [Customizing Dashboards](https://docs.oracle.com/cd/G48897_01/p6help/en/7827.htm), [Configuring Dashboard Content](https://docs.oracle.com/cd/G48897_01/p6help/en/7831.htm).
 - [About Portfolios](https://docs.oracle.com/cd/G48897_01/p6help/en/6611.htm), [About Portfolio Views](https://docs.oracle.com/cd/G48897_01/p6help/en/14087.htm), [Creating Portfolio View Portlets](https://docs.oracle.com/cd/G48897_01/p6help/nl/44295.htm), [Customizing Portfolio View Portlets](https://docs.oracle.com/cd/G48897_01/p6help/nl/44303.htm), [Portfolio View Portlet](https://docs.oracle.com/cd/G48897_01/p6help/en/5959.htm).
 - [About Projects](https://docs.oracle.com/cd/G48897_01/p6help/en/6636.htm), [About EPS](https://docs.oracle.com/cd/G48897_01/p6help/en/6621.htm), [Configuring EPS Views](https://docs.oracle.com/cd/G48897_01/p6help/en/44026.htm).
-- [About Users](https://docs.oracle.com/cd/G48897_01/p6help/en/43794.htm), [About Administration](https://docs.oracle.com/cd/G48897_01/p6help/en/6590.htm), [About User Access](https://docs.oracle.com/cd/G48897_01/English/Admin/p6_eppm_application_admin/6597.htm), [Working with Security Profiles](https://docs.oracle.com/cd/G48897_01/p6help/nl/36451.htm).
+- [About Users](https://docs.oracle.com/cd/G48897_01/p6help/en/43794.htm), [About Administration](https://docs.oracle.com/cd/G48897_01/p6help/en/6590.htm), [About User Access](https://docs.oracle.com/cd/G48897_01/English/Admin/p6_eppm_application_admin/6597.htm), [Security Profiles topics in the official V26 Help TOC](https://docs.oracle.com/cd/G48897_01/p6help/en/toc.htm).
 - [About P6 Team Member Status Updates](https://docs.oracle.com/cd/G48897_01/p6help/en/50904.htm), [Reviewing Team Member Status Updates](https://docs.oracle.com/cd/G48897_01/p6help/en/51331.htm), [Configuring P6 Team Member Status Update Reviews](https://docs.oracle.com/cd/G48897_01/p6help/en/50915.htm).
 - [About Capacity Planning](https://docs.oracle.com/cd/G48897_01/p6help/en/36490.htm), [Analyzing Role Allocation (Capacity Planning)](https://docs.oracle.com/cd/G48897_01/p6help/en/7855.htm).
 - [Configuring Report Settings](https://docs.oracle.com/cd/G48897_01/p6help/en/78291.htm).
@@ -181,7 +181,7 @@ For every icon below, the semantic key is mandatory. If the matching Help page h
 ### ENT-02 — Roles / granted access information
 - **Route / source:** `/cubi/roles/`; `pages/roles.ts`.
 - **Inheritance:** Authenticated shared entry; server session authority.
-- **Help:** [About Users](https://docs.oracle.com/cd/G48897_01/p6help/en/43794.htm), [Working with Security Profiles](https://docs.oracle.com/cd/G48897_01/p6help/nl/36451.htm).
+- **Help:** [About Users](https://docs.oracle.com/cd/G48897_01/p6help/en/43794.htm), [Security Profiles topics in the official V26 Help TOC](https://docs.oracle.com/cd/G48897_01/p6help/en/toc.htm).
 - **Features:** Display only server-granted access; explain allowed environment and access request path.
 - **Icon register:** `access-user`, `access-shield`, `access-scope`, `access-status`, `action-open`, `top-help`.
 - **Acceptance:** This is informational, not a login-time selection page. No hard-coded demo persona or client-side role switching. The administrator defines entitlements.
@@ -318,7 +318,7 @@ For every icon below, the semantic key is mandatory. If the matching Help page h
 ### ENT-19 — Timesheets
 - **Route / source:** `/cubi/enterprise/timesheets/`; `pages/registers.ts`.
 - **Inheritance:** Enterprise shell → timesheet service; resource identity and project scope are server-authoritative.
-- **Help:** About Timesheets, Working with Timesheets, Approving or Rejecting Timesheets, resource delegate topics under TOC.
+- **Help:** [About Timesheets](https://docs.oracle.com/cd/G48897_01/p6help/en/6610.htm), [Working with Timesheets](https://docs.oracle.com/cd/G48897_01/p6help/en/6670.htm), [Approving or Rejecting Timesheets](https://docs.oracle.com/cd/G48897_01/p6help/en/7847.htm), resource delegate topics under TOC.
 - **Features:** Period, resource, project, status; timesheet entries; submit; approve/reject; delegation; history.
 - **Icon register:** `nav-timesheets`, `timesheet-period`, `timesheet-resource`, `timesheet-project`, `timesheet-entry`, `timesheet-submit`, `timesheet-approve`, `timesheet-reject`, `timesheet-delegate`, `timesheet-history`, `action-filter`, `action-refresh`.
 - **Acceptance:** Do not treat timesheet hours as activity actuals until the approved authoritative workflow posts them. Validate period, resource, project, status, duplicate submission and approval permissions.
@@ -350,7 +350,7 @@ For every icon below, the semantic key is mandatory. If the matching Help page h
 ### ENT-23 — Audit history
 - **Route / source:** `/cubi/enterprise/audit/`; `pages/audit.ts`.
 - **Inheritance:** Enterprise shell → append-only audit API.
-- **Help:** About Table Auditing, Configuring Audit Settings, Viewing Audit Data.
+- **Help:** [About Table Auditing](https://docs.oracle.com/cd/G48897_01/p6help/en/102813.htm), Configuring Audit Settings, Viewing Audit Data.
 - **Features:** Actor; action; target; decision; timestamp; source; refresh; filters if supported.
 - **Icon register:** `nav-audit`, `audit-history`, `audit-actor`, `audit-action`, `audit-target`, `audit-decision`, `audit-timestamp`, `audit-source`, `action-filter`, `action-refresh`.
 - **Acceptance:** Read-only. No edit/delete affordance. The API must reject mutation. Preserve immutable event ordering, actor identity and provenance.
