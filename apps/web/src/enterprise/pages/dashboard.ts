@@ -95,7 +95,7 @@ export function renderDashboard(ctx: PageContext, host: HTMLElement): void {
   const stored = readLocalJson<Record<string, Layout>>(STORAGE_KEY, {});
   const state: DashboardState = {
     dashboardId: DASHBOARDS[0].id,
-    projectId: ctx.projects[0]?.project_id ?? "",
+    projectId: ctx.query.get("project") ?? ctx.projects[0]?.project_id ?? ctx.sharedProjects?.[0]?.project_id ?? "",
     filter: "",
     designer: false,
     layouts: { ...defaultLayouts(), ...stored },
