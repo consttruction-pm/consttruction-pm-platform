@@ -4401,7 +4401,9 @@ function renderBootstrapState(
     currentBootstrap = bootstrap;
     activeWorkspaceUserId = state.userId;
     activeWorkspaceRoles = state.roles;
-    rememberOpenedProject(state.userId, state.context.project_id);
+    if (!state.sharedReference) {
+      rememberOpenedProject(state.userId, state.context.project_id);
+    }
     if (activeProjectSummaryProjectId !== state.context.project_id) activeProjectSummary = null;
     activeProjectSummaryProjectId = state.context.project_id;
     if (activeCostAccountsProjectId !== state.context.project_id) {
