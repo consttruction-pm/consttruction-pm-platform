@@ -78,6 +78,16 @@
         <p class="cp-env-status is-off" id="cp-env-ent-status" data-i18n="entUnavailable">Not enabled for this account</p>
         <a class="cp-env-cta" id="cp-env-ent-link" aria-disabled="true" data-i18n="entCta">Open Enterprise</a>
       </section>
+
+      <section class="cp-env-card" id="cp-env-shared-card" hidden>
+        <p class="cp-env-eyebrow" data-i18n="sharedEyebrow">SHARED BUILD WORKSPACE</p>
+        <h2 id="cp-env-shared-title">Shared project workspace</h2>
+        <p data-i18n="sharedDescription">A common in-progress project workspace used to build and verify Engineering and Enterprise pages. It is separate from your personal project register.</p>
+        <div class="cp-env-tools">
+          <a class="cp-env-cta" id="cp-env-shared-eng" data-i18n="sharedEngineering">Open in Engineering</a>
+          <a class="cp-env-cta" id="cp-env-shared-ent" data-i18n="sharedEnterprise" hidden>Open in Enterprise</a>
+        </div>
+      </section>
     </div>
 
     <p class="cp-env-note" data-i18n="note">Engineering is the canonical project workspace. Enterprise is available only to accounts with an enterprise role granted by an administrator.</p>
@@ -101,6 +111,9 @@
       entBody: "Organizational task coordination across your authorized projects and teams.",
       entUnavailable: "Not enabled for this account", entReady: "Authorized for this account",
       entCta: "Open Enterprise",
+      sharedEyebrow: "SHARED BUILD WORKSPACE",
+      sharedDescription: "A common in-progress project workspace used to build and verify Engineering and Enterprise pages. It is separate from your personal project register.",
+      sharedEngineering: "Open in Engineering", sharedEnterprise: "Open in Enterprise",
       note: "Engineering is the canonical project workspace. Enterprise is available only to accounts with an enterprise role granted by an administrator.",
       projects: "projects available", noProjects: "No projects are assigned to this account yet.",
       signedInAs: "Signed in as", session: "This environment step uses your live session. Sign in again if it has expired.",
@@ -120,6 +133,9 @@
       entBody: "هماهنگی وظایف سازمانی در پروژه‌ها و تیم‌های مجاز.",
       entUnavailable: "برای این حساب فعال نیست", entReady: "برای این حساب مجاز است",
       entCta: "ورود به محیط سازمانی",
+      sharedEyebrow: "میزکار مشترک در حال ساخت",
+      sharedDescription: "محیط پروژه مشترک و در حال تکمیل برای ساخت و بررسی صفحات مهندسی و سازمانی است و از فهرست پروژه‌های شخصی شما جدا نگه داشته می‌شود.",
+      sharedEngineering: "باز کردن در مهندسی", sharedEnterprise: "باز کردن در سازمانی",
       note: "محیط مهندسی، محیط کاری اصلی پروژه است. محیط سازمانی فقط برای حساب‌هایی فعال است که نقش سازمانی آن‌ها توسط مدیر اعطا شده باشد.",
       projects: "پروژه در دسترس", noProjects: "هنوز پروژه‌ای به این حساب اختصاص داده نشده است.",
       signedInAs: "ورود به‌عنوان", session: "این مرحله از نشست فعال شما استفاده می‌کند. اگر نشست پایان یافته، دوباره وارد شوید.",
@@ -139,6 +155,10 @@
   var entStatus = document.getElementById("cp-env-ent-status");
   var entLink = document.getElementById("cp-env-ent-link");
   var engStatus = document.getElementById("cp-env-eng-status");
+  var sharedCard = document.getElementById("cp-env-shared-card");
+  var sharedTitle = document.getElementById("cp-env-shared-title");
+  var sharedEngineering = document.getElementById("cp-env-shared-eng");
+  var sharedEnterprise = document.getElementById("cp-env-shared-ent");
 
   function applyLocale() {
     var copy = COPY[locale];
@@ -200,6 +220,23 @@
         projects = Array.isArray(payload.projects) ? payload.projects : [];
       }
     } catch (error) { projects = []; }
+
+    var sharedProjects = [];
+    try {
+      var sharedResponse = await fetch("/api/shared-projects", { credentials: "same-origin", headers: { "Accept": "application/json" } });
+      if (sharedResponse.ok) {
+        var sharedPayload = await sharedResponse.json();
+        sharedProjects = Array.isArray(sharedPayload.projects) ? sharedPayload.projects : [];
+      }
+    } catch (error) { sharedProjects = []; }
+    var sharedProject = sharedProjects[0] || null;
+    sharedCard.hidden = !sharedProject;
+    if (sharedProject) {
+      sharedTitle.textContent = sharedProject.name + " · " + sharedProject.project_id;
+      sharedEngineering.href = "/app?project=" + encodeURIComponent(sharedProject.project_id) + "&view=live";
+      sharedEnterprise.hidden = !enterprise;
+      if (enterprise) sharedEnterprise.href = "/enterprise?project=" + encodeURIComponent(sharedProject.project_id);
+    }
 
     meta.hidden = false;
     meta.textContent = copy.signedInAs + " " + (session.user_id || "") + " · " + (session.tenant_id || "");
