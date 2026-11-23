@@ -56,6 +56,10 @@ Major work packages:
 
 Target scale: 700–1,000 activities, 4–6 WBS levels, dense but acyclic predecessor network, multiple calendars, mixed relationship types, labor/equipment/material resources, resource assignments and rates, cost accounts, progress, baseline and schedule run. Dates and CPM outputs must be engine-derived.
 
+## Enterprise data scope
+
+The same CUBI-DAM-001 bundle now includes linked Enterprise operational records: 24 risks and responses, 30 issues, 36 documents with 48 revisions, 48 team tasks, 6 organizations, 6 teams, 12 responsibility assignments, 1 EPC contract, 12 contract packages, 24 procurement records, 12 vendors, 12 change requests, 24 communications, 24 approvals, 12 forms, 24 milestones, 6 workflow templates with 36 instances, and 144 resource-week timesheets. These records reference the same activity, WBS, OBS, resource and package identifiers used by Engineering. They are persisted through the existing risk, issue, document and Enterprise task stores plus the revisioned Enterprise register. For CUBI-DAM-001, Enterprise payloads use `demo=false` and working/in-progress wording; the three existing CUBI-REF projects keep their prior flags and visibility.
+
 ## Live audit findings (2026-11-24)
 
 Read-only checks against canonical Supabase project `pbgosszuzemljgoccppk`:
