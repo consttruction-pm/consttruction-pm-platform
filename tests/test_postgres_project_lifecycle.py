@@ -314,7 +314,8 @@ def test_personal_project_list_excludes_shared_reference_registry_rows():
     PostgresProjectRepository(c).list_for_user("t1", "u1")
     sql, params = c.calls[0]
     assert "project_lifecycle_memberships" in sql
-    assert "cubi_reference_project" not in sql
+    assert "cubi_reference_project" in sql
+    assert "r.project_id <> 'CUBI-DAM-001'" in sql
     assert params == ("t1", "u1")
 
 
@@ -326,6 +327,7 @@ def test_shared_reference_project_list_uses_tenant_scoped_registry():
     sql, params = c.calls[0]
     assert "cubi_reference_project" in sql
     assert "r.tenant_id=p.tenant_id" in sql
+    assert "p.project_id='CUBI-DAM-001'" in sql
     assert params == ("t1",)
 
 
