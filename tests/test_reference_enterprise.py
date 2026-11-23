@@ -117,6 +117,11 @@ def test_dam_enterprise_records_are_persisted_as_non_demo_working_data() -> None
     store = PreviewStore(connection)
     bundle = build_dam_reference_bundle()
     ensure_reference_projects(repositories, store, tenant_id=TENANT, bundle=bundle)
+    project_demo = connection.execute(
+        "SELECT demo FROM preview_project WHERE tenant_id=? AND project_id=?",
+        (TENANT, PROJECT_ID),
+    ).fetchone()[0]
+    assert project_demo == 0
     enterprise = EnterpriseWorkbenchStore(connection)
     enterprise.initialize()
 
