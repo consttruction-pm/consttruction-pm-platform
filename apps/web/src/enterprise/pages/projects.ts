@@ -314,7 +314,7 @@ export function renderProjects(ctx: PageContext, host: HTMLElement): void {
     testId(shared, "shared-build-workspace");
     const rows = el("div", { class: "cubi-list" });
     for (const project of sharedProjects) {
-      const open = actionLink("Open shared workspace", hrefFor(project.project_id, "overview"), "project-open");
+      const open = actionLink("Open shared workspace", hrefFor(project.project_id, "overview"));
       rows.append(el("div", { class: "cubi-list-item" },
         el("div", {}, el("strong", { text: project.name }), el("div", { class: "cubi-field-hint", text: project.project_id })),
         open,
