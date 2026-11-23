@@ -79,6 +79,12 @@ def test_every_representable_row_is_persisted_once() -> None:
         connection, repositories, enterprise, tenant_id=TENANT
     )
     assert tuple(item.project_id for item in results) == PROJECT_IDS
+    for project_id in PROJECT_IDS:
+        demo_flag = connection.execute(
+            "SELECT demo FROM preview_project WHERE tenant_id=? AND project_id=?",
+            (TENANT, project_id),
+        ).fetchone()[0]
+        assert demo_flag == 1
     for item in results:
         assert item.status == "COMPLETE"
         assert item.missing == {}
