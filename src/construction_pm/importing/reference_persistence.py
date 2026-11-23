@@ -1,9 +1,9 @@
 """Persist the validated shared in-progress project records.
 
-The module is the only writer of the frozen reference bundle. It maps each
-bundle row onto the same canonical repositories the product uses, so the three
-reference projects are ordinary projects with ordinary schedule, resource,
-baseline, progress and cost facts. Nothing here computes CPM, float or earned
+The module maps each bundle row onto the same canonical repositories the
+product uses. Existing CUBI-REF reference projects keep their established
+classification; CUBI-DAM-001 is a separate in-progress shared build workspace
+with ordinary schedule, resource, baseline, progress and cost facts. Nothing here computes CPM, float or earned
 value: the canonical schedule engine is invoked and its run is recorded.
 
 Persistence is shared-workspace scoped and idempotent:
