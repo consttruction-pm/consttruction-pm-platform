@@ -9,6 +9,10 @@ each row to the CUBI implementation evidence that backs the claim.
 | CUBI Engineering | P6 Professional **V26 HTML Help** + the **815-page V26 Help PDF** | HTML: `https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm` · PDF: `G57535-02`, October 2026, 815 pages |
 | CUBI Enterprise | P6 EPPM **V26 HTML Help** | `https://docs.oracle.com/cd/G48897_01/p6help/en/toc.htm` · `G48897-01`, May 2026 (HTML only; no page-numbered PDF baseline) |
 
+## Current detailed Enterprise page and icon audit
+
+The 16-row generated Enterprise registry below is retained as historical/initial capability evidence. It does not match the current 26-PageId router and its `/cubi/*` canonical routes. For current page ownership, route reconciliation, page-specific V26 Help topics and the per-icon acceptance register, use [ENTERPRISE_PAGE_BY_PAGE_ICON_HELP_CROSSWALK.md](ENTERPRISE_PAGE_BY_PAGE_ICON_HELP_CROSSWALK.md). Do not treat the older 16 rows as the complete current Enterprise page inventory.
+
 ## Files
 
 | File | Role |
