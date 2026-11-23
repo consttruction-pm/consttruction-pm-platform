@@ -64,6 +64,21 @@ class P6ScheduleSnapshotPublicationAPI:
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_SCHEDULE):
             raise AuthorizationError("authorization denied for permission=project.schedule")
 
+    def _require_project_read(
+        self,
+        scope: BackendScope,
+        auth_context: AuthorizationContext,
+    ) -> None:
+        """Reading the stored settings does not change the schedule.
+
+        The read is therefore gated by ``project.read`` so a read-only reviewer
+        can open a project workspace. Every write below still requires
+        ``project.schedule``.
+        """
+        _require_scope(scope, auth_context)
+        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_READ):
+            raise AuthorizationError("authorization denied for permission=project.read")
+
     @staticmethod
     def _settings_dto(settings: ProjectScheduleSettings) -> dict[str, Any]:
         return {
@@ -145,7 +160,7 @@ class P6ScheduleSnapshotPublicationAPI:
         *,
         auth_context: AuthorizationContext,
     ) -> dict[str, Any] | None:
-        self._require_schedule_permission(scope, auth_context)
+        self._require_project_read(scope, auth_context)
         try:
             settings = self.project_schedule_settings_repository.get(scope)
         except ProjectScheduleSettingsPersistenceError:

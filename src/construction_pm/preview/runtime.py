@@ -35,6 +35,8 @@ from construction_pm.application.authorization import (
     RoleBasedAuthorizationPolicy,
     default_project_policy,
 )
+from construction_pm.application.reference_access import reference_workspace_policy
+from construction_pm.importing.reference_catalog import reference_project_ids
 from construction_pm.application.project_lifecycle import (
     ProjectLifecycleService,
     ProjectSummary,
@@ -1597,7 +1599,10 @@ def open_preview_runtime(
     )
     seed_organization_library(form_repository, PREVIEW_TENANT_ID, "preview-admin")
     sessions = PreviewSessionRepository()
-    policy = default_project_policy()
+    policy = reference_workspace_policy(
+        default_project_policy(),
+        reference_project_ids(),
+    )
     public_demo = os.environ.get("CUBI_PREVIEW_PUBLIC_DEMO", "").strip().lower() in {
         "1", "true", "yes",
     }

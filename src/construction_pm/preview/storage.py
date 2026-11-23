@@ -26,6 +26,7 @@ from construction_pm.application.project_lifecycle import (
     ProjectSummary,
 )
 from construction_pm.backend_p0.models import BackendScope
+from construction_pm.importing.reference_catalog import reference_project_ids
 
 PREVIEW_APPLICATION_ID = 0x43554249  # "CUBI"
 PREVIEW_SCHEMA_VERSION = 1
@@ -67,6 +68,24 @@ DEMO_USERS: tuple[DemoUser, ...] = (
         "viewer",
         frozenset({"viewer"}),
     ),
+    # Reference Testing Workspace personas. A reviewer reads the shared
+    # reference projects, runs canonical calculations and reads scenarios but
+    # cannot edit source data. A test operator additionally creates scenarios.
+    # Neither is a member of the unrelated fixture projects below.
+    DemoUser(
+        "preview-reviewer",
+        "Reference reviewer",
+        "بازبین پروژه‌های مرجع",
+        "reviewer",
+        frozenset({"reviewer"}),
+    ),
+    DemoUser(
+        "preview-test-operator",
+        "Reference test operator",
+        "اپراتور آزمون پروژه‌های مرجع",
+        "test_operator",
+        frozenset({"test_operator"}),
+    ),
     DemoUser(
         "preview-admin",
         "Project administrator",
@@ -99,9 +118,14 @@ DEMO_USERS_BY_ROLE: Mapping[str, DemoUser] = {
 }
 DEMO_USER_IDS: tuple[str, ...] = tuple(user.user_id for user in DEMO_USERS)
 # Membership of the demo fixtures and of projects created by other demo roles.
-# The newcomer stays outside so its first-run state is genuine.
+# The newcomer stays outside so its first-run state is genuine, and the
+# reference personas stay outside so they reach the shared reference data only
+# through the reference visibility rule rather than through an unrelated
+# fixture project.
 DEMO_PROJECT_MEMBER_USER_IDS: tuple[str, ...] = tuple(
-    user.user_id for user in DEMO_USERS if user.role != "newcomer"
+    user.user_id
+    for user in DEMO_USERS
+    if user.role not in {"newcomer", "reviewer", "test_operator"}
 )
 
 
@@ -678,6 +702,16 @@ class PreviewStore:
     def list_for_user(
         self, tenant_id: str, user_id: str
     ) -> tuple[ProjectSummary, ...]:
+        # The shared reference dataset is one copy that every authenticated
+        # user of the tenant may read. Visibility is therefore the union of
+        # explicit membership and the reference project ids; the reference
+        # policy still denies every source-mutating permission.
+        reference_ids = reference_project_ids()
+        reference_filter = (
+            "p.project_id IN (" + ",".join("?" for _ in reference_ids) + ")"
+            if reference_ids
+            else "0"
+        )
         rows = self.connection.execute(
             "SELECT p.project_id, p.tenant_id, p.name, p.project_revision, "
             "p.description, p.start_date, p.date_system, p.primary_calendar_id, "
@@ -689,17 +723,26 @@ class PreviewStore:
             "p.checked_out_by, p.checked_out_at, p.default_duration_type, "
             "p.default_cost_account_id, p.obs_id "
             "FROM preview_project p "
-            "JOIN preview_project_member m "
+            "LEFT JOIN preview_project_member m "
             "ON m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
-            "WHERE p.tenant_id=? AND m.user_id=? "
+            "AND m.user_id=? "
+            "WHERE p.tenant_id=? AND (m.user_id IS NOT NULL OR "
+            + reference_filter
+            + ") "
             "ORDER BY p.name COLLATE NOCASE, p.project_id",
-            (tenant_id, user_id),
+            (user_id, tenant_id, *reference_ids),
         ).fetchall()
         return tuple(_project_summary(row) for row in rows)
 
     def get_for_user(
         self, tenant_id: str, project_id: str, user_id: str
     ) -> ProjectSummary | None:
+        reference_ids = reference_project_ids()
+        reference_filter = (
+            "p.project_id IN (" + ",".join("?" for _ in reference_ids) + ")"
+            if reference_ids
+            else "0"
+        )
         row = self.connection.execute(
             "SELECT p.project_id, p.tenant_id, p.name, p.project_revision, "
             "p.description, p.start_date, p.date_system, p.primary_calendar_id, "
@@ -711,10 +754,13 @@ class PreviewStore:
             "p.checked_out_by, p.checked_out_at, p.default_duration_type, "
             "p.default_cost_account_id, p.obs_id "
             "FROM preview_project p "
-            "JOIN preview_project_member m "
+            "LEFT JOIN preview_project_member m "
             "ON m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
-            "WHERE p.tenant_id=? AND p.project_id=? AND m.user_id=?",
-            (tenant_id, project_id, user_id),
+            "AND m.user_id=? "
+            "WHERE p.tenant_id=? AND p.project_id=? AND (m.user_id IS NOT NULL OR "
+            + reference_filter
+            + ")",
+            (user_id, tenant_id, project_id, *reference_ids),
         ).fetchone()
         if row is None:
             return None
