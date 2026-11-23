@@ -459,13 +459,15 @@ class ProjectContext:
     project_id: str
     revision: int
     user_id: str
+    shared_reference: bool = False
 
     def authorization_context(self, roles: frozenset[str]) -> AuthorizationContext:
+        effective_roles = roles | (frozenset({"shared_reference_reader"}) if self.shared_reference else frozenset())
         return AuthorizationContext(
             tenant_id=self.tenant_id,
             project_id=self.project_id,
             user_id=self.user_id,
-            roles=roles,
+            roles=effective_roles,
         )
 
 
@@ -616,6 +618,15 @@ class ProjectLifecycleService:
         session.validate(now=now)
         return session
 
+    def list_shared_reference_projects(
+        self, session_id: str, *, now: datetime
+    ) -> tuple[ProjectSummary, ...]:
+        session = self.session(session_id, now=now)
+        list_shared = getattr(self._projects, "list_shared_reference_for_user", None)
+        if not callable(list_shared):
+            return ()
+        return tuple(list_shared(session.tenant_id))
+
     def list_projects(
         self, session_id: str, *, now: datetime
     ) -> tuple[ProjectSummary, ...]:
@@ -647,11 +658,16 @@ class ProjectLifecycleService:
         )
         if project is None:
             raise ProjectLifecycleError("PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED")
+        shared_check = getattr(self._projects, "is_shared_reference_project", None)
+        is_shared_reference = bool(
+            callable(shared_check) and shared_check(session.tenant_id, project_id)
+        )
         context = ProjectContext(
             tenant_id=project.tenant_id,
             project_id=project.project_id,
             revision=project.revision,
             user_id=session.user_id,
+            shared_reference=is_shared_reference,
         )
         self._policy.require(
             context.authorization_context(session.roles), Permission.PROJECT_READ
@@ -786,20 +802,12 @@ class ProjectLifecycleService:
         self, session_id: str, project_id: str, *, now: datetime
     ) -> ProjectSummary:
         session = self.session(session_id, now=now)
+        self._open_project_for_session(session, project_id)
         project = self._projects.get_for_user(
             session.tenant_id, project_id, session.user_id
         )
         if project is None:
             raise ProjectLifecycleError("PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED")
-        self._policy.require(
-            ProjectContext(
-                tenant_id=project.tenant_id,
-                project_id=project.project_id,
-                revision=project.revision,
-                user_id=session.user_id,
-            ).authorization_context(session.roles),
-            Permission.PROJECT_READ,
-        )
         return project
 
     def update_project(
