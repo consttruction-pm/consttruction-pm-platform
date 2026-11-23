@@ -154,14 +154,22 @@ def ensure_reference_enterprise(
     actor_id: str = "preview-admin",
     clock: datetime = REFERENCE_CLOCK,
     bundle: Mapping[str, object] | None = None,
+    tasks_repository: object | None = None,
+    dialect: str = "sqlite",
 ) -> tuple[EnterpriseImportResult, ...]:
-    """Insert every Enterprise register row that is not present yet."""
+    """Insert every Enterprise register row that is not present yet.
+
+    The same rows are written for both adapters; ``dialect`` only selects the
+    placeholder and JSON operator used by the state marker and presence
+    counts, and ``tasks_repository`` lets the production caller pass the
+    PostgreSQL task store instead of the SQLite one.
+    """
 
     document = bundle if bundle is not None else load_bundle()
     projects = document.get("projects")
     if not isinstance(projects, Mapping):
         raise ValueError("REFERENCE_BUNDLE_HAS_NO_PROJECTS")
-    _ensure_state_table(connection)
+    _ensure_state_table(connection, dialect)
 
     results: list[EnterpriseImportResult] = []
     for project_id in sorted(projects):
@@ -179,10 +187,17 @@ def ensure_reference_enterprise(
             entry=entry,
             actor_id=actor_id,
             clock=clock,
+            tasks_repository=tasks_repository,
         )
         expected = _expected_counts(entry)
         present = _present_counts(
-            connection, repositories, tenant_id, str(project_id), scope
+            connection,
+            repositories,
+            tenant_id,
+            str(project_id),
+            scope,
+            tasks_repository=tasks_repository,
+            dialect=dialect,
         )
         missing = {
             key: total - present.get(key, 0)
@@ -203,6 +218,7 @@ def ensure_reference_enterprise(
             status,
             {"created": created, "present": present, "missing": missing, "unsupported": list(unsupported)},
             clock,
+            dialect=dialect,
         )
         results.append(
             EnterpriseImportResult(
@@ -214,7 +230,8 @@ def ensure_reference_enterprise(
                 status=status,
             )
         )
-    connection.commit()
+    if dialect == "sqlite":
+        connection.commit()
     return tuple(results)
 
 
@@ -233,6 +250,7 @@ def _ensure_project_records(
     entry: Mapping[str, object],
     actor_id: str,
     clock: datetime,
+    tasks_repository: object | None = None,
 ) -> dict[str, int]:
     revision = _revision(entry)
     scope = BackendScope(tenant_id, project_id, revision)
@@ -241,7 +259,14 @@ def _ensure_project_records(
     created["risks"] = _ensure_risks(repositories, scope, entry, actor_id=actor_id, clock=clock)
     created["issues"] = _ensure_issues(repositories, scope, entry, actor_id=actor_id, clock=clock)
     created["documents"] = _ensure_documents(repositories, scope, entry, actor_id=actor_id, clock=clock)
-    created["tasks"] = _ensure_tasks(connection, entry, tenant_id=tenant_id, actor_id=actor_id, clock=clock)
+    created["tasks"] = _ensure_tasks(
+        connection,
+        entry,
+        tenant_id=tenant_id,
+        actor_id=actor_id,
+        clock=clock,
+        tasks_repository=tasks_repository,
+    )
 
     kind_rows = _enterprise_kind_rows(entry, project_id)
     for kind, rows in kind_rows.items():
@@ -281,8 +306,13 @@ def _present_counts(
     tenant_id: str,
     project_id: str,
     scope: BackendScope,
+    *,
+    tasks_repository: object | None = None,
+    dialect: str = "sqlite",
 ) -> dict[str, int]:
     """Count what is actually stored, never what was merely attempted."""
+
+    tasks = tasks_repository or SQLiteEnterpriseTaskRepository(connection)
 
     counts = {
         "risks": len(repositories.risks.list_risks(tenant_id, project_id)),
@@ -291,17 +321,23 @@ def _present_counts(
             repositories.documents.list_all(tenant_id=tenant_id, project_id=project_id)
         ),
         "tasks": len(
-            SQLiteEnterpriseTaskRepository(connection).list_for_tenant(
-                tenant_id, limit=500, project_id=project_id
-            )
+            tasks.list_for_tenant(tenant_id, limit=500, project_id=project_id)
         ),
     }
-    rows = connection.execute(
-        "SELECT kind, COUNT(*) FROM enterprise_records "
-        "WHERE tenant_id=? AND json_extract(payload_json, '$.project_id')=? "
-        "GROUP BY kind",
-        (tenant_id, project_id),
-    ).fetchall()
+    if dialect == "postgres":
+        rows = connection.execute(
+            "SELECT kind, COUNT(*) FROM enterprise_records "
+            "WHERE tenant_id=%s AND (payload_json::jsonb ->> 'project_id')=%s "
+            "GROUP BY kind",
+            (tenant_id, project_id),
+        ).fetchall()
+    else:
+        rows = connection.execute(
+            "SELECT kind, COUNT(*) FROM enterprise_records "
+            "WHERE tenant_id=? AND json_extract(payload_json, '$.project_id')=? "
+            "GROUP BY kind",
+            (tenant_id, project_id),
+        ).fetchall()
     for kind, total in rows:
         counts[str(kind)] = int(total)
     return counts
@@ -481,8 +517,16 @@ def _document_type(title: str) -> str:
 # --------------------------------------------------------------------------
 
 
-def _ensure_tasks(connection, entry, *, tenant_id: str, actor_id: str, clock) -> int:
-    repository = SQLiteEnterpriseTaskRepository(connection)
+def _ensure_tasks(
+    connection,
+    entry,
+    *,
+    tenant_id: str,
+    actor_id: str,
+    clock,
+    tasks_repository: object | None = None,
+) -> int:
+    repository = tasks_repository or SQLiteEnterpriseTaskRepository(connection)
     repository.initialize()
     project_id = _text(entry.get("project", {}).get("project_id")) or ""
     existing = {
@@ -699,7 +743,7 @@ def _enterprise_kind_rows(
 # --------------------------------------------------------------------------
 
 
-def _ensure_state_table(connection) -> None:
+def _ensure_state_table(connection, dialect: str = "sqlite") -> None:
     connection.execute(
         """CREATE TABLE IF NOT EXISTS cubi_reference_enterprise (
             tenant_id TEXT NOT NULL,
@@ -719,12 +763,15 @@ def _record_state(
     status: str,
     counts: Mapping[str, int],
     clock: datetime,
+    *,
+    dialect: str = "sqlite",
 ) -> None:
+    marker = "%s" if dialect == "postgres" else "?"
     connection.execute(
         "INSERT INTO cubi_reference_enterprise "
         "(tenant_id, project_id, status, imported_at, counts_json) "
-        "VALUES (?,?,?,?,?) "
-        "ON CONFLICT(tenant_id, project_id) DO UPDATE SET "
+        f"VALUES ({marker},{marker},{marker},{marker},{marker}) "
+        "ON CONFLICT (tenant_id, project_id) DO UPDATE SET "
         "status=excluded.status, imported_at=excluded.imported_at, "
         "counts_json=excluded.counts_json",
         (
@@ -737,10 +784,13 @@ def _record_state(
     )
 
 
-def read_enterprise_state(connection, tenant_id: str) -> tuple[dict[str, object], ...]:
+def read_enterprise_state(
+    connection, tenant_id: str, *, dialect: str = "sqlite"
+) -> tuple[dict[str, object], ...]:
+    marker = "%s" if dialect == "postgres" else "?"
     rows = connection.execute(
         "SELECT project_id, status, imported_at, counts_json "
-        "FROM cubi_reference_enterprise WHERE tenant_id=? ORDER BY project_id",
+        f"FROM cubi_reference_enterprise WHERE tenant_id={marker} ORDER BY project_id",
         (tenant_id,),
     ).fetchall()
     return tuple(

@@ -466,6 +466,14 @@ class PreviewStore:
                     REFERENCES preview_project(tenant_id, project_id)
                     ON DELETE CASCADE
             );
+            CREATE TABLE IF NOT EXISTS cubi_reference_project (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                source_sha256 TEXT NOT NULL,
+                project_revision INTEGER NOT NULL,
+                registered_at TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, project_id)
+            );
             """
         )
         # Existing preview databases predate project metadata; add the columns in
@@ -689,9 +697,11 @@ class PreviewStore:
             "p.checked_out_by, p.checked_out_at, p.default_duration_type, "
             "p.default_cost_account_id, p.obs_id "
             "FROM preview_project p "
-            "JOIN preview_project_member m "
+            "LEFT JOIN preview_project_member m "
             "ON m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
-            "WHERE p.tenant_id=? AND m.user_id=? "
+            "WHERE p.tenant_id=? AND (m.user_id=? OR EXISTS ("
+            "SELECT 1 FROM cubi_reference_project r "
+            "WHERE r.tenant_id=p.tenant_id AND r.project_id=p.project_id)) "
             "ORDER BY p.name COLLATE NOCASE, p.project_id",
             (tenant_id, user_id),
         ).fetchall()
@@ -711,9 +721,11 @@ class PreviewStore:
             "p.checked_out_by, p.checked_out_at, p.default_duration_type, "
             "p.default_cost_account_id, p.obs_id "
             "FROM preview_project p "
-            "JOIN preview_project_member m "
+            "LEFT JOIN preview_project_member m "
             "ON m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
-            "WHERE p.tenant_id=? AND p.project_id=? AND m.user_id=?",
+            "WHERE p.tenant_id=? AND p.project_id=? AND (m.user_id=? OR EXISTS ("
+            "SELECT 1 FROM cubi_reference_project r "
+            "WHERE r.tenant_id=p.tenant_id AND r.project_id=p.project_id))",
             (tenant_id, project_id, user_id),
         ).fetchone()
         if row is None:

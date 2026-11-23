@@ -103,7 +103,7 @@ The following are established by the current AI Workbench implementation ledger 
 - Project Analysis: canonical workspace read, baseline register and earned-value read with insufficient-data handling (`WIRED_READ`).
 - AI action proposal lifecycle: propose → human decision → guarded execution; stale-revision and duplicate guards in the mounted runtime.
 - Forms library CRUD/version/submission/review/audit and Knowledge Store read path.
-- PostgreSQL migration ledger (12 steps / 58 tables) and integration verification; production PostgreSQL composition exists, but the preview browser journey must not be described as proof of Supabase/production PostgreSQL.
+- PostgreSQL migration ledger (15 steps / 94 tables) and integration verification; production PostgreSQL composition exists, but the preview browser journey must not be described as proof of Supabase/production PostgreSQL.
 - Assistant turn route uses the canonical AI action client and server-side proposal creation; transcript does not approve or execute.
 - Preview browser journey and automated tests exist; current ledger records Python, web, typecheck/build and browser checks.
 

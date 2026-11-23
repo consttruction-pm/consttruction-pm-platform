@@ -69,7 +69,7 @@ site, not on a preview-only store. What changed and what is actually proven:
 
 | Capability | Status | Where |
 | --- | --- | --- |
-| Versioned migration ledger (`cubi_schema_migration`, 12 steps, 58 tables) | `WIRED_WRITE` / verified on real PostgreSQL | `deployment/migrations.py`, `tests/integration/test_cubi_database_operationalization_postgres_live.py` |
+| Versioned migration ledger (`cubi_schema_migration`, 15 steps, 94 tables) | `WIRED_WRITE` / verified on real PostgreSQL | `deployment/migrations.py`, `tests/integration/test_cubi_database_operationalization_postgres_live.py` |
 | Project/workspace save and restore across logout and a new session | `WIRED_WRITE` | live PostgreSQL WSGI test, test 4 |
 | Risk register (create idempotent, update with `expected_revision`, history) | `WIRED_WRITE` | `risk_persistence.py`, test 6 |
 | Forms library (templates, immutable published versions, submissions, review/approval, audit) | `WIRED_WRITE` | `form_builder_repository.py` shared PG/SQLite base, tests 7–8 |

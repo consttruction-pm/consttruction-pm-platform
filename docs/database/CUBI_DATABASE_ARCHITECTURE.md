@@ -68,9 +68,12 @@ drift (`CUBI_SCHEMA_DRIFT_POLICY=report|fail`).
 | 10 | `forms-library` | `form_template_head`, `form_template_version`, `form_submission`, `form_submission_revision`, `form_approval_event`, `form_asset`, `form_audit_event` |
 | 11 | `knowledge-assistant` | `knowledge_source`, `knowledge_topic`, `knowledge_card`, `knowledge_card_revision`, `knowledge_card_translation`, `knowledge_card_event`, `knowledge_topic_snapshot`, `knowledge_translation_revision`, `knowledge_audit`, `knowledge_schema_migration`, `project_knowledge`, `assistant_memory`, `assistant_request`, `assistant_workflow` |
 | 12 | `ai-action-runtime` | `ai_action_proposals`, `ai_action_audit_events`, `ai_action_tool_idempotency` |
+| 13 | `username-identity-and-password-reset` | `identity_users.username`, `identity_password_reset_tokens` |
+| 14 | `reference-engineering` | Engineering tables the reference import writes (`activity_master`, `wbs_master`, `relationship_master`, `p6_*`, `schedule_*`, `project_budget_*`) plus `cubi_reference_project`, `cubi_reference_import`, `cubi_reference_schedule_run` |
+| 15 | `reference-enterprise` | Enterprise registers the import writes (`project_risk`, `p6_issue`, `project_documents`, `enterprise_records`, `enterprise_tasks`, budget lines) |
 
-A fresh schema migrates 58 application tables plus the ledger. Re-running the
-registry applies zero steps and reports no drift. Adding a column outside the
+A fresh schema migrates 93 application tables plus the ledger (94 total).
+Re-running the registry applies zero steps and reports no drift. Adding a column outside the
 registry is detected; the drift policy is `report` by default because a legacy
 database may legitimately differ, and `fail` stops readiness.
 
@@ -152,15 +155,55 @@ records the decisive answer, and any `—` means "not applicable to this release
 - AI proposals never mutate data before an explicit approval; execution runs
   through the same domain service as a human write and records an audit event.
 
+## Reference project data (CUBI-REF-001/002/003)
+
+The three frozen reference projects are durable tenant data, not fixtures.
+
+- **One importer, two adapters.** `importing/reference_persistence.py` holds the
+  dialect-neutral import; `SQLiteReferenceJournal` backs the preview and
+  `PostgresReferenceJournal`/`ensure_reference_projects_postgres` back
+  production. Both write the same project, WBS, activity, relationship,
+  calendar, resource, assignment, baseline, progress and budget rows and record
+  the same import manifest.
+- **Idempotent.** A project already present is skipped; its rows are never
+  rewritten or duplicated. `cubi_reference_import` stores the bundle contract,
+  source SHA-256, revision and per-domain counts; `cubi_reference_schedule_run`
+  stores each canonical-engine manifest.
+- **Shared visibility without memberships.** `cubi_reference_project` is the
+  registry. `PostgresProjectRepository.list_for_user`/`get_for_user` (and the
+  preview store) union it in, so every authenticated user of the tenant lists
+  the three projects without a `project_lifecycle_memberships` row and without
+  copied data. Authorization still runs in `RoleBasedAuthorizationPolicy`;
+  `global_admin` keeps its unconditional grant, and writes still require the
+  usual permission.
+- **Calculations are never imported.** CPM dates, float, critical path and EVM
+  are produced during the import by `AuthoritativeScheduleSnapshotPublisher`
+  and `evaluate_schedule_snapshot`; the workbook's calculated columns are only
+  cross-checked.
+- **Operator path.**
+  `python scripts/import_reference_projects.py --tenant <tenant-id>` applies the
+  additive migrations and runs the import; `--list` prints the stored manifests.
+  The command prints counts and identifiers only.
+- **Boot path.** Setting `CUBI_REFERENCE_TENANT=<tenant-id>` makes
+  `ProductionRuntime._initialize()` run the same idempotent importer right after
+  the migrations, so a deployment can provision its shared projects without a
+  manual step. Importers serialize on `pg_advisory_xact_lock`, so warm instances
+  racing the first request cannot double-import.
+- **Preview.** `open_preview_runtime` calls the SQLite importer at startup, so a
+  recreated preview database re-registers the same bundle deterministically.
+
 ## Verification evidence (local PostgreSQL)
 
 | Check | Result |
 | --- | --- |
 | `pytest tests --ignore=tests/integration` | 5005 passed, 20 skipped |
 | `pytest tests/integration` | 470 passed |
-| New live module `tests/integration/test_cubi_database_operationalization_postgres_live.py` | 12 passed |
-| Fresh schema migration | 12 steps, 58 tables, drift `None` |
+| New live module `tests/integration/test_cubi_database_operationalization_postgres_live.py` | 13 passed |
+| `tests/integration/test_postgres_reference_projects_live.py` | 10 passed — 3 roles, 3 shared projects, isolation, HTTP reads from durable rows, viewer denial, owner write, restart persistence, engine manifests, partial-import recovery, env boot seeding |
+| Fresh schema migration | 15 steps, 94 tables, drift `None` |
 | Re-run migration | 0 steps, drift `None` |
+| Reference import (fresh database) | 3 projects, 540 activities, 403 WBS, 3 manifests `COMPLETE`, 0 missing Enterprise records |
+| Reference import re-run | 0 new rows, 3 manifests unchanged |
 | Injected column | structural drift reported; `fail` policy raises `SCHEMA_DRIFT_DETECTED` |
 | Unknown future ledger version | raises `MIGRATION_HISTORY_UNKNOWN` |
 
@@ -173,9 +216,11 @@ viewer denial, CSRF denial and knowledge durability.
 
 ## Known limitations and honest gaps
 
-1. **No Supabase or Vercel access in this environment.** The reference project
-   and the Preview deployment must be exercised by the owner. Until then,
-   `VERIFIED_ON_SUPABASE` is not claimed anywhere.
+1. **No Supabase or Vercel access in this environment.** The production import
+   was verified end-to-end against a local PostgreSQL 14 database only. The
+   live Supabase database must be migrated and seeded with
+   `scripts/import_reference_projects.py --tenant <tenant-id>` by the owner;
+   until then `VERIFIED_ON_SUPABASE` is not claimed.
 2. **Conversational AI is provider-gated.** The deterministic proposal surface
    is always composed; `/ai/assistant/turn` answers `503` unless
    `CUBI_AI_ENABLED` and a valid `CUBI_AI_*` HTTPS provider are configured.

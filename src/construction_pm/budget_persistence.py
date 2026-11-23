@@ -780,3 +780,148 @@ class SQLiteBudgetStore:
             amount=Decimal(data["amount"]),
             period_id=data.get("period_id"),
         )
+
+
+class PostgresBudgetStore(SQLiteBudgetStore):
+    """Durable budget register over PostgreSQL.
+
+    The store owns the same tables and revision rules as the preview store, but
+    uses the PostgreSQL placeholder and JSON operators and never commits: the
+    request or the importer owns the transaction. Only the line surface is
+    exposed here; changes and funding stay with the preview store until the
+    production composition serves them.
+    """
+
+    def initialize(self) -> None:
+        for statement in (
+            """CREATE TABLE IF NOT EXISTS project_budget_line (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                budget_line_id TEXT NOT NULL,
+                idempotency_key TEXT NOT NULL,
+                fingerprint TEXT NOT NULL,
+                revision BIGINT NOT NULL DEFAULT 1,
+                line_json TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, budget_line_id),
+                UNIQUE (tenant_id, project_id, idempotency_key)
+            )""",
+            """CREATE TABLE IF NOT EXISTS project_budget_change (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                budget_line_id TEXT NOT NULL,
+                change_id TEXT NOT NULL,
+                revision BIGINT NOT NULL DEFAULT 1,
+                change_json TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, change_id)
+            )""",
+            """CREATE TABLE IF NOT EXISTS project_budget_funding (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                funding_id TEXT NOT NULL,
+                idempotency_key TEXT NOT NULL,
+                fingerprint TEXT NOT NULL,
+                revision BIGINT NOT NULL DEFAULT 1,
+                funding_json TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, funding_id),
+                UNIQUE (tenant_id, project_id, idempotency_key)
+            )""",
+            """CREATE TABLE IF NOT EXISTS project_budget_audit (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                entity_type TEXT NOT NULL,
+                entity_id TEXT NOT NULL,
+                revision BIGINT NOT NULL,
+                event_type TEXT NOT NULL,
+                actor_id TEXT NOT NULL,
+                occurred_at TIMESTAMPTZ NOT NULL,
+                reason TEXT NOT NULL DEFAULT '',
+                PRIMARY KEY (tenant_id, project_id, entity_type, entity_id, revision)
+            )""",
+        ):
+            self.connection.execute(statement)
+
+    def persist_line(
+        self, line: BudgetLine, *, idempotency_key: str, actor_id: str, occurred_at: datetime
+    ) -> StoredBudgetLine:
+        line.validate()
+        self._validate_key(idempotency_key)
+        _validate_audit(actor_id, occurred_at)
+        payload = line.as_dict()
+        fingerprint = _fingerprint(payload)
+        existing = self.connection.execute(
+            "SELECT budget_line_id, fingerprint FROM project_budget_line "
+            "WHERE tenant_id=%s AND project_id=%s AND idempotency_key=%s",
+            (line.tenant_id, line.project_id, idempotency_key),
+        ).fetchone()
+        if existing is not None:
+            if existing[1] != fingerprint:
+                raise BudgetIdempotencyReuse("BUDGET_IDEMPOTENCY_KEY_REUSE")
+            return self.get_line(line.tenant_id, line.project_id, str(existing[0]))
+        try:
+            self.connection.execute(
+                "INSERT INTO project_budget_line "
+                "(tenant_id, project_id, budget_line_id, idempotency_key, fingerprint, revision, line_json) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s)",
+                (
+                    line.tenant_id, line.project_id, line.budget_line_id,
+                    idempotency_key, fingerprint, 1,
+                    json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+                ),
+            )
+        except Exception as exc:
+            if "duplicate key" in str(exc).lower():
+                raise ValueError("BUDGET_LINE_ALREADY_EXISTS") from exc
+            raise
+        self.connection.execute(
+            "INSERT INTO project_budget_audit "
+            "(tenant_id, project_id, entity_type, entity_id, revision, event_type, actor_id, occurred_at, reason) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (
+                line.tenant_id, line.project_id, "line", line.budget_line_id, 1,
+                "created", actor_id, occurred_at, "",
+            ),
+        )
+        return StoredBudgetLine(line, 1)
+
+    def get_line(self, tenant_id: str, project_id: str, budget_line_id: str) -> StoredBudgetLine:
+        row = self.connection.execute(
+            "SELECT line_json, revision FROM project_budget_line "
+            "WHERE tenant_id=%s AND project_id=%s AND budget_line_id=%s",
+            (tenant_id, project_id, budget_line_id),
+        ).fetchone()
+        if row is None:
+            raise KeyError("BUDGET_LINE_NOT_FOUND")
+        return StoredBudgetLine(self._line_from_json(row[0]), int(row[1]))
+
+    def list_lines(
+        self,
+        tenant_id: str,
+        project_id: str,
+        *,
+        currency: str | None = None,
+        cost_account_id: str | None = None,
+        search: str | None = None,
+    ) -> tuple[StoredBudgetLine, ...]:
+        query = (
+            "SELECT line_json, revision FROM project_budget_line "
+            "WHERE tenant_id=%s AND project_id=%s"
+        )
+        params: list[object] = [tenant_id, project_id]
+        if currency is not None:
+            query += " AND (line_json::jsonb ->> 'currency')=%s"
+            params.append(currency)
+        if cost_account_id is not None:
+            query += " AND (line_json::jsonb ->> 'cost_account_id')=%s"
+            params.append(cost_account_id)
+        if search is not None:
+            query += (
+                " AND (LOWER(budget_line_id) LIKE %s "
+                "OR LOWER(line_json::jsonb ->> 'description') LIKE %s)"
+            )
+            needle = f"%{search.lower()}%"
+            params.extend([needle, needle])
+        query += " ORDER BY budget_line_id"
+        return tuple(
+            StoredBudgetLine(self._line_from_json(row[0]), int(row[1]))
+            for row in self.connection.execute(query, tuple(params)).fetchall()
+        )

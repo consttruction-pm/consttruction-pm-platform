@@ -149,10 +149,27 @@ def _iso(value: datetime | None) -> str | None:
 
 
 class EnterpriseWorkbenchStore:
-    """SQLite record store with revisions, soft delete, audit and idempotency."""
+    """Record store with revisions, soft delete, audit and idempotency.
+
+    The SQL is written with ``?`` placeholders and the dialect subclass swaps
+    them for its driver's marker, so the record contract is identical over
+    SQLite (preview) and PostgreSQL (production).
+    """
+
+    placeholder = "?"
+    _commit_enabled = True
 
     def __init__(self, connection: sqlite3.Connection) -> None:
         self.connection = connection
+
+    def _execute(self, sql: str, params: tuple[object, ...] = ()):
+        if self.placeholder != "?":
+            sql = sql.replace("?", self.placeholder)
+        return self.connection.execute(sql, params)
+
+    def _commit(self) -> None:
+        if self._commit_enabled:
+            self.connection.commit()
 
     def initialize(self) -> None:
         self.connection.executescript(
@@ -202,7 +219,7 @@ class EnterpriseWorkbenchStore:
             );
             """
         )
-        self.connection.commit()
+        self._commit()
 
     def seed_preview_fixtures(self, tenant_id: str, users: Sequence[Mapping[str, object]]) -> None:
         """Seed static access catalogue and identity rows once.
@@ -211,7 +228,7 @@ class EnterpriseWorkbenchStore:
         Tasks, approvals, workflows, invitations and grants stay empty so the
         operator exercises real writes rather than reading sample work items.
         """
-        existing = self.connection.execute(
+        existing = self._execute(
             "SELECT COUNT(*) FROM enterprise_records WHERE tenant_id=?",
             (tenant_id,),
         ).fetchone()
@@ -266,14 +283,15 @@ class EnterpriseWorkbenchStore:
             )
         )
         for kind, record_id, _label, payload in rows:
-            self.connection.execute(
-                "INSERT OR IGNORE INTO enterprise_records "
+            self._execute(
+                "INSERT INTO enterprise_records "
                 "(tenant_id, kind, record_id, revision, payload_json, created_at, updated_at, created_by_user_id) "
-                "VALUES (?,?,?,?,?,?,?,?)",
+                "VALUES (?,?,?,?,?,?,?,?) "
+                "ON CONFLICT (tenant_id, kind, record_id) DO NOTHING",
                 (tenant_id, kind, record_id, 1, json.dumps(payload, sort_keys=True, ensure_ascii=False), now, None, actor),
             )
         self._audit(tenant_id, actor, "seed", "organizations", tenant_id, detail={"demo": True})
-        self.connection.commit()
+        self._commit()
 
     # -- helpers ---------------------------------------------------------
     @staticmethod
@@ -293,7 +311,7 @@ class EnterpriseWorkbenchStore:
         decision: str = "allowed",
         detail: Mapping[str, object] | None = None,
     ) -> None:
-        self.connection.execute(
+        self._execute(
             "INSERT INTO enterprise_audit "
             "(tenant_id, event_id, actor_id, action, target_kind, target_id, decision, occurred_at, detail_json) "
             "VALUES (?,?,?,?,?,?,?,?,?)",
@@ -324,7 +342,7 @@ class EnterpriseWorkbenchStore:
         return payload
 
     def get(self, tenant_id: str, kind: str, record_id: str, *, include_deleted: bool = False) -> dict[str, object]:
-        row = self.connection.execute(
+        row = self._execute(
             "SELECT tenant_id, kind, record_id, revision, payload_json, created_at, updated_at, "
             "created_by_user_id, deleted_at FROM enterprise_records "
             "WHERE tenant_id=? AND kind=? AND record_id=?",
@@ -351,7 +369,7 @@ class EnterpriseWorkbenchStore:
         params: list[object] = [tenant_id, kind]
         if not include_deleted:
             clauses.append("deleted_at IS NULL")
-        rows = self.connection.execute(
+        rows = self._execute(
             "SELECT tenant_id, kind, record_id, revision, payload_json, created_at, updated_at, "
             "created_by_user_id, deleted_at FROM enterprise_records WHERE "
             + " AND ".join(clauses)
@@ -383,7 +401,7 @@ class EnterpriseWorkbenchStore:
     ) -> dict[str, object]:
         fingerprint = self._fingerprint(payload, kind)
         if idempotency_key:
-            existing = self.connection.execute(
+            existing = self._execute(
                 "SELECT record_id, fingerprint FROM enterprise_idempotency "
                 "WHERE tenant_id=? AND operation=? AND idempotency_key=?",
                 (tenant_id, kind, idempotency_key),
@@ -395,20 +413,20 @@ class EnterpriseWorkbenchStore:
         record_id = f"{_ID_PREFIX[kind]}-{uuid4().hex}"
         now = _iso(_now())
         stored = {**payload, "status": payload.get("status", "active")}
-        self.connection.execute(
+        self._execute(
             "INSERT INTO enterprise_records "
             "(tenant_id, kind, record_id, revision, payload_json, created_at, updated_at, created_by_user_id) "
             "VALUES (?,?,?,?,?,?,?,?)",
             (tenant_id, kind, record_id, 1, json.dumps(stored, sort_keys=True, ensure_ascii=False), now, None, actor_id),
         )
         if idempotency_key:
-            self.connection.execute(
+            self._execute(
                 "INSERT INTO enterprise_idempotency (tenant_id, operation, idempotency_key, record_id, fingerprint) "
                 "VALUES (?,?,?,?,?)",
                 (tenant_id, kind, idempotency_key, record_id, fingerprint),
             )
         self._audit(tenant_id, actor_id, "create", kind, record_id, detail={"revision": 1})
-        self.connection.commit()
+        self._commit()
         return self.get(tenant_id, kind, record_id)
 
     def ensure_record(
@@ -429,7 +447,7 @@ class EnterpriseWorkbenchStore:
         """
         if kind not in _KINDS:
             raise EnterpriseApiError(404, "UNKNOWN_KIND")
-        existing = self.connection.execute(
+        existing = self._execute(
             "SELECT 1 FROM enterprise_records WHERE tenant_id=? AND kind=? AND record_id=?",
             (tenant_id, kind, record_id),
         ).fetchone()
@@ -437,7 +455,7 @@ class EnterpriseWorkbenchStore:
             return False
         now = _iso(_now())
         stored = {**payload, "status": payload.get("status", "active")}
-        self.connection.execute(
+        self._execute(
             "INSERT INTO enterprise_records "
             "(tenant_id, kind, record_id, revision, payload_json, created_at, updated_at, created_by_user_id) "
             "VALUES (?,?,?,?,?,?,?,?)",
@@ -453,7 +471,7 @@ class EnterpriseWorkbenchStore:
             ),
         )
         self._audit(tenant_id, actor_id, "import", kind, record_id, detail={"revision": 1})
-        self.connection.commit()
+        self._commit()
         return True
 
     def update(
@@ -480,7 +498,7 @@ class EnterpriseWorkbenchStore:
         merged.update(payload)
         merged["status"] = payload.get("status", str(current.get("status", "active")))
         now = _iso(_now())
-        self.connection.execute(
+        self._execute(
             "UPDATE enterprise_records SET revision=?, payload_json=?, updated_at=? "
             "WHERE tenant_id=? AND kind=? AND record_id=? AND revision=?",
             (
@@ -494,7 +512,7 @@ class EnterpriseWorkbenchStore:
             ),
         )
         self._audit(tenant_id, actor_id, "update", kind, record_id, detail={"revision": expected_revision + 1})
-        self.connection.commit()
+        self._commit()
         return self.get(tenant_id, kind, record_id, include_deleted=True)
 
     def delete(
@@ -504,13 +522,13 @@ class EnterpriseWorkbenchStore:
         if int(current["revision"]) != expected_revision:
             raise EnterpriseApiError(409, "REVISION_CONFLICT")
         now = _iso(_now())
-        self.connection.execute(
+        self._execute(
             "UPDATE enterprise_records SET revision=?, deleted_at=?, updated_at=? "
             "WHERE tenant_id=? AND kind=? AND record_id=? AND revision=?",
             (expected_revision + 1, now, now, tenant_id, kind, record_id, expected_revision),
         )
         self._audit(tenant_id, actor_id, "delete", kind, record_id, detail={"revision": expected_revision + 1})
-        self.connection.commit()
+        self._commit()
         return self.get(tenant_id, kind, record_id, include_deleted=True)
 
     def restore(
@@ -522,17 +540,17 @@ class EnterpriseWorkbenchStore:
         if int(current["revision"]) != expected_revision:
             raise EnterpriseApiError(409, "REVISION_CONFLICT")
         now = _iso(_now())
-        self.connection.execute(
+        self._execute(
             "UPDATE enterprise_records SET revision=?, deleted_at=NULL, updated_at=? "
             "WHERE tenant_id=? AND kind=? AND record_id=? AND revision=?",
             (expected_revision + 1, now, tenant_id, kind, record_id, expected_revision),
         )
         self._audit(tenant_id, actor_id, "restore", kind, record_id, detail={"revision": expected_revision + 1})
-        self.connection.commit()
+        self._commit()
         return self.get(tenant_id, kind, record_id)
 
     def audit(self, tenant_id: str, limit: int = 200) -> tuple[dict[str, object], ...]:
-        rows = self.connection.execute(
+        rows = self._execute(
             "SELECT event_id, actor_id, action, target_kind, target_id, decision, occurred_at, detail_json "
             "FROM enterprise_audit WHERE tenant_id=? ORDER BY occurred_at DESC LIMIT ?",
             (tenant_id, max(1, min(limit, 500))),
@@ -574,7 +592,7 @@ class EnterpriseWorkbenchStore:
                 ensure_ascii=False,
             ).encode("utf-8")
         ).hexdigest()
-        existing = self.connection.execute(
+        existing = self._execute(
             "SELECT record_id, fingerprint FROM enterprise_idempotency "
             "WHERE tenant_id=? AND operation=? AND idempotency_key=?",
             (tenant_id, f"approval-decision:{approval_id}", idempotency_key),
@@ -587,13 +605,13 @@ class EnterpriseWorkbenchStore:
             raise EnterpriseApiError(409, "STALE_REVISION")
         decision_id = f"dsc-{uuid4().hex}"
         now = _iso(_now())
-        self.connection.execute(
+        self._execute(
             "INSERT INTO enterprise_approval_decisions "
             "(tenant_id, approval_id, decision_id, expected_revision, decision, comment, actor_id, occurred_at) "
             "VALUES (?,?,?,?,?,?,?,?)",
             (tenant_id, approval_id, decision_id, expected, decision, payload.get("comment"), actor_id, now),
         )
-        self.connection.execute(
+        self._execute(
             "INSERT INTO enterprise_idempotency (tenant_id, operation, idempotency_key, record_id, fingerprint) "
             "VALUES (?,?,?,?,?)",
             (tenant_id, f"approval-decision:{approval_id}", idempotency_key, decision_id, fingerprint),
@@ -605,7 +623,7 @@ class EnterpriseWorkbenchStore:
             if key not in {"tenant_id", "kind", "record_id", "revision", "created_at", "updated_at", "created_by_user_id", "deleted_at"}
         }
         merged["status"] = next_status
-        self.connection.execute(
+        self._execute(
             "UPDATE enterprise_records SET revision=?, payload_json=?, updated_at=? "
             "WHERE tenant_id=? AND kind=? AND record_id=? AND revision=?",
             (
@@ -619,11 +637,11 @@ class EnterpriseWorkbenchStore:
             ),
         )
         self._audit(tenant_id, actor_id, "decision", "approvals", approval_id, detail={"decision": decision, "revision": expected + 1})
-        self.connection.commit()
+        self._commit()
         return self._decision(tenant_id, approval_id, decision_id)
 
     def _decision(self, tenant_id: str, approval_id: str, decision_id: str) -> dict[str, object]:
-        row = self.connection.execute(
+        row = self._execute(
             "SELECT decision_id, expected_revision, decision, comment, actor_id, occurred_at "
             "FROM enterprise_approval_decisions WHERE tenant_id=? AND approval_id=? AND decision_id=?",
             (tenant_id, approval_id, decision_id),
@@ -641,7 +659,7 @@ class EnterpriseWorkbenchStore:
         }
 
     def decisions(self, tenant_id: str, approval_id: str) -> tuple[dict[str, object], ...]:
-        rows = self.connection.execute(
+        rows = self._execute(
             "SELECT decision_id FROM enterprise_approval_decisions WHERE tenant_id=? AND approval_id=? "
             "ORDER BY occurred_at DESC",
             (tenant_id, approval_id),
@@ -667,7 +685,7 @@ class EnterpriseWorkbenchStore:
         }
         merged.update({"steps": steps, "transitions": transitions, "status": "published", "published_version": version})
         now = _iso(_now())
-        self.connection.execute(
+        self._execute(
             "UPDATE enterprise_records SET revision=?, payload_json=?, updated_at=? "
             "WHERE tenant_id=? AND kind=? AND record_id=? AND revision=?",
             (
@@ -681,8 +699,69 @@ class EnterpriseWorkbenchStore:
             ),
         )
         self._audit(tenant_id, actor_id, "publish", "workflows", workflow_id, detail={"version": version, "revision": expected_revision + 1})
-        self.connection.commit()
+        self._commit()
         return self.get(tenant_id, "workflows", workflow_id)
+
+
+class PostgresEnterpriseWorkbenchStore(EnterpriseWorkbenchStore):
+    """Durable Enterprise register over PostgreSQL.
+
+    Same rows, revisions and audit trail as the preview store. The caller owns
+    the transaction (the request or the importer), so this class never commits.
+    """
+
+    placeholder = "%s"
+    _commit_enabled = False
+
+    def initialize(self) -> None:
+        for statement in (
+            """CREATE TABLE IF NOT EXISTS enterprise_records (
+                tenant_id TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                record_id TEXT NOT NULL,
+                revision BIGINT NOT NULL,
+                payload_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT,
+                created_by_user_id TEXT NOT NULL,
+                deleted_at TEXT,
+                PRIMARY KEY (tenant_id, kind, record_id)
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_enterprise_records_kind "
+            "ON enterprise_records (tenant_id, kind, created_at DESC)",
+            """CREATE TABLE IF NOT EXISTS enterprise_idempotency (
+                tenant_id TEXT NOT NULL,
+                operation TEXT NOT NULL,
+                idempotency_key TEXT NOT NULL,
+                record_id TEXT NOT NULL,
+                fingerprint TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, operation, idempotency_key)
+            )""",
+            """CREATE TABLE IF NOT EXISTS enterprise_audit (
+                tenant_id TEXT NOT NULL,
+                event_id TEXT NOT NULL,
+                actor_id TEXT NOT NULL,
+                action TEXT NOT NULL,
+                target_kind TEXT NOT NULL,
+                target_id TEXT NOT NULL,
+                decision TEXT NOT NULL,
+                occurred_at TEXT NOT NULL,
+                detail_json TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, event_id)
+            )""",
+            """CREATE TABLE IF NOT EXISTS enterprise_approval_decisions (
+                tenant_id TEXT NOT NULL,
+                approval_id TEXT NOT NULL,
+                decision_id TEXT NOT NULL,
+                expected_revision BIGINT NOT NULL,
+                decision TEXT NOT NULL,
+                comment TEXT,
+                actor_id TEXT NOT NULL,
+                occurred_at TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, approval_id, decision_id)
+            )""",
+        ):
+            self.connection.execute(statement)
 
 
 def _validate_workflow(steps: object, transitions: object) -> list[str]:

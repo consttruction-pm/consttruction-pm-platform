@@ -122,8 +122,8 @@ commits; a failure aborts the whole bootstrap and records nothing.
 - Checksum or structural drift is reported; readiness exposes
   `schema.version`, `schema.tables` and `schema.drift`. The default policy is
   `report`; `fail` stops readiness once a fingerprint mismatch is confirmed.
-- On a fresh empty schema the result is 12 steps and 58 tables; readiness then
-  reports `{"version":12,"tables":58,"drift":null}`.
+- On a fresh empty schema the result is 15 steps and 94 tables; readiness then
+  reports `{"version":15,"tables":94,"drift":null}`.
 
 Run it explicitly with `python scripts/provision_workspace.py init`. The exact
 Supabase/Vercel procedure, including DSN shape, backup and count checks, is in

@@ -78,6 +78,23 @@ def _scope_headers(project_id: str, revision: int = 1) -> dict[str, str]:
     }
 
 
+def test_newcomer_sees_the_three_shared_projects_without_memberships(runtime) -> None:
+    newcomer = runtime.sessions.create(DEMO_USERS_BY_ROLE["newcomer"])
+    membership = runtime.store.connection.execute(
+        "SELECT count(*) FROM preview_project_member WHERE user_id=?",
+        (newcomer.user_id,),
+    ).fetchone()[0]
+    assert membership == 0
+
+    status, body = _request(
+        runtime.app, "GET", "/api/projects", cookie=newcomer.session_id
+    )
+    assert status == 200, body[:300]
+    projects = json.loads(body)["projects"]
+    assert {row["project_id"] for row in projects} == set(REFERENCE_PROJECTS)
+    assert all(row["revision"] == 1 for row in projects)
+
+
 @pytest.mark.parametrize("project_id", REFERENCE_PROJECTS)
 def test_each_reference_project_answers_engineering_reads(runtime, project_id) -> None:
     session = _session(runtime)
