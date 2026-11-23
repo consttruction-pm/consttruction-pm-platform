@@ -7,7 +7,7 @@
 
 ## Product contract
 
-Create `CUBI-DAM-001` — Large Reservoir Dam and Hydropower Development — as a large, synthetic EPC planning project. It is a shared read-only reference for every authenticated user until the product owner changes that rule. Authorized project administrators may later be allowed to edit it, but ordinary users must not receive write privileges merely because they can see it.
+Create `CUBI-DAM-001` — Large Reservoir Dam and Hydropower Development — as a large, synthetic EPC planning project. TEMPORARY PROJECT-SCOPED EXCEPTION: display and read access to this project must not depend on the user's project role, team membership or project assignment. Every signed-in user must be able to find and open it from the relevant Engineering panels so all pages can be tested. This is not a global authentication/authorization bypass: keep login, tenant boundaries, environment permissions, admin controls and all other projects' role checks unchanged. For this shared reference dataset, keep destructive writes and edits guarded against accidental corruption unless a separate explicit test-write mode is implemented.
 
 All Engineering pages under test must read the same canonical project/revision data from PostgreSQL. No page-local fixtures, duplicated project records, Excel source retention, or hardcoded CPM results. Keep `CUBI-REF-001/002/003` immutable.
 
@@ -72,7 +72,7 @@ Read-only checks against canonical Supabase project `pbgosszuzemljgoccppk`:
 
 1. Complete P0 project wizard and authenticated application-service path.
 2. Inventory every repository initializer and reconcile missing live tables through reviewed additive migration(s); include resource, calendar, assignment, capacity/rate, baseline, activity actuals, OBS and schedule run/snapshot dependencies.
-3. Define shared-reference visibility as a narrowly scoped server-side read rule; ordinary users remain read-only. Do not create mass membership rows.
+3. Implement a narrowly scoped project-ID-based shared visibility rule for `CUBI-DAM-001`: every authenticated user can list/open/read it in all relevant Engineering panels regardless of project role or membership. Do not create mass membership rows. This exception must not change role enforcement for other projects or bypass authentication/tenant/environment gates. Keep the reference dataset protected from accidental destructive writes.
 4. Design RLS policies for the exposed schema, test existing login, Personal Workbench-first, environment selector, Engineering/Enterprise switching, admin dashboard and all existing user permissions.
 5. Build deterministic generator in code; validate WBS/activities/relationships/resources/assignments/calendars before persistence. Persist via canonical repositories/application services in one transaction and invoke shared schedule engine.
 6. Run API, Postgres, browser and regression checks using disposable identities/projects. Verify all pages read the same project revision and reference projects remain unchanged.
