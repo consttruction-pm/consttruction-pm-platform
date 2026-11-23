@@ -138,3 +138,14 @@ CREATE TABLE IF NOT EXISTS project_lifecycle_defaults_event (
 
 CREATE INDEX IF NOT EXISTS idx_project_lifecycle_defaults_event
     ON project_lifecycle_defaults_event (tenant_id, project_id, recorded_at);
+
+-- Registry of shared reference projects. The project list/get queries union this
+-- table in, so it must exist wherever this schema is applied.
+CREATE TABLE IF NOT EXISTS cubi_reference_project (
+    tenant_id TEXT NOT NULL,
+    project_id TEXT NOT NULL,
+    source_sha256 TEXT NOT NULL,
+    project_revision BIGINT NOT NULL,
+    registered_at TEXT NOT NULL,
+    PRIMARY KEY (tenant_id, project_id)
+);

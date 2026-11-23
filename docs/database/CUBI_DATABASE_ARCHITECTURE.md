@@ -60,7 +60,7 @@ drift (`CUBI_SCHEMA_DRIFT_POLICY=report|fail`).
 | 2 | `global-administration` | `global_admin_audit` |
 | 3 | `enterprise-tasks` | `enterprise_tasks`, `enterprise_teams`, `enterprise_team_memberships`, `enterprise_task_dependencies`, `enterprise_task_idempotency`, `enterprise_task_audit` |
 | 4 | `enterprise-organization-access` | `enterprise_access_audit` |
-| 5 | `project-lifecycle` | `project_lifecycle_projects`, `project_lifecycle_memberships`, `project_lifecycle_status_event`, `project_lifecycle_defaults_event`, `project_org_binding`, `eps_node` |
+| 5 | `project-lifecycle` | `project_lifecycle_projects`, `project_lifecycle_memberships`, `project_lifecycle_status_event`, `project_lifecycle_defaults_event`, `project_org_binding`, `eps_node`, `cubi_reference_project` |
 | 6 | `engineering-masters` | `activity_master`, `activity_wbs_assignment`, `wbs_master`, `wbs_milestone`, `relationship_master`, `p6_cost_account`, `p6_obs_node` |
 | 7 | `presentation` | `p6_field_registry`, `p6_layout_definition_revisions`, `p6_user_defined_fields`, `p6_user_defined_field_values` |
 | 8 | `scheduling-state` | `schedule_input_snapshot`, `schedule_calculation_context`, `project_schedule_settings` |

@@ -249,7 +249,7 @@ PRODUCTION_STEPS: tuple[MigrationStep, ...] = (
         4, "enterprise-organization-access", 1,
         _initialize_enterprise_organization_access,
     ),
-    MigrationStep(5, "project-lifecycle", 1, _initialize_project_lifecycle),
+    MigrationStep(5, "project-lifecycle", 2, _initialize_project_lifecycle),
     MigrationStep(6, "engineering-masters", 1, _initialize_engineering_masters),
     MigrationStep(7, "presentation", 1, _initialize_presentation),
     MigrationStep(8, "scheduling-state", 1, _initialize_scheduling_state),
