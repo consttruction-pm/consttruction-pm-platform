@@ -700,7 +700,10 @@ class PreviewStore:
             "WHERE p.tenant_id=? AND (EXISTS ("
             "SELECT 1 FROM preview_project_member m "
             "WHERE m.tenant_id=p.tenant_id AND m.project_id=p.project_id AND m.user_id=?) "
-            ") "
+            "OR EXISTS ("
+            "SELECT 1 FROM cubi_reference_project r "
+            "WHERE r.tenant_id=p.tenant_id AND r.project_id=p.project_id "
+            "AND r.project_id <> 'CUBI-DAM-001')) "
             "ORDER BY p.name COLLATE NOCASE, p.project_id",
             (tenant_id, user_id),
         ).fetchall()
@@ -717,7 +720,7 @@ class PreviewStore:
             "p.increment_activity_id, p.checkout_state, "
             "p.checked_out_by, p.checked_out_at, p.default_duration_type, "
             "p.default_cost_account_id, p.obs_id "
-            "FROM preview_project p WHERE p.tenant_id=? AND EXISTS ("
+            "FROM preview_project p WHERE p.tenant_id=? AND p.project_id='CUBI-DAM-001' AND EXISTS ("
             "SELECT 1 FROM cubi_reference_project r "
             "WHERE r.tenant_id=p.tenant_id AND r.project_id=p.project_id) "
             "ORDER BY p.name COLLATE NOCASE, p.project_id",
@@ -727,7 +730,7 @@ class PreviewStore:
 
     def is_shared_reference_project(self, tenant_id: str, project_id: str) -> bool:
         row = self.connection.execute(
-            "SELECT 1 FROM cubi_reference_project WHERE tenant_id=? AND project_id=?",
+            "SELECT 1 FROM cubi_reference_project WHERE tenant_id=? AND project_id=? AND project_id='CUBI-DAM-001'",
             (tenant_id, project_id),
         ).fetchone()
         return row is not None
