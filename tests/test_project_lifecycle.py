@@ -307,7 +307,7 @@ def test_shared_build_project_is_separate_from_personal_register_and_read_only_w
     )
     service = make_service(session, projects=projects)
 
-    assert [p.project_id for p in service.list_projects("session-a", now=now)] == ["project-a"]
+    assert service.list_projects("session-a", now=now) == ()
     shared = service.list_shared_reference_projects("session-a", now=now)
     assert [p.project_id for p in shared] == ["CUBI-DAM-001"]
     context = service.open_project("session-a", "CUBI-DAM-001", now=now)
