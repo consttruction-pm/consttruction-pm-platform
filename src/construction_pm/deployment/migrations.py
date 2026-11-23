@@ -246,8 +246,7 @@ def _harden_public_data_api(connection: Any) -> None:
 
     The browser does not use Supabase's direct table API. Only the CUBI server
     connection (postgres/service_role) may access these tables. Restrictive
-    policies are installed for the Supabase client roles so a future permissive
-    policy cannot accidentally reopen a table.
+    policies prevent a future permissive policy from reopening direct access.
     """
     existing_roles = {
         str(row[0])
@@ -264,11 +263,11 @@ def _harden_public_data_api(connection: Any) -> None:
             f"REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM {role}"
         )
 
-    role_sql = ", ".join(client_roles)
-    if role_sql:
+    if client_roles:
+        role_sql = ", ".join(client_roles)
         connection.execute(
-            """
-            DO $
+            f"""
+            DO $cubi$
             DECLARE item record;
             BEGIN
               FOR item IN
@@ -287,12 +286,13 @@ def _harden_public_data_api(connection: Any) -> None:
                     'CREATE POLICY cubi_block_direct_api_clients ON %s '
                     'AS RESTRICTIVE FOR ALL TO %s USING (false) WITH CHECK (false)',
                     item.table_name,
-                    %s
+                    '{role_sql}'
                   );
                 END IF;
               END LOOP;
-            END $
-            """ % ("'" + role_sql.replace("'", "''") + "'")
+            END
+            $cubi$;
+            """
         )
         current = connection.execute("SELECT current_user").fetchone()
         if current and str(current[0]) == "postgres":
@@ -316,7 +316,7 @@ def _harden_public_data_api(connection: Any) -> None:
     else:
         connection.execute(
             """
-            DO $
+            DO $cubi$
             DECLARE item record;
             BEGIN
               FOR item IN
@@ -327,10 +327,10 @@ def _harden_public_data_api(connection: Any) -> None:
               LOOP
                 EXECUTE format('ALTER TABLE %s ENABLE ROW LEVEL SECURITY', item.table_name);
               END LOOP;
-            END $
+            END
+            $cubi$;
             """
         )
-
 
 PRODUCTION_STEPS: tuple[MigrationStep, ...] = (
     MigrationStep(1, "identity", 1, _initialize_identity),
