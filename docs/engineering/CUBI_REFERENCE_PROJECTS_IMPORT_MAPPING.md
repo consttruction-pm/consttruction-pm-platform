@@ -12,8 +12,10 @@ imported. The machine-readable inventory — one row per sheet with counts,
 columns, primary key, foreign keys, disposition and target — is
 [`CUBI_REFERENCE_PROJECTS_SHEET_INVENTORY.csv`](CUBI_REFERENCE_PROJECTS_SHEET_INVENTORY.csv).
 
-Nothing in this document writes to a database. Persistence happens later through
-the canonical Engineering and Enterprise services only.
+Nothing in this document writes to a database. Persistence happens through the
+canonical Engineering and Enterprise services only, driven by one importer with
+a SQLite adapter for the preview and a PostgreSQL adapter for production
+(see section 13).
 
 ## 1. Ground rules
 
@@ -475,3 +477,39 @@ node apps/web/e2e/preview-e2e.mjs      # local full-stack browser E2E
 - Enterprise portlet/indicator/EVM routes remain a preview-runtime stub (503).
 - Committed baseline dates on Sundays are a source property; the measurement
   calendar that makes EVM possible is documented in D7 and does not alter CPM.
+
+## 13. Durable registration in PostgreSQL
+
+The same frozen bundle (`sha256 0848454d…`, contract
+`cubi-reference-import-bundle.v1`) is registered as real tenant data in the
+operational database; it is not a per-page fixture.
+
+| Concern | Implementation |
+| --- | --- |
+| Entry point | `scripts/import_reference_projects.py --tenant <tenant-id>` (adds migrations 14/15 first) |
+| Import logic | `construction_pm.importing.reference_persistence.ensure_reference_projects` |
+| PostgreSQL adapter | `construction_pm.importing.reference_postgres.ensure_reference_projects_postgres` |
+| Journal | `cubi_reference_import` (bundle hash, revision, per-domain counts), `cubi_reference_schedule_run` (engine manifest), `cubi_reference_project` (shared-visibility registry) |
+| Engineering storage | `project_lifecycle_projects`, `wbs_master`, `activity_master`, `activity_wbs_assignment`, `relationship_master`, `constraint_master`, `calendar_*`, `p6_resource_*`, `p6_baseline*`, `p6_activity_period_actual`, `project_budget_*`, `project_schedule_settings`, `schedule_input_snapshot`, `schedule_calculation_context` |
+| Enterprise storage | `project_risk`, `p6_issue`, `project_documents`, `enterprise_records` (contracts, procurement, milestones, approvals, teams, responsibilities, timesheets…), `enterprise_tasks` |
+| Idempotency | Existing project → skip, re-register in `cubi_reference_project`, no row rewrite. Second run: 0 new rows. |
+| Visibility | `cubi_reference_project` is unioned into the project list/get queries, so every authenticated user of the tenant sees the three projects with **zero** `project_lifecycle_memberships` rows. Writes still follow `RoleBasedAuthorizationPolicy`. |
+| Calculated values | Never imported. CPM/float/critical path are produced by `evaluate_schedule_snapshot`; the manifest records engine/rules version and an output hash. EVM is read from the canonical read model. |
+
+Local PostgreSQL 14 evidence (fresh database, then re-run):
+
+| Project | Activities | WBS | Risks | Documents | Issues | Tasks | Import status |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| CUBI-REF-001 | 180 | 129 | 15 | 15 | 8 | 12 | `COMPLETE`, missing `{}` |
+| CUBI-REF-002 | 180 | 129 | 15 | 15 | 8 | 12 | `COMPLETE`, missing `{}` |
+| CUBI-REF-003 | 180 | 145 | 15 | 15 | 8 | 12 | `COMPLETE`, missing `{}` |
+
+Explicit unmappable report (returned by every import, also printed by the CLI):
+
+| Bundle register | Handling |
+| --- | --- |
+| `commitments` (8/project) | No canonical commitment entity exists. Reported as `unsupported`; not forced into budget or procurement rows. |
+| `actual_costs` (8/project) | The authoritative cost facts are the per-activity actuals and expenses, imported into `p6_activity_period_actual` and `p6_expense`; the standalone summary register is reported as `unsupported`. |
+| `cost_periods` (23/project) | The cost calendar is imported into `p6_financial_period` and drives schedule settings; the standalone register is reported as `unsupported`. |
+| `timesheets` (10/project) | Kept with `resource_id` / week-ending hours; no `user_id` is invented. |
+| `document_register` | Register identity and revision hash only; no binary content is claimed. |

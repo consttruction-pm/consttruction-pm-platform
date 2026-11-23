@@ -106,13 +106,13 @@ curl -sS "https://<preview-host>/api/health/live"
 
 curl -sS "https://<preview-host>/api/health/ready"
 # 200 {"status":"ready","components":[{"name":"database","healthy":true}],
-#      "schema":{"version":12,"tables":58,"drift":null}}
+#      "schema":{"version":15,"tables":94,"drift":null}}
 ```
 
 The runtime applies pending migrations on first request through
 `initialize_production_schema`, records them in `cubi_schema_migration`, and
 reports the ledger version and table count in readiness. A first cold start on
-an empty schema applies 12 steps and creates 58 tables. Re-running applies
+an empty schema applies 15 steps and creates 94 tables. Re-running applies
 zero steps.
 
 If readiness returns `503 not_ready` with `database` unhealthy, the DSN, TLS

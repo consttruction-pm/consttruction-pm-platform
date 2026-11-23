@@ -114,6 +114,19 @@ PROJECT_LIFECYCLE_SCHEMA_STATEMENTS = (
         PRIMARY KEY (tenant_id, project_id, user_id)
     )
     """,
+    # Registry of shared reference projects. The project list/get queries
+    # union this table in, so it must exist wherever the lifecycle schema is
+    # created, not only after the reference-engineering migration runs.
+    """
+    CREATE TABLE IF NOT EXISTS cubi_reference_project (
+        tenant_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        source_sha256 TEXT NOT NULL,
+        project_revision BIGINT NOT NULL,
+        registered_at TEXT NOT NULL,
+        PRIMARY KEY (tenant_id, project_id)
+    )
+    """,
     """
     CREATE TABLE IF NOT EXISTS project_lifecycle_status_event (
         tenant_id TEXT NOT NULL,
@@ -208,8 +221,12 @@ class PostgresProjectRepository(ProjectRepository):
     def list_for_user(self, tenant_id: str, user_id: str) -> tuple[ProjectSummary, ...]:
         rows = self._connection.execute(
             self._SELECT
-            + "JOIN project_lifecycle_memberships m ON m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
-            "WHERE p.tenant_id=%s AND m.user_id=%s ORDER BY p.project_id",
+            + "LEFT JOIN project_lifecycle_memberships m "
+            "ON m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
+            "WHERE p.tenant_id=%s AND (m.user_id=%s OR EXISTS ("
+            "SELECT 1 FROM cubi_reference_project r "
+            "WHERE r.tenant_id=p.tenant_id AND r.project_id=p.project_id)) "
+            "ORDER BY p.project_id",
             (tenant_id, user_id),
         ).fetchall()
         return tuple(_summary(r) for r in rows)
@@ -217,8 +234,11 @@ class PostgresProjectRepository(ProjectRepository):
     def get_for_user(self, tenant_id: str, project_id: str, user_id: str) -> ProjectSummary | None:
         row = self._connection.execute(
             self._SELECT
-            + "JOIN project_lifecycle_memberships m ON m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
-            "WHERE p.tenant_id=%s AND p.project_id=%s AND m.user_id=%s",
+            + "LEFT JOIN project_lifecycle_memberships m "
+            "ON m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
+            "WHERE p.tenant_id=%s AND p.project_id=%s AND (m.user_id=%s OR EXISTS ("
+            "SELECT 1 FROM cubi_reference_project r "
+            "WHERE r.tenant_id=p.tenant_id AND r.project_id=p.project_id))",
             (tenant_id, project_id, user_id),
         ).fetchone()
         return None if row is None else _summary(row)

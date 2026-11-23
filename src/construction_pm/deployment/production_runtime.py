@@ -600,10 +600,25 @@ class ProductionRuntime:
                 report = initialize_production_schema(connection)
                 # Commit schema DDL before the pool releases and rolls back the connection.
                 connection.commit()
+                reference_tenant = os.environ.get("CUBI_REFERENCE_TENANT", "").strip()
+                if reference_tenant:
+                    # Register the frozen reference projects as durable shared
+                    # tenant data. The importer is idempotent and serialized by
+                    # a transaction-scoped advisory lock, so warm instances
+                    # racing the first request cannot double-import.
+                    from ..importing.reference_postgres import (
+                        ensure_reference_projects_postgres,
+                    )
+
+                    ensure_reference_projects_postgres(
+                        connection,
+                        tenant_id=reference_tenant,
+                        initialize_schema=False,
+                    )
             except Exception as error:
                 self.pool.release(connection, healthy=False)
                 print(
-                    f"cubi: schema migration failed ({type(error).__name__}:{getattr(error, 'code', '')})",
+                    f"cubi: database initialization failed ({type(error).__name__}:{getattr(error, 'code', '')})",
                     file=sys.stderr,
                 )
                 raise

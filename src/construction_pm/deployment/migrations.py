@@ -225,6 +225,22 @@ def _initialize_username_identity(connection: Any) -> None:
     )
 
 
+def _initialize_reference_engineering(connection: Any) -> None:
+    from ..importing.reference_postgres import (
+        initialize_reference_engineering_schema,
+    )
+
+    initialize_reference_engineering_schema(connection)
+
+
+def _initialize_reference_enterprise(connection: Any) -> None:
+    from ..importing.reference_postgres import (
+        initialize_reference_enterprise_schema,
+    )
+
+    initialize_reference_enterprise_schema(connection)
+
+
 PRODUCTION_STEPS: tuple[MigrationStep, ...] = (
     MigrationStep(1, "identity", 1, _initialize_identity),
     MigrationStep(2, "global-administration", 1, _initialize_global_administration),
@@ -233,7 +249,7 @@ PRODUCTION_STEPS: tuple[MigrationStep, ...] = (
         4, "enterprise-organization-access", 1,
         _initialize_enterprise_organization_access,
     ),
-    MigrationStep(5, "project-lifecycle", 1, _initialize_project_lifecycle),
+    MigrationStep(5, "project-lifecycle", 2, _initialize_project_lifecycle),
     MigrationStep(6, "engineering-masters", 1, _initialize_engineering_masters),
     MigrationStep(7, "presentation", 1, _initialize_presentation),
     MigrationStep(8, "scheduling-state", 1, _initialize_scheduling_state),
@@ -242,6 +258,8 @@ PRODUCTION_STEPS: tuple[MigrationStep, ...] = (
     MigrationStep(11, "knowledge-assistant", 1, _initialize_knowledge),
     MigrationStep(12, "ai-action-runtime", 1, _initialize_ai_actions),
     MigrationStep(13, "username-identity-and-password-reset", 1, _initialize_username_identity),
+    MigrationStep(14, "reference-engineering", 1, _initialize_reference_engineering),
+    MigrationStep(15, "reference-enterprise", 1, _initialize_reference_enterprise),
 )
 
 

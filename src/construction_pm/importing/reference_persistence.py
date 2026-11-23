@@ -248,8 +248,13 @@ def ensure_reference_projects(
     rules_version: str = REFERENCE_RULES_VERSION,
     engine_version: str = REFERENCE_ENGINE_VERSION,
     progress: Callable[[str], None] | None = None,
+    journal: object | None = None,
 ) -> tuple[PersistedReferenceProject, ...]:
-    """Idempotently persist every project in the bundle and run the engine."""
+    """Idempotently persist every project in the bundle and run the engine.
+
+    ``journal`` is the dialect boundary: the preview passes a SQLite journal,
+    production passes the PostgreSQL one. The import logic is identical.
+    """
 
     payload = dict(bundle) if bundle is not None else load_bundle()
     if payload.get("contract") != BUNDLE_CONTRACT:
@@ -259,11 +264,21 @@ def ensure_reference_projects(
         raise ReferencePersistenceError("REFERENCE_BUNDLE_EMPTY")
     source = payload.get("source")
     source_sha = str(source.get("sha256") or "") if isinstance(source, Mapping) else ""
-    connection = _connection_of(repositories)
-    _initialize_run_tables(connection)
+    if journal is None:
+        from .reference_journal import SQLiteReferenceJournal
+
+        journal = SQLiteReferenceJournal(_connection_of(repositories))
+    journal.prepare()
     results: list[PersistedReferenceProject] = []
     for project_id in sorted(projects):
         if store.project_exists(tenant_id, project_id):
+            journal.register_reference(
+                tenant_id,
+                project_id,
+                source_sha,
+                _revision(projects[project_id]),
+            )
+            journal.commit()
             if progress is not None:
                 progress(f"{project_id}: already present, skipped")
             continue
@@ -273,6 +288,7 @@ def ensure_reference_projects(
             _persist_project(
                 repositories,
                 store,
+                journal=journal,
                 tenant_id=tenant_id,
                 project_id=project_id,
                 entry=projects[project_id],
@@ -284,13 +300,19 @@ def ensure_reference_projects(
                 source_sha256=source_sha,
             )
         )
+        journal.register_reference(
+            tenant_id, project_id, source_sha, _revision(projects[project_id])
+        )
+        journal.commit()
     return tuple(results)
 
 
 def read_run_manifests(
     connection: sqlite3.Connection, tenant_id: str, project_id: str
 ) -> tuple[dict[str, object], ...]:
-    _initialize_run_tables(connection)
+    from .reference_journal import SQLiteReferenceJournal
+
+    SQLiteReferenceJournal(connection).prepare()
     rows = connection.execute(
         "SELECT manifest_json FROM cubi_reference_schedule_run "
         "WHERE tenant_id=? AND project_id=? ORDER BY recorded_at, run_id",
@@ -308,42 +330,11 @@ def _connection_of(repositories: object) -> sqlite3.Connection:
     raise ReferencePersistenceError("REFERENCE_DATABASE_CONNECTION_MISSING")
 
 
-def _initialize_run_tables(connection: sqlite3.Connection) -> None:
-    connection.execute(
-        """CREATE TABLE IF NOT EXISTS cubi_reference_schedule_run (
-            tenant_id TEXT NOT NULL,
-            project_id TEXT NOT NULL,
-            run_id TEXT NOT NULL,
-            project_revision INTEGER NOT NULL,
-            engine_version TEXT NOT NULL,
-            input_hash TEXT NOT NULL,
-            output_hash TEXT NOT NULL,
-            status TEXT NOT NULL,
-            duration_ms INTEGER NOT NULL,
-            recorded_at TEXT NOT NULL,
-            manifest_json TEXT NOT NULL,
-            PRIMARY KEY (tenant_id, project_id, run_id)
-        )"""
-    )
-    connection.execute(
-        """CREATE TABLE IF NOT EXISTS cubi_reference_import (
-            tenant_id TEXT NOT NULL,
-            project_id TEXT NOT NULL,
-            bundle_contract TEXT NOT NULL,
-            source_sha256 TEXT NOT NULL,
-            status TEXT NOT NULL,
-            imported_at TEXT NOT NULL,
-            counts_json TEXT NOT NULL,
-            PRIMARY KEY (tenant_id, project_id)
-        )"""
-    )
-    connection.commit()
-
-
 def _persist_project(
     repositories: ReferenceRepositorySet,
     store: ReferenceStore,
     *,
+    journal: object,
     tenant_id: str,
     project_id: str,
     entry: Mapping[str, object],
@@ -357,8 +348,7 @@ def _persist_project(
     project = _mapping(entry, "project")
     revision = _revision(entry)
     scope = BackendScope(tenant_id, project_id, revision)
-    connection = _connection_of(repositories)
-    _clear_partial_project(connection, tenant_id, project_id)
+    journal.clear_partial(tenant_id, project_id)
 
     calendars = _save_calendars(repositories, scope, entry)
     _save_obs(repositories, tenant_id, entry)
@@ -396,6 +386,7 @@ def _persist_project(
     )
     manifest = _evaluate_and_record(
         repositories,
+        journal,
         scope,
         snapshot=snapshot,
         entry=entry,
@@ -403,9 +394,7 @@ def _persist_project(
         actor_id=actor_id,
     )
     counts = _counts(entry)
-    _record_import(
-        connection, tenant_id, project_id, entry, counts, clock, source_sha256
-    )
+    journal.record_import(tenant_id, project_id, counts, clock, source_sha256)
 
     store.insert_project(
         tenant_id=tenant_id,
@@ -428,7 +417,7 @@ def _persist_project(
     members = tuple(user_id for user_id in member_user_ids if user_id)
     if members:
         store.add_members(tenant_id, project_id, members)
-    connection.commit()
+    journal.commit()
     return PersistedReferenceProject(
         project_id=project_id,
         project_revision=revision,
@@ -507,45 +496,6 @@ def _counts(entry: Mapping[str, object]) -> dict[str, int]:
                 continue
     counts["baseline_dates_on_sunday"] = sundays
     return counts
-
-
-def _clear_partial_project(
-    connection: sqlite3.Connection, tenant_id: str, project_id: str
-) -> None:
-    """Remove every row a previously interrupted demo import left behind.
-
-    Called only when ``preview_project`` has no row for a fixed demo id, so the
-    project was never visible to a user. The scan is limited to the preview
-    database and to tables that carry both scope columns.
-    """
-
-    protected = {
-        "preview_project",
-        "preview_project_member",
-        "preview_project_status_event",
-        "preview_meta",
-        "cubi_reference_schedule_run",
-        "cubi_reference_import",
-    }
-    tables = [
-        str(row[0])
-        for row in connection.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
-        ).fetchall()
-    ]
-    for table in tables:
-        if table in protected:
-            continue
-        columns = {
-            str(row[1])
-            for row in connection.execute(f"PRAGMA table_info({table})").fetchall()
-        }
-        if {"tenant_id", "project_id"} <= columns:
-            connection.execute(
-                f"DELETE FROM {table} WHERE tenant_id=? AND project_id=?",
-                (tenant_id, project_id),
-            )
-    connection.commit()
 
 
 # ---------------------------------------------------------------------------
@@ -1167,7 +1117,9 @@ def _save_activity_actuals(
         SQLiteP6ActivityPeriodActualRepository,
     )
 
-    actuals = SQLiteP6ActivityPeriodActualRepository(_connection_of(repositories))
+    actuals = getattr(repositories, "activity_actuals", None) or (
+        SQLiteP6ActivityPeriodActualRepository(_connection_of(repositories))
+    )
     for row in _rows(entry, "activity_progress"):
         actuals.upsert(
             P6ActivityPeriodActual(
@@ -1323,6 +1275,7 @@ def _calendar_registry(calendars: Mapping[str, object]) -> CalendarResolverRegis
 
 def _evaluate_and_record(
     repositories: ReferenceRepositorySet,
+    journal: object,
     scope: BackendScope,
     *,
     snapshot: PublishedScheduleSnapshot,
@@ -1330,7 +1283,6 @@ def _evaluate_and_record(
     calendars: Mapping[str, object],
     actor_id: str,
 ) -> ScheduleRunManifest:
-    connection = _connection_of(repositories)
     stored = repositories.snapshots.get(scope, snapshot.snapshot_id)
     persisted_context = repositories.contexts.get(scope, snapshot.snapshot_id)
     if stored is None or persisted_context is None:
@@ -1357,7 +1309,7 @@ def _evaluate_and_record(
             errors=(f"{type(exc).__name__}: {exc}",),
             recorded_at=REFERENCE_CLOCK,
         )
-        _record_run(connection, manifest)
+        journal.record_run(manifest)
         raise ReferencePersistenceError(
             "REFERENCE_SCHEDULE_ENGINE_FAILED", f"{scope.project_id}: {exc}"
         ) from exc
@@ -1383,11 +1335,11 @@ def _evaluate_and_record(
         recorded_at=REFERENCE_CLOCK,
     )
     if errors:
-        _record_run(connection, manifest)
+        journal.record_run(manifest)
         raise ReferencePersistenceError(
             "REFERENCE_SCHEDULE_ENGINE_DIAGNOSTICS", f"{scope.project_id}: {errors[0]}"
         )
-    _record_run(connection, manifest)
+    journal.record_run(manifest)
     return manifest
 
 
@@ -1425,70 +1377,6 @@ def _output_hash(result: object) -> str:
     }
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
-
-
-def _record_run(connection: sqlite3.Connection, manifest: ScheduleRunManifest) -> None:
-    payload = json.dumps(manifest.as_dict(), sort_keys=True, separators=(",", ":"))
-    connection.execute(
-        """INSERT INTO cubi_reference_schedule_run
-           (tenant_id, project_id, run_id, project_revision, engine_version,
-            input_hash, output_hash, status, duration_ms, recorded_at, manifest_json)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?)
-           ON CONFLICT(tenant_id, project_id, run_id) DO UPDATE SET
-             project_revision=excluded.project_revision,
-             engine_version=excluded.engine_version,
-             input_hash=excluded.input_hash,
-             output_hash=excluded.output_hash,
-             status=excluded.status,
-             duration_ms=excluded.duration_ms,
-             recorded_at=excluded.recorded_at,
-             manifest_json=excluded.manifest_json""",
-        (
-            manifest.tenant_id,
-            manifest.project_id,
-            manifest.run_id,
-            manifest.project_revision,
-            manifest.engine_version,
-            manifest.input_hash,
-            manifest.output_hash,
-            manifest.status,
-            manifest.duration_ms,
-            manifest.recorded_at.isoformat(),
-            payload,
-        ),
-    )
-    connection.commit()
-
-
-def _record_import(
-    connection: sqlite3.Connection,
-    tenant_id: str,
-    project_id: str,
-    entry: Mapping[str, object],
-    counts: Mapping[str, int],
-    clock: datetime,
-    source_sha256: str,
-) -> None:    connection.execute(
-        """INSERT INTO cubi_reference_import
-           (tenant_id, project_id, bundle_contract, source_sha256, status,
-            imported_at, counts_json)
-           VALUES (?,?,?,?,?,?,?)
-           ON CONFLICT(tenant_id, project_id) DO UPDATE SET
-             bundle_contract=excluded.bundle_contract,
-             source_sha256=excluded.source_sha256,
-             status=excluded.status,
-             imported_at=excluded.imported_at,
-             counts_json=excluded.counts_json""",
-        (
-            tenant_id,
-            project_id,
-            BUNDLE_CONTRACT,
-            source_sha256,
-            "COMPLETE",
-            clock.isoformat(),
-            json.dumps(dict(sorted(counts.items())), separators=(",", ":")),
-        ),
-    )
 
 
 __all__ = [
