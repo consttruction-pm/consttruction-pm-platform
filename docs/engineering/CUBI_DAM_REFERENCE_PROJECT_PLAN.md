@@ -91,7 +91,7 @@ Read-only checks against canonical Supabase project `pbgosszuzemljgoccppk`:
 
 - The original direct Data API exposure has been closed and Security Advisor currently reports zero lints. The registry-backed read-only shared-workspace access path and dedicated list endpoint are implemented in source; CI and browser verification are still pending.
 - The database admin connection has no authenticated browser user context; do not use it to simulate a user session.
-- Required resource/calendar/baseline and Enterprise schema is incomplete in the live database; repository migrations 14/15 are pending and must be applied through the versioned migration runner, then hardened with RLS and explicit direct-client denial.
+- Required resource/calendar/baseline and Enterprise schema is incomplete in the live database; repository migrations 14/15/16 are pending and must be applied through the versioned migration runner. Step 16 now applies the same RLS and direct-client denial to every newly created public table.
 - Therefore the reference project has **not** been inserted and no one should claim it is visible in user accounts yet.
 
 
