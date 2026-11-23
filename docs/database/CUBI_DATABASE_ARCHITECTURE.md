@@ -169,13 +169,17 @@ The three frozen reference projects are durable tenant data, not fixtures.
   rewritten or duplicated. `cubi_reference_import` stores the bundle contract,
   source SHA-256, revision and per-domain counts; `cubi_reference_schedule_run`
   stores each canonical-engine manifest.
-- **Shared visibility without memberships.** `cubi_reference_project` is the
-  registry. `PostgresProjectRepository.list_for_user`/`get_for_user` (and the
-  preview store) union it in, so every authenticated user of the tenant lists
-  the three projects without a `project_lifecycle_memberships` row and without
-  copied data. Authorization still runs in `RoleBasedAuthorizationPolicy`;
-  `global_admin` keeps its unconditional grant, and writes still require the
-  usual permission.
+- **Shared reference visibility without memberships.** `cubi_reference_project` is the
+  registry for the existing CUBI-REF reference projects and the separately
+  scoped CUBI-DAM build workspace. The existing CUBI-REF rows remain in the
+  ordinary project register for the prior all-user preview contract. The
+  in-progress `CUBI-DAM-001` workspace is excluded from `list_for_user` and is
+  returned only by the authenticated `GET /api/shared-projects` surface, so it
+  is not counted or mixed with user-owned projects. Both repositories use the
+  same tenant-scoped registry; no mass memberships or copied project data are
+  created. Only this exact project gets a registry-verified read-only
+  authorization-context exception; write/schedule/admin permissions still
+  require the usual policy grants.
 - **Calculations are never imported.** CPM dates, float, critical path and EVM
   are produced during the import by `AuthoritativeScheduleSnapshotPublisher`
   and `evaluate_schedule_snapshot`; the workbook's calculated columns are only
