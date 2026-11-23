@@ -132,15 +132,16 @@ def main(argv: list[str] | None = None) -> int:
                       "status": "PREFLIGHT_PASSED_NOT_IMPORTED", "preflight": audit}
             print(json.dumps(output, indent=2))
             return 0
+        already_registered = False
         if audit["project_already_exists"]:
             manifests = read_import_manifests(connection, args.tenant)
             existing = next((item for item in manifests if item["project_id"] == PROJECT_ID), None)
-            if existing and existing["status"] == "SUCCESS":
-                connection.rollback()
-                print(json.dumps({"project_id": PROJECT_ID, "status": "ALREADY_IMPORTED",
-                                  "manifest": existing}, indent=2, default=str))
-                return 0
-            raise RuntimeError("PROJECT_ID_COLLISION_OR_PARTIAL_IMPORT_REQUIRES_MANUAL_REVIEW")
+            if not existing or existing["status"] != "SUCCESS":
+                raise RuntimeError("PROJECT_ID_COLLISION_OR_PARTIAL_IMPORT_REQUIRES_MANUAL_REVIEW")
+            # Re-run the canonical idempotent importer even when Engineering
+            # already exists: this also verifies/repairs any incomplete
+            # Enterprise register rows before the project is called ready.
+            already_registered = True
 
         outcome = ensure_reference_projects_postgres(
             connection,
@@ -164,6 +165,7 @@ def main(argv: list[str] | None = None) -> int:
             raise RuntimeError("DAM_PROJECT_IMPORT_MANIFEST_NOT_SUCCESSFUL")
         print(json.dumps({
             "project_id": imported.project_id,
+            "status": "ALREADY_IMPORTED_AND_VERIFIED" if already_registered else "IMPORTED",
             "project_revision": imported.project_revision,
             "snapshot_id": imported.snapshot.snapshot_id,
             "schedule_status": imported.manifest.status,
