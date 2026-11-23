@@ -84,3 +84,21 @@ Read-only checks against canonical Supabase project `pbgosszuzemljgoccppk`:
 - The database admin connection has no authenticated user context.
 - Required resource/calendar/baseline schema is incomplete in the live database.
 - Therefore the reference project has **not** been inserted and no one should claim it is visible in user accounts yet.
+
+
+## Implementation work started (2026-11-24)
+
+The feature branch now contains:
+- `src/construction_pm/importing/dam_reference_project.py`: deterministic in-memory dataset builder; 720 activities, 192 WBS records, 730 acyclic relationships across FS/SS/FF/SF, 72 labor resources, 48 equipment resources, 1,440 assignments, 720 baseline activity rows, progress facts, cost periods and budget inputs.
+- `scripts/import_dam_reference_project.py`: guarded PostgreSQL import command. It does not run migrations, does not create user memberships, and refuses to persist until all public base tables have RLS enabled and every repository dependency exists. It calls the existing PostgreSQL reference importer with the generated bundle and requires a successful canonical schedule-engine manifest before reporting success.
+- `tests/test_dam_reference_project.py`: deterministic counts, referential integrity, forward-only dependency graph and relationship-type coverage tests.
+- The importer uses the existing `cubi_reference_project` registry, which is already consulted by `PostgresProjectRepository.list_for_user/get_for_user` to expose a registered reference project to every authenticated user in the same tenant without project membership rows.
+
+Current live preflight (read-only):
+- `CUBI-DAM-001` does not exist yet.
+- The three `CUBI-REF-001/002/003` project lifecycle rows are also absent in this database; this task does not create or modify them.
+- 39 existing public tables still have RLS disabled.
+- Several required importer tables are missing, including the calendar master/snapshot/exception/work-hour tables, resource master/assignment/rate/capacity tables, baseline tables, activity-period actuals, financial periods, roles, expenses and reference import journal/registry tables.
+- Code migration steps 14 and 15 (reference engineering/enterprise schema) are present in the repository but not reflected in the live schema ledger, which currently has 13 applied versions.
+
+A draft PR was opened for independent CI/review: PR #2133. The generator tests are committed but have not yet been executed; no GitHub Actions run was returned for the latest commit. No database writes or schema migrations were performed. The guarded importer is expected to stop at preflight on the current database.
