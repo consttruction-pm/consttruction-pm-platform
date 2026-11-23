@@ -177,7 +177,7 @@ def _build_enterprise_records(
             "cost_impact_usd": str(Decimal((index - 7) * 185000)),
             "schedule_impact_days": (index % 9) - 3,
             "raised_by": roles[index % len(roles)],
-            "date_raised": _working_date(110 + index * 9).isoformat(),
+            "date_raised": _working_date(min(110 + index * 9, 215)).isoformat(),
         }
         for index, (title, reason) in enumerate((
             ("Additional foundation grouting scope", "Geotechnical verification"),
@@ -222,7 +222,7 @@ def _build_enterprise_records(
             "object_type": object_type,
             "object_id": object_id,
             "decision": ("Approved" if index % 4 in {0, 1} else "Pending Review"),
-            "decision_date": _working_date(90 + index * 6).isoformat(),
+            "decision_date": _working_date(min(90 + index * 6, 215)).isoformat() if index % 4 in {0, 1} else None,
             "approver_role": roles[(index + 2) % len(roles)],
             "comment": "Reviewed against current project controls and interface requirements.",
         }
@@ -349,7 +349,7 @@ def _build_enterprise_records(
             "status": ("Open" if index % 4 == 0 else "In Progress" if index % 4 == 1 else "Resolved" if index % 4 == 2 else "Closed"),
             "priority": ("Critical" if index % 8 == 0 else "High" if index % 3 == 0 else "Medium" if index % 3 == 1 else "Low"),
             "owner_obs_id": obs_ids[index % len(obs_ids)],
-            "date_raised": _working_date(90 + index * 5).isoformat(),
+            "date_raised": _working_date(min(90 + index * 5, 215)).isoformat(),
             "related_activity_id": activity_ids[(index * 13) % len(activity_ids)],
         }
         for index, title in enumerate((
@@ -405,7 +405,7 @@ def _build_enterprise_records(
         document_revisions.append({
             "document_id": document_id,
             "revision": "A",
-            "revision_date": _working_date(95 + index * 4).isoformat(),
+            "revision_date": _working_date(min(95 + index * 4, 215)).isoformat(),
             "status": "Submitted",
             "submitted_by": roles[index % len(roles)],
         })
@@ -413,7 +413,7 @@ def _build_enterprise_records(
             document_revisions.append({
                 "document_id": document_id,
                 "revision": "B",
-                "revision_date": _working_date(115 + index * 4).isoformat(),
+                "revision_date": _working_date(min(115 + index * 4, 215)).isoformat(),
                 "status": "Current",
                 "submitted_by": roles[(index + 2) % len(roles)],
             })
