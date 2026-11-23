@@ -71,7 +71,7 @@ export function renderProjects(ctx: PageContext, host: HTMLElement): void {
   const initialTab: TabId = isTab(query.get("tab")) ? (query.get("tab") as TabId) : "overview";
 
   let projects: ProjectSummary[] = ctx.projects;
-  let sharedProjects: ProjectSummary[] = ctx.sharedProjects;
+  let sharedProjects: ProjectSummary[] = ctx.sharedProjects ?? [];
   let selected: ProjectSummary | null =
     projects.find((project) => project.project_id === requested)
     ?? sharedProjects.find((project) => project.project_id === requested)
@@ -537,7 +537,7 @@ async function renderTab(
         stampLine(t, `/api/projects/${project.project_id}/p6/*`, project.revision, receivedAt, ctx.locale),
         pageActions(actionLink(
           t("ent07.engineering.open"),
-          ctx.sharedProjects.some((item) => item.project_id === project.project_id)
+          (ctx.sharedProjects ?? []).some((item) => item.project_id === project.project_id)
             ? `/app?project=${encodeURIComponent(project.project_id)}&view=live`
             : "/app/",
           "project-engineering",
