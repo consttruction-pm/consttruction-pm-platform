@@ -10,9 +10,9 @@ Persistence is shared-workspace scoped and idempotent:
 
 * A project whose ``preview_project`` row exists is left untouched, so a later
   operator edit can never be overwritten by a restart.
-* If a previous import stopped before that final row, the partial rows for the
-  fixed ``CUBI-REF-00x`` project id are cleared and rebuilt inside the existing
-  preview database. No other database, tenant or environment is touched.
+* If a previous import stopped before that final row, only partial rows for
+  that exact project id are cleared and rebuilt inside the selected database.
+  No other project, tenant or environment is touched.
 """
 
 from __future__ import annotations
@@ -402,7 +402,7 @@ def _persist_project(
         name=str(project.get("project_name") or project_id),
         revision=revision,
         wbs_by_activity=dict(wbs_by_activity),
-        demo=False,
+        demo=project_id != "CUBI-DAM-001",
         created_at=clock,
         description=str(
             project.get("description")
