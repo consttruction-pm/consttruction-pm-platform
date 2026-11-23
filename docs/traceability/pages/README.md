@@ -4,6 +4,10 @@ This index tracks individual page specifications required by `docs/standards/CUB
 
 **Important:** Entries below are inventory references from the existing route/capability matrix. They are NOT a claim that the pages have already passed the new detailed functional and visual acceptance gate.
 
+## Enterprise page-by-page Help and icon specification
+
+The current Enterprise application has a separately verified 26-PageId router inventory. Its canonical routes, inheritance chain, page-specific EPPM V26 Help links, semantic icon-by-icon register, current source gaps and visual acceptance requirements are recorded in [ENTERPRISE_PAGE_BY_PAGE_ICON_HELP_CROSSWALK.md](../ENTERPRISE_PAGE_BY_PAGE_ICON_HELP_CROSSWALK.md). The older 16-row Enterprise traceability registry has route mismatches and is not a substitute for the current router. All Enterprise agents must read the crosswalk before work. **This is a specification and source audit; it does not claim that the current UI has already implemented or passed the icon/visual checks.**
+
 ## Existing public route inventory
 
 | Route | Existing matrix entry | Detailed page specification | Visual acceptance |
