@@ -67,6 +67,7 @@ function loaderError(error: unknown): ClientError {
 export class ProjectBootstrap {
   private generation = 0;
   private projects: readonly ProjectSummary[] = [];
+  private sharedProjects: readonly ProjectSummary[] = [];
   private roles: readonly string[] = [];
   private userId = "";
   private tabs: ProjectTabState = { open: [], active: "" };
@@ -90,6 +91,17 @@ export class ProjectBootstrap {
 
     this.projects = projects.data.projects;
     this.userId = session.data.user_id;
+
+    const sharedResult = this.dependencies.sessionApi.listSharedProjects
+      ? await this.dependencies.sessionApi.listSharedProjects()
+      : null;
+    if (!this.isCurrent(generation)) return null;
+    this.sharedProjects = sharedResult?.ok ? sharedResult.data.projects : [];
+
+    const sharedPreferred = preferredProjectId
+      ? this.sharedProjects.find((project) => project.project_id === preferredProjectId)
+      : undefined;
+    if (sharedPreferred) return this.openProject(sharedPreferred.project_id, generation, locale);
 
     if (this.projects.length === 0) {
       this.tabs = { open: [], active: "" };
@@ -399,7 +411,9 @@ export class ProjectBootstrap {
     // The language is part of the read: server-backed guidance and every
     // localized projection must be produced in the language the user chose,
     // instead of defaulting to English and only relabelling the shell.
-    const summary = this.projects.find((project) => project.project_id === projectContext.project_id) ?? null;
+    const summary = this.projects.find((project) => project.project_id === projectContext.project_id)
+      ?? this.sharedProjects.find((project) => project.project_id === projectContext.project_id)
+      ?? null;
     const workspace = await this.dependencies.workspaceReadClient.load(context, {
       locale,
       // The Gantt shades non-working days from this project's persisted
