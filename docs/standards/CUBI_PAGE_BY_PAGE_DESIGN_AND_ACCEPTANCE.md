@@ -30,7 +30,8 @@ Before inspecting, planning, coding, reviewing, testing, or handing off a task, 
 4. `apps/web/src/capability-inheritance.ts` and `apps/web/src/help-registry.ts` — executable inheritance and contextual Help source.
 5. `apps/web/site/routes.mjs` and `apps/web/site/capabilities.mjs` — public route and capability contracts.
 6. `docs/traceability/README.md`, `docs/traceability/CUBI_ENGINEERING_V26_TRACEABILITY.md`, `docs/traceability/CUBI_ENTERPRISE_V26_TRACEABILITY.md`, and the corresponding JSON/CSV registries.
-7. The relevant page-specific reference Help topics and the relevant implementation/source files before making any change.
+7. For every Enterprise task, `docs/traceability/ENTERPRISE_PAGE_BY_PAGE_ICON_HELP_CROSSWALK.md` — the verified 26-PageId route inventory, legacy-route reconciliation, page-specific Help topics and semantic icon register.
+8. The relevant page-specific reference Help topics and the relevant implementation/source files before making any change.
 
 Reading only a task prompt, a screenshot, a previous agent summary, or a generated checklist does not satisfy this requirement. Record the exact revision/commit of the standards and references read in the task evidence.
 
