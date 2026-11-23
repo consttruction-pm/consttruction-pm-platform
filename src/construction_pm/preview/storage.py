@@ -700,13 +700,37 @@ class PreviewStore:
             "WHERE p.tenant_id=? AND (EXISTS ("
             "SELECT 1 FROM preview_project_member m "
             "WHERE m.tenant_id=p.tenant_id AND m.project_id=p.project_id AND m.user_id=?) "
-            "OR EXISTS ("
-            "SELECT 1 FROM cubi_reference_project r "
-            "WHERE r.tenant_id=p.tenant_id AND r.project_id=p.project_id)) "
+            ") "
             "ORDER BY p.name COLLATE NOCASE, p.project_id",
             (tenant_id, user_id),
         ).fetchall()
         return tuple(_project_summary(row) for row in rows)
+
+    def list_shared_reference_for_user(self, tenant_id: str) -> tuple[ProjectSummary, ...]:
+        rows = self.connection.execute(
+            "SELECT p.project_id, p.tenant_id, p.name, p.project_revision, "
+            "p.description, p.start_date, p.date_system, p.primary_calendar_id, "
+            "p.settings_revision, p.status, p.business_domain, "
+            "p.obs_responsible_manager, p.website_url, "
+            "p.default_activity_type, p.default_percent_complete_type, "
+            "p.activity_id_prefix, p.activity_id_suffix, p.activity_id_increment, "
+            "p.increment_activity_id, p.checkout_state, "
+            "p.checked_out_by, p.checked_out_at, p.default_duration_type, "
+            "p.default_cost_account_id, p.obs_id "
+            "FROM preview_project p WHERE p.tenant_id=? AND EXISTS ("
+            "SELECT 1 FROM cubi_reference_project r "
+            "WHERE r.tenant_id=p.tenant_id AND r.project_id=p.project_id) "
+            "ORDER BY p.name COLLATE NOCASE, p.project_id",
+            (tenant_id,),
+        ).fetchall()
+        return tuple(_project_summary(row) for row in rows)
+
+    def is_shared_reference_project(self, tenant_id: str, project_id: str) -> bool:
+        row = self.connection.execute(
+            "SELECT 1 FROM cubi_reference_project WHERE tenant_id=? AND project_id=?",
+            (tenant_id, project_id),
+        ).fetchone()
+        return row is not None
 
     def get_for_user(
         self, tenant_id: str, project_id: str, user_id: str
@@ -1247,6 +1271,12 @@ class PreviewProjectRepository:
         self, tenant_id: str, project_id: str, user_id: str
     ) -> ProjectSummary | None:
         return self.store.get_for_user(tenant_id, project_id, user_id)
+
+    def list_shared_reference_for_user(self, tenant_id: str) -> tuple[ProjectSummary, ...]:
+        return self.store.list_shared_reference_for_user(tenant_id)
+
+    def is_shared_reference_project(self, tenant_id: str, project_id: str) -> bool:
+        return self.store.is_shared_reference_project(tenant_id, project_id)
 
     def create_for_user(
         self,
