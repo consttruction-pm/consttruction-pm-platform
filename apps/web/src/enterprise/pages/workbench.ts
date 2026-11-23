@@ -7,7 +7,6 @@ import {
   capabilityChip,
   connectionList,
   emptyLine,
-  linkButton,
   note,
   pageActions,
   section,
