@@ -535,7 +535,13 @@ async function renderTab(
         note(t("ent07.overview.boundary"), "warning"),
         connections,
         stampLine(t, `/api/projects/${project.project_id}/p6/*`, project.revision, receivedAt, ctx.locale),
-        pageActions(actionLink(t("ent07.engineering.open"), "/app/", "project-engineering")),
+        pageActions(actionLink(
+          t("ent07.engineering.open"),
+          ctx.sharedProjects.some((item) => item.project_id === project.project_id)
+            ? `/app?project=${encodeURIComponent(project.project_id)}&view=live`
+            : "/app/",
+          "project-engineering",
+        )),
       );
       return;
     }
