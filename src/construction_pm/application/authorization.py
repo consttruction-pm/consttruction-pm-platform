@@ -41,6 +41,7 @@ class AuthorizationContext:
     project_id: str
     user_id: str
     roles: FrozenSet[str] = frozenset()
+    shared_reference: bool = False
 
     def validate(self) -> None:
         for name, value in (("tenant_id", self.tenant_id), ("project_id", self.project_id), ("user_id", self.user_id)):
@@ -48,6 +49,8 @@ class AuthorizationContext:
                 raise AuthorizationError(f"INVALID_AUTHORIZATION_{name.upper()}")
         if not isinstance(self.roles, frozenset) or any(not isinstance(role, str) or not role.strip() for role in self.roles):
             raise AuthorizationError("INVALID_AUTHORIZATION_ROLES")
+        if not isinstance(self.shared_reference, bool):
+            raise AuthorizationError("INVALID_AUTHORIZATION_SHARED_REFERENCE")
 
 
 class AuthorizationPolicy(Protocol):
@@ -76,6 +79,8 @@ class RoleBasedAuthorizationPolicy:
         context.validate()
         if PLATFORM_OWNER_ROLE in context.roles:
             return True
+        if context.shared_reference and permission is Permission.PROJECT_READ:
+            return True
         return any(
             permission in self._role_permissions.get(role, frozenset())
             for role in context.roles
@@ -91,7 +96,6 @@ class RoleBasedAuthorizationPolicy:
 def default_role_permissions() -> dict[str, FrozenSet[Permission]]:
     """Return the authoritative role-to-permission grants of the default policy."""
     return {
-        "shared_reference_reader": frozenset({Permission.PROJECT_READ}),
         "viewer": frozenset(
             {
                 Permission.PROJECT_READ,
