@@ -23,7 +23,7 @@ export type ProjectBootstrapState =
   | { status: "selecting"; projects: readonly ProjectSummary[] }
   | { status: "opening"; projectId: string }
   | { status: "creating"; projectId: string }
-  | { status: "ready"; context: ProjectContext; workspace: WorkspaceState; userId: string; roles: readonly string[] }
+  | { status: "ready"; context: ProjectContext; workspace: WorkspaceState; userId: string; roles: readonly string[]; sharedReference?: boolean }
   | { status: "error"; error: ClientError };
 
 export type ProjectBootstrapDependencies = {
@@ -454,6 +454,9 @@ export class ProjectBootstrap {
       workspace: hydratedWorkspace,
       userId: projectContext.user_id,
       roles: this.roles,
+      sharedReference: this.sharedProjects.some(
+        (project) => project.project_id === projectContext.project_id,
+      ),
     };
   }
 
