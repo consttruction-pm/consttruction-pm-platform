@@ -1,4 +1,4 @@
-"""Deterministic synthetic dam + hydropower project bundle.
+"""Deterministic shared in-progress dam + hydropower project bundle.
 
 This creates structured in-memory import records; it does not retain an Excel
 workbook or write to PostgreSQL. Persistence is delegated to the canonical
@@ -52,7 +52,7 @@ def build_dam_reference_bundle() -> dict[str, object]:
         "contract_type": "EPC",
         "planned_start": PROJECT_START.isoformat(),
         "status_date": STATUS_DATE.isoformat(),
-        "description": "Synthetic QA reference project; not an actual historical dam.",
+        "description": "Shared in-progress project workspace for CUBI Engineering and Enterprise build-out.",
     }
     settings = {
         "default_calendar_id": "DAM-CAL-5D",
@@ -296,7 +296,7 @@ def build_dam_reference_bundle() -> dict[str, object]:
     ]
     project_budgets = [{
         "budget_id": "DAM-BUDGET-BASE",
-        "budget_type": "Approved synthetic reference budget",
+        "budget_type": "Working project control budget — under development",
         "budget_amount_usd": str(sum(Decimal(row["baseline_budget_usd"]) for row in baseline_rows)),
         "cost_account_id": "DAM-CA-01",
     }]
@@ -323,7 +323,7 @@ def build_dam_reference_bundle() -> dict[str, object]:
         "resource_assignments": assignments,
         "baselines": [{
             "baseline_id": "DAM-BL-PRIMARY",
-            "baseline_name": "Approved Project Baseline — Synthetic",
+            "baseline_name": "Working Baseline — Initial Control Version",
             "snapshot_date": PROJECT_START.isoformat(),
         }],
         "baseline_activities": baseline_rows,
@@ -356,7 +356,9 @@ def build_dam_reference_bundle() -> dict[str, object]:
             "file": "generated-in-memory-cubi-dam-reference",
             "sha256": hashlib.sha256(canonical).hexdigest(),
             "status_date": STATUS_DATE.isoformat(),
-            "classification": "DEMO/SYNTHETIC",
+            "classification": "SHARED_BUILD_PROJECT",
+            "data_origin": "generated_structured_seed",
+            "synthetic_source_data": True,
             "project_ids": [PROJECT_ID],
         },
         "projects": {PROJECT_ID: entry},
