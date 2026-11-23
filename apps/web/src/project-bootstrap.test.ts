@@ -97,18 +97,19 @@ test("shared build workspace opens from its separate list and is not added to pe
     project_id: "CUBI-DAM-001", tenant_id: "t1", name: "Shared Dam Build", revision: 1,
     primary_calendar_id: "DAM-CAL-5D",
   };
+  const sharedOpened: string[] = [];
   const setup = deps({
     listProjects: async () => ok({ projects: [] }),
     listSharedProjects: async () => ok({ projects: [shared] }),
     openProject: async (projectId) => {
-      setup.opened.push(projectId);
+      sharedOpened.push(projectId);
       return ok({ context: { tenant_id: "t1", project_id: projectId, revision: 1, user_id: "u1" } });
     },
   });
   const bootstrap = new ProjectBootstrap(setup.dependencies);
   const state = await bootstrap.start("CUBI-DAM-001");
   assert.equal(state?.status, "ready");
-  assert.deepEqual(setup.opened, ["CUBI-DAM-001"]);
+  assert.deepEqual(sharedOpened, ["CUBI-DAM-001"]);
   assert.deepEqual(bootstrap.openableProjects(), []);
   assert.deepEqual(bootstrap.projectTabs(), { open: [], active: "" });
   assert.deepEqual(setup.loadOptions, [{ locale: "en", primaryCalendarId: "DAM-CAL-5D" }]);
