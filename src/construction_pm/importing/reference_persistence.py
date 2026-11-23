@@ -1,4 +1,4 @@
-"""Persist the validated reference projects as demo projects.
+"""Persist the validated shared in-progress project records.
 
 The module is the only writer of the frozen reference bundle. It maps each
 bundle row onto the same canonical repositories the product uses, so the three
@@ -6,7 +6,7 @@ reference projects are ordinary projects with ordinary schedule, resource,
 baseline, progress and cost facts. Nothing here computes CPM, float or earned
 value: the canonical schedule engine is invoked and its run is recorded.
 
-Persistence is demo-only and idempotent:
+Persistence is shared-workspace scoped and idempotent:
 
 * A project whose ``preview_project`` row exists is left untouched, so a later
   operator edit can never be overwritten by a restart.
@@ -402,11 +402,11 @@ def _persist_project(
         name=str(project.get("project_name") or project_id),
         revision=revision,
         wbs_by_activity=dict(wbs_by_activity),
-        demo=True,
+        demo=False,
         created_at=clock,
         description=(
             f"{project.get('sector', '')} — {project.get('contract_type', '')} "
-            "(DEMO/SYNTHETIC reference project)"
+            "(shared in-progress project workspace)"
         ).strip(" —"),
         start_date=_text(project.get("planned_start")),
         date_system="gregorian",
@@ -674,7 +674,7 @@ def _save_rates_and_capacities(
                     unit="h",
                     effective_from=effective,
                     effective_to=None,
-                    source="DEMO/SYNTHETIC reference resource rate",
+                    source="Initial planning resource rate",
                 ),
             )
         )
@@ -693,7 +693,7 @@ def _save_rates_and_capacities(
                     unit="h",
                     effective_from=REFERENCE_CLOCK.date(),
                     effective_to=None,
-                    source="DEMO/SYNTHETIC reference equipment rate",
+                    source="Initial planning equipment rate",
                 ),
             )
         )
@@ -712,7 +712,7 @@ def _save_rates_and_capacities(
                     hours_per_time_period=Decimal("8"),
                     effective_from=start,
                     effective_to=None,
-                    source="DEMO/SYNTHETIC reference resource availability",
+                    source="Initial planning resource availability",
                 ),
             )
         )
@@ -993,7 +993,7 @@ def _save_baselines(
                 baseline_type="PRIMARY",
                 source_revision=scope.project_revision,
                 created_at=f"{row.get('snapshot_date')}T00:00:00+00:00",
-                notes="DEMO/SYNTHETIC immutable reference baseline",
+                notes="Initial working baseline; project controls are under development",
             )
         )
     values: dict[str, list[P6BaselineActivity]] = {}
@@ -1045,7 +1045,7 @@ def _save_expenses(
                 actual_cost=_decimal(row.get("actual_cost_usd")),
                 remaining_cost=Decimal("0"),
                 currency="USD",
-                note="DEMO/SYNTHETIC reference activity expense",
+                note="Initial project expense planning record",
             )
         )
     for row in _rows(entry, "expenses"):
@@ -1059,7 +1059,7 @@ def _save_expenses(
                 actual_cost=_decimal(row.get("amount_usd")),
                 remaining_cost=Decimal("0"),
                 currency=str(row.get("currency") or "USD"),
-                note="DEMO/SYNTHETIC reference project expense",
+                note="Initial project expense planning record",
             )
         )
     # The workbook states a physical percent complete and a baseline budget but
@@ -1131,7 +1131,7 @@ def _save_activity_actuals(
                 actual_cost=_decimal(row.get("actual_cost_usd")),
                 unit="h",
                 currency="USD",
-                note="DEMO/SYNTHETIC reference progress at status date",
+                note="Initial project progress record at status date",
             )
         )
 
