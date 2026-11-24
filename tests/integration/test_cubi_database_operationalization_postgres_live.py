@@ -1377,3 +1377,162 @@ def test_threshold_register_end_to_end_over_postgres(runtime):
         (ids["tenant_a"], project, threshold_id),
     )
     assert audit == [("created", 1), ("updated", 2), ("deleted", 3)]
+
+
+def _issue_payload(issue_id: str, **overrides):
+    payload = {
+        "issue_id": issue_id,
+        "title": "Late facade delivery",
+        "description": "Curtain wall package slipped behind the crane release.",
+        "issue_type": "schedule",
+        "status": "open",
+        "priority": "high",
+        "owner": "Site Planner",
+        "date_identified": "2026-11-01",
+        "due_date": "2026-11-20",
+    }
+    payload.update(overrides)
+    return payload
+
+
+def test_issue_register_is_reachable_and_durable_over_postgres(runtime):
+    """The issue API is composed in production, so /p6/issues is a real route.
+
+    Before this assertion the runtime built ``P6IssueAPI`` but never passed it
+    to the router: every call fell through to ROUTE_NOT_FOUND, which left
+    monitoring and project control without their durable issue backbone.
+    """
+
+    ids = runtime.test_ids
+    project = ids["project_a"]
+    base = f"/api/projects/{project}/p6/issues"
+    planner_cookie, planner_csrf = login(runtime, "planner", PLANNER_PASSWORD)
+    viewer_cookie, viewer_csrf = login(runtime, "viewer", VIEWER_PASSWORD)
+    outsider_cookie, outsider_csrf = login(runtime, "outsider", ADMIN_PASSWORD)
+    issue_id = f"ISS-E2E-{ids['suffix']}"
+
+    # 1. The route exists and the register starts empty (no ROUTE_NOT_FOUND).
+    status, _, body = call(runtime, "GET", base, cookie=planner_cookie)
+    assert status == 200, body
+    assert json.loads(body)["issues"] == []
+
+    # 2. Create, persisted through the production composition.
+    status, _, body = call(
+        runtime,
+        "POST",
+        base,
+        body=_issue_payload(issue_id),
+        cookie=planner_cookie,
+        csrf=planner_csrf,
+    )
+    assert status == 200, body
+    created = json.loads(body)["issue"]
+    assert created["issue_id"] == issue_id and created["record_revision"] == 1
+
+    # 3. A new request reads the same row back, and the row exists in PostgreSQL.
+    status, _, body = call(runtime, "GET", f"{base}/{issue_id}", cookie=planner_cookie)
+    assert status == 200, body
+    assert json.loads(body)["issue"]["record_revision"] == 1
+    stored = _db_rows(
+        runtime,
+        "SELECT record_revision, status, issue_type FROM p6_issue "
+        "WHERE tenant_id=%s AND project_id=%s AND issue_id=%s",
+        (ids["tenant_a"], project, issue_id),
+    )
+    assert stored == [(1, "open", "schedule")]
+
+    # 4. A duplicate identifier is rejected without touching the stored row.
+    status, _, body = call(
+        runtime,
+        "POST",
+        base,
+        body=_issue_payload(issue_id, title="Duplicate"),
+        cookie=planner_cookie,
+        csrf=planner_csrf,
+    )
+    assert status == 409, body
+    assert json.loads(body)["code"] == "ISSUE_ALREADY_EXISTS"
+
+    # 5. A guarded edit moves the record to a new revision.
+    status, _, body = call(
+        runtime,
+        "PATCH",
+        f"{base}/{issue_id}",
+        body=_issue_payload(
+            issue_id, status="in_progress", expected_revision=1
+        ),
+        cookie=planner_cookie,
+        csrf=planner_csrf,
+    )
+    assert status == 200, body
+    assert json.loads(body)["issue"]["record_revision"] == 2
+    status, _, body = call(runtime, "GET", f"{base}/{issue_id}", cookie=planner_cookie)
+    assert json.loads(body)["issue"]["status"] == "in_progress"
+
+    # 6. A stale revision is refused and changes nothing.
+    status, _, body = call(
+        runtime,
+        "PATCH",
+        f"{base}/{issue_id}",
+        body=_issue_payload(
+            issue_id, status="resolved", resolution_note="Recovered", expected_revision=1
+        ),
+        cookie=planner_cookie,
+        csrf=planner_csrf,
+    )
+    assert status == 409, body
+    assert json.loads(body)["code"] == "ISSUE_REVISION_CONFLICT"
+    status, _, body = call(runtime, "GET", f"{base}/{issue_id}", cookie=planner_cookie)
+    assert json.loads(body)["issue"]["record_revision"] == 2
+    assert json.loads(body)["issue"]["status"] == "in_progress"
+
+    # 7. History is durable, not reconstructed from the current row.
+    status, _, body = call(
+        runtime, "GET", f"{base}/{issue_id}/history", cookie=planner_cookie
+    )
+    assert status == 200, body
+    events = [entry["event"]["event_type"] for entry in json.loads(body)["events"]]
+    assert events[0] == "created"
+    assert "status_changed" in events
+
+    # 8. Read is open to a viewer; write and foreign tenants are denied.
+    status, _, body = call(runtime, "GET", base, cookie=viewer_cookie)
+    assert status == 200, body
+    assert len(json.loads(body)["issues"]) == 1
+    status, _, body = call(
+        runtime,
+        "POST",
+        base,
+        body=_issue_payload(f"ISS-VIEWER-{ids['suffix']}"),
+        cookie=viewer_cookie,
+        csrf=viewer_csrf,
+    )
+    assert status == 403, body
+    status, _, body = call(runtime, "GET", base, cookie=outsider_cookie)
+    assert status == 403, body
+
+    # 9. Delete with the current revision removes the row but keeps the audit.
+    status, _, body = call(
+        runtime,
+        "DELETE",
+        f"{base}/{issue_id}",
+        body={"expected_revision": 2},
+        cookie=planner_cookie,
+        csrf=planner_csrf,
+    )
+    assert status == 200, body
+    status, _, body = call(runtime, "GET", f"{base}/{issue_id}", cookie=planner_cookie)
+    assert status == 404, body
+    assert _db_rows(
+        runtime,
+        "SELECT COUNT(*) FROM p6_issue WHERE tenant_id=%s AND project_id=%s AND issue_id=%s",
+        (ids["tenant_a"], project, issue_id),
+    ) == [(0,)]
+    trail = _db_rows(
+        runtime,
+        "SELECT event_type FROM p6_issue_event "
+        "WHERE tenant_id=%s AND project_id=%s AND issue_id=%s ORDER BY event_sequence",
+        (ids["tenant_a"], project, issue_id),
+    )
+    assert [row[0] for row in trail][0] == "created"
+    assert trail[-1][0] == "deleted"

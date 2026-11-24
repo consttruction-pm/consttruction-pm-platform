@@ -564,6 +564,10 @@ class ProductionRuntime:
             p6_layout_definition_api=P6LayoutDefinitionAPI(layout_repository, policy),
             risk_api=risk_api,
             threshold_api=threshold_api,
+            # Issues are the durable backbone of monitoring and project
+            # control; the API is built above, so it must reach the router or
+            # /p6/issues stays unreachable (ROUTE_NOT_FOUND) in production.
+            p6_issue_api=issue_api,
             form_builder_api=form_builder_api,
             ai_action_runtime=ai_action_runtime,
             ai_assistant_provider=ai_assistant_provider,
