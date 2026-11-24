@@ -36,6 +36,7 @@ import {
   writeToolbarConfig,
 } from "./workspace-toolbar-config.js";
 import { renderToolbarRails } from "./workspace-toolbar-view.js";
+import { WORKSPACE_NAVIGATION } from "./workspace-navigation.js";
 
 const RIGHT_FAMILIES = [
   "project-tools", "assign", "edit", "layout", "enterprise", "print", "action",
@@ -296,6 +297,63 @@ test("every enabled rail action and dialog command reaches a real dispatcher", a
   // never sees their dialog commands; main must route them explicitly.
   assert.match(source, /command\.startsWith\("dialog\."\)/);
   assert.match(source, /openDesktopDialog\(desktopHost, command\.slice\("dialog\."\.length\)/);
+});
+
+test("the navigation family reaches all twenty-one workspace windows", () => {
+  const targets = toolbarCommandsForFamily("navigation")
+    .filter((command) => command.target.kind === "window")
+    .map((command) => (command.target as { window: string }).window);
+  const expected = WORKSPACE_NAVIGATION.map((item) => item.key);
+  assert.equal(new Set(targets).size, targets.length, "a window is registered twice");
+  assert.deepEqual([...targets].sort(), [...expected].sort());
+});
+
+test("every toolbar command either reaches a dispatcher or is honestly disabled", async () => {
+  const { readFileSync } = await import("node:fs");
+  const source = readFileSync(new URL("./main.ts", import.meta.url), "utf8");
+  const windows = WORKSPACE_NAVIGATION.map((item) => item.key);
+  const maxCapabilities = {
+    hasWbs: true,
+    hasSelectedActivity: true,
+    hasMultiSelection: true,
+    hasActivities: true,
+    hasRelationships: true,
+    hasLayout: true,
+    canUndoLayout: true,
+    canRedoLayout: true,
+    groupByWbs: true,
+    canAdminister: true,
+    canOpenFieldChooser: true,
+  };
+  const enabledSomewhere = (command: (typeof TOOLBAR_COMMANDS)[number]): boolean =>
+    windows.some((activeWindow) => toolbarCommandDisabledReason(command, {
+      activeWindow,
+      locale: "en",
+      capabilities: maxCapabilities,
+      detailsVisible: true,
+      ganttVisible: true,
+      lineNumbers: true,
+    }) === null);
+
+  for (const command of TOOLBAR_COMMANDS) {
+    if (command.target.kind === "window") {
+      assert.ok(windows.includes(command.target.window), `${command.id} targets unknown window ${command.target.window}`);
+      continue;
+    }
+    if (command.target.kind === "rail" || command.target.kind === "fullscreen") continue;
+    const target = command.target.command;
+    if (target.startsWith("dialog.")) {
+      // main.ts routes every dialog.* command to the shared dialog surface.
+      assert.match(source, /command\.startsWith\("dialog\."\)/, "dialog routing is missing");
+      continue;
+    }
+    if (!enabledSomewhere(command)) continue;
+    assert.match(
+      source,
+      new RegExp(`case "${target.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}":`),
+      `${command.id} → ${target} is enabled somewhere but has no dispatcher`,
+    );
+  }
 });
 
 test("rendering exposes both rails, every family and its Add or Remove control", () => {

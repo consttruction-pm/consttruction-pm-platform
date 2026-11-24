@@ -1508,6 +1508,14 @@ Acceptance requires exact Help crosswalk, Professional/EPPM overlap matrix, sour
 - **Live-data limit (unchanged):** the owner main deployment reports schema 16 / 95 tables with structural fingerprint equal; the only checksum drift is step 5 (`project-lifecycle`), recorded `fd930754ba53` vs registry `31e9fec9fa71`. Root cause: `1fbc8162` raised that step to `revision 2` after the live database had already recorded it; the checksum covers `version|name|revision|module.qualname`, and the equal structural fingerprint shows the live schema already contains the revision-2 objects. No migration is pending. `/api/projects` and `/api/shared-projects` still return **401 SESSION_REQUIRED**, so row-level presence of CUBI-REF-001/002/003 and CUBI-DAM-001 still cannot be verified from the sandbox without a disposable authenticated identity or read-only DSN.
 - **Status:** PR opened on `feat/engineering-shared-reference-projects`; merge after green CI. Next bounded work: Phase C remainder (per-command rail audit) and Phase D rebinding/reset/Help map.
 
+## 2026-11-24 — P0 Engineering Phase C completion: navigation rail parity and command-dispatch invariant — Issue #2138
+
+- **Scope:** Toolbar command registry and its tests only. No schema, migration, RLS, project record, identity or session change.
+- **Defect:** the navigation family registered twenty of the twenty-one canonical workspace windows — `Control` was missing even though `WORKSPACE_NAVIGATION` lists it and the view implements its window. Added `nav.control` in canonical order after Thresholds.
+- **Invariant added:** every toolbar command with a `window` target must name a real `WORKSPACE_NAVIGATION` key; every command that is enabled in at least one window must either use the routed `dialog.*` prefix or have a `case` in `runDesktopCommand`; commands without a dispatcher must be disabled with a reason everywhere. The navigation family must cover exactly the twenty-one navigation windows with no duplicates.
+- **Tests:** `apps/web` `npm test` **1,335 passed / 0 failed** (1,335 = 1,333 + 2) + preview-server **16 passed**; `npm run typecheck` and `npm run build` exit 0.
+- **Status:** PR opened on `feat/engineering-rail-command-audit`; merge after green CI. Remaining Phase D: rebinding with capture-time conflict rejection, Reset to defaults, per-command official-Help page map. Phase A row-level project verification stays blocked on the missing disposable authenticated identity/read-only DSN.
+
 ## 2026-11-24 — P0 Engineering Phase D: rebindable shortcuts, conflict rejection, browser-reserved Ctrl+R — Issue #2138
 
 - **Scope:** Engineering shortcut dialog and key handler only. No schema, migration, RLS, importer, project record, identity or session change.
@@ -1517,4 +1525,4 @@ Acceptance requires exact Help crosswalk, Professional/EPPM overlap matrix, sour
 - **Ctrl+R:** V26 Help lists Ctrl+R beside F5. The catalogue now records `shortcut.refresh-ctrl-r` as explicitly unavailable with the browser-reload reason and the F5 substitute, so the shell neither hijacks reload nor hides the documented binding.
 - **Tests:** new `workspace-shortcut-preferences.test.ts` (7 cases: per-user round-trip and clearing, rejection of stale/malformed payloads, chord capture rules, apply/without, conflict normalization) plus 4 shell cases (dialog controls and browser-reserved reason, capture rejecting typing/conflicts then accepting, Reset/Reset all payloads, re-render cancelling capture). `apps/web` `npm test` **1,344 passed / 0 failed** + preview-server **16 passed**; `npm run typecheck` and `npm run build` exit 0.
 - **Remaining in Phase D:** the per-command official-Help page map (each command opening its V26 Help page) is still not started.
-- **Status:** PR #2146 OPEN (CI running); PR #2145 (navigation rail + dispatch invariant) was still awaiting `test (3.12/3.13)`. Next bounded work: Phase E — the 21 navigation groups against canonical PostgreSQL.
+- **Status:** PR #2146 OPEN (CI on the merged head); PR #2145 merged as `55ec8e75`. Next bounded work: Phase E — the 21 navigation groups against canonical PostgreSQL.
