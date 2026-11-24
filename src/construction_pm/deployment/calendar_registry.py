@@ -82,7 +82,13 @@ def build_postgres_calendar_registry(connection: Any) -> CalendarResolverRegistr
                 )
             record = snapshot_repository.get(calendar)
             if record is None:
-                raise CalendarRegistryError(f"CALENDAR_SNAPSHOT_MISSING:{key}")
+                # A master without a stored definition cannot be consumed and
+                # cannot be referenced either: the input composer rejects a
+                # settings calendar or activity assignment that points at it,
+                # so publication fails closed there. Skipping it here keeps one
+                # unrelated empty calendar from breaking every other project's
+                # schedule read in the same database.
+                continue
             try:
                 definition = (
                     WorkingTimeCalendar.from_canonical_snapshot(record.snapshot)
