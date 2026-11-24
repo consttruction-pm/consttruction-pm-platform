@@ -1536,3 +1536,172 @@ def test_issue_register_is_reachable_and_durable_over_postgres(runtime):
     )
     assert [row[0] for row in trail][0] == "created"
     assert trail[-1][0] == "deleted"
+
+
+def test_calendar_register_is_reachable_and_feeds_the_schedule_registry(runtime):
+    """Calendars reach the router and the evaluator's registry in production.
+
+    Before this wiring the router answered ROUTE_NOT_FOUND for every calendar
+    call and the schedule query raised SCHEDULE_QUERY_NOT_DEPLOYED, so no
+    calculation could ever produce a date, a float or a critical path.
+    """
+
+    from construction_pm.calendar_master_repository import PostgresCalendarMasterRepository
+    from construction_pm.calendar_snapshot_repository import (
+        PostgresCalendarSnapshotRepository,
+    )
+    from construction_pm.deployment.calendar_registry import (
+        build_postgres_calendar_registry,
+    )
+    from construction_pm.scheduling.calendar import WorkingCalendar
+    from construction_pm.scheduling.calendar_system import CalendarSystem
+
+    ids = runtime.test_ids
+    project = ids["project_a"]
+    base = f"/api/projects/{project}/p6/calendars"
+    planner_cookie, planner_csrf = login(runtime, "planner", PLANNER_PASSWORD)
+    viewer_cookie, viewer_csrf = login(runtime, "viewer", VIEWER_PASSWORD)
+    calendar_id = f"CAL-E2E-{ids['suffix']}"
+    version = "v1"
+
+    # 1. The catalog is reachable (200, not ROUTE_NOT_FOUND).
+    status, _, body = call(runtime, "GET", base, cookie=planner_cookie)
+    assert status == 200, body
+    assert json.loads(body)["kind"] == "calendar_catalog"
+    before = len(json.loads(body)["calendars"])
+
+    # 2. A calendar master is created through the production router.
+    status, _, body = call(
+        runtime,
+        "POST",
+        base,
+        body={
+            "calendar_id": calendar_id,
+            "calendar_version": version,
+            "calendar_type": "project",
+            "kind": "working-day",
+            "name": "E2E working calendar",
+        },
+        cookie=planner_cookie,
+        csrf=planner_csrf,
+    )
+    assert status == 200, body
+    created = json.loads(body)
+    assert created["calendar_id"] == calendar_id
+
+    # 3. It is listed from the durable row, and the master really exists.
+    status, _, body = call(runtime, "GET", base, cookie=planner_cookie)
+    assert status == 200, body
+    listed = json.loads(body)["calendars"]
+    assert len(listed) == before + 1
+    assert any(item["calendar_id"] == calendar_id for item in listed)
+    assert _db_rows(
+        runtime,
+        "SELECT record_revision FROM calendar_master "
+        "WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s",
+        (ids["tenant_a"], project, calendar_id, version),
+    ) == [(1,)]
+
+    # 4. A stored definition makes the calendar consumable: the registry the
+    #    evaluator uses resolves it and honours the working weekdays.
+    status, _, body = call(runtime, "GET", "/api/projects", cookie=planner_cookie)
+    assert status == 200, body
+    revision = int(
+        next(
+            item["revision"]
+            for item in json.loads(body)["projects"]
+            if item["project_id"] == project
+        )
+    )
+    from construction_pm.backend_p0.models import BackendScope
+
+    import psycopg
+
+    seeded = psycopg.connect(
+        os.environ["CONSTRUCTION_PM_POSTGRES_DSN"],
+        autocommit=True,
+        options=f"-c search_path={ids['schema']}",
+    )
+    scope = BackendScope(ids["tenant_a"], project, revision)
+    master_repository = PostgresCalendarMasterRepository(seeded)
+    snapshot_repository = PostgresCalendarSnapshotRepository(seeded)
+    master = master_repository.get(scope, calendar_id, version)
+    assert master is not None
+    definition = WorkingCalendar(
+        working_weekdays=frozenset({0, 1, 2, 3, 4}), system=CalendarSystem.GREGORIAN
+    )
+    snapshot_repository.save(master, definition)
+    registry = build_postgres_calendar_registry(seeded)
+    from construction_pm.scheduling.calendar_context import CalendarReference
+
+    resolver = registry.resolve(
+        CalendarReference(calendar_id, version, "working-day", CalendarSystem.GREGORIAN)
+    )
+    assert resolver is not None
+    assert snapshot_repository.get(master) is not None
+    seeded.close()
+
+    # 5. The schedule query reaches the evaluator instead of failing as
+    #    "not deployed"; the factory is the durable registry now.
+    status, _, body = call(
+        runtime,
+        "POST",
+        "/api/v1/schedule/query",
+        body={
+            "contract_version": "schedule-query.v1",
+            "query_id": f"q-{ids['suffix']}",
+            "scope": {
+                "tenant_id": ids["tenant_a"],
+                "project_id": project,
+                "project_revision": revision,
+            },
+            "requested_by": runtime.test_ids["users"]["planner"].user_id,
+            "query_text": "schedule facts",
+            "kind": "fact",
+            "language": "en",
+        },
+        cookie=planner_cookie,
+        csrf=planner_csrf,
+    )
+    assert status == 400, status
+    # The registry is built first and succeeds; the request then fails on the
+    # missing immutable snapshot, which is the next honest validation, not a
+    # "not deployed" shortcut.
+    query_error = json.loads(body)["code"]
+    assert query_error == "SCHEDULE_INPUT_SNAPSHOT_ID_REQUIRED"
+
+    # 6. A viewer reads the catalog but cannot create a calendar.
+    status, _, body = call(runtime, "GET", base, cookie=viewer_cookie)
+    assert status == 200, body
+    status, _, body = call(
+        runtime,
+        "POST",
+        base,
+        body={
+            "calendar_id": f"CAL-VIEWER-{ids['suffix']}",
+            "calendar_version": version,
+            "calendar_type": "project",
+            "kind": "working-day",
+            "name": "Viewer calendar",
+        },
+        cookie=viewer_cookie,
+        csrf=viewer_csrf,
+    )
+    assert status == 403, body
+
+    # 7. Delete with the current revision removes the master.
+    status, _, body = call(
+        runtime,
+        "DELETE",
+        f"{base}/{calendar_id}/{version}",
+        body={"expected_revision": 1},
+        cookie=planner_cookie,
+        csrf=planner_csrf,
+    )
+    assert status == 200, body
+    assert _db_rows(
+        runtime,
+        "SELECT COUNT(*) FROM calendar_master "
+        "WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s",
+        (ids["tenant_a"], project, calendar_id),
+    ) == [(0,)]
