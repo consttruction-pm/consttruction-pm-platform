@@ -1464,3 +1464,14 @@ Acceptance requires exact Help crosswalk, Professional/EPPM overlap matrix, sour
 - **Architecture document:** `docs/architecture/CUBI_VENDOR_NATIVE_PROJECT_INTERCHANGE_AND_ROUNDTRIP_FIDELITY_V1.md`.
 - **Truthful status:** requirement and acceptance standard are registered; this entry does not assert that native export/import, MPP conversion, full-format audits or target-application round-trip certification are implemented. Existing code must be audited against this standard.
 - **Status:** `PENDING_REVIEW` on branch `docs/vendor-native-roundtrip-fidelity`, PR #2137 (open, not merged). At initial exact-head check, Vercel preview and both Python Vercel project checks reported failure; no runtime code, schema, migrations or deployment changed.
+
+
+## 2026-11-24 — P0 extension: full-fidelity project replacement workflow — Issue #2136
+
+- **Owner-approved addition:** P6 and Microsoft Project imports must support explicit create-new, replace-selected-project and separately governed controlled-merge operations. Never infer replacement from matching names.
+- **Preflight:** immutable staging snapshot, target revision binding, deterministic object-level diff, stable source-to-target ID mappings, dependency closure and explicit classification of all collisions, external references and unsupported semantics.
+- **Replacement safety:** preserve target CUBI project identity, tenant/owner/security, other projects, audit/revision history, unrelated attachments/workflows and CUBI-only fields. Replace only the approved project-data boundary. Shared resources/calendars may be reused only after semantic fingerprint equality and explicit authorization.
+- **Fidelity:** selected project calendar, all task/resource calendar assignments, relationships, resource assignments and every baseline identity/value must remain exact/equivalent or safely retained as a typed extension. No name-based guessing, silent nulling, default-calendar substitution or schedule recalculation during import.
+- **Apply/rollback:** permission-checked, idempotent, optimistic-revision-bound, transactional or durable stage-and-atomic-swap; recoverable pre-replacement snapshot; persisted post-apply fingerprint checks; all-or-nothing visibility and exact rollback on failure.
+- **Conflict policy:** EXACT, EQUIVALENT_WITH_RULE, PRESERVED_EXTENSION, CONFLICT_REQUIRES_DECISION, BLOCKING_UNSUPPORTED, EXPLICITLY_OMITTED. Strict mode blocks unsafe loss; permissive omissions require itemized user approval and cannot be called lossless.
+- **Status:** architecture/acceptance requirement only; replacement implementation and tests remain unverified.
