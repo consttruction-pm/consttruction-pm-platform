@@ -413,12 +413,65 @@ test("calendar creation posts a base reference and refuses incomplete input", as
     base_calendar_version: "1",
     system: "gregorian",
   });
-  const noBase = await createCalendar(transportWith({ ok: true, data: CALENDAR }), CONTEXT, { ...input, baseCalendarId: "" });
+  // Without a base the request must carry a complete working week; an empty
+  // one is refused instead of inventing a calendar definition.
+  const noBase = await createCalendar(transportWith({ ok: true, data: CALENDAR }), CONTEXT, { ...input, baseCalendarId: "", baseCalendarVersion: "" });
   assert.equal(noBase.ok, false);
-  if (!noBase.ok) assert.equal(noBase.error.code, "CALENDAR_BASE_REQUIRED");
+  if (!noBase.ok) assert.equal(noBase.error.code, "CALENDAR_WORKING_WEEK_REQUIRED");
   const badKind = await createCalendar(transportWith({ ok: true, data: CALENDAR }), CONTEXT, { ...input, kind: "other" });
   assert.equal(badKind.ok, false);
   if (!badKind.ok) assert.equal(badKind.error.code, "INVALID_CALENDAR_KIND");
+});
+
+test("root calendar creation sends the working week as the immutable definition", async () => {
+  const calls: Calls = { gets: [], posts: [], patches: [], puts: [], deletes: [] };
+  const created = await createCalendar(
+    transportWith({ ok: true, data: { ...CALENDAR, calendar_id: "CAL-ROOT", kind: "working-day" } }, calls),
+    CONTEXT,
+    {
+      calendarId: "CAL-ROOT",
+      calendarVersion: "1",
+      calendarType: "project",
+      kind: "working-day",
+      name: "Root calendar",
+      system: "gregorian",
+      workingWeekdays: [5, 1, 1, 2, 3, 4],
+    },
+  );
+  assert.equal(created.ok, true);
+  assert.deepEqual(calls.posts[0].request, {
+    contract_version: "p6-calendar.v1",
+    calendar_id: "CAL-ROOT",
+    calendar_version: "1",
+    calendar_type: "project",
+    kind: "working-day",
+    name: "Root calendar",
+    expected_revision: 0,
+    definition: { system: "gregorian", working_weekdays: [1, 2, 3, 4, 5] },
+  });
+  const incomplete = await createCalendar(transportWith({ ok: true, data: CALENDAR }), CONTEXT, {
+    calendarId: "CAL-ROOT",
+    calendarVersion: "1",
+    calendarType: "project",
+    kind: "working-day",
+    name: "Root calendar",
+    baseCalendarId: "CAL-PRJ",
+    system: "gregorian",
+    workingWeekdays: [0],
+  });
+  assert.equal(incomplete.ok, false);
+  if (!incomplete.ok) assert.equal(incomplete.error.code, "INCOMPLETE_BASE_CALENDAR_REFERENCE");
+  const badWeekday = await createCalendar(transportWith({ ok: true, data: CALENDAR }), CONTEXT, {
+    calendarId: "CAL-ROOT",
+    calendarVersion: "1",
+    calendarType: "project",
+    kind: "working-day",
+    name: "Root calendar",
+    system: "gregorian",
+    workingWeekdays: [7],
+  });
+  assert.equal(badWeekday.ok, false);
+  if (!badWeekday.ok) assert.equal(badWeekday.error.code, "INVALID_CALENDAR_WEEKDAY");
 });
 
 test("calendar exception deletion targets the exact stored date", async () => {

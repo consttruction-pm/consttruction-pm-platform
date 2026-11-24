@@ -2136,3 +2136,372 @@ def test_published_snapshot_drives_production_workspace_float_and_critical_path(
         for item in json.loads(body)["workspace"]["activities"]
     }
     assert still_projected[first]["activity.early_start"] == first_cells["activity.early_start"]
+
+
+def test_root_calendar_definition_is_managed_through_the_authenticated_api(runtime):
+    """A user defines a root calendar entirely through the product API.
+
+    Slice 4 proved float and critical path once a definition existed, but the
+    definition itself could only be written through the repository. This test
+    uses no repository write for the normal workflow: the authenticated router
+    creates the master and its immutable working week atomically, the registry
+    resolves exactly that definition, and a published snapshot evaluates with
+    it after a fresh login.
+    """
+
+    from datetime import date
+
+    import psycopg
+
+    from construction_pm.deployment.calendar_registry import (
+        build_postgres_calendar_registry,
+    )
+    from construction_pm.project_schedule_settings_repository import (
+        _schedule_options_payload,
+    )
+    from construction_pm.scheduling.calendar_context import CalendarReference
+    from construction_pm.scheduling.calendar_system import CalendarSystem
+    from construction_pm.scheduling.schedule_options import ScheduleOptions
+
+    ids = runtime.test_ids
+    project = ids["project_a"]
+    suffix = uuid.uuid4().hex[:8]
+    cookie, csrf = login(runtime, "planner", PLANNER_PASSWORD)
+    viewer_cookie, viewer_csrf = login(runtime, "viewer", VIEWER_PASSWORD)
+    outsider_cookie, _ = login(runtime, "outsider", ADMIN_PASSWORD)
+
+    base = f"/api/projects/{project}/p6/calendars"
+    calendar_id, calendar_version = f"CAL-DEF-{suffix}", "v1"
+    # Tuesday..Saturday week with a Wednesday holiday: a default Monday..Friday
+    # calendar would schedule the Monday project start, this one cannot.
+    definition = {
+        "system": "gregorian",
+        "working_weekdays": [1, 2, 3, 4, 5],
+        "holidays": ["2026-11-04"],
+    }
+
+    # 1. The router creates master and definition in one authenticated call.
+    status, _, body = call(
+        runtime,
+        "POST",
+        base,
+        body={
+            "calendar_id": calendar_id,
+            "calendar_version": calendar_version,
+            "calendar_type": "project",
+            "kind": "working-day",
+            "name": "Root calendar via API",
+            "definition": definition,
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+    created = json.loads(body)
+    assert created["schedulable"] is True
+    assert created["record_revision"] == 1
+
+    # 2. A fresh session reopens the stored definition unchanged.
+    fresh_cookie, fresh_csrf = login(runtime, "planner", PLANNER_PASSWORD)
+    detail_path = f"{base}/{calendar_id}/{calendar_version}/definition"
+    status, _, body = call(runtime, "GET", detail_path, cookie=fresh_cookie)
+    assert status == 200, body
+    stored = json.loads(body)
+    assert stored["contract_version"] == "p6-calendar-definition.v1"
+    assert stored["schedulable"] is True
+    assert stored["definition"]["working_weekdays"] == [1, 2, 3, 4, 5]
+    assert stored["definition"]["holidays"] == ["2026-11-04"]
+    assert stored["definition"]["system"] == "gregorian"
+    assert stored["calendar"]["record_revision"] == 1
+
+    # 3. The definition is durable and came from this request, not a fixture.
+    assert _db_rows(
+        runtime,
+        "SELECT record_revision FROM calendar_master "
+        "WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s",
+        (ids["tenant_a"], project, calendar_id, calendar_version),
+    ) == [(1,)]
+    snapshot_rows = _db_rows(
+        runtime,
+        "SELECT snapshot_json FROM calendar_master_snapshot "
+        "WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s AND calendar_version=%s",
+        (ids["tenant_a"], project, calendar_id, calendar_version),
+    )
+    assert len(snapshot_rows) == 1
+    durable_definition = snapshot_rows[0][0]
+    assert durable_definition["working_weekdays"] == [1, 2, 3, 4, 5]
+    assert durable_definition["holidays"] == ["2026-11-04"]
+
+    # 4. Idempotent replay is accepted; a different definition is immutable
+    #    because a published calculation must stay reproducible.
+    status, _, body = call(
+        runtime,
+        "PUT",
+        detail_path,
+        body={"expected_revision": 1, "definition": definition},
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+    assert json.loads(body)["calendar"]["record_revision"] == 1
+    status, _, body = call(
+        runtime,
+        "PUT",
+        detail_path,
+        body={
+            "expected_revision": 1,
+            "definition": {**definition, "working_weekdays": [0, 1, 2, 3, 4]},
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 409, body
+    assert json.loads(body)["code"] == "CALENDAR_DEFINITION_IMMUTABLE"
+
+    # 5. A bare master is visible but explicitly not schedulable.
+    bare_id = f"CAL-BARE-{suffix}"
+    status, _, body = call(
+        runtime,
+        "POST",
+        base,
+        body={
+            "calendar_id": bare_id,
+            "calendar_version": "v1",
+            "calendar_type": "project",
+            "kind": "working-day",
+            "name": "Bare master",
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+    assert json.loads(body)["schedulable"] is False
+    status, _, body = call(runtime, "GET", f"{base}/{bare_id}/v1/definition", cookie=cookie)
+    assert status == 200, body
+    assert json.loads(body)["definition"] is None
+    assert json.loads(body)["schedulable"] is False
+
+    # 6. Sealing that master is revision guarded, and a stale write is refused.
+    bare_detail = f"{base}/{bare_id}/v1/definition"
+    status, _, body = call(
+        runtime,
+        "PUT",
+        bare_detail,
+        body={"expected_revision": 2, "definition": definition},
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 409, body
+    assert json.loads(body)["code"] == "REVISION_CONFLICT"
+    status, _, body = call(
+        runtime,
+        "PUT",
+        bare_detail,
+        body={"expected_revision": 1, "definition": definition},
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+    assert json.loads(body)["calendar"]["record_revision"] == 2
+    status, _, body = call(
+        runtime,
+        "PUT",
+        bare_detail,
+        body={"expected_revision": 1, "definition": definition},
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 409, body
+    assert json.loads(body)["code"] == "REVISION_CONFLICT"
+
+    # 7. A rejected definition leaves no master behind (atomic over HTTP).
+    malformed_id = f"CAL-HTTP-BAD-{suffix}"
+    status, _, body = call(
+        runtime,
+        "POST",
+        base,
+        body={
+            "calendar_id": malformed_id,
+            "calendar_version": "v1",
+            "calendar_type": "project",
+            "kind": "working-day",
+            "name": "Malformed",
+            "definition": {"working_weekdays": []},
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 400, body
+    assert json.loads(body)["code"] == "CALENDAR_DEFINITION_WORKING_WEEK_REQUIRED"
+    assert _db_rows(
+        runtime,
+        "SELECT COUNT(*) FROM calendar_master WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s",
+        (ids["tenant_a"], project, malformed_id),
+    ) == [(0,)]
+
+    # 8. Authorization: viewer reads the definition but cannot change it; a
+    #    foreign tenant cannot read it at all.
+    status, _, body = call(runtime, "GET", detail_path, cookie=viewer_cookie)
+    assert status == 200, body
+    status, _, body = call(
+        runtime,
+        "PUT",
+        detail_path,
+        body={"expected_revision": 1, "definition": definition},
+        cookie=viewer_cookie,
+        csrf=viewer_csrf,
+    )
+    assert status == 403, body
+    status, _, body = call(runtime, "GET", detail_path, cookie=outsider_cookie)
+    assert status == 403, body
+
+    # 9. The evaluator's registry resolves exactly the stored definition.
+    connection = psycopg.connect(
+        os.environ["CONSTRUCTION_PM_POSTGRES_DSN"],
+        autocommit=True,
+        options=f"-c search_path={ids['schema']}",
+    )
+    try:
+        registry = build_postgres_calendar_registry(connection)
+        resolver = registry.resolve(
+            CalendarReference(
+                calendar_id, calendar_version, "working-day", CalendarSystem.GREGORIAN
+            )
+        )
+        assert resolver is not None
+        assert resolver.is_working_day(date(2026, 11, 2)) is False  # Monday
+        assert resolver.is_working_day(date(2026, 11, 3)) is True   # Tuesday
+        assert resolver.is_working_day(date(2026, 11, 4)) is False  # holiday
+        assert resolver.is_working_day(date(2026, 11, 7)) is True   # Saturday
+        assert registry.resolve(
+            CalendarReference(bare_id, "v1", "working-day", CalendarSystem.GREGORIAN)
+        ) is not None  # sealed in step 6
+    finally:
+        connection.close()
+
+    # 10. The definition really drives a published calculation: the project
+    #     starts on Monday 2026-11-02, which this calendar does not work.
+    activity_id = f"ACT-CAL-{suffix}"
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/activities",
+        body={
+            "activity_id": activity_id,
+            "name": "Calendar-driven task",
+            "duration_value": 2,
+            "duration_unit": "working-day",
+            "wbs_id": ids["root_wbs"],
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 201, body
+    # Another live test in this module may already own the project's single
+    # settings row, so the guarded write starts from its current revision.
+    settings_rows = _db_rows(
+        runtime,
+        "SELECT record_revision FROM project_schedule_settings "
+        "WHERE tenant_id=%s AND project_id=%s",
+        (ids["tenant_a"], project),
+    )
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/schedule/settings",
+        body={
+            "contract_version": "p6-project-schedule-settings-api.v1",
+            "expected_record_revision": int(settings_rows[0][0]) if settings_rows else 0,
+            "mode": "DATE_BASED",
+            "project_calendar_id": calendar_id,
+            "project_calendar_version": calendar_version,
+            "project_calendar_system": "gregorian",
+            "project_start": "2026-11-02",
+            "project_finish": None,
+            "schedule_options": _schedule_options_payload(ScheduleOptions()),
+            "project_leveling_priority": 50,
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status in {200, 201}, body
+    status, _, body = call(runtime, "GET", "/api/projects", cookie=cookie)
+    assert status == 200, body
+    project_revision = int(
+        next(
+            item["revision"]
+            for item in json.loads(body)["projects"]
+            if item["project_id"] == project
+        )
+    )
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/schedule/snapshots",
+        body={
+            "contract_version": "p6-schedule-snapshot-api.v1",
+            "timezone": "UTC",
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status in {200, 201}, body
+    published = json.loads(body)
+    snapshot_id = published["snapshot_id"]
+    assert published["snapshot_hash"] and published["calculation_identity"]
+
+    def _query_facts(query_id: str, cookie_value: str, csrf_value: str) -> dict:
+        status, _, body = call(
+            runtime,
+            "POST",
+            "/api/v1/schedule/query",
+            body={
+                "contract_version": "schedule-query.v1",
+                "query_id": query_id,
+                "scope": {
+                    "tenant_id": ids["tenant_a"],
+                    "project_id": project,
+                    "project_revision": project_revision,
+                },
+                "requested_by": ids["users"]["planner"].user_id,
+                "query_text": "schedule facts",
+                "kind": "fact",
+                "language": "en",
+                "constraints": {"snapshot_id": snapshot_id},
+            },
+            cookie=cookie_value,
+            csrf=csrf_value,
+        )
+        assert status == 200, body
+        result = json.loads(body)
+        assert result["contract_version"] == "schedule-query-result.v1"
+        return dict(result["data"])
+
+    # A reload in a new session evaluates the same immutable snapshot to the
+    # same facts; the snapshot identity is the published one either way.
+    first_facts = _query_facts(f"q-{suffix}-1", cookie, csrf)
+    reload_cookie, reload_csrf = login(runtime, "planner", PLANNER_PASSWORD)
+    reloaded_facts = _query_facts(f"q-{suffix}-2", reload_cookie, reload_csrf)
+    assert reloaded_facts == first_facts
+
+    status, _, body = call(
+        runtime,
+        "GET",
+        "/api/v2/workspace/control-room/read",
+        cookie=reload_cookie,
+        headers={
+            "X-Tenant-Id": ids["tenant_a"],
+            "X-Project-Id": project,
+            "X-Project-Revision": str(project_revision),
+        },
+    )
+    assert status == 200, body
+    cells = {
+        item["id"]: item["cells"]
+        for item in json.loads(body)["workspace"]["activities"]
+    }[activity_id]
+    early_start = date.fromisoformat(cells["activity.early_start"])
+    # Monday 2026-11-02 is not a working day of the API-defined calendar.
+    assert early_start == date(2026, 11, 3)
+    assert cells["start"] == cells["activity.early_start"]
+    assert "activity.total_float" in cells

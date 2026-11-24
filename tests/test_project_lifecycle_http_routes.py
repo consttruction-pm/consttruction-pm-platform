@@ -344,8 +344,8 @@ class FakeP6CalendarAPI:
     def __init__(self):
         self.calls = []
 
-    def create(self, scope, request, *, auth_context):
-        self.calls.append(("create", scope, request, auth_context))
+    def create(self, scope, request, *, auth_context, definition=None):
+        self.calls.append(("create", scope, request, auth_context, definition))
         return {"contract_version": "p6-calendar.v1", "calendar_id": request.calendar_id}
 
     def update(self, scope, request, *, auth_context):

@@ -589,9 +589,11 @@ export type CalendarCreateInput = {
   calendarType: string;
   kind: string;
   name: string;
-  baseCalendarId: string;
-  baseCalendarVersion: string;
+  baseCalendarId?: string;
+  baseCalendarVersion?: string;
   system: "gregorian" | "jalali";
+  /** A root calendar has no base, so it carries its own working week. */
+  workingWeekdays?: readonly number[];
 };
 
 function parseWorkHourRule(value: unknown): CalendarWorkHourRule {
@@ -688,8 +690,23 @@ export async function createCalendar(
   if (!input.name.trim()) return localError("CALENDAR_NAME_REQUIRED");
   if (!CALENDAR_TYPES.includes(input.calendarType as (typeof CALENDAR_TYPES)[number])) return localError("INVALID_CALENDAR_TYPE");
   if (input.kind !== "working-day" && input.kind !== "working-time") return localError("INVALID_CALENDAR_KIND");
-  if (!input.baseCalendarId || !input.baseCalendarVersion) return localError("CALENDAR_BASE_REQUIRED");
+  const baseId = (input.baseCalendarId ?? "").trim();
+  const baseVersion = (input.baseCalendarVersion ?? "").trim();
+  if ((baseId === "") !== (baseVersion === "")) return localError("INCOMPLETE_BASE_CALENDAR_REFERENCE");
   if (input.system !== "gregorian" && input.system !== "jalali") return localError("INVALID_CALENDAR_SYSTEM");
+  // A root calendar has no base to inherit from, so the request must carry the
+  // complete working week; the server stores it as the immutable definition in
+  // the same transaction as the master.
+  let definition: { system: "gregorian" | "jalali"; working_weekdays: number[] } | null = null;
+  if (!baseId) {
+    const weekdays = input.workingWeekdays ?? [];
+    if (!weekdays.length) return localError("CALENDAR_WORKING_WEEK_REQUIRED");
+    if (weekdays.some((day) => !Number.isInteger(day) || day < 0 || day > 6)) return localError("INVALID_CALENDAR_WEEKDAY");
+    definition = {
+      system: input.system,
+      working_weekdays: [...new Set(weekdays)].sort((left, right) => left - right),
+    };
+  }
   const request = {
     contract_version: CALENDAR_API_CONTRACT,
     calendar_id: id,
@@ -698,9 +715,9 @@ export async function createCalendar(
     kind: input.kind,
     name: input.name.trim(),
     expected_revision: 0,
-    base_calendar_id: input.baseCalendarId,
-    base_calendar_version: input.baseCalendarVersion,
-    system: input.system,
+    ...(baseId
+      ? { base_calendar_id: baseId, base_calendar_version: baseVersion, system: input.system }
+      : { definition }),
   };
   const result = await transport.post<typeof request, unknown>(
     calendarPath(context),
@@ -1186,16 +1203,18 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
   function renderDialog(record: WorkspaceCalendarRecord | null): string {
     if (state.dialog === "new") {
       const bases = state.catalog.map((item) => `<option value="${escapeAttribute(`${item.calendarId}|${item.calendarVersion}`)}">${escapeHtml(`${item.calendarId} @ ${item.calendarVersion} — ${item.kind} (${item.calendarType})`)}</option>`).join("");
+      const weekdays = WEEKDAYS.map((day) => `<label><input type="checkbox" data-calendar-new-weekday value="${day.index}" ${day.index <= 4 ? "checked" : ""}> ${escapeHtml(say(day.en, day.fa))}</label>`).join("");
       return `<div class="cp-calendar-dialog" role="dialog" aria-label="${escapeHtml(say("New calendar", "تقویم جدید"))}">
-        <strong>${escapeHtml(say("Create a calendar from a base", "ایجاد تقویم از یک تقویم پایه"))}</strong>
-        <p>${escapeHtml(say("The new calendar receives the base definition, work-hour rules and exceptions in one transaction, so it is usable immediately.", "تقویم جدید تعریف، قواعد ساعات کاری و استثناهای تقویم پایه را در یک تراکنش دریافت می‌کند و بلافاصله قابل استفاده است."))}</p>
+        <strong>${escapeHtml(say("Create a calendar", "ایجاد تقویم"))}</strong>
+        <p>${escapeHtml(say("Choose a base calendar to inherit its definition, work hours and exceptions in one transaction. Leave the base empty to create a root calendar with its own working week.", "برای ارث‌بری تعریف، ساعات کاری و استثناها در یک تراکنش یک تقویم پایه انتخاب کنید. اگر پایه خالی بماند، تقویم ریشه با هفته کاری اختصاصی خودش ساخته می‌شود."))}</p>
         <div class="cp-calendar-fields">
-          <label>${escapeHtml(say("Base calendar", "تقویم پایه"))}<select data-calendar-new-base required>${bases}</select></label>
+          <label>${escapeHtml(say("Base calendar", "تقویم پایه"))}<select data-calendar-new-base><option value="">${escapeHtml(say("Root calendar (no base)", "تقویم ریشه (بدون پایه)"))}</option>${bases}</select></label>
           <label>${escapeHtml(say("Calendar ID", "شناسه تقویم"))}<input data-calendar-new-id required maxlength="80" autocomplete="off"></label>
           <label>${escapeHtml(say("Version", "نسخه"))}<input data-calendar-new-version value="1" required maxlength="40" autocomplete="off"></label>
           <label>${escapeHtml(say("Calendar Name", "نام تقویم"))}<input data-calendar-new-name required maxlength="180" autocomplete="off"></label>
           <label>${escapeHtml(say("Calendar Type", "نوع تقویم"))}<select data-calendar-new-type>${CALENDAR_TYPES.map((value) => `<option value="${value}">${value}</option>`).join("")}</select></label>
           <label>${escapeHtml(say("Date System", "مبنای تاریخ"))}<select data-calendar-new-system><option value="gregorian">gregorian</option><option value="jalali">jalali</option></select></label>
+          <fieldset data-calendar-new-weekdays><legend>${escapeHtml(say("Working days (root calendar only)", "روزهای کاری (فقط تقویم ریشه)"))}</legend>${weekdays}</fieldset>
         </div>
         <p>${escapeHtml(say("A Jalali calendar keeps ISO Gregorian dates in storage and uses Jalali values for exception entry and display.", "تقویم جلالی تاریخ‌ها را به‌صورت ISO میلادی ذخیره می‌کند و برای ورود و نمایش استثناها از مقدار جلالی استفاده می‌کند."))}</p>
         <div class="cp-calendar-panel-actions"><button type="button" data-calendar-action="new-submit" ${state.busy ? "disabled" : ""}>${escapeHtml(say("Create calendar", "ایجاد تقویم"))}</button><button type="button" data-calendar-action="dialog-cancel">${escapeHtml(say("Cancel", "لغو"))}</button></div>
@@ -1227,7 +1246,7 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
     host.innerHTML = `<div class="cp-calendar-window-toolbar">
         <strong>${escapeHtml(say("Calendar Register", "فهرست تقویم‌ها"))}</strong>
         <div>
-          <button type="button" data-calendar-action="new" ${state.catalog.length ? "" : "disabled"} title="${escapeAttribute(say("Create a calendar from a base calendar", "ایجاد تقویم از یک تقویم پایه"))}">${escapeHtml(say("New", "جدید"))}</button>
+          <button type="button" data-calendar-action="new" title="${escapeAttribute(say("Create a root calendar or one from a base calendar", "ایجاد تقویم ریشه یا تقویم از یک تقویم پایه"))}">${escapeHtml(say("New", "جدید"))}</button>
           <button type="button" data-calendar-action="copy" ${record ? "" : "disabled"}>${escapeHtml(say("Copy", "کپی"))}</button>
           <button type="button" data-calendar-action="delete" ${record ? "" : "disabled"}>${escapeHtml(say("Delete", "حذف"))}</button>
           <button type="button" data-calendar-action="reload" ${state.busy ? "disabled" : ""}>${escapeHtml(say("Refresh", "به‌روزرسانی"))}</button>
@@ -1566,17 +1585,23 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
     }
     if (action === "new-submit") {
       const baseValue = host.querySelector<HTMLSelectElement>("[data-calendar-new-base]")?.value ?? "";
-      const base = state.catalog.find((item) => `${item.calendarId}|${item.calendarVersion}` === baseValue);
-      if (!base) return;
+      const base = baseValue
+        ? state.catalog.find((item) => `${item.calendarId}|${item.calendarVersion}` === baseValue)
+        : undefined;
+      if (baseValue && !base) return;
+      const workingWeekdays = Array.from(
+        host.querySelectorAll<HTMLInputElement>("[data-calendar-new-weekday]:checked"),
+      ).map((input) => Number(input.value));
       const input = {
         calendarId: host.querySelector<HTMLInputElement>("[data-calendar-new-id]")?.value ?? "",
         calendarVersion: host.querySelector<HTMLInputElement>("[data-calendar-new-version]")?.value ?? "",
         calendarType: host.querySelector<HTMLSelectElement>("[data-calendar-new-type]")?.value ?? "project",
-        kind: base.kind,
+        kind: base ? base.kind : "working-day",
         name: host.querySelector<HTMLInputElement>("[data-calendar-new-name]")?.value ?? "",
-        baseCalendarId: base.calendarId,
-        baseCalendarVersion: base.calendarVersion,
+        baseCalendarId: base?.calendarId ?? "",
+        baseCalendarVersion: base?.calendarVersion ?? "",
         system: (host.querySelector<HTMLSelectElement>("[data-calendar-new-system]")?.value === "jalali" ? "jalali" : "gregorian") as "gregorian" | "jalali",
+        workingWeekdays,
       };
       void (async () => {
         state.busy = true;
@@ -1589,7 +1614,12 @@ export function mountWorkspaceCalendarPage(host: HTMLElement, options: CalendarP
           return;
         }
         state.dialog = "none";
-        state.notice = { kind: "ok", message: say("Calendar created from the base definition.", "تقویم از تعریف پایه ایجاد شد.") };
+        state.notice = {
+          kind: "ok",
+          message: base
+            ? say("Calendar created from the base definition.", "تقویم از تعریف پایه ایجاد شد.")
+            : say("Root calendar created with its own working week.", "تقویم ریشه با هفته کاری اختصاصی ایجاد شد."),
+        };
         await reloadCatalogue({ id: result.data.calendarId, version: result.data.calendarVersion });
         await selectCalendar(result.data.calendarId, result.data.calendarVersion);
       })();
