@@ -116,6 +116,84 @@ test("shared build workspace opens from its separate list and is not added to pe
   assert.deepEqual(setup.loadOptions, [{ locale: "en", primaryCalendarId: "DAM-CAL-5D" }]);
 });
 
+test("a shared reference project can be switched to without becoming a personal tab", async () => {
+  const shared: ProjectSummary = {
+    project_id: "CUBI-DAM-001", tenant_id: "t1", name: "Shared Dam Build", revision: 1,
+    primary_calendar_id: "DAM-CAL-5D",
+  };
+  const opened: string[] = [];
+  const setup = deps({
+    listProjects: async () => ok({ projects: [projects[0]] }),
+    listSharedProjects: async () => ok({ projects: [shared] }),
+    openProject: async (projectId) => {
+      opened.push(projectId);
+      return ok({ context: { tenant_id: "t1", project_id: projectId, revision: 1, user_id: "u1" } });
+    },
+  });
+  const bootstrap = new ProjectBootstrap(setup.dependencies);
+  const first = await bootstrap.start();
+  assert.equal(first?.status, "ready");
+  assert.deepEqual(bootstrap.projectTabs(), { open: ["p1"], active: "p1" });
+  assert.deepEqual(bootstrap.sharedProjects().map((project) => project.project_id), ["CUBI-DAM-001"]);
+  assert.deepEqual(bootstrap.openableProjects().map((project) => project.project_id), ["p1"]);
+
+  const next = await bootstrap.selectProject("CUBI-DAM-001");
+  assert.equal(next?.status, "ready");
+  if (next?.status === "ready") {
+    assert.equal(next.context.project_id, "CUBI-DAM-001");
+    assert.equal(next.sharedReference, true);
+  }
+  assert.deepEqual(opened, ["p1", "CUBI-DAM-001"]);
+  // The personal tab strip and the personal project list are untouched.
+  assert.deepEqual(bootstrap.projectTabs(), { open: ["p1"], active: "p1" });
+  assert.deepEqual(bootstrap.openableProjects().map((project) => project.project_id), ["p1"]);
+});
+
+test("a tenant with only a shared reference build still has a way into the workspace", async () => {
+  const shared: ProjectSummary = {
+    project_id: "CUBI-DAM-001", tenant_id: "t1", name: "Shared Dam Build", revision: 1,
+  };
+  const opened: string[] = [];
+  const setup = deps({
+    listProjects: async () => ok({ projects: [] }),
+    listSharedProjects: async () => ok({ projects: [shared] }),
+    openProject: async (projectId) => {
+      opened.push(projectId);
+      return ok({ context: { tenant_id: "t1", project_id: projectId, revision: 1, user_id: "u1" } });
+    },
+  });
+  const bootstrap = new ProjectBootstrap(setup.dependencies);
+  const state = await bootstrap.start();
+  assert.equal(state?.status, "ready");
+  if (state?.status === "ready") {
+    assert.equal(state.context.project_id, "CUBI-DAM-001");
+    assert.equal(state.sharedReference, true);
+  }
+  assert.deepEqual(opened, ["CUBI-DAM-001"]);
+  assert.deepEqual(bootstrap.projectTabs(), { open: [], active: "" });
+});
+
+test("several shared reference builds become a picker instead of a dead end", async () => {
+  const shared: ProjectSummary[] = [
+    { project_id: "CUBI-DAM-001", tenant_id: "t1", name: "Shared Dam Build", revision: 1 },
+    { project_id: "CUBI-REF-009", tenant_id: "t1", name: "Shared Reference 9", revision: 1 },
+  ];
+  const setup = deps({
+    listProjects: async () => ok({ projects: [] }),
+    listSharedProjects: async () => ok({ projects: shared }),
+  });
+  const bootstrap = new ProjectBootstrap(setup.dependencies);
+  const state = await bootstrap.start();
+  assert.equal(state?.status, "selecting");
+  if (state?.status === "selecting") {
+    assert.deepEqual(state.projects, []);
+    assert.deepEqual(state.sharedProjects?.map((project) => project.project_id), [
+      "CUBI-DAM-001",
+      "CUBI-REF-009",
+    ]);
+  }
+});
+
 test("one project opens and hydrates using authoritative open context", async () => {
   const setup = deps();
   const bootstrap = new ProjectBootstrap(setup.dependencies);

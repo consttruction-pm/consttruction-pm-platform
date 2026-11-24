@@ -110,6 +110,8 @@ export type BootstrapLabels = {
   languageLabel: string;
   switchLanguage: string;
   projectListAria: string;
+  sharedReference: string;
+  sharedReferenceHeading: string;
   validationNameRequired: string;
   validationStartDateInvalid: string;
   validationNameLength: string;
@@ -234,6 +236,8 @@ const labels: Partial<Record<WorkspaceLocale, BootstrapLabels>> = {
     languageLabel: "Language",
     switchLanguage: "Switch language to {language}",
     projectListAria: "Projects available to your account",
+    sharedReference: "Shared",
+    sharedReferenceHeading: "Shared reference projects (opened read-only; not added to your project tabs)",
     validationNameRequired: "Enter a project name.",
     validationStartDateInvalid: "Enter a valid date in the selected calendar.",
     validationNameLength: "Use a project name between 2 and 120 characters.",
@@ -356,6 +360,8 @@ const labels: Partial<Record<WorkspaceLocale, BootstrapLabels>> = {
     languageLabel: "زبان",
     switchLanguage: "تغییر زبان به {language}",
     projectListAria: "پروژه‌های در دسترس حساب شما",
+    sharedReference: "اشتراکی",
+    sharedReferenceHeading: "پروژه‌های مرجع اشتراکی (فقط‌خواندنی؛ به زبانه‌های پروژهٔ شما افزوده نمی‌شوند)",
     validationNameRequired: "نام پروژه را وارد کنید.",
     validationStartDateInvalid: "تاریخ معتبری مطابق تقویم انتخاب‌شده وارد کنید.",
     validationNameLength: "نام پروژه باید بین ۲ تا ۱۲۰ نویسه باشد.",
