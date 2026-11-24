@@ -5465,6 +5465,10 @@ class ProjectLifecycleHttpRoutes:
                         None,
                         auth_context=auth,
                     )
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
+                    raise
                 except AuthorizationError as exc:
                     return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                 except ValueError as exc:
@@ -5490,6 +5494,10 @@ class ProjectLifecycleHttpRoutes:
                         resource_id,
                         auth_context=auth,
                     )
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
+                    raise
                 except AuthorizationError as exc:
                     return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                 except ValueError as exc:
@@ -5618,6 +5626,10 @@ class ProjectLifecycleHttpRoutes:
                         None,
                         auth_context=auth,
                     )
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
+                    raise
                 except AuthorizationError as exc:
                     return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                 except ValueError as exc:
@@ -5643,6 +5655,10 @@ class ProjectLifecycleHttpRoutes:
                         resource_id,
                         auth_context=auth,
                     )
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
+                    raise
                 except AuthorizationError as exc:
                     return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                 except ValueError as exc:
