@@ -40,6 +40,10 @@ from ..ai_workbench.studios import Capabilities as WorkbenchCapabilities
 from ..enterprise_task_application import EnterpriseTaskApplicationService
 from ..enterprise_task_http import EnterpriseTaskHttpMiddleware
 from ..enterprise_task_repository import PostgresEnterpriseTaskRepository
+from ..calendar_exception_repository import PostgresCalendarExceptionRepository
+from ..calendar_master_repository import PostgresCalendarMasterRepository
+from ..calendar_snapshot_repository import PostgresCalendarSnapshotRepository
+from ..calendar_work_hours_repository import PostgresCalendarWorkHourRepository
 from ..form_builder_api import FormBuilderAPI
 from ..form_builder_repository import PostgresFormBuilderRepository
 from ..global_administration import (
@@ -50,6 +54,8 @@ from ..global_administration_http import GlobalAdministrationHttpMiddleware
 from ..knowledge.postgres_store import PostgresKnowledgeStore
 from ..knowledge.runtime import build_knowledge_runtime
 from ..p6_activity_master_api import P6ActivityMasterAPI
+from ..p6_calendar_api import P6CalendarAPI
+from ..p6_calendar_read_api import P6CalendarReadAPI
 from ..p6_issue_api import P6IssueAPI
 from ..p6_issue_repository import PostgresP6IssueRepository
 from ..risk_api import RiskAPI
@@ -76,6 +82,7 @@ from ..identity_session import (
     load_identity_settings,
 )
 from ..p6_cost_account_api import P6CostAccountAPI
+from .calendar_registry import build_postgres_calendar_registry
 from ..p6_obs_api import P6OBSNodeAPI
 from ..p6_obs_repository import P6OBSApplicationService, PostgresP6OBSRepository
 from ..p6_cost_account_repository import (
@@ -107,7 +114,6 @@ from ..schedule_calculation_context_repository import (
 from ..schedule_input_snapshot_repository import (
     PostgresScheduleInputSnapshotRepository,
 )
-from ..scheduling.calendar_context import CalendarResolverRegistry
 from ..wbs_master_repository import PostgresWBSMasterRepository
 from .production_web import ProductionWebApp, StaticSite
 from .schema import initialize_production_schema
@@ -352,13 +358,6 @@ def _env_flag(name: str) -> bool:
     return os.environ.get(name, "").strip().lower() in {"1", "true", "yes"}
 
 
-def _calendar_registry_not_wired() -> CalendarResolverRegistry:
-    # Schedule Query is not part of the deployed production surface yet. The
-    # route is wired to the shared evaluator, so an explicit failure is better
-    # than silently evaluating with an empty calendar set.
-    raise ProductionConfigurationError("SCHEDULE_QUERY_NOT_DEPLOYED")
-
-
 class PostgresAIPermissionAdapter:
     """Default-deny AI action grant over durable roles and project membership.
 
@@ -425,6 +424,10 @@ class ProductionRuntime:
         connection = self.connection
         policy = RoleBasedAuthorizationPolicy(default_role_permissions())
         cost_account_repository = PostgresP6CostAccountRepository(connection)
+        calendar_master_repository = PostgresCalendarMasterRepository(connection)
+        calendar_snapshot_repository = PostgresCalendarSnapshotRepository(connection)
+        calendar_work_hours_repository = PostgresCalendarWorkHourRepository(connection)
+        calendar_exception_repository = PostgresCalendarExceptionRepository(connection)
         obs_node_repository = PostgresP6OBSRepository(connection)
         obs_node_service = P6OBSApplicationService(obs_node_repository)
         lifecycle_api = ProjectLifecycleAPI(
@@ -531,6 +534,20 @@ class ProductionRuntime:
                 _threshold_issue_writer,
             )
         )
+        # Calendar masters, snapshots, work hours and exceptions are durable,
+        # and the evaluator reads them through this registry. Without it the
+        # schedule query could only answer 503 and no float could exist.
+        calendar_api = P6CalendarAPI(
+            calendar_master_repository,
+            calendar_snapshot_repository,
+            calendar_exception_repository,
+            policy,
+            work_hours_repository=calendar_work_hours_repository,
+            transaction_manager=transaction_manager,
+        )
+        calendar_read_api = P6CalendarReadAPI(
+            calendar_master_repository, calendar_snapshot_repository, policy
+        )
         form_repository = PostgresFormBuilderRepository(connection, initialize=False)
         form_builder_api = FormBuilderAPI(
             form_repository,
@@ -540,7 +557,9 @@ class ProductionRuntime:
         self.api_app = build_project_lifecycle_wsgi_app(
             lifecycle_api=lifecycle_api,
             snapshot_repository=snapshot_repository,
-            calendar_registry_factory=_calendar_registry_not_wired,
+            calendar_registry_factory=lambda: build_postgres_calendar_registry(
+                connection
+            ),
             calculation_context_repository=calculation_context_repository,
             authorization_policy=policy,
             activity_master_repository=activity_repository,
@@ -561,6 +580,8 @@ class ProductionRuntime:
                 checkout_lease=checkout_lease,
             ),
             p6_obs_node_api=P6OBSNodeAPI(obs_node_service, policy),
+            p6_calendar_api=calendar_api,
+            p6_calendar_read_api=calendar_read_api,
             p6_layout_definition_api=P6LayoutDefinitionAPI(layout_repository, policy),
             risk_api=risk_api,
             threshold_api=threshold_api,
