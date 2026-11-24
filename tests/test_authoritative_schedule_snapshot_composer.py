@@ -943,6 +943,75 @@ def test_resource_dependent_duration_uses_longest_driving_rate_and_replays_same_
 
 
 
+def test_resource_assignment_for_unknown_activity_fails_publication(tmp_path):
+    """An assignment that names no persisted activity is refused, not ignored.
+
+    The resource write boundary persists typed assignment facts; the snapshot
+    composer is the cross-record authority. A row pointing at an activity that
+    does not exist in the same project revision must stop publication instead
+    of being dropped silently, or the published schedule would omit demand the
+    database still holds.
+    """
+
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    connection = fixture["connection"]
+    scope = fixture["scope"]
+
+    status, _ = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activities",
+        {
+            "contract_version": "p6-activity-master-api.v1",
+            "activity_id": "A-PLAIN",
+            "name": "Plain task",
+            "duration_value": "1",
+            "duration_unit": DurationUnit.WORKING_DAY.value,
+            "wbs_id": "W-ROOT",
+        },
+    )
+    assert status == "201 Created"
+
+    fixture["resource_assignments"].upsert(
+        P6ResourceAssignment(
+            scope=scope,
+            assignment_id="AS-ORPHAN",
+            activity_id="ACT-MISSING",
+            resource_id="R-1",
+            units=Decimal("8"),
+            unit="labor-unit",
+            calendar_id="RC-1",
+            calendar_version="v1",
+            is_driving=True,
+            units_per_time=Decimal("8"),
+            units_per_time_period="day",
+            hours_per_units_time_period=Decimal("8"),
+        )
+    )
+    connection.commit()
+
+    settings_status, _ = _save_settings(
+        app, options=ScheduleOptions(), project_start=date(2026, 10, 19)
+    )
+    assert settings_status == "201 Created"
+
+    publication_status, error = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/schedule/snapshots",
+        {
+            "contract_version": "p6-schedule-snapshot-api.v1",
+            "timezone": "UTC",
+        },
+    )
+    assert publication_status.startswith("400")
+    assert "RESOURCE_ASSIGNMENT_UNKNOWN_ACTIVITY" in json.dumps(error)
+    connection.close()
+
+
+
+
 def test_resource_dependent_weekly_rate_converts_through_calendar_hours(tmp_path):
     fixture = _fixture(tmp_path)
     app = fixture["app"]

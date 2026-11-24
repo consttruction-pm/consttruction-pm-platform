@@ -54,6 +54,9 @@ from ..calendar_master_repository import PostgresCalendarAssignmentRepository
 from ..calendar_master_repository import PostgresCalendarMasterRepository
 from ..calendar_snapshot_repository import PostgresCalendarSnapshotRepository
 from ..calendar_work_hours_repository import PostgresCalendarWorkHourRepository
+from ..p6_persisted_resource_leveling_resolver import (
+    build_persisted_resource_leveling_input_resolver,
+)
 from ..form_builder_api import FormBuilderAPI
 from ..form_builder_repository import PostgresFormBuilderRepository
 from ..global_administration import (
@@ -93,9 +96,32 @@ from ..identity_session import (
 )
 from ..constraint_master_repository import PostgresConstraintMasterRepository
 from ..p6_resource_assignment_repository import (
+    P6ResourceAssignmentApplicationService,
+    P6ResourceAssignmentPeriodApplicationService,
     PostgresP6ResourceAssignmentPeriodRepository,
     PostgresP6ResourceAssignmentRepository,
 )
+from ..p6_resource_capacity_read_api import P6ResourceCapacityReadAPI
+from ..p6_resource_capacity_repository import (
+    P6ResourceCapacityApplicationService,
+    PostgresP6ResourceCapacityRepository,
+)
+from ..p6_resource_capacity_write_api import P6ResourceCapacityWriteAPI
+from ..p6_resource_master_api import P6ResourceAPI
+from ..p6_resource_master_repository import PostgresP6ResourceRepository
+from ..p6_resource_rate_read_api import P6ResourceRateReadAPI
+from ..p6_resource_rate_repository import (
+    P6ResourceRateApplicationService,
+    PostgresP6ResourceRateRepository,
+)
+from ..p6_resource_rate_write_api import P6ResourceRateWriteAPI
+from ..p6_resource_read_api import P6ResourceReadAPI
+from ..p6_resource_spread_api import P6ResourceSpreadAPI
+from ..p6_resource_spread_repository import (
+    P6ResourceSpreadApplicationService,
+    PostgresP6ResourceSpreadRepository,
+)
+from ..p6_resource_write_api import P6ResourceWriteAPI
 from ..p6_schedule_snapshot_publication_api import (
     P6ScheduleSnapshotPublicationAPI,
 )
@@ -486,6 +512,44 @@ class ProductionRuntime:
             connection
         )
         transaction_manager = _RequestTransactionManager(connection)
+        # Resource masters, assignments, assignment periods, capacity, rates and
+        # spread buckets are the same durable facts the composer reads. The
+        # HTTP boundaries are built over exactly these repositories so a write
+        # from the product surface is the input of the next calculation; there
+        # is no second resource store and no preview-only adapter here.
+        resource_repository = PostgresP6ResourceRepository(connection)
+        resource_capacity_repository = PostgresP6ResourceCapacityRepository(connection)
+        resource_rate_repository = PostgresP6ResourceRateRepository(connection)
+        resource_spread_repository = PostgresP6ResourceSpreadRepository(connection)
+        resource_assignment_service = P6ResourceAssignmentApplicationService(
+            resource_assignment_repository, transaction_manager
+        )
+        resource_period_service = P6ResourceAssignmentPeriodApplicationService(
+            resource_period_repository, transaction_manager
+        )
+        resource_spread_service = P6ResourceSpreadApplicationService(
+            resource_spread_repository, transaction_manager
+        )
+        resource_capacity_service = P6ResourceCapacityApplicationService(
+            resource_capacity_repository, transaction_manager
+        )
+        resource_rate_service = P6ResourceRateApplicationService(
+            resource_rate_repository, transaction_manager
+        )
+        resource_api = P6ResourceAPI(
+            resource_repository, policy, calendar_master_repository
+        )
+        resource_read_api = P6ResourceReadAPI(
+            resource_assignment_service,
+            resource_period_service,
+            resource_spread_service,
+            policy,
+        )
+        resource_write_api = P6ResourceWriteAPI(
+            resource_period_service,
+            policy,
+            assignment_service=resource_assignment_service,
+        )
         field_service = P6FieldRegistryApplicationService(
             repository=field_repository,
             transaction_manager=transaction_manager,
@@ -499,10 +563,23 @@ class ProductionRuntime:
         calendar_registry_factory = lambda: build_postgres_calendar_registry(
             connection
         )
+        # A snapshot that carries resource-dependent activity facts must be
+        # evaluated with the persisted assignment/period demand; otherwise the
+        # evaluator fails closed. The workspace read therefore uses the same
+        # persisted resolver as Schedule Query, built over the very repositories
+        # the resource HTTP surface writes through.
+        resource_leveling_input_resolver = build_persisted_resource_leveling_input_resolver(
+            resource_read_api=resource_read_api,
+            calendar_master_repository=calendar_master_repository,
+            calendar_snapshot_repository=calendar_snapshot_repository,
+            calendar_exception_repository=calendar_exception_repository,
+            calendar_work_hours_repository=calendar_work_hours_repository,
+        )
         schedule_query_provider = AuthoritativeScheduleQueryProvider(
             snapshot_repository=snapshot_repository,
             calendar_registry_factory=calendar_registry_factory,
             calculation_context_repository=calculation_context_repository,
+            leveling_input_resolver=resource_leveling_input_resolver,
         )
         # The workspace read projects the newest published snapshot through the
         # single Shared Core evaluator. Without this provider the grid renders
@@ -658,6 +735,35 @@ class ProductionRuntime:
             p6_obs_node_api=P6OBSNodeAPI(obs_node_service, policy),
             p6_calendar_api=calendar_api,
             p6_calendar_read_api=calendar_read_api,
+            # Resources and Activity Resource Assignments are first-class
+            # production surfaces: without these kwargs the router answers
+            # ROUTE_NOT_FOUND and the workspace cannot persist or read work
+            # demand. The same assignment repositories feed the composer above.
+            p6_resource_api=resource_api,
+            resource_read_api=resource_read_api,
+            resource_write_api=resource_write_api,
+            p6_resource_spread_api=P6ResourceSpreadAPI(
+                resource_spread_service, policy
+            ),
+            p6_resource_capacity_read_api=P6ResourceCapacityReadAPI(
+                resource_capacity_service, policy
+            ),
+            p6_resource_capacity_write_api=P6ResourceCapacityWriteAPI(
+                resource_capacity_service, policy
+            ),
+            p6_resource_rate_read_api=P6ResourceRateReadAPI(
+                resource_rate_service, policy
+            ),
+            p6_resource_rate_write_api=P6ResourceRateWriteAPI(
+                resource_rate_service, policy
+            ),
+            # The persisted leveling resolver reads assignments through the
+            # read API and capacity/calendar facts through these exact
+            # repositories, so leveling recomputes from durable rows.
+            resource_calendar_master_repository=calendar_master_repository,
+            resource_calendar_snapshot_repository=calendar_snapshot_repository,
+            resource_calendar_exception_repository=calendar_exception_repository,
+            resource_calendar_work_hours_repository=calendar_work_hours_repository,
             p6_layout_definition_api=P6LayoutDefinitionAPI(layout_repository, policy),
             risk_api=risk_api,
             threshold_api=threshold_api,

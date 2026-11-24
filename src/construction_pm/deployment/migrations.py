@@ -288,6 +288,22 @@ def _initialize_forms(connection: Any) -> None:
     PostgresFormBuilderRepository(connection).initialize()
 
 
+def _initialize_resource_spread(connection: Any) -> None:
+    """Create the resource spread bucket store exposed by the resource API.
+
+    The reference-engineering step (14) creates the resource master, assignment,
+    assignment-period, capacity and rate tables, but the spread bucket table was
+    never registered. Wiring the resource read/write surface without it would
+    leave a production route that fails on a missing relation, so the table is
+    created additively here and hardened like every later step.
+    """
+
+    from ..p6_resource_spread_repository import PostgresP6ResourceSpreadRepository
+
+    PostgresP6ResourceSpreadRepository(connection).initialize()
+    _harden_tables(connection, ("p6_resource_spread_bucket",))
+
+
 def _initialize_knowledge(connection: Any) -> None:
     from ..knowledge.postgres_store import PostgresKnowledgeStore
 
@@ -458,6 +474,7 @@ PRODUCTION_STEPS: tuple[MigrationStep, ...] = (
     MigrationStep(15, "reference-enterprise", 1, _initialize_reference_enterprise),
     MigrationStep(16, "post-reference-state-and-data-api-hardening", 1, _harden_public_data_api),
     MigrationStep(17, "threshold-register", 1, _initialize_thresholds),
+    MigrationStep(18, "resource-spread-buckets", 1, _initialize_resource_spread),
 )
 
 

@@ -295,24 +295,24 @@ def test_migration_ledger_is_versioned_idempotent_and_reports_drift():
     schema = _schema_name("cubi_mig")
     connection, first = _apply_drift_free_schema(schema)
     try:
-        assert first.ledger_version == 17
-        assert len(first.applied) == 17
+        assert first.ledger_version == 18
+        assert len(first.applied) == 18
         assert first.already_applied == ()
-        assert first.table_count == 98
+        assert first.table_count == 99
         assert first.drift is None
 
         second = apply_migrations(connection)
         assert second.applied == ()
-        assert second.already_applied == tuple(range(1, 18))
+        assert second.already_applied == tuple(range(1, 19))
         assert second.drift is None
-        assert second.table_count == 98
+        assert second.table_count == 99
 
         rows = connection.execute(
             f"SELECT version, name, checksum, step_revision, runtime_version "
             f"FROM {LEDGER_TABLE} ORDER BY version"
         ).fetchall()
-        assert [row[0] for row in rows] == list(range(1, 18))
-        assert all(row[2] and row[3] >= 1 and row[4] == 17 for row in rows)
+        assert [row[0] for row in rows] == list(range(1, 19))
+        assert all(row[2] and row[3] >= 1 and row[4] == 18 for row in rows)
 
         # An edited history is reported, never silently accepted.
         connection.execute(
@@ -363,8 +363,8 @@ def test_runtime_readiness_uses_the_migrated_schema(runtime):
     assert status == 200
     readiness = json.loads(body)
     assert readiness["status"] == "ready"
-    assert readiness["schema"]["version"] == 17
-    assert readiness["schema"]["tables"] == 98
+    assert readiness["schema"]["version"] == 18
+    assert readiness["schema"]["tables"] == 99
 
 
 # ---------------------------------------------------------------------------
@@ -2505,3 +2505,621 @@ def test_root_calendar_definition_is_managed_through_the_authenticated_api(runti
     assert early_start == date(2026, 11, 3)
     assert cells["start"] == cells["activity.early_start"]
     assert "activity.total_float" in cells
+
+
+def test_resources_and_assignments_drive_the_production_schedule(runtime):
+    """Resources and activity resource assignments are real production facts.
+
+    The whole chain is the deployed one: the planner registers a resource and a
+    resource-dependent activity, writes assignments and their time-phased rows
+    through the authenticated router, and the Shared Core composer derives the
+    duration from exactly those rows. A publication without periods fails
+    closed; with periods it publishes a duration the persisted activity never
+    held. Capacity, rates, optimistic locking, authorization, tenant isolation
+    and a fresh-session reload are proven on the same database.
+    """
+
+    from datetime import date
+
+    from construction_pm.project_schedule_settings_repository import (
+        _schedule_options_payload,
+    )
+    from construction_pm.scheduling.schedule_options import ScheduleOptions
+
+    ids = runtime.test_ids
+    project = ids["project_a"]
+    suffix = uuid.uuid4().hex[:8]
+    cookie, csrf = login(runtime, "planner", PLANNER_PASSWORD)
+    viewer_cookie, viewer_csrf = login(runtime, "viewer", VIEWER_PASSWORD)
+    outsider_cookie, _ = login(runtime, "outsider", ADMIN_PASSWORD)
+
+    status, _, body = call(runtime, "GET", "/api/projects", cookie=cookie)
+    assert status == 200, body
+    project_revision = int(
+        next(
+            item["revision"]
+            for item in json.loads(body)["projects"]
+            if item["project_id"] == project
+        )
+    )
+
+    # 1. Calendars are created through the authenticated definition API: one
+    #    project calendar and one resource calendar, both working Mon..Fri.
+    base_calendars = f"/api/projects/{project}/p6/calendars"
+    project_calendar = f"CAL-RS-{suffix}"
+    resource_calendar = f"CAL-RCR-{suffix}"
+    definition = {"system": "gregorian", "working_weekdays": [0, 1, 2, 3, 4]}
+    for calendar_id, calendar_type, name in (
+        (project_calendar, "project", "Resource slice project calendar"),
+        (resource_calendar, "resource", "Resource slice crew calendar"),
+    ):
+        status, _, body = call(
+            runtime,
+            "POST",
+            base_calendars,
+            body={
+                "calendar_id": calendar_id,
+                "calendar_version": "v1",
+                "calendar_type": calendar_type,
+                "kind": "working-day",
+                "name": name,
+                "definition": definition,
+            },
+            cookie=cookie,
+            csrf=csrf,
+        )
+        assert status == 200, body
+        assert json.loads(body)["schedulable"] is True
+
+    # 2. The resource master is written by the product route. A stale calendar
+    #    reference is rejected before any row exists.
+    base_resources = f"/api/projects/{project}/p6/resources"
+    resource_id = f"R-CREW-{suffix}"
+    status, _, body = call(
+        runtime,
+        "POST",
+        base_resources,
+        body={
+            "resource_id": resource_id,
+            "name": "Crew without calendar",
+            "resource_type": "labor",
+            "calendar_id": f"CAL-MISSING-{suffix}",
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 409, body
+    assert json.loads(body)["code"] == "RESOURCE_CALENDAR_NOT_FOUND"
+
+    resource_body = {
+        "resource_id": resource_id,
+        "name": "Civil crew",
+        "resource_type": "labor",
+        "calendar_id": resource_calendar,
+        "default_units_per_time": "8",
+        "unit_of_measure": "labor-unit",
+        "email": f"crew-{suffix}@example.test",
+    }
+    status, _, body = call(
+        runtime, "POST", base_resources, body=resource_body, cookie=cookie, csrf=csrf
+    )
+    assert status == 200, body
+    created_resource = json.loads(body)
+    assert created_resource["contract_version"] == "p6-resource-api.v1"
+    assert created_resource["resource"]["record_revision"] == 1
+    assert created_resource["resource"]["calendar_id"] == resource_calendar
+
+    status, _, body = call(
+        runtime, "GET", f"{base_resources}/{resource_id}", cookie=cookie
+    )
+    assert status == 200, body
+    assert json.loads(body) == created_resource
+    assert _db_rows(
+        runtime,
+        "SELECT record_revision FROM p6_resource_master "
+        "WHERE tenant_id=%s AND project_id=%s AND resource_id=%s",
+        (ids["tenant_a"], project, resource_id),
+    ) == [(1,)]
+
+    # 3. A persisted WBS and a Resource Dependent activity whose stored duration
+    #    (2 days) intentionally disagrees with the assignment contract (5 days).
+    wbs_id = f"wbs-res-{suffix}"
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/wbs",
+        body={
+            "wbs_id": wbs_id,
+            "code": f"3-{suffix}",
+            "name": "Resource work",
+            "parent_kind": "wbs",
+            "parent_wbs_id": ids["root_wbs"],
+            "sequence_number": 3,
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 201, body
+
+    activity_id = f"ACT-RD-{suffix}"
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/activities",
+        body={
+            "activity_id": activity_id,
+            "name": "Place concrete with crew",
+            "duration_value": 2,
+            "duration_unit": "working-day",
+            "activity_type": "Resource Dependent",
+            "wbs_id": wbs_id,
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 201, body
+
+    settings_rows = _db_rows(
+        runtime,
+        "SELECT record_revision FROM project_schedule_settings "
+        "WHERE tenant_id=%s AND project_id=%s",
+        (ids["tenant_a"], project),
+    )
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/schedule/settings",
+        body={
+            "contract_version": "p6-project-schedule-settings-api.v1",
+            "expected_record_revision": int(settings_rows[0][0]) if settings_rows else 0,
+            "mode": "DATE_BASED",
+            "project_calendar_id": project_calendar,
+            "project_calendar_version": "v1",
+            "project_calendar_system": "gregorian",
+            "project_start": "2026-11-02",
+            "project_finish": None,
+            "schedule_options": _schedule_options_payload(ScheduleOptions()),
+            "project_leveling_priority": 50,
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status in {200, 201}, body
+
+    # 4. The assignment is written through the versioned write contract.
+    base_assignments = f"/api/projects/{project}/p6/resource-assignments"
+    assignment_id = f"AS-RD-{suffix}"
+    assignment_body = {
+        "contract_version": "p6-resource-write-api.v1",
+        "assignment_id": assignment_id,
+        "activity_id": activity_id,
+        "resource_id": resource_id,
+        "units": "40",
+        "unit": "labor-unit",
+        "calendar_id": resource_calendar,
+        "calendar_version": "v1",
+        "is_driving": True,
+        "units_per_time": "8",
+        "units_per_time_period": "day",
+        "hours_per_units_time_period": "8",
+        "note": "five crew days",
+    }
+    status, _, body = call(
+        runtime, "POST", base_assignments, body=assignment_body, cookie=cookie, csrf=csrf
+    )
+    assert status == 200, body
+    created_assignment = json.loads(body)
+    assert created_assignment["contract_version"] == "p6-resource-write-api.v1"
+    assert created_assignment["assignment"]["units"] == "40"
+    assert created_assignment["assignment"]["is_driving"] is True
+    assert created_assignment["assignment"]["calendar_id"] == resource_calendar
+
+    # An assignment is immutable: the same identity with a different payload is
+    # refused instead of silently rewriting published demand.
+    status, _, body = call(
+        runtime,
+        "POST",
+        base_assignments,
+        body={**assignment_body, "units": "32"},
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 409, body
+    assert json.loads(body)["code"] == "IMMUTABLE_RESOURCE_ASSIGNMENT"
+
+    # An incomplete Units/Time triple is a validation failure, not a partial row.
+    status, _, body = call(
+        runtime,
+        "POST",
+        base_assignments,
+        body={
+            "contract_version": "p6-resource-write-api.v1",
+            "assignment_id": f"AS-BAD-{suffix}",
+            "activity_id": activity_id,
+            "resource_id": resource_id,
+            "units": "8",
+            "units_per_time": "8",
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 400, body
+    assert json.loads(body)["code"] == "P6_RESOURCE_ASSIGNMENT_REQUEST_INVALID"
+
+    # 5. Publication reads the persisted rows: without time-phased demand the
+    #    composer refuses, because the duration cannot be placed.
+    snapshot_path = f"/api/projects/{project}/p6/schedule/snapshots"
+    status, _, body = call(
+        runtime,
+        "POST",
+        snapshot_path,
+        body={
+            "contract_version": "p6-schedule-snapshot-api.v1",
+            "timezone": "UTC",
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 400, body
+    assert json.loads(body)["code"].startswith(
+        "RESOURCE_DEPENDENT_ASSIGNMENT_PERIODS_REQUIRED"
+    )
+
+    # 6. Five daily demand rows make the contract complete: 5 x 8 = 40 units.
+    base_periods = f"/api/projects/{project}/p6/resource-assignment-periods"
+    working_days = (
+        "2026-11-02",
+        "2026-11-03",
+        "2026-11-04",
+        "2026-11-05",
+        "2026-11-06",
+    )
+    for period_start in working_days:
+        status, _, body = call(
+            runtime,
+            "POST",
+            base_periods,
+            body={
+                "assignment_id": assignment_id,
+                "activity_id": activity_id,
+                "resource_id": resource_id,
+                "period_start": period_start,
+                "units": "8",
+                "cost": "0",
+            },
+            cookie=cookie,
+            csrf=csrf,
+        )
+        assert status == 200, body
+        assert json.loads(body)["period"]["units"] == "8"
+
+    status, _, body = call(
+        runtime,
+        "POST",
+        snapshot_path,
+        body={
+            "contract_version": "p6-schedule-snapshot-api.v1",
+            "timezone": "UTC",
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 201, body
+    published = json.loads(body)
+    snapshot_id = published["snapshot_id"]
+    assert published["snapshot_hash"] and published["calculation_identity"]
+
+    # 7. Workspace Read projects the calculated duration (5 days) and dates
+    #    while the persisted Planned Duration stays 2: the calculation consumed
+    #    the assignment rows, not the activity master value.
+    workspace_headers = {
+        "X-Tenant-Id": ids["tenant_a"],
+        "X-Project-Id": project,
+        "X-Project-Revision": str(project_revision),
+    }
+    status, _, body = call(
+        runtime,
+        "GET",
+        "/api/v2/workspace/control-room/read",
+        cookie=cookie,
+        headers=workspace_headers,
+    )
+    assert status == 200, body
+    cells = {
+        item["id"]: item["cells"] for item in json.loads(body)["workspace"]["activities"]
+    }[activity_id]
+    assert cells["duration"] == 5
+    assert cells["activity.planned_duration"] == "2"
+    assert cells["activity.early_start"] == "2026-11-02"
+    assert cells["activity.early_finish"] == "2026-11-06"
+    assert cells["start"] == "2026-11-02"
+    assert cells["finish"] == "2026-11-06"
+
+    def schedule_facts(query_id: str, session_cookie: str, session_csrf: str) -> dict:
+        status, _, body = call(
+            runtime,
+            "POST",
+            "/api/v1/schedule/query",
+            body={
+                "contract_version": "schedule-query.v1",
+                "query_id": query_id,
+                "scope": {
+                    "tenant_id": ids["tenant_a"],
+                    "project_id": project,
+                    "project_revision": project_revision,
+                },
+                "requested_by": ids["users"]["planner"].user_id,
+                "query_text": "resource dependent facts",
+                "kind": "fact",
+                "language": "en",
+                "constraints": {"snapshot_id": snapshot_id},
+            },
+            cookie=session_cookie,
+            csrf=session_csrf,
+        )
+        assert status == 200, body
+        result = json.loads(body)
+        assert result["contract_version"] == "schedule-query-result.v1"
+        return dict(result["data"])
+
+    facts = schedule_facts(f"q-res-{suffix}-1", cookie, csrf)
+    assert facts["activities"][activity_id]["duration"] == 5
+    assert facts["activities"][activity_id]["start"] == "2026-11-02"
+    assert facts["activities"][activity_id]["finish"] == "2026-11-06"
+
+    # 8. Durable rows exist in PostgreSQL for exactly these facts.
+    assert _db_rows(
+        runtime,
+        "SELECT COUNT(*) FROM p6_resource_assignment "
+        "WHERE tenant_id=%s AND project_id=%s AND assignment_id=%s",
+        (ids["tenant_a"], project, assignment_id),
+    ) == [(1,)]
+    assert _db_rows(
+        runtime,
+        "SELECT COUNT(*) FROM p6_resource_assignment_period_value "
+        "WHERE tenant_id=%s AND project_id=%s AND assignment_id=%s",
+        (ids["tenant_a"], project, assignment_id),
+    ) == [(5,)]
+
+    # 9. A new session reloads the same ids and values, and the same published
+    #    snapshot evaluates to the same facts.
+    reload_cookie, reload_csrf = login(runtime, "planner", PLANNER_PASSWORD)
+    status, _, body = call(
+        runtime, "GET", f"{base_assignments}/{assignment_id}", cookie=reload_cookie
+    )
+    assert status == 200, body
+    reloaded_assignment = json.loads(body)
+    assert reloaded_assignment["assignment"] == created_assignment["assignment"]
+
+    status, _, body = call(
+        runtime, "GET", base_periods, cookie=reload_cookie
+    )
+    assert status == 200, body
+    reloaded_periods = {
+        item["period"]["period_start"]: item["period"]["units"]
+        for item in json.loads(body)["periods"]
+        if item["period"]["assignment_id"] == assignment_id
+    }
+    assert reloaded_periods == {day: "8" for day in working_days}
+
+    assert schedule_facts(f"q-res-{suffix}-2", reload_cookie, reload_csrf) == facts
+
+    status, _, body = call(
+        runtime,
+        "GET",
+        "/api/v2/workspace/control-room/read",
+        cookie=reload_cookie,
+        headers=workspace_headers,
+    )
+    assert status == 200, body
+    reloaded_cells = {
+        item["id"]: item["cells"] for item in json.loads(body)["workspace"]["activities"]
+    }[activity_id]
+    assert reloaded_cells["duration"] == 5
+    assert reloaded_cells["activity.early_finish"] == "2026-11-06"
+
+    # 10. Effective-dated capacity and rate facts are real product writes and
+    #     are resolved from the same durable stores after a reload.
+    capacity_body = {
+        "contract_version": "p6-resource-capacity-write-api.v1",
+        "resource_id": resource_id,
+        "max_units": "8",
+        "unit_basis": "day",
+        "hours_per_time_period": "8",
+        "effective_from": "2026-11-01",
+        "effective_to": None,
+        "expected_revision": project_revision,
+    }
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/resource-capacities",
+        body=capacity_body,
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+    capacity_identity = json.loads(body)["capacity"]["identity"]
+    assert capacity_identity
+
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/resource-capacities/{resource_id}/resolve",
+        body={
+            "contract_version": "p6-resource-capacity-read-api.v1",
+            "period": "2026-11-03",
+            "basis": "day",
+            "hours_per_time_period": "8",
+        },
+        cookie=reload_cookie,
+        csrf=reload_csrf,
+    )
+    assert status == 200, body
+    resolved_capacity = json.loads(body)
+    assert resolved_capacity["capacity"] == "8"
+    assert resolved_capacity["basis"] == "day"
+
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/resource-rates",
+        body={
+            "contract_version": "p6-resource-rate-write-api.v1",
+            "resource_id": resource_id,
+            "rate": "1200",
+            "basis": "per_day",
+            "currency": "USD",
+            "unit": "labor-unit",
+            "effective_from": "2026-11-01",
+            "effective_to": None,
+            "expected_revision": project_revision,
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+    rate_identity = json.loads(body)["rate"]["identity"]
+    assert rate_identity
+
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/resource-rates/{resource_id}/resolve",
+        body={
+            "contract_version": "p6-resource-rate-read-api.v1",
+            "period": "2026-11-03",
+        },
+        cookie=reload_cookie,
+        csrf=reload_csrf,
+    )
+    assert status == 200, body
+    resolved_rate = json.loads(body)
+    assert resolved_rate["rate"] == "1200"
+    assert resolved_rate["basis"] == "per_day"
+    assert resolved_rate["currency"] == "USD"
+
+    # 11. Optimistic locking on the resource master, plus deactivate/restore.
+    status, _, body = call(
+        runtime,
+        "PATCH",
+        f"{base_resources}/{resource_id}",
+        body={**resource_body, "name": "Senior civil crew", "expected_revision": 1},
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+    assert json.loads(body)["resource"]["record_revision"] == 2
+
+    status, _, body = call(
+        runtime,
+        "PATCH",
+        f"{base_resources}/{resource_id}",
+        body={**resource_body, "name": "Stale write", "expected_revision": 1},
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 409, body
+    assert json.loads(body)["code"] == "REVISION_CONFLICT"
+
+    status, _, body = call(
+        runtime,
+        "PATCH",
+        f"{base_resources}/{resource_id}",
+        body={**resource_body, "name": "Retired crew", "is_active": False, "expected_revision": 2},
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+    assert json.loads(body)["resource"]["is_active"] is False
+    assert json.loads(body)["resource"]["record_revision"] == 3
+
+    status, _, body = call(
+        runtime,
+        "PATCH",
+        f"{base_resources}/{resource_id}",
+        body={**resource_body, "name": "Civil crew", "is_active": True, "expected_revision": 3},
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+    restored = json.loads(body)
+    assert restored["resource"]["is_active"] is True
+    assert restored["resource"]["record_revision"] == 4
+    assert (
+        restored["resource"]["name"],
+        restored["resource"]["calendar_id"],
+        restored["resource"]["default_units_per_time"],
+    ) == ("Civil crew", resource_calendar, "8")
+
+    # 12. Authorization and tenant isolation on every resource surface.
+    status, _, body = call(runtime, "GET", base_resources, cookie=viewer_cookie)
+    assert status == 200, body
+    assert any(
+        item["resource"]["resource_id"] == resource_id
+        for item in json.loads(body)["resources"]
+    )
+    status, _, body = call(
+        runtime,
+        "POST",
+        base_resources,
+        body={**resource_body, "resource_id": f"R-VIEWER-{suffix}"},
+        cookie=viewer_cookie,
+        csrf=viewer_csrf,
+    )
+    assert status == 403, body
+    status, _, body = call(
+        runtime,
+        "POST",
+        base_assignments,
+        body={**assignment_body, "assignment_id": f"AS-VIEWER-{suffix}"},
+        cookie=viewer_cookie,
+        csrf=viewer_csrf,
+    )
+    assert status == 403, body
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/resource-rates",
+        body={
+            "contract_version": "p6-resource-rate-write-api.v1",
+            "resource_id": resource_id,
+            "rate": "900",
+            "basis": "per_day",
+            "currency": "USD",
+            "unit": "labor-unit",
+            "effective_from": "2026-12-01",
+            "expected_revision": project_revision,
+        },
+        cookie=viewer_cookie,
+        csrf=viewer_csrf,
+    )
+    assert status == 403, body
+
+    for path in (
+        base_resources,
+        f"{base_resources}/{resource_id}",
+        base_assignments,
+        f"{base_assignments}/{assignment_id}",
+        f"/api/projects/{project}/p6/resource-capacities",
+        f"/api/projects/{project}/p6/resource-rates",
+    ):
+        status, _, body = call(runtime, "GET", path, cookie=outsider_cookie)
+        assert status == 403, (path, body)
+
+    # The capacity write is also project-revision guarded.
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/resource-capacities",
+        body={
+            **capacity_body,
+            "max_units": "10",
+            "effective_from": "2026-12-01",
+            "expected_revision": project_revision + 1,
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 409, body
+    assert json.loads(body)["code"] == "REVISION_CONFLICT"
