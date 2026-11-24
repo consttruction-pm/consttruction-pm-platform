@@ -11,6 +11,15 @@ export type WorkspaceNavigationItem = {
   submenus: { en: string; fa: string }[];
 };
 
+/**
+ * Navigation status is a claim about behaviour, not ambition:
+ *   - `implemented`: the window's core workflow reads and writes canonical
+ *     project data through its API and reloads consistently.
+ *   - `partial`: the window is mounted and its tested read/write paths run
+ *     against the real API, but named P6 capabilities are still missing.
+ *   - `preview`: a demonstration surface without the persistence a user needs.
+ * No window may stay `preview` once its module has tested CRUD paths.
+ */
 export const WORKSPACE_NAVIGATION: readonly WorkspaceNavigationItem[] = [
   { key: "project", status: "partial", label: { en: "Project", fa: "پروژه" }, statusLabel: { en: "Partial", fa: "جزئی" }, submenus: [{ en: "Project / WBS", fa: "پروژه / WBS" }, { en: "Details", fa: "جزئیات" }, { en: "Import / Export", fa: "ورود / خروجی" }] },
   { key: "wbs", status: "partial", label: { en: "WBS", fa: "ساختار شکست" }, statusLabel: { en: "Partial", fa: "جزئی" }, submenus: [{ en: "WBS Register", fa: "فهرست ساختار شکست" }, { en: "WBS Details", fa: "جزئیات ساختار شکست" }, { en: "WBS Chart", fa: "نمودار ساختار شکست" }] },
@@ -23,16 +32,16 @@ export const WORKSPACE_NAVIGATION: readonly WorkspaceNavigationItem[] = [
   { key: "cost", status: "partial", label: { en: "Cost", fa: "هزینه" }, statusLabel: { en: "Partial", fa: "جزئی" }, submenus: [{ en: "Cost Overview", fa: "نمای کلی هزینه" }, { en: "Cost Detail", fa: "جزئیات هزینه" }] },
   { key: "expenses", status: "partial", label: { en: "Expenses", fa: "هزینه‌ها" }, statusLabel: { en: "Partial", fa: "جزئی" }, submenus: [{ en: "Expense Register", fa: "فهرست هزینه‌ها" }, { en: "Cost Accounts", fa: "حساب‌های هزینه" }, { en: "Expense Details", fa: "جزئیات هزینه" }] },
   { key: "documents", status: "partial", label: { en: "Documents", fa: "اسناد" }, statusLabel: { en: "Partial", fa: "جزئی" }, submenus: [{ en: "Documents", fa: "اسناد" }, { en: "Evidence", fa: "مستندات" }] },
-  { key: "reports", status: "preview", label: { en: "Reports", fa: "گزارش‌ها" }, statusLabel: { en: "Preview", fa: "پیش‌نمایش" }, submenus: [{ en: "Reports", fa: "گزارش‌ها" }, { en: "Print", fa: "چاپ" }] },
-  { key: "tracking", status: "preview", label: { en: "Tracking", fa: "رهگیری" }, statusLabel: { en: "Preview", fa: "پیش‌نمایش" }, submenus: [{ en: "Project Table", fa: "جدول پروژه" }, { en: "Project Bar Chart", fa: "نمودار میله‌ای پروژه" }, { en: "Project Gantt / Profile", fa: "گانت / منحنی پروژه" }, { en: "Resource Analysis", fa: "تحلیل منابع" }] },
+  { key: "reports", status: "partial", label: { en: "Reports", fa: "گزارش‌ها" }, statusLabel: { en: "Partial", fa: "جزئی" }, submenus: [{ en: "Reports", fa: "گزارش‌ها" }, { en: "Print", fa: "چاپ" }] },
+  { key: "tracking", status: "partial", label: { en: "Tracking", fa: "رهگیری" }, statusLabel: { en: "Partial", fa: "جزئی" }, submenus: [{ en: "Project Table", fa: "جدول پروژه" }, { en: "Project Bar Chart", fa: "نمودار میله‌ای پروژه" }, { en: "Project Gantt / Profile", fa: "گانت / منحنی پروژه" }, { en: "Resource Analysis", fa: "تحلیل منابع" }] },
   { key: "issues", status: "partial", label: { en: "Issues", fa: "مسائل" }, statusLabel: { en: "Partial", fa: "جزئی" }, submenus: [{ en: "Issue Register", fa: "فهرست مسائل" }, { en: "Issue Details", fa: "جزئیات مسئله" }] },
-  { key: "risks", status: "preview", label: { en: "Risks", fa: "ریسک‌ها" }, statusLabel: { en: "Preview", fa: "پیش‌نمایش" }, submenus: [{ en: "Risk Register", fa: "فهرست ریسک‌ها" }, { en: "Risk Analysis", fa: "تحلیل ریسک" }, { en: "Risk Details", fa: "جزئیات ریسک" }] },
-  { key: "thresholds", status: "preview", label: { en: "Thresholds", fa: "آستانه‌ها" }, statusLabel: { en: "Preview", fa: "پیش‌نمایش" }, submenus: [{ en: "Threshold Register", fa: "فهرست آستانه‌ها" }, { en: "Monitoring Rules", fa: "قواعد پایش" }, { en: "Threshold Details", fa: "جزئیات آستانه" }] },
+  { key: "risks", status: "partial", label: { en: "Risks", fa: "ریسک‌ها" }, statusLabel: { en: "Partial", fa: "جزئی" }, submenus: [{ en: "Risk Register", fa: "فهرست ریسک‌ها" }, { en: "Risk Analysis", fa: "تحلیل ریسک" }, { en: "Risk Details", fa: "جزئیات ریسک" }] },
+  { key: "thresholds", status: "partial", label: { en: "Thresholds", fa: "آستانه‌ها" }, statusLabel: { en: "Partial", fa: "جزئی" }, submenus: [{ en: "Threshold Register", fa: "فهرست آستانه‌ها" }, { en: "Monitoring Rules", fa: "قواعد پایش" }, { en: "Threshold Details", fa: "جزئیات آستانه" }] },
   { key: "control", status: "partial", label: { en: "Control", fa: "کنترل" }, statusLabel: { en: "Partial", fa: "جزئی" }, submenus: [{ en: "Control Summary", fa: "خلاصه کنترل" }, { en: "Changes & Claims", fa: "تغییرات و ادعاها" }] },
   { key: "settings", status: "partial", label: { en: "Settings", fa: "تنظیمات" }, statusLabel: { en: "Partial", fa: "جزئی" }, submenus: [{ en: "Language", fa: "زبان" }, { en: "Workspace", fa: "محیط کار" }] },
-  { key: "administration", status: "preview", label: { en: "Administration", fa: "مدیریت" }, statusLabel: { en: "Preview", fa: "پیش‌نمایش" }, submenus: [{ en: "Project Preferences", fa: "ترجیحات پروژه" }, { en: "Dictionaries", fa: "فهرست‌های مرجع" }, { en: "Permission Matrix", fa: "ماتریس دسترسی" }, { en: "Financial Periods", fa: "دوره‌های مالی" }] },
-  { key: "exchange", status: "preview", label: { en: "Import / Export", fa: "ورود / خروجی" }, statusLabel: { en: "Preview", fa: "پیش‌نمایش" }, submenus: [{ en: "CSV Export", fa: "خروجی CSV" }, { en: "CSV Import", fa: "ورود CSV" }, { en: "Import History", fa: "تاریخچهٔ ورود" }] },
-  { key: "backup", status: "preview", label: { en: "Backup / Recovery", fa: "پشتیبان‌گیری / بازیابی" }, statusLabel: { en: "Preview", fa: "پیش‌نمایش" }, submenus: [{ en: "Backup Project", fa: "پشتیبان‌گیری پروژه" }, { en: "Restore Project", fa: "بازیابی پروژه" }, { en: "Restore History", fa: "تاریخچهٔ بازیابی" }] },
+  { key: "administration", status: "partial", label: { en: "Administration", fa: "مدیریت" }, statusLabel: { en: "Partial", fa: "جزئی" }, submenus: [{ en: "Project Preferences", fa: "ترجیحات پروژه" }, { en: "Dictionaries", fa: "فهرست‌های مرجع" }, { en: "Permission Matrix", fa: "ماتریس دسترسی" }, { en: "Financial Periods", fa: "دوره‌های مالی" }] },
+  { key: "exchange", status: "partial", label: { en: "Import / Export", fa: "ورود / خروجی" }, statusLabel: { en: "Partial", fa: "جزئی" }, submenus: [{ en: "CSV Export", fa: "خروجی CSV" }, { en: "CSV Import", fa: "ورود CSV" }, { en: "Import History", fa: "تاریخچهٔ ورود" }] },
+  { key: "backup", status: "partial", label: { en: "Backup / Recovery", fa: "پشتیبان‌گیری / بازیابی" }, statusLabel: { en: "Partial", fa: "جزئی" }, submenus: [{ en: "Backup Project", fa: "پشتیبان‌گیری پروژه" }, { en: "Restore Project", fa: "بازیابی پروژه" }, { en: "Restore History", fa: "تاریخچهٔ بازیابی" }] },
 ];
 
 export function getWorkspaceNavigation(activeMenu: WorkspaceMenuKey): WorkspaceNavigationItem {

@@ -426,11 +426,11 @@ test("View menu Timescale command opens the current window Layout Options dialog
   assert.equal(opened, true);
 });
 
-test("rendered preview surfaces remain explicitly marked", () => {
+test("rendered surfaces carry the status their data path supports", () => {
   const html = render("en", "reports");
 
   assert.match(html, /<strong>Reports<\/strong>/);
-  assert.match(html, /data-surface-status="preview">Preview<\/span>/);
+  assert.match(html, /data-surface-status="partial">Partial<\/span>/);
   assert.match(html, /Reports/);
   assert.match(html, /Print/);
 });
@@ -631,7 +631,7 @@ test("menu-only rerenders replace only the navigation surface", () => {
 
   assert.equal(container.innerHTML, initialHtml);
   assert.ok(navigation.outerHTML.includes("<strong>Reports</strong>"));
-  assert.ok(navigation.outerHTML.includes('data-surface-status="preview"'));
+  assert.ok(navigation.outerHTML.includes('data-surface-status="partial"'));
   // The incremental path repaints the contextual Add menu for the new window.
   assert.match(addMenu.outerHTML, /This window has no create action\./);
   assert.doesNotMatch(addMenu.outerHTML, /project\.add-activity/);
