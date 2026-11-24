@@ -3691,6 +3691,12 @@ a.cp-submenu-item:hover,a.cp-submenu-item:focus-visible{color:var(--cubi-enginee
 .cp-desktop-dialog td { padding: 6px 8px; border-bottom: 1px solid #e6ebf1; font-size: 12.5px; text-align: start; }
 .cp-desktop-dialog kbd { padding: 1px 5px; border: 1px solid #cfd8e3; border-radius: 3px; background: #f6f8fb; font-size: 11.5px; }
 .cp-desktop-dialog form { display: flex; justify-content: flex-end; }
+.cp-shortcut-search { display: grid; gap: 4px; margin: 0 0 10px; font-size: 12px; color: #41556d; }
+.cp-shortcut-search input { width: 100%; min-height: 30px; padding: 4px 8px; border: 1px solid #c8d1dc; border-radius: 4px; font: inherit; }
+.cp-shortcut-search input:focus-visible { outline: 2px solid var(--cubi-engineering-blue, #1769aa); outline-offset: 1px; }
+.cp-shortcut-conflicts { margin: 0 0 10px; padding: 6px 8px; border: 1px solid #e0b48a; border-radius: 4px; background: #fff6ec; color: #8a4b13; font-size: 12px; }
+.cp-shortcut-empty { margin: 0 0 10px; color: #6b7787; font-size: 12.5px; }
+.cp-desktop-dialog tr[hidden] { display: none; }
 .cp-desktop-dialog form button {
   min-height: 32px;
   padding: 5px 14px;

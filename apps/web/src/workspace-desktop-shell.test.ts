@@ -8,9 +8,11 @@ import {
   getDesktopToolbarGroups,
   matchDesktopShortcut,
   renderDesktopShell,
+  shortcutConflicts,
   shortcutUnavailableReason,
   type DesktopShellCapabilities,
   type DesktopMenuItem,
+  type DesktopShortcut,
   type DesktopShellState,
 } from "./workspace-desktop-shell.js";
 import { DEFAULT_PRESENTATION, type WorkspacePresentation } from "./workspace-presentation.js";
@@ -561,6 +563,30 @@ test("every shortcut in the catalog is documented, unique and executable or expl
     [["shortcut.window.project", "Alt+1", "project"], ["shortcut.window.schedule", "Alt+2", "schedule"]],
   );
   assert.deepEqual(getDesktopShortcuts([]).filter((item) => item.id.startsWith("shortcut.window.")), []);
+});
+
+test("the shortcut catalogue is conflict-free and conflicts are reported", () => {
+  assert.deepEqual(shortcutConflicts(getDesktopShortcuts(["project", "schedule", "wbs"])), []);
+  const clash: DesktopShortcut[] = [
+    { id: "shortcut.test-a", label: { en: "A", fa: "الف" }, keys: "Ctrl+K", chord: { key: "k", ctrlOrMeta: true } },
+    { id: "shortcut.test-b", label: { en: "B", fa: "ب" }, keys: "Ctrl+K", chord: { key: "k", ctrlOrMeta: true } },
+  ];
+  assert.deepEqual(shortcutConflicts(clash), [{ keys: "ctrl+k", ids: ["shortcut.test-a", "shortcut.test-b"] }]);
+});
+
+test("the shortcuts dialog is searchable and explains conflicts", () => {
+  const recorded = recordHost();
+  renderDesktopShell(recorded.host, shellState(), {
+    onWindowOpen: () => {},
+    onWindowClose: () => {},
+    onCommand: () => {},
+  });
+  const html = recorded.html();
+  assert.match(html, /data-desktop-dialog="shortcuts"/);
+  assert.match(html, /data-shortcut-search/);
+  assert.match(html, /data-shortcut-row data-shortcut-text="new project ctrl\+n"/);
+  assert.match(html, /data-shortcut-empty hidden/);
+  assert.doesNotMatch(html, /cp-shortcut-conflicts/);
 });
 
 test("the shortcut matcher honours every modifier and the availability gate", () => {

@@ -1008,6 +1008,26 @@ export function shortcutUnavailableReason(
   return null;
 }
 
+/**
+ * A chord bound to more than one command is a conflict: whichever entry runs
+ * first silently shadows the other. The catalogue must stay conflict-free,
+ * and the shortcuts dialog reports any conflict instead of hiding it.
+ */
+export function shortcutConflicts(
+  shortcuts: readonly DesktopShortcut[],
+): Array<{ keys: string; ids: string[] }> {
+  const byKeys = new Map<string, string[]>();
+  for (const shortcut of shortcuts) {
+    const normalized = shortcut.keys.replace(/\s+/g, "").toLowerCase();
+    const ids = byKeys.get(normalized) ?? [];
+    ids.push(shortcut.id);
+    byKeys.set(normalized, ids);
+  }
+  return [...byKeys.entries()]
+    .filter(([, ids]) => ids.length > 1)
+    .map(([keys, ids]) => ({ keys, ids }));
+}
+
 export type DesktopKeyEvent = {
   key: string;
   code?: string;
@@ -1056,18 +1076,35 @@ function renderShortcutsDialog(state: DesktopShellState): string {
   const shortcutWord = translateWorkspaceUiText(locale, "Shortcut", "میانبر");
   const close = translateWorkspaceUiText(locale, "Close", "بستن");
   const unavailableWord = translateWorkspaceUiText(locale, "Unavailable", "در دسترس نیست");
+  const searchLabel = translateWorkspaceUiText(locale, "Search commands or keys", "جست‌وجوی فرمان یا کلید");
+  const emptyLabel = translateWorkspaceUiText(locale, "No shortcut matches this search.", "هیچ میانبری با این جست‌وجو مطابقت ندارد.");
+  const conflictLabel = translateWorkspaceUiText(
+    locale,
+    "Conflicting bindings:",
+    "میانبرهای متعارض:",
+  );
+  const shortcuts = getDesktopShortcuts(state.openWindows);
+  const conflicts = shortcutConflicts(shortcuts);
   const sections = groups
     .filter((group) => group.rows.length > 0)
     .map((group) => `<h3>${escapeHtml(group.title)}</h3>
       <table><thead><tr><th>${escapeHtml(command)}</th><th>${escapeHtml(shortcutWord)}</th></tr></thead>
       <tbody>${group.rows.map((shortcut) => {
         const reason = shortcutUnavailableReason(shortcut, caps);
-        return `<tr${reason ? ' class="is-unavailable"' : ""}><td>${escapeHtml(pick(shortcut.label, locale))}</td><td><kbd>${escapeHtml(shortcut.keys)}</kbd>${reason ? ` <span class="cp-shortcut-reason">${escapeHtml(unavailableWord)} — ${escapeHtml(pick(reason, locale))}</span>` : ""}</td></tr>`;
+        const rowText = `${pick(shortcut.label, locale)} ${shortcut.keys}`.toLowerCase();
+        return `<tr data-shortcut-row data-shortcut-text="${escapeHtml(rowText)}"${reason ? ' class="is-unavailable"' : ""}><td>${escapeHtml(pick(shortcut.label, locale))}</td><td><kbd>${escapeHtml(shortcut.keys)}</kbd>${reason ? ` <span class="cp-shortcut-reason">${escapeHtml(unavailableWord)} — ${escapeHtml(pick(reason, locale))}</span>` : ""}</td></tr>`;
       }).join("")}</tbody></table>`)
     .join("");
   return `<dialog class="cp-desktop-dialog" data-desktop-dialog="shortcuts" aria-labelledby="cp-shortcuts-heading">
     <h2 id="cp-shortcuts-heading">${escapeHtml(heading)}</h2>
+    <label class="cp-shortcut-search"><span>${escapeHtml(searchLabel)}</span>
+      <input type="search" data-shortcut-search placeholder="${escapeHtml(searchLabel)}" aria-label="${escapeHtml(searchLabel)}">
+    </label>
+    ${conflicts.length
+      ? `<p class="cp-shortcut-conflicts" role="alert">${escapeHtml(conflictLabel)} ${conflicts.map((conflict) => escapeHtml(`${conflict.keys} (${conflict.ids.join(", ")})`)).join(", ")}</p>`
+      : ""}
     ${sections}
+    <p class="cp-shortcut-empty" data-shortcut-empty hidden>${escapeHtml(emptyLabel)}</p>
     <form method="dialog"><button type="submit">${escapeHtml(close)}</button></form>
   </dialog>`;
 }
@@ -1783,6 +1820,24 @@ function bindHost(host: HTMLElement): void {
     const runtime = runtimeByHost.get(host);
     if (!runtime) return;
     runtime.handlers.onLocaleChange?.(target.value);
+  });
+
+  // The shortcuts dialog filters its own catalog; Escape and the shortcut
+  // bindings stay disabled while the modal owns the keyboard.
+  host.addEventListener("input", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement) || !target.matches("[data-shortcut-search]")) return;
+    const dialog = target.closest<HTMLDialogElement>('[data-desktop-dialog="shortcuts"]');
+    if (!dialog) return;
+    const query = target.value.trim().toLowerCase();
+    let visible = 0;
+    dialog.querySelectorAll<HTMLElement>("[data-shortcut-row]").forEach((row) => {
+      const match = !query || (row.dataset.shortcutText ?? "").includes(query);
+      row.hidden = !match;
+      if (match) visible += 1;
+    });
+    const empty = dialog.querySelector<HTMLElement>("[data-shortcut-empty]");
+    if (empty) empty.hidden = visible > 0;
   });
 
   host.addEventListener("submit", (event) => {
