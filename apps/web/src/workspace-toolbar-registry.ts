@@ -204,6 +204,7 @@ export const TOOLBAR_COMMANDS: readonly ToolbarCommandDefinition[] = [
   cmd("nav.risks", { en: "Risks", fa: "ریسک‌ها" }, "risks", ["navigation"], win("risks")),
   cmd("nav.issues", { en: "Issues", fa: "مسائل" }, "issues", ["navigation"], win("issues")),
   cmd("nav.thresholds", { en: "Thresholds", fa: "آستانه‌ها" }, "thresholds", ["navigation"], win("thresholds")),
+  cmd("nav.control", { en: "Control", fa: "کنترل" }, "control", ["navigation"], win("control")),
   cmd("nav.settings", { en: "Settings", fa: "تنظیمات" }, "settings", ["navigation"], win("settings")),
   cmd("nav.administration", { en: "Administration", fa: "مدیریت" }, "administration", ["navigation"], win("administration")),
   cmd("nav.exchange", { en: "Import / Export", fa: "ورود / خروجی" }, "exchange", ["navigation"], win("exchange")),
