@@ -78,6 +78,10 @@ import {
   rememberWorkspaceMenu,
   rememberWorkspaceProject,
 } from "./workspace-preferences.js";
+import {
+  readShortcutOverrides,
+  rememberShortcutOverrides,
+} from "./workspace-shortcut-preferences.js";
 import { getWorkspaceShellLabels } from "./shell-labels.js";
 import { moduleMenuFromPath } from "./workspace-module-routes.js";
 import { renderLandingPage } from "./landing.js";
@@ -2620,6 +2624,7 @@ function renderApp(
       dataDate: projectDataDate,
       activities: state.activities,
       wbsNodes: state.wbsNodes,
+      shortcutOverrides: activeWorkspaceUserId ? readShortcutOverrides(activeWorkspaceUserId) : {},
     },
     {
       onWindowOpen: activateWindow,
@@ -2631,6 +2636,15 @@ function renderApp(
       onLayoutOptions: applyLayoutOptions,
       onLocaleChange: (locale) => changeLocale(locale),
       onHome: goWorkspaceHome,
+      // Rebinding is a browser-local preference: persist it, then re-render so
+      // the key handler and the catalogue use the same effective chords, and
+      // reopen the dialog at the same place.
+      onShortcutOverridesChange: (next) => {
+        if (!activeWorkspaceUserId) return;
+        rememberShortcutOverrides(activeWorkspaceUserId, next);
+        renderAppPreservingDrafts(container, state, persistence);
+        openDesktopDialog(desktopHost, "shortcuts");
+      },
     },
   );
   const activeTitle = WINDOW_TITLES[state.activeMenu];

@@ -3699,6 +3699,16 @@ a.cp-submenu-item:hover,a.cp-submenu-item:focus-visible{color:var(--cubi-enginee
 .cp-shortcut-conflicts { margin: 0 0 10px; padding: 6px 8px; border: 1px solid #e0b48a; border-radius: 4px; background: #fff6ec; color: #8a4b13; font-size: 12px; }
 .cp-shortcut-empty { margin: 0 0 10px; color: #6b7787; font-size: 12.5px; }
 .cp-desktop-dialog tr[hidden] { display: none; }
+.cp-shortcut-actions { white-space: nowrap; text-align: end; }
+.cp-shortcut-actions button { margin-inline-start: 4px; padding: 2px 7px; border: 1px solid #b9c9db; border-radius: 3px; background: #f6f9fc; color: #123a6b; font: inherit; font-size: 11px; cursor: pointer; }
+.cp-shortcut-actions button:hover, .cp-shortcut-actions button:focus-visible { border-color: #123a6b; background: #e8f0fb; }
+.cp-desktop-dialog tr.is-capturing { background: #eef5ff; }
+.cp-desktop-dialog tr.is-capturing kbd { border-color: #1769aa; }
+.cp-shortcut-capture { margin: 0 0 10px; padding: 6px 8px; border: 1px solid #b9c9db; border-radius: 4px; background: #f2f7fd; color: #123a6b; font-size: 12px; }
+.cp-shortcut-capture[data-tone="error"] { border-color: #e0b48a; background: #fff6ec; color: #8a4b13; }
+.cp-shortcut-capture-hint { margin: 8px 0 0; color: #6b7787; font-size: 11px; line-height: 1.5; }
+.cp-shortcut-footer { display: flex; gap: 8px; justify-content: flex-end; }
+.cp-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .cp-desktop-dialog form button {
   min-height: 32px;
   padding: 5px 14px;
