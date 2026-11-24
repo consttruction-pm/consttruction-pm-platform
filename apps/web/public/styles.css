@@ -3523,6 +3523,27 @@ a.cp-submenu-item:hover,a.cp-submenu-item:focus-visible{color:var(--cubi-enginee
 .cp-menubar-item-label { flex: 1 1 auto; }
 .cp-menubar-item-shortcut { flex: 0 0 auto; color: #6a7686; font-size: 11px; font-variant-numeric: tabular-nums; }
 .cp-menubar-item-reason { flex: 0 1 auto; max-width: 190px; color: #8a5a1c; font-size: 10.5px; text-align: end; }
+/* View → Windows flyout. It is fixed-positioned at open time so the parent
+   popup's scroll viewport can never clip it. */
+.cp-menubar-submenu { position: relative; }
+.cp-menubar-submenu-trigger { justify-content: flex-start; }
+.cp-menubar-submenu-arrow { flex: 0 0 auto; color: #4a5d73; font-size: 13px; line-height: 1; }
+.cp-menubar-submenu-popup {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 60;
+  min-width: 236px;
+  max-width: min(92vw, 340px);
+  max-height: min(70vh, 480px);
+  overflow: auto;
+  padding: 5px;
+  border: 1px solid var(--cubi-neutral-border, #c8d1dc);
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 14px 34px rgba(8, 26, 47, .18);
+}
+.cp-menubar-submenu-popup[hidden] { display: none !important; }
 .cp-toolbar {
   display: flex;
   align-items: center;

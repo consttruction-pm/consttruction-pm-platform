@@ -1914,13 +1914,24 @@ function renderApp(
     return typeof window.confirm === "function" ? window.confirm(prompt) : true;
   };
 
-  const switchProjectTab = (projectId: string): void => {
+  const switchProjectTab = (projectId: string, openMenu?: WorkspaceMenuKey): void => {
     const bootstrap = currentBootstrap;
     if (!bootstrap || projectId === state.context.project_id) return;
     if (!confirmProjectDiscard(
       "This project has unsaved changes. Discard them and switch projects?",
       "این پروژه تغییرات ذخیره‌نشده دارد. آن‌ها را دور بریزیم و پروژه عوض شود؟",
     )) return;
+    if (openMenu) {
+      // Version 26 opens a project on its Activities window. The target
+      // project owns the window set, so add the destination there rather than
+      // to the outgoing project's preference.
+      const targetWindows = openWorkspaceWindow(
+        readProjectWorkspaceWindows(projectId, undefined, DEFAULT_OPEN_WINDOWS),
+        openMenu,
+      );
+      rememberProjectWorkspaceWindows(projectId, targetWindows);
+      rememberWorkspaceMenu(openMenu);
+    }
     void bootstrap.selectProject(projectId, state.locale).then((next) => {
       if (next && currentBootstrap === bootstrap) {
         renderBootstrapState(container, next, bootstrap, state.locale);
@@ -3128,7 +3139,13 @@ function renderApp(
       void loadActiveAssignmentPeriods(container, state.context, true);
     },
     onProjectOpen: (projectId) => {
-      switchProjectTab(projectId);
+      // Opening the project that is already current still lands on Activities,
+      // so the Projects register is a real entry point to the activity grid.
+      if (projectId === state.context.project_id) {
+        activateWindow("schedule");
+        return;
+      }
+      switchProjectTab(projectId, "schedule");
     },
     // The interactive Details surface may only replace the pane while it is
     // actually showing Details; Trace Logic and a hidden pane are untouched.

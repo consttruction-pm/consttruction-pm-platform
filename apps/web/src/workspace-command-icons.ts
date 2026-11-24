@@ -97,7 +97,9 @@ const MENU_ITEM_ICONS: Readonly<Record<string, WorkspaceIconName>> = {
   "view.bottom-none": "close",
   "view.calendar": "calendar",
   "view.close-window": "close",
+  "view.windows": "workspace",
   // Project
+  "project.activities": "gantt",
   "project.settings": "project",
   "project.add-wbs": "wbs",
   "project.add-activity": "plus",
