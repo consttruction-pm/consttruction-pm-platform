@@ -92,6 +92,30 @@ function deps(overrides: Partial<SessionApi> = {}): {
   };
 }
 
+test("shared build workspace opens from its separate list and is not added to personal tabs", async () => {
+  const shared: ProjectSummary = {
+    project_id: "CUBI-DAM-001", tenant_id: "t1", name: "Shared Dam Build", revision: 1,
+    primary_calendar_id: "DAM-CAL-5D",
+  };
+  const sharedOpened: string[] = [];
+  const setup = deps({
+    listProjects: async () => ok({ projects: [] }),
+    listSharedProjects: async () => ok({ projects: [shared] }),
+    openProject: async (projectId) => {
+      sharedOpened.push(projectId);
+      return ok({ context: { tenant_id: "t1", project_id: projectId, revision: 1, user_id: "u1" } });
+    },
+  });
+  const bootstrap = new ProjectBootstrap(setup.dependencies);
+  const state = await bootstrap.start("CUBI-DAM-001");
+  assert.equal(state?.status, "ready");
+  if (state?.status === "ready") assert.equal(state.sharedReference, true);
+  assert.deepEqual(sharedOpened, ["CUBI-DAM-001"]);
+  assert.deepEqual(bootstrap.openableProjects(), []);
+  assert.deepEqual(bootstrap.projectTabs(), { open: [], active: "" });
+  assert.deepEqual(setup.loadOptions, [{ locale: "en", primaryCalendarId: "DAM-CAL-5D" }]);
+});
+
 test("one project opens and hydrates using authoritative open context", async () => {
   const setup = deps();
   const bootstrap = new ProjectBootstrap(setup.dependencies);

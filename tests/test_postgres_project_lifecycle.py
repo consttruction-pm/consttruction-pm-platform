@@ -307,3 +307,32 @@ def test_defaults_application_is_appended_and_read_back_scoped():
     assert len(history) == 1
     assert history[0].activity_id == "A1000"
     assert "JOIN project_lifecycle_memberships" in c.calls[2][0]
+
+
+def test_personal_project_list_excludes_only_dam_build_workspace():
+    c = FakeConnection()
+    PostgresProjectRepository(c).list_for_user("t1", "u1")
+    sql, params = c.calls[0]
+    assert "project_lifecycle_memberships" in sql
+    assert "cubi_reference_project" in sql
+    assert "r.project_id <> 'CUBI-DAM-001'" in sql
+    assert params == ("t1", "u1")
+
+
+def test_shared_reference_project_list_uses_tenant_scoped_registry():
+    c = FakeConnection()
+    c.next_rows = [("p1", "t1", "Shared workspace", 1, "", None, "gregorian", None)]
+    projects = PostgresProjectRepository(c).list_shared_reference_for_user("t1")
+    assert len(projects) == 1 and projects[0].project_id == "p1"
+    sql, params = c.calls[0]
+    assert "cubi_reference_project" in sql
+    assert "r.tenant_id=p.tenant_id" in sql
+    assert "p.project_id='CUBI-DAM-001'" in sql
+    assert params == ("t1",)
+
+
+def test_shared_reference_project_check_is_tenant_scoped():
+    c = FakeConnection()
+    c.next_rows = [(1,)]
+    assert PostgresProjectRepository(c).is_shared_reference_project("t1", "p1") is True
+    assert c.calls[0][1] == ("t1", "p1")

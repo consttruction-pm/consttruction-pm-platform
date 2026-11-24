@@ -82,6 +82,20 @@ class Projects:
         self.items = {
             "p1": ProjectSummary("p1", "t1", "Project One", 2)
         }
+        self.shared_items = {
+            "CUBI-DAM-001": ProjectSummary(
+                "CUBI-DAM-001", "t1", "Large Reservoir Dam and Hydropower Development", 1
+            )
+        }
+
+    def list_shared_reference_for_user(self, tenant_id):
+        return tuple(
+            ProjectSummary(project.project_id, tenant_id, project.name, project.revision)
+            for project in self.shared_items.values()
+        )
+
+    def is_shared_reference_project(self, tenant_id, project_id):
+        return project_id in self.shared_items and tenant_id == "t1"
 
     def list_for_user(self, tenant_id, user_id):
         return tuple(
@@ -111,7 +125,7 @@ class Projects:
         )
 
     def get_for_user(self, tenant_id, project_id, user_id):
-        project = self.items.get(project_id)
+        project = self.items.get(project_id) or self.shared_items.get(project_id)
         if project is None: return None
         return ProjectSummary(
             project.project_id, tenant_id, project.name, project.revision,
@@ -286,10 +300,10 @@ class CostAccounts:
         return account_id == "CA-CIVIL"
 
 
-def routes():
+def routes(roles=frozenset({"project_admin"})):
     now = datetime(2026, 9, 30, tzinfo=timezone.utc)
     session = AuthenticatedSession(
-        "s1", "u1", "t1", frozenset({"project_admin"}), now + timedelta(hours=1)
+        "s1", "u1", "t1", roles, now + timedelta(hours=1)
     )
     service = __import__(
         "construction_pm.application.project_lifecycle",
@@ -302,6 +316,28 @@ def routes():
         ProjectLifecycleAPI(service),
         clock=type("Clock", (), {"now": lambda self: now})(),
     )
+
+
+def test_shared_workspace_route_is_separate_and_readable_without_project_role():
+    r = routes(roles=frozenset())
+
+    status, _, body = r.handle(
+        "GET", "/api/projects", cookies={"cp_session": "s1"}
+    )
+    assert status == 200
+    assert json.loads(body)["projects"] == []
+
+    status, _, body = r.handle(
+        "GET", "/api/shared-projects", cookies={"cp_session": "s1"}
+    )
+    assert status == 200
+    assert [row["project_id"] for row in json.loads(body)["projects"]] == ["CUBI-DAM-001"]
+
+    status, _, body = r.handle(
+        "GET", "/api/projects/CUBI-DAM-001", cookies={"cp_session": "s1"}
+    )
+    assert status == 200
+    assert json.loads(body)["project"]["project_id"] == "CUBI-DAM-001"
 
 
 class FakeP6CalendarAPI:

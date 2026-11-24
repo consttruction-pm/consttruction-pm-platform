@@ -169,13 +169,17 @@ The three frozen reference projects are durable tenant data, not fixtures.
   rewritten or duplicated. `cubi_reference_import` stores the bundle contract,
   source SHA-256, revision and per-domain counts; `cubi_reference_schedule_run`
   stores each canonical-engine manifest.
-- **Shared visibility without memberships.** `cubi_reference_project` is the
-  registry. `PostgresProjectRepository.list_for_user`/`get_for_user` (and the
-  preview store) union it in, so every authenticated user of the tenant lists
-  the three projects without a `project_lifecycle_memberships` row and without
-  copied data. Authorization still runs in `RoleBasedAuthorizationPolicy`;
-  `global_admin` keeps its unconditional grant, and writes still require the
-  usual permission.
+- **Shared reference visibility without memberships.** `cubi_reference_project` is the
+  registry for the existing CUBI-REF reference projects and the separately
+  scoped CUBI-DAM build workspace. The existing CUBI-REF rows remain in the
+  ordinary project register for the prior all-user preview contract. The
+  in-progress `CUBI-DAM-001` workspace is excluded from `list_for_user` and is
+  returned only by the authenticated `GET /api/shared-projects` surface, so it
+  is not counted or mixed with user-owned projects. Both repositories use the
+  same tenant-scoped registry; no mass memberships or copied project data are
+  created. Only this exact project gets a registry-verified read-only
+  authorization-context exception; write/schedule/admin permissions still
+  require the usual policy grants.
 - **Calculations are never imported.** CPM dates, float, critical path and EVM
   are produced during the import by `AuthoritativeScheduleSnapshotPublisher`
   and `evaluate_schedule_snapshot`; the workbook's calculated columns are only
@@ -234,3 +238,10 @@ viewer denial, CSRF denial and knowledge durability.
    external object store. Large binary retention policy is not defined.
 6. **Drift policy defaults to report.** A production rollout should set
    `CUBI_SCHEMA_DRIFT_POLICY=fail` once the baseline is known clean.
+
+
+## Supabase Data API security boundary (2026-11-24)
+
+The public schema is not a browser-facing data API for CUBI. All 59 public base tables present at the security-hardening point have RLS enabled, a restrictive `cubi_block_direct_api_clients` policy for `anon` and `authenticated`, and no direct table or sequence privileges for those roles. The CUBI server connection retains the required database access; client reads and writes must pass through authenticated CUBI routes and their tenant/project authorization checks. Two trigger functions also have fixed `search_path=pg_catalog`. Supabase Security Advisor returned zero security lints after these changes.
+
+Application schema migration 16 (`post-reference-state-and-data-api-hardening`) is the single additive step for post-reference state and security: it creates the `cubi_reference_enterprise` import-state table and then repeats this hardening after reference Engineering/Enterprise migrations 14/15, so every newly created public table is secured before the reference-project importer is allowed to proceed. The state table deliberately lives in step 16, not in the already-applied step 15, because editing an applied step would leave existing databases without the table. The importer preflight checks RLS, the explicit restrictive policy, direct client grants and all required Engineering/Enterprise tables. Do not enable direct client table access as a shortcut for shared project visibility; use the authenticated CUBI shared-workspace route instead.

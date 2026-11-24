@@ -523,6 +523,11 @@ class ProjectLifecycleHttpRoutes:
                 return self._json(200, {
                     "projects": [asdict(project) for project in response.projects]
                 })
+            if method == "GET" and path == "/api/shared-projects":
+                response = self._api.list_shared_reference_projects(session_id, now=now)
+                return self._json(200, {
+                    "projects": [asdict(project) for project in response.projects]
+                })
             if method == "GET" and path.startswith("/api/projects/") and path.count("/") == 3:
                 project_id = path[len("/api/projects/"):]
                 if not project_id:

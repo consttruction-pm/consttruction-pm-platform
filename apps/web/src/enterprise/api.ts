@@ -232,6 +232,11 @@ export const api = {
     return payload.projects ?? [];
   },
 
+  listSharedProjects: async () => {
+    const payload = await request<{ projects: ProjectSummary[] }>("/api/shared-projects");
+    return payload.projects ?? [];
+  },
+
   /**
    * Read one project. The server re-authorizes the request for this project,
    * so a 403 here is a real answer about the selected project, not a UI gate.

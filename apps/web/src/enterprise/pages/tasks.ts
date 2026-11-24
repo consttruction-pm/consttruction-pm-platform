@@ -6,6 +6,7 @@ import {
   emptyLine,
   labelled,
   note,
+  projectFilterOptions,
   section,
   sectionBody,
   selectControl,
@@ -68,7 +69,7 @@ function build(ctx: PageContext, state: TaskState, paint: () => void): HTMLEleme
   const controls = section("Filters", "Project, status, priority and free-text search. Filtering is applied to records returned by the server.");
   const toolbar = el("div", { class: "cubi-toolbar" });
   const projectFilter = testId(selectControl(
-    [{ value: "", label: "All accessible projects" }, ...ctx.projects.map((project) => ({ value: project.project_id, label: project.name }))],
+    projectFilterOptions(ctx.projects, ctx.sharedProjects ?? [], "All accessible projects"),
     state.projectId,
     (value) => {
       state.projectId = value;
@@ -251,7 +252,7 @@ function createForm(ctx: PageContext, state: TaskState, paint: () => void): HTML
   const assignedTeam = textInput({ placeholder: "team id (optional)" });
   const due = textInput({ type: "date" });
   const project = selectControl(
-    [{ value: "", label: "No project" }, ...ctx.projects.map((item) => ({ value: item.project_id, label: item.name }))],
+    projectFilterOptions(ctx.projects, ctx.sharedProjects ?? [], "No project"),
     state.projectId,
     () => {},
   );

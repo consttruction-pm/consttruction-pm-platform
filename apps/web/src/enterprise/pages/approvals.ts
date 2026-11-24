@@ -4,6 +4,7 @@ import { badge, el } from "../ui.js";
 import {
   labelled,
   note,
+  projectFilterOptions,
   section,
   sectionBody,
   selectControl,
@@ -33,7 +34,7 @@ export function renderApprovals(ctx: PageContext, host: HTMLElement): void {
   const newApproval = el("form", { class: "cubi-toolbar" });
   const newTitle = testId(textInput({ placeholder: "Approval title", required: true }), "approvals-create-title");
   const newProject = selectControl(
-    [{ value: "", label: "No project" }, ...ctx.projects.map((project) => ({ value: project.project_id, label: project.name }))],
+    projectFilterOptions(ctx.projects, ctx.sharedProjects ?? [], "No project"),
     "",
     () => {},
   );

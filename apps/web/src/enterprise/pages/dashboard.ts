@@ -5,6 +5,7 @@ import {
   emptyLine,
   note,
   pageActions,
+  projectFilterOptions,
   readLocalJson,
   section,
   sectionBody,
@@ -94,7 +95,7 @@ export function renderDashboard(ctx: PageContext, host: HTMLElement): void {
   const stored = readLocalJson<Record<string, Layout>>(STORAGE_KEY, {});
   const state: DashboardState = {
     dashboardId: DASHBOARDS[0].id,
-    projectId: ctx.projects[0]?.project_id ?? "",
+    projectId: ctx.query.get("project") ?? ctx.projects[0]?.project_id ?? ctx.sharedProjects?.[0]?.project_id ?? "",
     filter: "",
     designer: false,
     layouts: { ...defaultLayouts(), ...stored },
@@ -121,7 +122,7 @@ function build(ctx: PageContext, state: DashboardState, paint: () => void): HTML
     paint();
   }), "dashboard-selector");
   const projectFilter = testId(selectControl(
-    [{ value: "", label: "No project filter" }, ...ctx.projects.map((project) => ({ value: project.project_id, label: project.name }))],
+    projectFilterOptions(ctx.projects, ctx.sharedProjects ?? [], "No project filter"),
     state.projectId,
     (value) => {
       state.projectId = value;

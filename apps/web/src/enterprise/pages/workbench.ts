@@ -108,6 +108,24 @@ export function renderWorkbench(ctx: PageContext, host: HTMLElement): void {
   testId(projectsCard, "workbench-projects");
   host.append(projectsCard);
 
+  if (ctx.sharedProjects?.length) {
+    const sharedCard = section(
+      "Shared build workspace",
+      "In-progress project data used to build and verify both CUBI environments. It is kept separate from personal project totals and registers.",
+    );
+    const sharedRows = el("div", { class: "cubi-list" });
+    for (const project of ctx.sharedProjects) {
+      const open = linkButton("Open shared workspace", pageHref("projects", { project: project.project_id }));
+      sharedRows.append(el("div", { class: "cubi-list-item" },
+        el("div", {}, el("strong", { text: project.name }), el("div", { class: "cubi-field-hint", text: project.project_id })),
+        open,
+      ));
+    }
+    sectionBody(sharedCard, sharedRows);
+    testId(sharedCard, "workbench-shared-build-workspace");
+    host.append(sharedCard);
+  }
+
   const linksCard = section("Enterprise centers", "Ten operational surfaces plus this personal entry point.");
   const grid = el("div", { class: "cubi-knowledge-grid" });
   for (const link of QUICK_LINKS) {

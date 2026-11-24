@@ -10,6 +10,7 @@ silently dropped.
 
 from __future__ import annotations
 
+import json
 import sqlite3
 import sys
 from pathlib import Path
@@ -25,6 +26,8 @@ from construction_pm.importing.reference_enterprise import (
     ensure_reference_enterprise,
     read_enterprise_state,
 )
+from construction_pm.importing.dam_reference_project import PROJECT_ID, build_dam_reference_bundle
+from construction_pm.enterprise_task_sqlite_repository import SQLiteEnterpriseTaskRepository
 from construction_pm.importing.reference_persistence import (
     ensure_reference_projects,
     load_bundle,
@@ -76,6 +79,12 @@ def test_every_representable_row_is_persisted_once() -> None:
         connection, repositories, enterprise, tenant_id=TENANT
     )
     assert tuple(item.project_id for item in results) == PROJECT_IDS
+    for project_id in PROJECT_IDS:
+        demo_flag = connection.execute(
+            "SELECT demo FROM preview_project WHERE tenant_id=? AND project_id=?",
+            (TENANT, project_id),
+        ).fetchone()[0]
+        assert demo_flag == 1
     for item in results:
         assert item.status == "COMPLETE"
         assert item.missing == {}
@@ -104,6 +113,67 @@ def test_second_import_creates_nothing_and_keeps_counts() -> None:
     for item in again:
         assert all(value == 0 for value in item.created.values())
         assert item.missing == {}
+    connection.close()
+
+
+def test_dam_enterprise_records_are_persisted_as_non_demo_working_data() -> None:
+    connection = sqlite3.connect(":memory:")
+    connection.execute("PRAGMA foreign_keys = ON")
+    repositories = PreviewRepositories.create(connection)
+    store = PreviewStore(connection)
+    bundle = build_dam_reference_bundle()
+    ensure_reference_projects(repositories, store, tenant_id=TENANT, bundle=bundle)
+    project_demo = connection.execute(
+        "SELECT demo FROM preview_project WHERE tenant_id=? AND project_id=?",
+        (TENANT, PROJECT_ID),
+    ).fetchone()[0]
+    assert project_demo == 0
+    enterprise = EnterpriseWorkbenchStore(connection)
+    enterprise.initialize()
+
+    results = ensure_reference_enterprise(
+        connection, repositories, enterprise, tenant_id=TENANT, bundle=bundle
+    )
+    assert len(results) == 1
+    result = results[0]
+    assert result.project_id == PROJECT_ID
+    assert result.status == "COMPLETE"
+    assert result.missing == {}
+    assert result.created["risks"] == 24
+    assert result.created["issues"] == 30
+    assert result.created["documents"] == 36
+    assert result.created["tasks"] == 48
+
+    payloads = connection.execute(
+        "SELECT payload_json FROM enterprise_records WHERE tenant_id=? AND json_extract(payload_json, '$.project_id')=?",
+        (TENANT, PROJECT_ID),
+    ).fetchall()
+    assert payloads
+    decoded = [json.loads(row[0]) for row in payloads]
+    assert all(item["demo"] is False for item in decoded)
+    # The boolean classification key itself is expected; no free-text value may
+    # describe the shared build project as a demo or synthetic record.
+    labels = [
+        value
+        for item in decoded
+        for key, value in item.items()
+        if isinstance(value, str) and key != "source"
+    ]
+    assert all("DEMO" not in label.upper() and "SYNTHETIC" not in label.upper() for label in labels)
+
+    tasks = SQLiteEnterpriseTaskRepository(connection).list_for_tenant(
+        TENANT, limit=100, project_id=PROJECT_ID
+    )
+    assert len(tasks) == 48
+    assert all("DEMO" not in item.task.description.upper() for item in tasks)
+    assert len(repositories.risks.list_risks(TENANT, PROJECT_ID)) == 24
+    assert len(repositories.issues.list(BackendScope(TENANT, PROJECT_ID, 1))) == 30
+    assert len(repositories.documents.list_all(tenant_id=TENANT, project_id=PROJECT_ID)) == 36
+
+    again = ensure_reference_enterprise(
+        connection, repositories, enterprise, tenant_id=TENANT, bundle=bundle
+    )
+    assert again[0].created == {key: 0 for key in result.created}
     connection.close()
 
 

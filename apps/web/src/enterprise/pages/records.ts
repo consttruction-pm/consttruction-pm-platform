@@ -16,6 +16,7 @@ import {
   detailList,
   labelled,
   note,
+  projectFilterOptions,
   section,
   sectionBody,
   selectControl,
@@ -221,7 +222,7 @@ export function renderRecordPage(ctx: PageContext, host: HTMLElement, spec: Reco
   const statusFilter = selectControl([{ value: "", label: "All statuses" }, ...statusOptions], "", () => { void reload(); });
   statusFilter.setAttribute("aria-label", "Filter by status");
   const projectFilter = selectControl(
-    [{ value: "", label: "All projects" }, ...ctx.projects.map((project) => ({ value: project.project_id, label: project.name }))],
+    projectFilterOptions(ctx.projects, ctx.sharedProjects ?? [], "All projects"),
     "",
     () => { void reload(); },
   );

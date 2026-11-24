@@ -7,10 +7,12 @@ import {
   emptyLine,
   note,
   pageActions,
+  projectFilterOptions,
   section,
   sectionBody,
   sourceStamp,
   sourceState,
+  selectControl,
   testId,
   textInput,
 } from "./shared.js";
@@ -36,7 +38,8 @@ const jobsLookup: JobsLookup = { status: "idle" };
 
 export function renderReports(ctx: PageContext, host: HTMLElement): void {
   const requested = ctx.query.get("project") ?? "";
-  const selected = ctx.projects.find((project) => project.project_id === requested) ?? ctx.projects[0] ?? null;
+  const allProjects = [...ctx.projects, ...(ctx.sharedProjects ?? [])];
+  const selected = allProjects.find((project) => project.project_id === requested) ?? allProjects[0] ?? null;
   const reportFromQuery = ctx.query.get("report") ?? "";
   if (reportFromQuery) selectedReportId = reportFromQuery;
   if (jobsProjectId !== (selected?.project_id ?? "")) {
@@ -57,14 +60,11 @@ export function renderReports(ctx: PageContext, host: HTMLElement): void {
   host.append(intro);
 
   const scope = section("Project scope", "Reporting routes are project-scoped. Choose the project whose runtime should be read.");
-  const selector = el("select", { class: "cubi-input" });
-  for (const project of ctx.projects) {
-    const option = el("option", { text: project.name });
-    option.value = project.project_id;
-    if (project.project_id === selected?.project_id) option.selected = true;
-    selector.append(option);
-  }
-  selector.addEventListener("change", () => ctx.navigate(pageHref("reports", { project: selector.value })));
+  const selector = selectControl(
+    projectFilterOptions(ctx.projects, ctx.sharedProjects ?? [], "Select a project"),
+    selected?.project_id ?? "",
+    (value) => ctx.navigate(pageHref("reports", { project: value })),
+  );
   sectionBody(scope, el("div", { class: "cubi-toolbar" }, selector));
   host.append(scope);
 

@@ -9,7 +9,7 @@
 import type { PageContext } from "../app.js";
 import { api, ApiError, probe, type ActivityEnvelope } from "../api.js";
 import { badge, el } from "../ui.js";
-import { connectionRow, note, section, sectionBody, selectControl, sourceState, testId, textInput } from "./shared.js";
+import { connectionRow, note, projectFilterOptions, section, sectionBody, selectControl, sourceState, testId, textInput } from "./shared.js";
 
 export function renderMemberActivities(ctx: PageContext, host: HTMLElement): void {
   const intro = section("Engineering-owned activity records", "Activities, their status and their progress are maintained in Engineering; Enterprise reads them and links back.");
@@ -25,8 +25,8 @@ export function renderMemberActivities(ctx: PageContext, host: HTMLElement): voi
 
   const list = section("Project activities", "Read from the Engineering activity route for the selected project.");
   const picker = selectControl(
-    [{ value: "", label: "Select a project" }, ...ctx.projects.map((project) => ({ value: project.project_id, label: project.name }))],
-    ctx.projects[0]?.project_id ?? "",
+    projectFilterOptions(ctx.projects, ctx.sharedProjects ?? [], "Select a project"),
+    ctx.projects[0]?.project_id ?? ctx.sharedProjects?.[0]?.project_id ?? "",
     (value) => { void load(value); },
   );
   let currentProject = "";

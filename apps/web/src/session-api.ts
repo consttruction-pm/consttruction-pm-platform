@@ -199,6 +199,7 @@ export type SessionApi = {
   login?(email: string, password: string): Promise<ApiResult<Session>>;
   logout?(): Promise<ApiResult<null>>;
   listProjects(): Promise<ApiResult<{ projects: ProjectSummary[] }>>;
+  listSharedProjects?(): Promise<ApiResult<{ projects: ProjectSummary[] }>>;
   openProject(projectId: string): Promise<ApiResult<{ context: ProjectContext }>>;
   createProject(
     projectId: string,
@@ -254,6 +255,7 @@ export class FetchSessionApi implements SessionApi {
     return result.ok ? { ok: true, data: null } : result;
   }
   listProjects() { return this.request<{ projects: ProjectSummary[] }>("/api/projects"); }
+  listSharedProjects() { return this.request<{ projects: ProjectSummary[] }>("/api/shared-projects"); }
 
   openProject(projectId: string) {
     return this.request<{ context: ProjectContext }>(

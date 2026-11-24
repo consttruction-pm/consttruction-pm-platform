@@ -29,6 +29,16 @@ class Projects:
             )
         }
         self.defaults_events = []
+        self.shared_items = {}
+
+    def list_shared_reference_for_user(self, tenant_id):
+        return tuple(
+            project for (tenant, _), project in self.shared_items.items()
+            if tenant == tenant_id
+        )
+
+    def is_shared_reference_project(self, tenant_id, project_id):
+        return (tenant_id, project_id) in self.shared_items
 
     def list_for_user(self, tenant_id, user_id):
         return tuple(
@@ -38,7 +48,7 @@ class Projects:
         )
 
     def get_for_user(self, tenant_id, project_id, user_id):
-        return self.items.get((tenant_id, user_id, project_id))
+        return self.items.get((tenant_id, user_id, project_id)) or self.shared_items.get((tenant_id, project_id))
 
     def create_for_user(
         self,
@@ -270,10 +280,10 @@ def make_session(*, roles=frozenset({"planner"}), expired=False):
     )
 
 
-def make_service(session, cost_accounts=None, obs_nodes=None):
+def make_service(session, cost_accounts=None, obs_nodes=None, projects=None):
     return ProjectLifecycleService(
         Sessions(session),
-        Projects(),
+        projects or Projects(),
         default_project_policy(),
         cost_accounts=cost_accounts,
         obs_nodes=obs_nodes,
@@ -287,6 +297,27 @@ def test_open_project_derives_context_from_session_not_browser_headers():
     assert context.project_id == "project-a"
     assert context.revision == 7
     assert context.user_id == "user-a"
+
+
+def test_shared_build_project_is_separate_from_personal_register_and_read_only_without_project_role():
+    now, session = make_session(roles=frozenset())
+    projects = Projects()
+    projects.shared_items[("tenant-a", "CUBI-DAM-001")] = ProjectSummary(
+        "CUBI-DAM-001", "tenant-a", "Large Reservoir Dam and Hydropower Development", 1
+    )
+    service = make_service(session, projects=projects)
+
+    assert service.list_projects("session-a", now=now) == ()
+    shared = service.list_shared_reference_projects("session-a", now=now)
+    assert [p.project_id for p in shared] == ["CUBI-DAM-001"]
+    context = service.open_project("session-a", "CUBI-DAM-001", now=now)
+    assert context.shared_reference is True
+    assert context.authorization_context(session.roles).roles == frozenset()
+    assert context.authorization_context(session.roles).shared_reference is True
+    with pytest.raises(AuthorizationError):
+        service.authorize_project(
+            "session-a", "CUBI-DAM-001", Permission.PROJECT_WRITE, now=now
+        )
 
 
 def test_cross_user_project_is_not_discoverable():

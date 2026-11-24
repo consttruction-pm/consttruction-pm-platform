@@ -175,17 +175,46 @@ export function labelled(label: string, control: HTMLElement, hint?: string): HT
   return wrapper;
 }
 
-export function selectControl(options: { value: string; label: string; disabled?: boolean }[], selected: string, onChange: (value: string) => void): HTMLSelectElement {
+export function selectControl(options: { value: string; label: string; disabled?: boolean; group?: string }[], selected: string, onChange: (value: string) => void): HTMLSelectElement {
   const control = el("select", { class: "cubi-input" });
+  let activeGroup: string | null = null;
+  let target: HTMLElement = control;
   for (const option of options) {
+    if ((option.group ?? null) !== activeGroup) {
+      activeGroup = option.group ?? null;
+      if (activeGroup) {
+        const group = document.createElement("optgroup");
+        group.label = activeGroup;
+        control.append(group);
+        target = group;
+      } else {
+        target = control;
+      }
+    }
     const item = el("option", { text: option.label });
     item.value = option.value;
     if (option.disabled) item.disabled = true;
     if (option.value === selected) item.selected = true;
-    control.append(item);
+    target.append(item);
   }
   control.addEventListener("change", () => onChange(control.value));
   return control;
+}
+
+export function projectFilterOptions(
+  personalProjects: { project_id: string; name: string }[],
+  sharedProjects: { project_id: string; name: string }[],
+  emptyLabel: string,
+): { value: string; label: string; group?: string }[] {
+  return [
+    { value: "", label: emptyLabel },
+    ...personalProjects.map((project) => ({
+      value: project.project_id, label: project.name, group: "User projects",
+    })),
+    ...sharedProjects.map((project) => ({
+      value: project.project_id, label: project.name, group: "Shared build workspace",
+    })),
+  ];
 }
 
 export function textInput(options: { type?: string; placeholder?: string; value?: string; name?: string; required?: boolean; maxLength?: number; autocomplete?: string } = {}): HTMLInputElement {

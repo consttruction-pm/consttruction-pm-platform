@@ -7,6 +7,7 @@ import {
   emptyLine,
   note,
   pageActions,
+  projectFilterOptions,
   section,
   sectionBody,
   selectControl,
@@ -25,7 +26,8 @@ import {
 
 export function renderResources(ctx: PageContext, host: HTMLElement): void {
   const requested = ctx.query.get("project") ?? "";
-  const selected = ctx.projects.find((project) => project.project_id === requested) ?? ctx.projects[0] ?? null;
+  const allProjects = [...ctx.projects, ...(ctx.sharedProjects ?? [])];
+  const selected = allProjects.find((project) => project.project_id === requested) ?? allProjects[0] ?? null;
 
   const intro = section("Read-only Engineering projection", "Resource names, units, calendars and capacity segments come from Engineering. Enterprise does not own or modify them.");
   sectionBody(intro,
@@ -36,7 +38,7 @@ export function renderResources(ctx: PageContext, host: HTMLElement): void {
 
   const selectorCard = section("Project scope", "Choose the project whose Engineering records should be projected.");
   const selector = testId(selectControl(
-    ctx.projects.map((project) => ({ value: project.project_id, label: project.name })),
+    projectFilterOptions(ctx.projects, ctx.sharedProjects ?? [], "Select a project"),
     selected?.project_id ?? "",
     (value) => ctx.navigate(pageHref("resources", { project: value })),
   ), "resources-project");
