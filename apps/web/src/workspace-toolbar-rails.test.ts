@@ -261,6 +261,43 @@ test("disabled commands expose a reason and administrator commands respect the r
   assert.ok(toolbarCommandDisabledReason(addActivity, noWbs));
 });
 
+test("a command shown outside the window it can act on explains why", () => {
+  // Every registry command may be placed on the right rail, which is visible
+  // in every window. A command that only works in specific windows must carry
+  // a reason when the active window is outside that set, otherwise the button
+  // is a decorative control that silently does nothing.
+  const windows: Array<ToolbarContext["activeWindow"]> = [
+    "settings", "reports", "project", "resources", "progress", "documents",
+  ];
+  for (const command of TOOLBAR_COMMANDS) {
+    if (!command.windows) continue;
+    for (const activeWindow of windows) {
+      if (command.windows.includes(activeWindow)) continue;
+      const reason = toolbarCommandDisabledReason(command, context({ activeWindow }));
+      assert.ok(reason, `${command.id} is enabled in ${activeWindow} where it cannot act`);
+    }
+  }
+});
+
+test("every enabled rail action and dialog command reaches a real dispatcher", async () => {
+  const { readFileSync } = await import("node:fs");
+  const source = readFileSync(new URL("./main.ts", import.meta.url), "utf8");
+  // `navigation` is the one rail action the workspace renderer owns; the rest
+  // run from the workspace dispatcher in main.ts.
+  const viewHandled = new Set(["navigation"]);
+  for (const command of TOOLBAR_COMMANDS) {
+    if (command.target.kind !== "rail") continue;
+    const action = command.target.action;
+    if (viewHandled.has(action)) continue;
+    assert.match(source, new RegExp(`case "${action}":`), `rail action ${action} has no handler`);
+  }
+  assert.match(source, /case "comments":\s*\n\s*openWorkspaceComments\(container\)/);
+  // Rail buttons live outside the desktop host, so the shell's click router
+  // never sees their dialog commands; main must route them explicitly.
+  assert.match(source, /command\.startsWith\("dialog\."\)/);
+  assert.match(source, /openDesktopDialog\(desktopHost, command\.slice\("dialog\."\.length\)/);
+});
+
 test("rendering exposes both rails, every family and its Add or Remove control", () => {
   const container = {};
   const session = {

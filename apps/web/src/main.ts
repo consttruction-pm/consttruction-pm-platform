@@ -122,7 +122,7 @@ import { mountCapacityPanel } from "./p6-capacity-panel.js";
 import { openDesktopDialog, renderDesktopShell, WINDOW_TITLES, type DesktopCommand } from "./workspace-desktop-shell.js";
 import { renderStatusBar, type ChromeLayoutState } from "./workspace-chrome.js";
 import { enhanceActivityDetails } from "./workspace-activity-details.js";
-import { enhanceWorkspaceComments } from "./workspace-comments.js";
+import { enhanceWorkspaceComments, openWorkspaceComments } from "./workspace-comments.js";
 import { mountWorkspaceMobile } from "./workspace-mobile.js";
 import { openFormBuilder, type FormBuilderHandle } from "./workspace-forms.js";
 import type { DesktopLayoutPatch } from "./workspace-dialogs.js";
@@ -2021,6 +2021,13 @@ function renderApp(
       }
       return;
     }
+    // The right tool rail lives outside the desktop host, so its dialog
+    // commands never pass through the shell's own click router. Open the same
+    // dialog the menu-bar entry opens instead of dropping the command.
+    if (command.startsWith("dialog.")) {
+      openDesktopDialog(desktopHost, command.slice("dialog.".length) as Parameters<typeof openDesktopDialog>[1]);
+      return;
+    }
     switch (command) {
       case "workspace.refresh":
         // Re-read the authoritative project from the server instead of
@@ -3696,8 +3703,19 @@ function renderApp(
     onP6LayoutRestore: (revision) => { void restoreLayout(revision); },
     onRailAction: (action) => {
       switch (action) {
+        case "comments":
+          openWorkspaceComments(container);
+          return;
         case "details":
-          runDesktopCommand("view.bottom-details");
+          // Record Details is the Activities window's bottom pane. From any
+          // other window the command first returns to Activities, then opens
+          // the pane, instead of firing into a window that cannot show it.
+          if (state.activeMenu === "schedule") {
+            runDesktopCommand("view.bottom-details");
+          } else {
+            pendingDesktopAction = () => runDesktopCommand("view.bottom-details");
+            activateWindow("schedule");
+          }
           return;
         case "help":
           openDesktopDialog(desktopHost, "shortcuts");
