@@ -294,7 +294,9 @@ def _build_enterprise_records(
     ]
     timesheets = [
         {
-            "timesheet_id": f"DAM-TS-{index:04d}",
+            # One row per resource and week: the identifier must stay unique
+            # across the two weekly rows of the same resource.
+            "timesheet_id": f"DAM-TS-{(index - 1) * 2 + week + 1:04d}",
             "resource_id": str(resource["resource_id"]),
             "week_ending": _working_date(150 + week * 7).isoformat(),
             "regular_hours": str(40 + (index % 5) * 4),
@@ -334,6 +336,7 @@ def _build_enterprise_records(
             "risk_score": probability * impact,
             "probability_1_5": probability,
             "impact_1_5": impact,
+            "date_identified": _working_date(40 + index * 3).isoformat(),
             "owner_obs_id": obs_ids[index % len(obs_ids)],
             "wbs_id": leaf_ids[(index * 2) % len(leaf_ids)],
         })
@@ -354,6 +357,11 @@ def _build_enterprise_records(
             "priority": ("Critical" if index % 8 == 0 else "High" if index % 3 == 0 else "Medium" if index % 3 == 1 else "Low"),
             "owner_obs_id": obs_ids[index % len(obs_ids)],
             "date_raised": _working_date(min(90 + index * 5, 215)).isoformat(),
+            "resolution_note": (
+                "Verified and closed in the project issue log."
+                if index % 4 in {2, 3}
+                else None
+            ),
             "related_activity_id": activity_ids[(index * 13) % len(activity_ids)],
         }
         for index, title in enumerate((

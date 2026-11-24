@@ -263,6 +263,7 @@ def test_admin_full_flow_login_projects_open_workspace_refresh_logout(runtime):
         "project_id": ids["project_a"],
         "revision": 0,
         "user_id": ids["users"]["admin"].user_id,
+        "shared_reference": False,
     }
 
     status, _, body = call(

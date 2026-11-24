@@ -379,7 +379,7 @@ def _ensure_risks(repositories, scope: BackendScope, entry, *, actor_id, clock) 
             impact=int(row.get("impact_1_5") or 1),
             response_strategy="mitigate",
             owner=str(row.get("owner_obs_id") or "unassigned"),
-            date_identified=STATE_DATE.isoformat(),
+            date_identified=_text(row.get("date_identified")) or STATE_DATE.isoformat(),
             response_owner=_text(response_rows[0].get("action_owner")) if response_rows else None,
             response_due_date=_text(response_rows[0].get("due_date")) if response_rows else None,
         )
@@ -439,6 +439,7 @@ def _ensure_issues(repositories, scope: BackendScope, entry, *, actor_id, clock)
             owner=str(row.get("owner_obs_id") or "unassigned"),
             date_identified=_text(row.get("date_raised")) or "",
             activity_id=_text(row.get("related_activity_id")),
+            resolution_note=_text(row.get("resolution_note")) or None,
         )
         repositories.issues.create(
             issue, actor_id=actor_id, occurred_at=clock.isoformat()
@@ -551,15 +552,22 @@ def _ensure_tasks(
                     reference_id=activity_id,
                 ),
             )
+        status = EnterpriseTaskStatus(
+            _TASK_STATUS.get(str(row.get("status")), "open")
+        )
+        # A completed source row is imported as completed at import time: the
+        # canonical task record has no historical completion timestamp from the
+        # bundle, so claiming one would fabricate data.
+        completed = status is EnterpriseTaskStatus.COMPLETED
         task = EnterpriseTask(
             task_id=task_id,
             tenant_id=tenant_id,
             title=str(row.get("task_title") or task_id),
             created_by_user_id=actor_id,
             created_at=clock,
-            status=EnterpriseTaskStatus(
-                _TASK_STATUS.get(str(row.get("status")), "open")
-            ),
+            status=status,
+            completed_at=clock if completed else None,
+            completed_by_user_id=actor_id if completed else None,
             priority=EnterpriseTaskPriority.NORMAL,
             description=(
                 f"Assigned role: {row.get('assigned_role')}. "

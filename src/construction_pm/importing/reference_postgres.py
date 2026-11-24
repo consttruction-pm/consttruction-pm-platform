@@ -81,7 +81,6 @@ from construction_pm.wbs_master_repository import PostgresWBSMasterRepository
 
 from .reference_enterprise import (
     EnterpriseImportResult,
-    _ensure_state_table,
     ensure_reference_enterprise,
 )
 from .reference_journal import PostgresReferenceJournal
@@ -296,7 +295,6 @@ def initialize_reference_enterprise_schema(connection) -> None:
     PostgresEnterpriseWorkbenchStore(connection).initialize()
     PostgresEnterpriseTaskRepository(connection).initialize()
     PostgresBudgetStore(connection).initialize()
-    _ensure_state_table(connection, dialect="postgres")
 
 
 def initialize_reference_postgres_schema(connection) -> None:

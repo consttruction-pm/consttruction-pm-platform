@@ -151,7 +151,15 @@ def test_dam_enterprise_records_are_persisted_as_non_demo_working_data() -> None
     assert payloads
     decoded = [json.loads(row[0]) for row in payloads]
     assert all(item["demo"] is False for item in decoded)
-    assert all("DEMO" not in json.dumps(item).upper() for item in decoded)
+    # The boolean classification key itself is expected; no free-text value may
+    # describe the shared build project as a demo or synthetic record.
+    labels = [
+        value
+        for item in decoded
+        for key, value in item.items()
+        if isinstance(value, str) and key != "source"
+    ]
+    assert all("DEMO" not in label.upper() and "SYNTHETIC" not in label.upper() for label in labels)
 
     tasks = SQLiteEnterpriseTaskRepository(connection).list_for_tenant(
         TENANT, limit=100, project_id=PROJECT_ID

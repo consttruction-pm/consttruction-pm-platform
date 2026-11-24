@@ -248,6 +248,12 @@ def _harden_public_data_api(connection: Any) -> None:
     connection (postgres/service_role) may access these tables. Restrictive
     policies prevent a future permissive policy from reopening direct access.
     """
+    from ..importing.reference_enterprise import _ensure_state_table
+
+    # The Enterprise import ledger is part of this new step, not the already
+    # applied reference-enterprise step: changing an applied step would leave
+    # existing databases without the table.
+    _ensure_state_table(connection, dialect="postgres")
     existing_roles = {
         str(row[0])
         for row in connection.execute(
@@ -351,7 +357,7 @@ PRODUCTION_STEPS: tuple[MigrationStep, ...] = (
     MigrationStep(13, "username-identity-and-password-reset", 1, _initialize_username_identity),
     MigrationStep(14, "reference-engineering", 1, _initialize_reference_engineering),
     MigrationStep(15, "reference-enterprise", 1, _initialize_reference_enterprise),
-    MigrationStep(16, "public-data-api-hardening", 1, _harden_public_data_api),
+    MigrationStep(16, "post-reference-state-and-data-api-hardening", 1, _harden_public_data_api),
 )
 
 
