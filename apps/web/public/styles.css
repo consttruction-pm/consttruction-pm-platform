@@ -3700,6 +3700,8 @@ a.cp-submenu-item:hover,a.cp-submenu-item:focus-visible{color:var(--cubi-enginee
 .cp-shortcut-empty { margin: 0 0 10px; color: #6b7787; font-size: 12.5px; }
 .cp-desktop-dialog tr[hidden] { display: none; }
 .cp-shortcut-actions { white-space: nowrap; text-align: end; }
+.cp-shortcut-help { color: #123a6b; font-size: 11px; text-decoration: underline; text-underline-offset: 2px; }
+.cp-shortcut-help:hover, .cp-shortcut-help:focus-visible { color: #0b2748; }
 .cp-shortcut-actions button { margin-inline-start: 4px; padding: 2px 7px; border: 1px solid #b9c9db; border-radius: 3px; background: #f6f9fc; color: #123a6b; font: inherit; font-size: 11px; cursor: pointer; }
 .cp-shortcut-actions button:hover, .cp-shortcut-actions button:focus-visible { border-color: #123a6b; background: #e8f0fb; }
 .cp-desktop-dialog tr.is-capturing { background: #eef5ff; }

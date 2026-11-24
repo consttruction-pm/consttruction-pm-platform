@@ -20,6 +20,7 @@ import {
   withoutShortcutOverride,
   type ShortcutOverrides,
 } from "./workspace-shortcut-preferences.js";
+import { commandHelp, windowHelp } from "./workspace-command-help.js";
 
 /**
  * Desktop chrome for the professional workspace: the application menu bar, the
@@ -1103,6 +1104,7 @@ function renderShortcutsDialog(state: DesktopShellState): string {
     "Conflicting bindings:",
     "میانبرهای متعارض:",
   );
+  const helpLabel = translateWorkspaceUiText(locale, "Help", "راهنما");
   const changeLabel = translateWorkspaceUiText(locale, "Change", "تغییر");
   const resetLabel = translateWorkspaceUiText(locale, "Reset", "بازنشانی");
   const resetAllLabel = translateWorkspaceUiText(locale, "Reset all to defaults", "بازنشانی همه به پیش‌فرض");
@@ -1117,12 +1119,16 @@ function renderShortcutsDialog(state: DesktopShellState): string {
   const sections = groups
     .filter((group) => group.rows.length > 0)
     .map((group) => `<h3>${escapeHtml(group.title)}</h3>
-      <table><thead><tr><th>${escapeHtml(command)}</th><th>${escapeHtml(shortcutWord)}</th><th><span class="cp-visually-hidden">${escapeHtml(changeLabel)}</span></th></tr></thead>
+      <table><thead><tr><th>${escapeHtml(command)}</th><th>${escapeHtml(shortcutWord)}</th><th><span class="cp-visually-hidden">${escapeHtml(changeLabel)}</span></th><th><span class="cp-visually-hidden">${escapeHtml(helpLabel)}</span></th></tr></thead>
       <tbody>${group.rows.map((shortcut) => {
         const reason = shortcutUnavailableReason(shortcut, caps);
         const rowText = `${pick(shortcut.label, locale)} ${shortcut.keys}`.toLowerCase();
         const overridden = Boolean(overrides[shortcut.id]);
-        return `<tr data-shortcut-row data-shortcut-text="${escapeHtml(rowText)}" data-shortcut-id="${escapeHtml(shortcut.id)}"${reason ? ' class="is-unavailable"' : ""}><td>${escapeHtml(pick(shortcut.label, locale))}</td><td><kbd>${escapeHtml(shortcut.keys)}</kbd>${reason ? ` <span class="cp-shortcut-reason">${escapeHtml(unavailableWord)} — ${escapeHtml(pick(reason, locale))}</span>` : ""}</td><td class="cp-shortcut-actions"><button type="button" data-shortcut-change="${escapeHtml(shortcut.id)}">${escapeHtml(changeLabel)}</button>${overridden ? `<button type="button" data-shortcut-reset="${escapeHtml(shortcut.id)}">${escapeHtml(resetLabel)}</button>` : ""}</td></tr>`;
+        const help = shortcut.command ? commandHelp(shortcut.command) : shortcut.window ? windowHelp(shortcut.window) : null;
+        const helpCell = help
+          ? `<td class="cp-shortcut-help-cell"><a class="cp-shortcut-help" href="${escapeHtml(help.topic.url)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(`${helpLabel}: ${help.topic.title}`)}" title="${escapeHtml(`${help.topic.source} — ${help.topic.title}`)}">${escapeHtml(helpLabel)}</a></td>`
+          : `<td class="cp-shortcut-help-cell"></td>`;
+        return `<tr data-shortcut-row data-shortcut-text="${escapeHtml(rowText)}" data-shortcut-id="${escapeHtml(shortcut.id)}"${reason ? ' class="is-unavailable"' : ""}><td>${escapeHtml(pick(shortcut.label, locale))}</td><td><kbd>${escapeHtml(shortcut.keys)}</kbd>${reason ? ` <span class="cp-shortcut-reason">${escapeHtml(unavailableWord)} — ${escapeHtml(pick(reason, locale))}</span>` : ""}</td><td class="cp-shortcut-actions"><button type="button" data-shortcut-change="${escapeHtml(shortcut.id)}">${escapeHtml(changeLabel)}</button>${overridden ? `<button type="button" data-shortcut-reset="${escapeHtml(shortcut.id)}">${escapeHtml(resetLabel)}</button>` : ""}</td>${helpCell}</tr>`;
       }).join("")}</tbody></table>`)
     .join("");
   return `<dialog class="cp-desktop-dialog" data-desktop-dialog="shortcuts" aria-labelledby="cp-shortcuts-heading">

@@ -1022,3 +1022,18 @@ test("a re-render cancels an in-flight capture so a refresh cannot rebind silent
   }
   assert.deepEqual(changes, []);
 });
+
+test("each mapped shortcut also links to its official P6 Help topic", () => {
+  const recorded = recordHost();
+  renderDesktopShell(recorded.host, shellState(), {
+    onWindowOpen: () => {},
+    onWindowClose: () => {},
+    onCommand: () => {},
+  });
+  const html = recorded.html();
+  assert.match(html, /class="cp-shortcut-help" href="https:\/\/docs\.oracle\.com\/cd\/G48902_01\/client_help\/en_US\/managing_projects_using_the_eps\.htm"/);
+  assert.match(html, /aria-label="Help: Managing projects using the EPS"/);
+  assert.match(html, /target="_blank" rel="noopener noreferrer"/);
+  // An unmapped CUBI-only command stays without a link instead of citing a guess.
+  assert.match(html, /data-shortcut-id="shortcut\.find"><td>Find activities<\/td><td><kbd>Ctrl\+F<\/kbd><\/td><td class="cp-shortcut-actions">[^<]*<button[^>]*>Change<\/button><\/td><td class="cp-shortcut-help-cell"><\/td>/);
+});
