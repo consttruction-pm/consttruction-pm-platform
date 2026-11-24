@@ -2834,6 +2834,43 @@ test("Projects register groups real records by persisted Business Domain and sho
   assert.match(html, /<td>Planned<\/td><td><button type="button" data-project-open="p-2">/);
 });
 
+test("Projects register marks shared reference projects and offers to open them", () => {
+  const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "CUBI-REF-001", revision: 3 }, "en"), activeMenu: "project" as const };
+  const listed: ProjectSummary[] = [
+    { project_id: "CUBI-REF-001", tenant_id: "tenant-1", name: "Reference One", revision: 3, business_domain: "construction", status: "active" },
+    { project_id: "CUBI-REF-002", tenant_id: "tenant-1", name: "Reference Two", revision: 2, business_domain: "construction", status: "active" },
+    { project_id: "CUBI-REF-003", tenant_id: "tenant-1", name: "Reference Three", revision: 2, business_domain: "construction", status: "active" },
+  ];
+  const shared: ProjectSummary[] = [
+    { project_id: "CUBI-DAM-001", tenant_id: "tenant-1", name: "Dam Build", revision: 5, business_domain: "infrastructure", status: "active" },
+    // A duplicated shared row is never rendered twice.
+    listed[0],
+  ];
+  const container = { innerHTML: "", querySelectorAll: () => [], addEventListener: () => {} };
+  renderMainWorkspace(container as unknown as HTMLElement, state, { projects: listed, sharedProjects: shared });
+  const html = container.innerHTML;
+  assert.match(html, /4 of 4 projects/);
+  assert.match(html, /data-project-row="CUBI-DAM-001"/);
+  assert.match(html, /data-project-open="CUBI-DAM-001"/);
+  assert.equal((html.match(/data-project-row="CUBI-REF-001"/g) ?? []).length, 1);
+  assert.match(html, /cp-project-shared-badge/);
+  assert.match(html, /Session-authorized \+ shared reference projects/);
+  assert.match(html, /shared reference projects/);
+});
+
+test("Projects register omits shared rows entirely when none are exposed", () => {
+  const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "p-1", revision: 3 }, "en"), activeMenu: "project" as const };
+  const listed: ProjectSummary[] = [
+    { project_id: "p-1", tenant_id: "tenant-1", name: "Metro Line", revision: 3, business_domain: "infrastructure", status: "active" },
+  ];
+  const container = { innerHTML: "", querySelectorAll: () => [], addEventListener: () => {} };
+  renderMainWorkspace(container as unknown as HTMLElement, state, { projects: listed });
+  const html = container.innerHTML;
+  assert.doesNotMatch(html, /cp-project-shared-badge/);
+  assert.match(html, /Session-authorized projects/);
+  assert.doesNotMatch(html, /shared reference projects/);
+});
+
 test("Projects register filters by the stored project status and clears it with the other filters", () => {
   const listeners = new Map<string, ((event: Event) => void)[]>();
   const section = { outerHTML: "" };

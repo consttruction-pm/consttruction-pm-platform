@@ -3138,7 +3138,10 @@ function renderApp(
     onDesktopCommand: (command) => runDesktopCommand(command),
     // The Projects window renders the session's own project list and the
     // authoritative metadata row; both come from the server, never from a guess.
+    // Shared reference projects travel separately: they are openable but never
+    // become personal tabs.
     projects: currentBootstrap?.openableProjects() ?? [],
+    sharedProjects: currentBootstrap?.sharedProjects() ?? [],
     projectSummary: activeProjectSummary,
     costAccounts: activeCostAccountsProjectId === state.context.project_id ? activeCostAccounts : [],
     activityUsage: activeActivityUsageSource(state.context.project_id),
@@ -4437,7 +4440,9 @@ function activeProjectLabel(projectId: string): string {
     return activeProjectSummary.name;
   }
   const listed = currentBootstrap?.openableProjects()
-    .find((project) => project.project_id === projectId)?.name;
+    .find((project) => project.project_id === projectId)?.name
+    ?? currentBootstrap?.sharedProjects()
+      .find((project) => project.project_id === projectId)?.name;
   return listed || projectId;
 }
 
@@ -4796,16 +4801,20 @@ function renderBootstrapState(
     list.setAttribute("role", "list");
     list.setAttribute("aria-label", t.projectListAria);
 
-    for (const project of state.projects) {
+    const appendOption = (
+      project: ProjectSummary,
+      shared: boolean,
+      target: HTMLElement = list,
+    ): void => {
       const button = document.createElement("button");
       button.type = "button";
       button.setAttribute("role", "listitem");
-      button.className = "cp-project-option";
+      button.className = `cp-project-option${shared ? " is-shared" : ""}`;
       button.dataset.projectId = project.project_id;
       const name = document.createElement("strong");
       name.textContent = project.name;
       const revision = document.createElement("span");
-      revision.textContent = `R${project.revision}`;
+      revision.textContent = shared ? `R${project.revision} · ${t.sharedReference}` : `R${project.revision}`;
       button.append(name, revision);
       button.addEventListener("click", async () => {
         list.querySelectorAll("button").forEach((item) => { item.disabled = true; });
@@ -4813,10 +4822,26 @@ function renderBootstrapState(
         const next = await bootstrap.selectProject(project.project_id, locale);
         if (next) renderBootstrapState(container, next, bootstrap, locale);
       });
-      list.append(button);
+      target.append(button);
+    };
+
+    const shared = state.sharedProjects ?? [];
+    for (const project of state.projects) appendOption(project, false);
+    if (shared.length) {
+      const note = document.createElement("p");
+      note.className = "cp-project-list-note";
+      note.textContent = t.sharedReferenceHeading;
+      page.append(list, note);
+      const sharedList = document.createElement("div");
+      sharedList.className = "cp-project-list";
+      sharedList.setAttribute("role", "list");
+      sharedList.setAttribute("aria-label", t.sharedReferenceHeading);
+      for (const project of shared) appendOption(project, true, sharedList);
+      page.append(sharedList);
+    } else {
+      page.append(list);
     }
 
-    page.append(list);
     appendCreateProjectForm();
     container.append(page);
     return;

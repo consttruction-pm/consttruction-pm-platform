@@ -378,6 +378,8 @@ tr.is-selected { outline:2px solid var(--cp-blue); outline-offset:-2px; }
 .cp-project-option:focus-visible { border-color:var(--cp-blue); }
 .cp-project-option span { color:var(--cp-muted); font-size:.8rem; }
 .cp-project-option:disabled { cursor:progress; opacity:.7; }
+.cp-project-option.is-shared { border-style:dashed; }
+.cp-project-list-note { margin:1rem 0 .3rem; color:var(--cp-muted); font-size:.82rem; }
 .cp-form-hint { color:var(--cp-muted); font-size:.82rem; }
 .cp-form-error {
   margin:0;
@@ -7244,6 +7246,12 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
 .cp-p6-workspace[data-active-menu="project"] .cp-project-current {
   display: inline-block; padding: 1px 7px; border-radius: 8px;
   background: #123a6b; color: #fff; font-size: 9px; font-weight: 700;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-shared-badge {
+  display: inline-block; margin-inline-start: 5px; padding: 0 6px;
+  border: 1px solid #b08a2e; border-radius: 8px;
+  background: #fdf6e3; color: #7a5a12; font-size: 8px; font-weight: 700;
+  vertical-align: middle;
 }
 .cp-p6-workspace[data-active-menu="project"] button[data-project-open] {
   padding: 2px 8px; border: 1px solid #b9c9db; border-radius: 3px;

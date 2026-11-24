@@ -2788,6 +2788,12 @@ export type WorkspaceRendererOptions = {
   costAccounts?: readonly { account_id: string; name: string }[];
   /** Projects the session may open, exactly as the session service listed them. */
   projects?: readonly ProjectSummary[];
+  /**
+   * Shared reference projects exposed by the separate shared list. They are
+   * shown in the same register but marked, and opening one never adds a
+   * personal project tab.
+   */
+  sharedProjects?: readonly ProjectSummary[];
   /** Switches the open project from the Projects window. */
   onProjectOpen?: (projectId: string) => void;
   onActivityFilterChange?: (filterText: string) => void;
@@ -3394,10 +3400,16 @@ function renderProjectRegister(container: HTMLElement, state: WorkspaceState, op
   }
   const register = projectRegisterStateFor(container);
   const summary = options.projectSummary ?? null;
+  const sharedRows = (options.sharedProjects ?? []).filter(
+    (row) => !listed.some((owned) => owned.project_id === row.project_id),
+  );
+  const sharedIds = new Set(sharedRows.map((row) => row.project_id));
   // The session list is authoritative for which projects exist; the freshly
   // read summary replaces the list's row for the open project so a renamed
   // project never shows a stale name.
-  const rows: ProjectSummary[] = listed.map((row) => (row.project_id === currentId && summary ? summary : row));
+  const rows: ProjectSummary[] = [...listed, ...sharedRows].map(
+    (row) => (row.project_id === currentId && summary ? summary : row),
+  );
   if (summary && !rows.some((row) => row.project_id === currentId)) rows.unshift(summary);
 
   const query = register.query.trim().toLocaleLowerCase(locale);
@@ -3453,13 +3465,17 @@ function renderProjectRegister(container: HTMLElement, state: WorkspaceState, op
     return left - right;
   });
 
+  const sharedBadge = (row: ProjectSummary): string => sharedIds.has(row.project_id)
+    ? `<span class="cp-project-shared-badge" title="${escapeAttribute(uiText(locale, "Shared reference project; opens read-only outside personal tabs", "پروژهٔ مرجع اشتراکی؛ خارج از زبانه‌های شخصی و فقط‌خواندنی باز می‌شود"))}">${escapeHtml(uiText(locale, "Shared", "اشتراکی"))}</span>`
+    : "";
+
   const tree = orderedGroups.length
     ? `<ul class="cp-project-domain-groups">${orderedGroups.map(([domain, groupRows]) => {
       const key = domain || PROJECT_DOMAIN_FILTER_UNCLASSIFIED;
       const collapsed = register.collapsed.has(key);
       const projects = groupRows.map((row) => {
         const active = row.project_id === selectedId;
-        return `<li><button type="button" class="cp-project-tree-project${active ? " is-selected" : ""}" data-project-select="${escapeAttribute(row.project_id)}" aria-pressed="${active}" title="${escapeAttribute(`${row.project_id} · ${projectStatusLabel(locale, row.status)}`)}"><strong>${escapeHtml(row.name || row.project_id)}</strong><small>${escapeHtml(row.project_id)}</small>${row.project_id === currentId ? `<span class="cp-project-current">${escapeHtml(uiText(locale, "Open", "باز"))}</span>` : ""}</button></li>`;
+        return `<li><button type="button" class="cp-project-tree-project${active ? " is-selected" : ""}" data-project-select="${escapeAttribute(row.project_id)}" aria-pressed="${active}" title="${escapeAttribute(`${row.project_id} · ${projectStatusLabel(locale, row.status)}`)}"><strong>${escapeHtml(row.name || row.project_id)}</strong><small>${escapeHtml(row.project_id)}${sharedBadge(row)}</small>${row.project_id === currentId ? `<span class="cp-project-current">${escapeHtml(uiText(locale, "Open", "باز"))}</span>` : ""}</button></li>`;
       }).join("");
       return `<li class="cp-project-domain-group${collapsed ? " is-collapsed" : ""}" data-project-domain-group="${escapeAttribute(key)}"><button type="button" class="cp-project-domain-toggle" data-project-domain-toggle="${escapeAttribute(key)}" aria-expanded="${!collapsed}"><span class="cp-project-domain-name">${escapeHtml(businessDomainLabel(locale, domain))}</span><span class="cp-project-domain-count">${groupRows.length}</span></button>${collapsed ? "" : `<ul class="cp-project-domain-projects">${projects}</ul>`}</li>`;
     }).join("")}</ul>`
@@ -3472,7 +3488,7 @@ function renderProjectRegister(container: HTMLElement, state: WorkspaceState, op
     ? visibleRows.map((row) => {
       const current = row.project_id === currentId;
       const active = row.project_id === selectedId;
-      return `<tr data-project-row="${escapeAttribute(row.project_id)}"${current ? ' aria-current="true"' : ""} data-project-domain="${escapeAttribute(row.business_domain ?? "")}" data-project-selected="${active}" tabindex="0" aria-selected="${active}"><td><code>${escapeHtml(row.project_id)}</code></td><td>${escapeHtml(row.name || row.project_id)}</td><td>${escapeHtml(businessDomainLabel(locale, row.business_domain))}</td><td>${escapeHtml(row.start_date || "—")}</td><td>${escapeHtml(dateSystemLabel(row))}</td><td>${escapeHtml(row.primary_calendar_id || "—")}</td><td>${escapeHtml(projectStatusLabel(locale, row.status))}</td><td>${current ? `<span class="cp-project-current">${escapeHtml(uiText(locale, "Open", "باز"))}</span>` : `<button type="button" data-project-open="${escapeAttribute(row.project_id)}">${escapeHtml(uiText(locale, "Open", "بازکردن"))}</button>`}</td></tr>`;
+      return `<tr data-project-row="${escapeAttribute(row.project_id)}"${current ? ' aria-current="true"' : ""} data-project-domain="${escapeAttribute(row.business_domain ?? "")}" data-project-selected="${active}" tabindex="0" aria-selected="${active}"><td><code>${escapeHtml(row.project_id)}</code></td><td>${escapeHtml(row.name || row.project_id)}${sharedBadge(row)}</td><td>${escapeHtml(businessDomainLabel(locale, row.business_domain))}</td><td>${escapeHtml(row.start_date || "—")}</td><td>${escapeHtml(dateSystemLabel(row))}</td><td>${escapeHtml(row.primary_calendar_id || "—")}</td><td>${escapeHtml(projectStatusLabel(locale, row.status))}</td><td>${current ? `<span class="cp-project-current">${escapeHtml(uiText(locale, "Open", "باز"))}</span>` : `<button type="button" data-project-open="${escapeAttribute(row.project_id)}">${escapeHtml(uiText(locale, "Open", "بازکردن"))}</button>`}</td></tr>`;
     }).join("")
     : `<tr><td colspan="8">${escapeHtml(rows.length ? uiText(locale, "No projects match the current search, business domain or project status filter.", "هیچ پروژه‌ای با جست‌وجو، حوزهٔ کاری یا فیلتر وضعیت پروژهٔ فعلی مطابقت ندارد.") : uiText(locale, "The session service returned no projects.", "سرویس نشست هیچ پروژه‌ای برنگرداند."))}</td></tr>`;
 
@@ -3484,6 +3500,9 @@ function renderProjectRegister(container: HTMLElement, state: WorkspaceState, op
           <div><span>${escapeHtml(uiText(locale, "Project Name", "نام پروژه"))}</span><strong>${escapeHtml(selected.name || selected.project_id)}</strong></div>
           <div><span>${escapeHtml(uiText(locale, "Business Domain", "حوزهٔ کاری"))}</span><strong>${escapeHtml(businessDomainLabel(locale, selected.business_domain))}</strong></div>
           <div><span>${escapeHtml(uiText(locale, "Status", "وضعیت"))}</span><strong>${escapeHtml(projectStatusLabel(locale, selected.status))}</strong></div>
+          <div><span>${escapeHtml(uiText(locale, "Access", "دسترسی"))}</span><strong>${escapeHtml(sharedIds.has(selected.project_id)
+            ? uiText(locale, "Shared reference (read-only)", "مرجع اشتراکی (فقط‌خواندنی)")
+            : uiText(locale, "Personal project", "پروژهٔ شخصی"))}</strong></div>
           <div><span>${escapeHtml(uiText(locale, "Start Date", "تاریخ شروع"))}</span><strong>${escapeHtml(selected.start_date || "—")}</strong></div>
           <div><span>${escapeHtml(uiText(locale, "Date System", "تقویم"))}</span><strong>${escapeHtml(dateSystemLabel(selected))}</strong></div>
           <div><span>${escapeHtml(uiText(locale, "Primary Calendar", "تقویم اصلی"))}</span><strong>${escapeHtml(selected.primary_calendar_id || "—")}</strong></div>
@@ -3568,17 +3587,23 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
   switch (state.activeMenu) {
     case "project": {
       const summary = options.projectSummary ?? null;
+      const hasShared = Boolean(options.sharedProjects?.length);
+      const registerNote = hasShared
+        ? uiText(state.locale, "The register lists the projects the session service returned plus the tenant's shared reference projects, grouped by the Business Domain stored on each project. Shared rows are marked and open read-only outside personal tabs; opening any project re-reads its workspace from the server.", "این فهرست پروژه‌های برگشتی سرویس نشست را همراه با پروژه‌های مرجع اشتراکی سازمان نشان می‌دهد و بر اساس حوزهٔ کاری ذخیره‌شده در هر پروژه گروه‌بندی می‌شود. ردیف‌های اشتراکی نشانه‌گذاری شده‌اند و خارج از زبانه‌های شخصی و فقط‌خواندنی باز می‌شوند؛ بازکردن هر پروژه، محیط کار آن را از سرور دوباره می‌خواند.")
+        : uiText(state.locale, "The register lists exactly the projects the session service returned, grouped by the Business Domain stored on each project. Opening a project re-reads that project's workspace from the server; nothing outside the session's membership is invented.", "این فهرست دقیقاً همان پروژه‌هایی را نشان می‌دهد که سرویس نشست برگردانده و بر اساس حوزهٔ کاری ذخیره‌شده در هر پروژه گروه‌بندی شده است. بازکردن هر پروژه، محیط کار آن را از سرور دوباره می‌خواند و هیچ پروژه‌ای بیرون از عضویت نشست ساخته نمی‌شود.");
       body = `
         <div class="cp-project-window-toolbar">
           ${controls(`${moduleButton("wbs", "wbs", uiText(state.locale, "Open WBS structure", "بازکردن ساختار WBS"))}${moduleButton("tools", "tools", uiText(state.locale, "Import / Export", "ورود / خروجی"))}${projectSettingsButton(state, t)}`)}
-          <span class="cp-project-window-scope">${escapeHtml(uiText(state.locale, "Session-authorized projects", "پروژه‌های مجاز نشست"))}</span>
+          <span class="cp-project-window-scope">${escapeHtml(options.sharedProjects?.length
+            ? uiText(state.locale, "Session-authorized + shared reference projects", "پروژه‌های مجاز نشست + پروژه‌های مرجع اشتراکی")
+            : uiText(state.locale, "Session-authorized projects", "پروژه‌های مجاز نشست"))}</span>
         </div>
         ${renderProjectRegister(container, state, options)}
         <section class="cp-project-structure-summary" aria-label="${escapeAttribute(uiText(state.locale, "Project structure summary", "خلاصه ساختار پروژه"))}">
           <div class="cp-project-register-heading"><h3>${escapeHtml(uiText(state.locale, "Project Structure", "ساختار پروژه"))}</h3><span>${escapeHtml(uiText(state.locale, "Loaded WBS hierarchy", "سلسله‌مراتب WBS بارگذاری‌شده"))}</span></div>
           ${state.wbsNodes.length ? `<div class="cp-project-wbs-list">${state.wbsNodes.map((node) => `<div class="cp-project-wbs-row"><span>${escapeHtml(node.localCode)}</span><strong>${escapeHtml(node.name)}</strong><small>R${node.recordRevision}</small></div>`).join("")}</div>` : `<p class="cp-empty">${escapeHtml(uiText(state.locale, "No WBS elements are loaded for this project.", "هیچ عنصر WBS برای این پروژه بارگذاری نشده است."))}</p>`}
         </section>
-        <p class="cp-project-window-note">${escapeHtml(uiText(state.locale, "The register lists exactly the projects the session service returned, grouped by the Business Domain stored on each project. Opening a project re-reads that project's workspace from the server; nothing outside the session's membership is invented.", "این فهرست دقیقاً همان پروژه‌هایی را نشان می‌دهد که سرویس نشست برگردانده و بر اساس حوزهٔ کاری ذخیره‌شده در هر پروژه گروه‌بندی شده است. بازکردن هر پروژه، محیط کار آن را از سرور دوباره می‌خواند و هیچ پروژه‌ای بیرون از عضویت نشست ساخته نمی‌شود."))}</p>
+        <p class="cp-project-window-note">${escapeHtml(registerNote)}</p>
         ${summary ? "" : `<p class="cp-project-window-note" data-project-metadata-pending="true">${escapeHtml(uiText(state.locale, "The authoritative project record has not been read yet, so schedule fields stay blank instead of showing placeholder values.", "رکورد مرجع پروژه هنوز خوانده نشده است؛ بنابراین فیلدهای زمان‌بندی به‌جای نمایش مقدار جایگزین، خالی می‌مانند."))}</p>`}`;
       break;
     }

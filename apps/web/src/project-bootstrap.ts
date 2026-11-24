@@ -20,7 +20,7 @@ export type ProjectBootstrapState =
    * instead of a dead end that only offers a retry.
    */
   | { status: "empty" }
-  | { status: "selecting"; projects: readonly ProjectSummary[] }
+  | { status: "selecting"; projects: readonly ProjectSummary[]; sharedProjects?: readonly ProjectSummary[] }
   | { status: "opening"; projectId: string }
   | { status: "creating"; projectId: string }
   | { status: "ready"; context: ProjectContext; workspace: WorkspaceState; userId: string; roles: readonly string[]; sharedReference?: boolean }
@@ -67,7 +67,7 @@ function loaderError(error: unknown): ClientError {
 export class ProjectBootstrap {
   private generation = 0;
   private projects: readonly ProjectSummary[] = [];
-  private sharedProjects: readonly ProjectSummary[] = [];
+  private sharedReferenceProjects: readonly ProjectSummary[] = [];
   private roles: readonly string[] = [];
   private userId = "";
   private tabs: ProjectTabState = { open: [], active: "" };
@@ -96,10 +96,10 @@ export class ProjectBootstrap {
       ? await this.dependencies.sessionApi.listSharedProjects()
       : null;
     if (!this.isCurrent(generation)) return null;
-    this.sharedProjects = sharedResult && sharedResult.ok ? sharedResult.data.projects : [];
+    this.sharedReferenceProjects = sharedResult && sharedResult.ok ? sharedResult.data.projects : [];
 
     const sharedPreferred = preferredProjectId
-      ? this.sharedProjects.find((project) => project.project_id === preferredProjectId)
+      ? this.sharedReferenceProjects.find((project) => project.project_id === preferredProjectId)
       : undefined;
     if (sharedPreferred) {
       return this.openProject(sharedPreferred.project_id, generation, locale);
@@ -107,6 +107,15 @@ export class ProjectBootstrap {
 
     if (this.projects.length === 0) {
       this.tabs = { open: [], active: "" };
+      // A tenant that only exposes the shared reference build must still have a
+      // way in: one shared project opens directly, several become a picker.
+      // They stay out of personal tabs because the user does not own them.
+      if (this.sharedReferenceProjects.length === 1) {
+        return this.openProject(this.sharedReferenceProjects[0].project_id, generation, locale);
+      }
+      if (this.sharedReferenceProjects.length > 1) {
+        return { status: "selecting", projects: [], sharedProjects: this.sharedReferenceProjects };
+      }
       return { status: "empty" };
     }
 
@@ -131,7 +140,11 @@ export class ProjectBootstrap {
     if (preferred) return this.openProject(preferred.project_id, generation, locale);
 
     if (this.projects.length > 1) {
-      return { status: "selecting", projects: this.projects };
+      return {
+        status: "selecting",
+        projects: this.projects,
+        sharedProjects: this.sharedReferenceProjects.length ? this.sharedReferenceProjects : undefined,
+      };
     }
 
     return this.openProject(this.projects[0].project_id, generation, locale);
@@ -313,6 +326,15 @@ export class ProjectBootstrap {
     return this.projects;
   }
 
+  /**
+   * Shared reference projects the tenant exposes separately from personal
+   * membership. They may be opened from the Projects register but never become
+   * personal tabs, because the user does not own them.
+   */
+  sharedProjects(): readonly ProjectSummary[] {
+    return this.sharedReferenceProjects;
+  }
+
   /** Open project tabs in the user's order; the active tab is the current context. */
   projectTabs(): ProjectTabState {
     return { open: [...this.tabs.open], active: this.tabs.active };
@@ -351,7 +373,11 @@ export class ProjectBootstrap {
     locale: WorkspaceLocale = "en",
   ): Promise<ProjectBootstrapState | null> {
     const generation = ++this.generation;
-    if (!this.projects.some((project) => project.project_id === projectId)) {
+    const owned = this.projects.some((project) => project.project_id === projectId);
+    const shared = this.sharedReferenceProjects.some(
+      (project) => project.project_id === projectId,
+    );
+    if (!owned && !shared) {
       return {
         status: "error",
         error: localError(
@@ -362,18 +388,26 @@ export class ProjectBootstrap {
       };
     }
 
-    // The register and tab labels are read from this list, so a switch refreshes
-    // it before opening: another session may have renamed the project or moved
-    // its configuration revision, and the UI must not show the stale record.
-    const listed = await this.dependencies.sessionApi.listProjects();
-    if (!this.isCurrent(generation)) return null;
-    if (listed.ok) {
-      this.projects = listed.data.projects;
-      this.setTabs(normalizeProjectTabs(
-        this.tabs.open,
-        projectId,
-        this.authorizedProjectIds(),
-      ));
+    if (owned) {
+      // The register and tab labels are read from this list, so a switch refreshes
+      // it before opening: another session may have renamed the project or moved
+      // its configuration revision, and the UI must not show the stale record.
+      const listed = await this.dependencies.sessionApi.listProjects();
+      if (!this.isCurrent(generation)) return null;
+      if (listed.ok) {
+        this.projects = listed.data.projects;
+        this.setTabs(normalizeProjectTabs(
+          this.tabs.open,
+          projectId,
+          this.authorizedProjectIds(),
+        ));
+      }
+    } else if (this.dependencies.sessionApi.listSharedProjects) {
+      // A shared reference project is never added to personal tabs, but its
+      // displayed record is still refreshed from the server before opening.
+      const listed = await this.dependencies.sessionApi.listSharedProjects();
+      if (!this.isCurrent(generation)) return null;
+      if (listed.ok) this.sharedReferenceProjects = listed.data.projects;
     }
 
     return this.openProject(projectId, generation, locale);
@@ -414,7 +448,7 @@ export class ProjectBootstrap {
     // localized projection must be produced in the language the user chose,
     // instead of defaulting to English and only relabelling the shell.
     const summary = this.projects.find((project) => project.project_id === projectContext.project_id)
-      ?? this.sharedProjects.find((project) => project.project_id === projectContext.project_id)
+      ?? this.sharedReferenceProjects.find((project) => project.project_id === projectContext.project_id)
       ?? null;
     const workspace = await this.dependencies.workspaceReadClient.load(context, {
       locale,
@@ -452,7 +486,7 @@ export class ProjectBootstrap {
       workspace: hydratedWorkspace,
       userId: projectContext.user_id,
       roles: this.roles,
-      sharedReference: this.sharedProjects.some(
+      sharedReference: this.sharedReferenceProjects.some(
         (project) => project.project_id === projectContext.project_id,
       ),
     };
