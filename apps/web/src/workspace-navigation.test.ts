@@ -51,13 +51,18 @@ test("schedule navigation exposes run controls and every reference section", () 
   ]);
 });
 
-test("unsupported V1 surfaces are explicitly marked preview instead of being presented as implemented", () => {
+test("no mounted window is marked preview: status reflects the tested data path", () => {
   assert.equal(getWorkspaceNavigation("progress").status, "partial");
   assert.equal(getWorkspaceNavigation("resources").status, "partial");
   assert.equal(getWorkspaceNavigation("cost").status, "partial");
-  assert.equal(getWorkspaceNavigation("reports").status, "preview");
-  assert.equal(getWorkspaceNavigation("administration").status, "preview");
   assert.equal(getWorkspaceNavigation("issues").status, "partial");
+  // These windows mount a real module whose create/edit/delete paths are
+  // covered by tests against the project API, so calling them a preview would
+  // understate working behaviour.
+  for (const key of ["reports", "tracking", "risks", "thresholds", "administration", "exchange", "backup"] as const) {
+    assert.notEqual(getWorkspaceNavigation(key).status, "preview", `${key} has a mounted, tested data path`);
+    assert.equal(getWorkspaceNavigation(key).status, "partial");
+  }
 });
 
 test("navigation status follows the workspace active menu", () => {
@@ -70,6 +75,6 @@ test("navigation status follows the workspace active menu", () => {
   assert.equal(getWorkspaceNavigationStatus(state), "implemented");
   assert.equal(
     getWorkspaceNavigationStatus({ ...state, activeMenu: "reports" }),
-    "preview",
+    "partial",
   );
 });
