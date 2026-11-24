@@ -1461,3 +1461,19 @@ Acceptance requires exact Help crosswalk, Professional/EPPM overlap matrix, sour
 - **Tests (baseline, unchanged):** reference/lifecycle/enterprise/import suites 145 / 16 / 10 / 13 passed. No test was modified.
 - **Non-regression:** no password/hash, account, role, permission, tenant/org membership, session, Personal Workbench, Global Administration, login/environment-selector route, or Engineering/Enterprise access was touched. No project record created, deleted or rewritten; no migration applied.
 - **Status:** documentation only; commit and PR recorded in the Issue #2138 checkpoint. Stage 1 stays blocked pending read-only production DB/API access and owner approval of exact project IDs.
+
+## 2026-11-24 — P0 Stage 1: dam PR repaired and merged, schema at 16 — Issue #2138
+
+- **Scope:** repair PR #2133 (dam build workspace) so its PostgreSQL/Enterprise path is verifiably correct, keep CUBI-DAM-001 on the canonical importer/repositories, and merge only after green checks. No owner identity, role, session, dashboard or reference-project record changed; no production migration executed.
+- **Base:** main `30d5e9c8`. Branch `fix/p0-p6-v26-project-creation-wizard`, head `120eb97e`, merged to main as `e938c619cf719e65dbaac87d31d88aa35a618362`.
+- **Root causes fixed (all four red checks):**
+  1. Dam risks were dated at the project status date while response due dates came from the bundle (`RISK_DATE_ORDER_INVALID`). The bundle now carries `date_identified` and the importer uses it.
+  2. Resolved/closed issues lacked the required resolution note and completed tasks lacked completion metadata. The bundle carries the note; the importer records completion at import time rather than inventing a historical timestamp.
+  3. Two weekly timesheet rows per resource shared one identifier, so 72 of 144 rows were silently deduplicated. Identifiers are now unique per resource-week.
+  4. Schema assertions still expected 15 steps / 94 tables. Migration 16 now owns both the `cubi_reference_enterprise` state table and the RLS/direct-client hardening; placing the table in the already-applied step 15 would have left existing databases without it. Readiness and ledger assertions now read 16 / 95.
+  Also aligned the login-context assertion with the intentional `shared_reference` authorization flag and made the demo assertion inspect free-text labels instead of the boolean classification key. No validation, constraint or security control was relaxed.
+- **Migration:** 16 — `post-reference-state-and-data-api-hardening` (revision 1, additive: creates the Enterprise import-state table, revokes direct client privileges, enables RLS with a restrictive deny policy). Not applied to any production database.
+- **Project IDs:** CUBI-DAM-001 persisted through the canonical reference importer; CUBI-REF-001/002/003 untouched.
+- **Tests:** local full suite with `CONSTRUCTION_PM_POSTGRES_DSN` **5,554 passed / 20 skipped**; web `npm test` **1,321 passed** + preview-server **16 passed**; `npm run typecheck` and `npm run build` exit 0. CI on the merged head: every job passed (postgres, test 3.11/3.12/3.13, web, all typechecks).
+- **Limit:** production/Supabase databases were not touched or migrated; browser verification of the dam workspace against a live deployment remains blocked because the canonical Preview alias still returns 404.
+- **Status:** MERGED. Stage 2 (P6 V26 creation/details) is the next implementation step.
