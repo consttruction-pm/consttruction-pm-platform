@@ -40,7 +40,17 @@ from ..ai_workbench.studios import Capabilities as WorkbenchCapabilities
 from ..enterprise_task_application import EnterpriseTaskApplicationService
 from ..enterprise_task_http import EnterpriseTaskHttpMiddleware
 from ..enterprise_task_repository import PostgresEnterpriseTaskRepository
+from ..authoritative_schedule_input_composer import (
+    AuthoritativeScheduleInputComposer,
+)
+from ..backend_p0.authoritative_schedule_facts import (
+    PublishedScheduleFactsProvider,
+)
+from ..backend_p0.authoritative_schedule_query import (
+    AuthoritativeScheduleQueryProvider,
+)
 from ..calendar_exception_repository import PostgresCalendarExceptionRepository
+from ..calendar_master_repository import PostgresCalendarAssignmentRepository
 from ..calendar_master_repository import PostgresCalendarMasterRepository
 from ..calendar_snapshot_repository import PostgresCalendarSnapshotRepository
 from ..calendar_work_hours_repository import PostgresCalendarWorkHourRepository
@@ -81,6 +91,15 @@ from ..identity_session import (
     PostgresIdentityStore,
     load_identity_settings,
 )
+from ..constraint_master_repository import PostgresConstraintMasterRepository
+from ..p6_resource_assignment_repository import (
+    PostgresP6ResourceAssignmentPeriodRepository,
+    PostgresP6ResourceAssignmentRepository,
+)
+from ..p6_schedule_snapshot_publication_api import (
+    P6ScheduleSnapshotPublicationAPI,
+)
+from ..schedule_snapshot_publisher import AuthoritativeScheduleSnapshotPublisher
 from ..p6_cost_account_api import P6CostAccountAPI
 from .calendar_registry import build_postgres_calendar_registry
 from ..p6_obs_api import P6OBSNodeAPI
@@ -118,6 +137,13 @@ from ..wbs_master_repository import PostgresWBSMasterRepository
 from .production_web import ProductionWebApp, StaticSite
 from .schema import initialize_production_schema
 
+
+
+# Publication identity. Both values are recorded in the immutable
+# calculation context so a published result can always be traced to the
+# rules and engine that produced it.
+SCHEDULE_RULES_VERSION = "cubi-production-rules.v1"
+SCHEDULE_ENGINE_VERSION = "cubi-production-engine.v1"
 
 
 class ProductionConfigurationError(RuntimeError):
@@ -446,6 +472,19 @@ class ProductionRuntime:
         field_repository = PostgresP6FieldRegistryRepository(connection)
         layout_repository = PostgresP6LayoutRepository(connection)
         udf_field_repository = PostgresP6UserDefinedFieldRepository(connection)
+        constraint_repository = PostgresConstraintMasterRepository(connection)
+        calendar_assignment_repository = PostgresCalendarAssignmentRepository(connection)
+        resource_assignment_repository = PostgresP6ResourceAssignmentRepository(connection)
+        resource_period_repository = PostgresP6ResourceAssignmentPeriodRepository(
+            connection
+        )
+        schedule_settings_repository = PostgresProjectScheduleSettingsRepository(
+            connection
+        )
+        snapshot_repository = PostgresScheduleInputSnapshotRepository(connection)
+        calculation_context_repository = PostgresCalculationContextRepository(
+            connection
+        )
         transaction_manager = _RequestTransactionManager(connection)
         field_service = P6FieldRegistryApplicationService(
             repository=field_repository,
@@ -455,19 +494,57 @@ class ProductionRuntime:
             repository=udf_field_repository,
             transaction_manager=transaction_manager,
         )
+        # One registry builder for the query and the publisher: the evaluator
+        # and the workspace projection must read the same durable calendars.
+        calendar_registry_factory = lambda: build_postgres_calendar_registry(
+            connection
+        )
+        schedule_query_provider = AuthoritativeScheduleQueryProvider(
+            snapshot_repository=snapshot_repository,
+            calendar_registry_factory=calendar_registry_factory,
+            calculation_context_repository=calculation_context_repository,
+        )
+        # The workspace read projects the newest published snapshot through the
+        # single Shared Core evaluator. Without this provider the grid renders
+        # persisted inputs only and no date, float or criticality is invented.
         workspace_provider = PersistedWorkspaceReadProvider(
             activity_repository=activity_repository,
             field_service=field_service,
             layout_repository=layout_repository,
+            schedule_facts_provider=PublishedScheduleFactsProvider(
+                snapshot_repository, schedule_query_provider
+            ),
             wbs_repository=wbs_repository,
             relationship_repository=relationship_repository,
         )
         workspace_read_service = WorkspaceControlRoomReadService(
             workspace_provider, policy
         )
-        snapshot_repository = PostgresScheduleInputSnapshotRepository(connection)
-        calculation_context_repository = PostgresCalculationContextRepository(
-            connection
+        schedule_publisher = AuthoritativeScheduleSnapshotPublisher(
+            composer=AuthoritativeScheduleInputComposer(
+                activity_repository=activity_repository,
+                relationship_repository=relationship_repository,
+                constraint_repository=constraint_repository,
+                calendar_repository=calendar_master_repository,
+                calendar_assignment_repository=calendar_assignment_repository,
+                calendar_snapshot_repository=calendar_snapshot_repository,
+                resource_assignment_repository=resource_assignment_repository,
+                resource_period_repository=resource_period_repository,
+                project_schedule_settings_repository=schedule_settings_repository,
+                wbs_repository=wbs_repository,
+            ),
+            snapshot_repository=snapshot_repository,
+            calculation_context_repository=calculation_context_repository,
+            transaction_manager=transaction_manager,
+            rules_version=SCHEDULE_RULES_VERSION,
+            engine_version=SCHEDULE_ENGINE_VERSION,
+        )
+        schedule_snapshot_publication_api = P6ScheduleSnapshotPublicationAPI(
+            publisher=schedule_publisher,
+            authorization_policy=policy,
+            project_schedule_settings_repository=schedule_settings_repository,
+            calendar_repository=calendar_master_repository,
+            checkout_lease=checkout_lease,
         )
         activity_api = P6ActivityMasterAPI(
             activity_repository, policy, checkout_lease=checkout_lease
@@ -557,9 +634,8 @@ class ProductionRuntime:
         self.api_app = build_project_lifecycle_wsgi_app(
             lifecycle_api=lifecycle_api,
             snapshot_repository=snapshot_repository,
-            calendar_registry_factory=lambda: build_postgres_calendar_registry(
-                connection
-            ),
+            calendar_registry_factory=calendar_registry_factory,
+            schedule_snapshot_publication_api=schedule_snapshot_publication_api,
             calculation_context_repository=calculation_context_repository,
             authorization_policy=policy,
             activity_master_repository=activity_repository,
@@ -619,7 +695,7 @@ class ProductionRuntime:
                 lifecycle_api,
             ),
         )
-        workbench_settings = PostgresProjectScheduleSettingsRepository(connection)
+        workbench_settings = schedule_settings_repository
 
         def _workbench_data_date(tenant_id: str, project_id: str, revision: int):
             settings = workbench_settings.get(

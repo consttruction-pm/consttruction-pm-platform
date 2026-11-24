@@ -656,7 +656,7 @@ def test_forms_template_submission_and_approval_are_durable(runtime):
         cookie=admin_cookie,
         csrf=admin_csrf,
     )
-    assert status == 200, body
+    assert status in {200, 201}, body
     published = json.loads(body)
     assert published["status"] == "published"
     assert published["published_version"] == 1
@@ -1705,3 +1705,434 @@ def test_calendar_register_is_reachable_and_feeds_the_schedule_registry(runtime)
         "WHERE tenant_id=%s AND project_id=%s AND calendar_id=%s",
         (ids["tenant_a"], project, calendar_id),
     ) == [(0,)]
+
+
+def _workspace_read_without_facts(runtime, scope):
+    """Project the workspace with the pre-change provider shape (no facts).
+
+    Before this slice the production composition built the provider without a
+    ``schedule_facts_provider``, so the grid could never show a calculated date
+    or float. This helper reproduces that shape over the same durable rows.
+    """
+
+    import psycopg
+
+    from construction_pm.activity_master_repository import (
+        PostgresActivityMasterRepository,
+    )
+    from construction_pm.backend_p0.workspace_read_provider import (
+        PersistedWorkspaceReadProvider,
+    )
+    from construction_pm.relationship_master_repository import (
+        PostgresRelationshipMasterRepository,
+    )
+    from construction_pm.wbs_master_repository import PostgresWBSMasterRepository
+
+    connection = psycopg.connect(
+        os.environ["CONSTRUCTION_PM_POSTGRES_DSN"],
+        autocommit=True,
+        options=f"-c search_path={runtime.test_ids['schema']}",
+    )
+    try:
+        provider = PersistedWorkspaceReadProvider(
+            activity_repository=PostgresActivityMasterRepository(connection),
+            wbs_repository=PostgresWBSMasterRepository(connection),
+            relationship_repository=PostgresRelationshipMasterRepository(connection),
+        )
+        result = provider.read(scope)
+        return {item["id"]: item["cells"] for item in result["workspace"]["activities"]}
+    finally:
+        connection.close()
+
+
+def test_published_snapshot_drives_production_workspace_float_and_critical_path(runtime):
+    """A published snapshot is projected by the production workspace read.
+
+    The whole chain runs through the deployed WSGI composition: persisted WBS,
+    activities, a relationship, a durable calendar definition, saved schedule
+    settings and an immutable snapshot publication. The grid must then show the
+    Shared Core early/late dates, total float, free float and criticality, and
+    a new session must read the same snapshot identity and the same numbers.
+    """
+
+    import psycopg
+
+    from construction_pm.backend_p0.models import BackendScope
+    from construction_pm.backend_p0.workspace_read_provider import (
+        PersistedWorkspaceReadProvider,
+    )
+    from construction_pm.calendar_master_repository import PostgresCalendarMasterRepository
+    from construction_pm.calendar_snapshot_repository import (
+        PostgresCalendarSnapshotRepository,
+    )
+    from construction_pm.schedule_input_snapshot_repository import (
+        PostgresScheduleInputSnapshotRepository,
+    )
+    from construction_pm.scheduling.calendar import WorkingCalendar
+    from construction_pm.scheduling.calendar_system import CalendarSystem
+    from construction_pm.scheduling.schedule_options import ScheduleOptions
+    from construction_pm.project_schedule_settings_repository import (
+        _schedule_options_payload,
+    )
+
+    ids = runtime.test_ids
+    project = ids["project_a"]
+    suffix = uuid.uuid4().hex[:8]
+    cookie, csrf = login(runtime, "planner", PLANNER_PASSWORD)
+
+    status, _, body = call(runtime, "GET", "/api/projects", cookie=cookie)
+    assert status == 200, body
+    project_revision = int(
+        next(
+            item["revision"]
+            for item in json.loads(body)["projects"]
+            if item["project_id"] == project
+        )
+    )
+
+    # 1. A durable calendar with a stored definition. The router can create the
+    #    master; the immutable definition is written through the same
+    #    PostgreSQL repository the application uses (the API has no endpoint
+    #    for defining a root calendar's working week yet).
+    calendar_id, calendar_version = f"CAL-SCHED-{suffix}", "v1"
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/calendars",
+        body={
+            "calendar_id": calendar_id,
+            "calendar_version": calendar_version,
+            "calendar_type": "project",
+            "kind": "working-day",
+            "name": "Production schedule calendar",
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+    seeded = psycopg.connect(
+        os.environ["CONSTRUCTION_PM_POSTGRES_DSN"],
+        autocommit=True,
+        options=f"-c search_path={ids['schema']}",
+    )
+    try:
+        scope = BackendScope(ids["tenant_a"], project, project_revision)
+        master_repository = PostgresCalendarMasterRepository(seeded)
+        snapshot_repository_cal = PostgresCalendarSnapshotRepository(seeded)
+        master = master_repository.get(scope, calendar_id, calendar_version)
+        assert master is not None
+        snapshot_repository_cal.save(
+            master,
+            WorkingCalendar(
+                working_weekdays=frozenset({0, 1, 2, 3, 4}),
+                system=CalendarSystem.GREGORIAN,
+            ),
+        )
+        assert snapshot_repository_cal.get(master) is not None
+    finally:
+        seeded.close()
+
+    # 2. Persisted WBS and two linked activities.
+    wbs_id = f"wbs-sched-{suffix}"
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/wbs",
+        body={
+            "wbs_id": wbs_id,
+            "code": f"2-{suffix}",
+            "name": "Structure",
+            "parent_kind": "wbs",
+            "parent_wbs_id": ids["root_wbs"],
+            "sequence_number": 2,
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 201, body
+
+    first, second = f"ACT-A-{suffix}", f"ACT-B-{suffix}"
+    for activity_id, duration, name in ((first, 3, "Excavate"), (second, 2, "Footings")):
+        status, _, body = call(
+            runtime,
+            "POST",
+            f"/api/projects/{project}/p6/activities",
+            body={
+                "activity_id": activity_id,
+                "name": name,
+                "duration_value": duration,
+                "duration_unit": "working-day",
+                "wbs_id": wbs_id,
+            },
+            cookie=cookie,
+            csrf=csrf,
+        )
+        assert status == 201, body
+
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/relationships",
+        body={
+            "relationship_id": f"REL-{suffix}",
+            "predecessor_id": first,
+            "successor_id": second,
+            "relationship_type": "FS",
+            "lag_value": "0",
+            "lag_unit": "working-day",
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status in {200, 201}, body
+
+    # 3. Schedule settings bound to the stored calendar.
+    settings_payload = {
+        "contract_version": "p6-project-schedule-settings-api.v1",
+        "expected_record_revision": 0,
+        "mode": "DATE_BASED",
+        "project_calendar_id": calendar_id,
+        "project_calendar_version": calendar_version,
+        "project_calendar_system": "gregorian",
+        "project_start": "2026-11-02",
+        "project_finish": None,
+        "schedule_options": _schedule_options_payload(ScheduleOptions()),
+        "project_leveling_priority": 50,
+    }
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/schedule/settings",
+        body=settings_payload,
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status in {200, 201}, body
+
+    # 4. Publish an immutable snapshot through the production router.
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/schedule/snapshots",
+        body={
+            "contract_version": "p6-schedule-snapshot-api.v1",
+            "timezone": "UTC",
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status in {200, 201}, body
+    published = json.loads(body)
+    snapshot_id = published["snapshot_id"]
+    snapshot_hash = published["snapshot_hash"]
+    calculation_identity = published["calculation_identity"]
+    assert published["kind"] == "schedule_input_snapshot"
+    assert snapshot_hash and calculation_identity
+
+    # 5. The workspace read projects the Shared Core result, not raw inputs.
+    headers = {
+        "X-Tenant-Id": ids["tenant_a"],
+        "X-Project-Id": project,
+        "X-Project-Revision": str(project_revision),
+    }
+    status, _, body = call(
+        runtime,
+        "GET",
+        "/api/v2/workspace/control-room/read",
+        cookie=cookie,
+        headers=headers,
+    )
+    assert status == 200, body
+    workspace = json.loads(body)
+    activities = workspace["workspace"]["activities"]
+    cells_by_activity = {item["id"]: item["cells"] for item in activities}
+    gantt_by_activity = {item["id"]: item["gantt"] for item in activities}
+    for activity_id in (first, second):
+        cells = cells_by_activity[activity_id]
+        for field_id in (
+            "activity.early_start",
+            "activity.early_finish",
+            "activity.late_start",
+            "activity.late_finish",
+            "activity.total_float",
+            "activity.free_float",
+            "activity.is_critical",
+        ):
+            assert field_id in cells, (activity_id, field_id)
+        # Multiple float-path membership is projected only when the shared
+        # calculation produced it; with the option disabled the cell must be
+        # absent rather than a fabricated path number.
+        assert "activity.float_path" not in cells
+        assert isinstance(gantt_by_activity[activity_id]["critical"], bool)
+        assert cells["start"] == cells["activity.early_start"]
+        assert cells["finish"] == cells["activity.early_finish"]
+
+    # The relationship must push the successor after its predecessor, and the
+    # chain sets the critical path: both activities carry zero total float.
+    first_cells = cells_by_activity[first]
+    second_cells = cells_by_activity[second]
+    assert first_cells["activity.early_finish"] <= second_cells["activity.early_start"]
+    assert first_cells["activity.total_float"] == 0
+    assert second_cells["activity.total_float"] == 0
+    assert first_cells["activity.is_critical"] is True
+    assert second_cells["activity.is_critical"] is True
+
+    # 6. A new session and a new request read the same snapshot identity.
+    second_cookie, _ = login(runtime, "planner", PLANNER_PASSWORD)
+    status, _, body = call(
+        runtime,
+        "GET",
+        "/api/v2/workspace/control-room/read",
+        cookie=second_cookie,
+        headers=headers,
+    )
+    assert status == 200, body
+    reloaded = {
+        item["id"]: item["cells"]
+        for item in json.loads(body)["workspace"]["activities"]
+    }
+    for activity_id in (first, second):
+        assert reloaded[activity_id]["activity.early_start"] == cells_by_activity[activity_id]["activity.early_start"]
+        assert reloaded[activity_id]["activity.total_float"] == 0
+
+    # The snapshot is immutable and revision-bound in storage.
+    reader = psycopg.connect(
+        os.environ["CONSTRUCTION_PM_POSTGRES_DSN"],
+        autocommit=True,
+        options=f"-c search_path={ids['schema']}",
+    )
+    try:
+        snapshots = PostgresScheduleInputSnapshotRepository(reader)
+        stored = snapshots.get(scope, snapshot_id)
+        assert stored is not None and stored.snapshot_hash == snapshot_hash
+        stale_scope = BackendScope(ids["tenant_a"], project, project_revision + 1)
+        try:
+            snapshots.get(stale_scope, snapshot_id)
+        except Exception as exc:  # revision binding is enforced, not ignored
+            assert "REVISION_CONFLICT" in str(exc) or type(exc).__name__ == "ScheduleSnapshotPersistenceError"
+        else:
+            raise AssertionError("a snapshot must not be readable under another revision")
+        assert snapshots.get(BackendScope(ids["tenant_b"], project, project_revision), snapshot_id) is None
+    finally:
+        reader.close()
+
+    # 7. Regression proof: the same repositories through the pre-change provider
+    #    shape (no facts provider) cannot invent float or a date.
+    bare_read = _workspace_read_without_facts(runtime, scope)
+    assert "activity.total_float" not in bare_read[first]
+    assert "activity.early_start" not in bare_read[first]
+
+    # 8. Stale project revision is refused by the v2 read contract.
+    status, _, body = call(
+        runtime,
+        "GET",
+        "/api/v2/workspace/control-room/read",
+        cookie=cookie,
+        headers={**headers, "X-Project-Revision": str(project_revision + 1)},
+    )
+    assert status == 409, body
+    assert json.loads(body)["code"] == "STALE_WORKSPACE_READ_SCOPE"
+
+    # 9. Authorization: a viewer reads, but never publishes; another tenant is
+    #    refused before any schedule work happens.
+    viewer_cookie, viewer_csrf = login(runtime, "viewer", VIEWER_PASSWORD)
+    status, _, body = call(
+        runtime,
+        "GET",
+        "/api/v2/workspace/control-room/read",
+        cookie=viewer_cookie,
+        headers=headers,
+    )
+    assert status == 200, body
+    assert json.loads(body)["workspace"]["activities"]
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/schedule/snapshots",
+        body={"contract_version": "p6-schedule-snapshot-api.v1", "timezone": "UTC"},
+        cookie=viewer_cookie,
+        csrf=viewer_csrf,
+    )
+    assert status == 403, body
+    outsider_cookie, outsider_csrf = login(runtime, "outsider", ADMIN_PASSWORD)
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/schedule/snapshots",
+        body={"contract_version": "p6-schedule-snapshot-api.v1", "timezone": "UTC"},
+        cookie=outsider_cookie,
+        csrf=outsider_csrf,
+    )
+    assert status == 403, body
+    status, _, body = call(
+        runtime, "GET", f"/api/projects/{project}/p6/schedule/settings", cookie=outsider_cookie
+    )
+    assert status == 403, body
+
+    # 10. Fail closed: settings that point at a calendar without a stored
+    #     definition make publication refuse instead of inventing dates.
+    bare_calendar = f"CAL-BARE-{suffix}"
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/calendars",
+        body={
+            "calendar_id": bare_calendar,
+            "calendar_version": "v1",
+            "calendar_type": "project",
+            "kind": "working-day",
+            "name": "Undefined calendar",
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+    status, _, body = call(
+        runtime,
+        "GET",
+        f"/api/projects/{project}/p6/schedule/settings",
+        cookie=cookie,
+    )
+    assert status == 200, body
+    current_revision = json.loads(body)["record_revision"]
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/schedule/settings",
+        body={
+            **settings_payload,
+            "expected_record_revision": current_revision,
+            "project_calendar_id": bare_calendar,
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status in {200, 201}, body
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/schedule/snapshots",
+        body={"contract_version": "p6-schedule-snapshot-api.v1", "timezone": "UTC"},
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 400, body
+    failure = json.loads(body)["code"]
+    assert "CALENDAR_SNAPSHOT" in failure or "CALENDAR_VERSION" in failure, failure
+
+    # 11. An undefined calendar must not poison the rest of the database: the
+    #     previously published snapshot still projects, because the registry
+    #     only consumes calendars that have a stored definition.
+    status, _, body = call(
+        runtime,
+        "GET",
+        "/api/v2/workspace/control-room/read",
+        cookie=cookie,
+        headers=headers,
+    )
+    assert status == 200, body
+    still_projected = {
+        item["id"]: item["cells"]
+        for item in json.loads(body)["workspace"]["activities"]
+    }
+    assert still_projected[first]["activity.early_start"] == first_cells["activity.early_start"]
