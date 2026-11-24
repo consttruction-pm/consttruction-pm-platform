@@ -183,6 +183,105 @@ def _initialize_risk(connection: Any) -> None:
     PostgresRiskStore(connection).initialize()
 
 
+def _harden_tables(connection: Any, tables: tuple[str, ...]) -> None:
+    """Apply the step-16 direct-API lock to tables created by a later step.
+
+    Step 16 hardens every table that existed when it ran. A new step that adds
+    tables afterwards must extend the same Revoke + restrictive RLS policy, or
+    the new tables would be reachable by the Supabase client roles.
+    """
+
+    existing_roles = {
+        str(row[0])
+        for row in connection.execute(
+            "SELECT rolname FROM pg_roles WHERE rolname IN ('anon', 'authenticated')"
+        ).fetchall()
+    }
+    client_roles = tuple(
+        role for role in ("anon", "authenticated") if role in existing_roles
+    )
+    names = ", ".join(f"'{name}'" for name in tables)
+    for role in client_roles:
+        connection.execute(
+            f"REVOKE ALL PRIVILEGES ON TABLE {', '.join(tables)} FROM {role}"
+        )
+    if client_roles:
+        role_sql = ", ".join(client_roles)
+        connection.execute(
+            f"""
+            DO $cubi$
+            DECLARE item record;
+            BEGIN
+              FOR item IN
+                SELECT c.oid::regclass AS table_name
+                FROM pg_class c
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+                WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')
+                  AND c.relname IN ({names})
+              LOOP
+                EXECUTE format('ALTER TABLE %s ENABLE ROW LEVEL SECURITY', item.table_name);
+                IF NOT EXISTS (
+                  SELECT 1 FROM pg_policy p
+                  WHERE p.polrelid = item.table_name::oid
+                    AND p.polname = 'cubi_block_direct_api_clients'
+                ) THEN
+                  EXECUTE format(
+                    'CREATE POLICY cubi_block_direct_api_clients ON %s '
+                    'AS RESTRICTIVE FOR ALL TO {role_sql} USING (false) WITH CHECK (false)',
+                    item.table_name
+                  );
+                END IF;
+              END LOOP;
+            END
+            $cubi$;
+            """
+        )
+    else:
+        connection.execute(
+            f"""
+            DO $cubi$
+            DECLARE item record;
+            BEGIN
+              FOR item IN
+                SELECT c.oid::regclass AS table_name
+                FROM pg_class c
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+                WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')
+                  AND c.relname IN ({names})
+              LOOP
+                EXECUTE format('ALTER TABLE %s ENABLE ROW LEVEL SECURITY', item.table_name);
+              END LOOP;
+            END
+            $cubi$;
+            """
+        )
+
+
+def _initialize_thresholds(connection: Any) -> None:
+    """Threshold register, its monitoring runs and the issue register they raise.
+
+    Threshold monitoring records a real issue when a bound is crossed, so the
+    authoritative issue tables are created in the same step that makes the
+    threshold surface durable.
+    """
+
+    from ..p6_issue_repository import PostgresP6IssueRepository
+    from ..threshold_persistence import PostgresThresholdStore
+
+    PostgresP6IssueRepository(connection).initialize()
+    PostgresThresholdStore(connection).initialize()
+    _harden_tables(
+        connection,
+        (
+            "project_threshold",
+            "project_threshold_audit",
+            "project_threshold_run",
+            "p6_issue",
+            "p6_issue_event",
+        ),
+    )
+
+
 def _initialize_forms(connection: Any) -> None:
     from ..form_builder_repository import PostgresFormBuilderRepository
 
@@ -358,6 +457,7 @@ PRODUCTION_STEPS: tuple[MigrationStep, ...] = (
     MigrationStep(14, "reference-engineering", 1, _initialize_reference_engineering),
     MigrationStep(15, "reference-enterprise", 1, _initialize_reference_enterprise),
     MigrationStep(16, "post-reference-state-and-data-api-hardening", 1, _harden_public_data_api),
+    MigrationStep(17, "threshold-register", 1, _initialize_thresholds),
 )
 
 

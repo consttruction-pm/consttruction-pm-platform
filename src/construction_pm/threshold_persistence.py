@@ -303,56 +303,39 @@ def _validate_audit(actor_id: str, occurred_at: datetime) -> None:
         raise ValueError("INVALID_THRESHOLD_OCCURRED_AT")
 
 
-def _coerce_datetime(value: str) -> datetime:
-    return datetime.fromisoformat(value)
+def _coerce_datetime(value: object) -> datetime:
+    if isinstance(value, datetime):
+        return value
+    return datetime.fromisoformat(str(value))
 
 
-class SQLiteThresholdStore:
-    """Project-scoped threshold definitions, audit trail and monitoring runs."""
+class _SqlThresholdStore:
+    """Shared SQL core for project-scoped threshold definitions and runs.
+
+    Subclasses supply the placeholder dialect, the JSON field expression and the
+    DDL. The SQLite store owns its own commits; the PostgreSQL store never
+    commits because the request (or the importer) owns the transaction.
+    """
+
+    placeholder = "?"
 
     def __init__(self, connection) -> None:
         self.connection = connection
 
+    def _execute(self, statement: str, params: tuple = ()):
+        if self.placeholder != "?":
+            statement = statement.replace("?", self.placeholder)
+        return self.connection.execute(statement, params)
+
+    def _field(self, name: str) -> str:
+        raise NotImplementedError
+
+    def _ddl(self) -> tuple[str, ...]:
+        raise NotImplementedError
+
     def initialize(self) -> None:
-        self.connection.execute("PRAGMA busy_timeout = 5000")
-        self.connection.execute(
-            """CREATE TABLE IF NOT EXISTS project_threshold (
-                tenant_id TEXT NOT NULL,
-                project_id TEXT NOT NULL,
-                threshold_id TEXT NOT NULL,
-                idempotency_key TEXT NOT NULL,
-                fingerprint TEXT NOT NULL,
-                revision INTEGER NOT NULL DEFAULT 1,
-                threshold_json TEXT NOT NULL,
-                PRIMARY KEY (tenant_id, project_id, threshold_id),
-                UNIQUE (tenant_id, project_id, idempotency_key)
-            )"""
-        )
-        self.connection.execute(
-            """CREATE TABLE IF NOT EXISTS project_threshold_audit (
-                tenant_id TEXT NOT NULL,
-                project_id TEXT NOT NULL,
-                entity_type TEXT NOT NULL,
-                entity_id TEXT NOT NULL,
-                revision INTEGER NOT NULL,
-                event_type TEXT NOT NULL,
-                actor_id TEXT NOT NULL,
-                occurred_at TEXT NOT NULL,
-                reason TEXT NOT NULL DEFAULT '',
-                PRIMARY KEY (tenant_id, project_id, entity_type, entity_id, revision)
-            )"""
-        )
-        self.connection.execute(
-            """CREATE TABLE IF NOT EXISTS project_threshold_run (
-                tenant_id TEXT NOT NULL,
-                project_id TEXT NOT NULL,
-                threshold_id TEXT NOT NULL,
-                run_sequence INTEGER NOT NULL,
-                run_json TEXT NOT NULL,
-                PRIMARY KEY (tenant_id, project_id, threshold_id, run_sequence)
-            )"""
-        )
-        self.connection.commit()
+        for statement in self._ddl():
+            self._execute(statement)
 
     # -- definitions ------------------------------------------------------
     def create_threshold(
@@ -368,7 +351,7 @@ class SQLiteThresholdStore:
         _validate_audit(actor_id, occurred_at)
         payload = threshold.as_dict()
         fingerprint = _fingerprint(payload)
-        existing = self.connection.execute(
+        existing = self._execute(
             "SELECT threshold_id, fingerprint FROM project_threshold "
             "WHERE tenant_id=? AND project_id=? AND idempotency_key=?",
             (threshold.tenant_id, threshold.project_id, idempotency_key),
@@ -380,7 +363,7 @@ class SQLiteThresholdStore:
                 threshold.tenant_id, threshold.project_id, str(existing[0])
             )
         try:
-            self.connection.execute(
+            self._execute(
                 "INSERT INTO project_threshold "
                 "(tenant_id, project_id, threshold_id, idempotency_key, fingerprint, revision, threshold_json) "
                 "VALUES (?,?,?,?,?,?,?)",
@@ -395,7 +378,14 @@ class SQLiteThresholdStore:
                 ),
             )
         except Exception as exc:
-            if "UNIQUE" in str(exc) or "PRIMARY KEY" in str(exc):
+            sqlstate = getattr(exc, "sqlstate", None) or getattr(exc, "pgcode", None)
+            message = str(exc).lower()
+            if (
+                sqlstate == "23505"
+                or "unique" in message
+                or "primary key" in message
+                or "duplicate key" in message
+            ):
                 raise ValueError("THRESHOLD_ALREADY_EXISTS") from exc
             raise
         self._audit(threshold, "created", 1, actor_id, occurred_at, "")
@@ -404,7 +394,7 @@ class SQLiteThresholdStore:
     def get_threshold(
         self, tenant_id: str, project_id: str, threshold_id: str
     ) -> StoredThreshold:
-        row = self.connection.execute(
+        row = self._execute(
             "SELECT threshold_json, revision FROM project_threshold "
             "WHERE tenant_id=? AND project_id=? AND threshold_id=?",
             (tenant_id, project_id, threshold_id),
@@ -437,24 +427,24 @@ class SQLiteThresholdStore:
         )
         params: list[object] = [tenant_id, project_id]
         if monitoring_subject is not None:
-            query += " AND json_extract(threshold_json, '$.monitoring_subject')=?"
+            query += f" AND {self._field('monitoring_subject')}=?"
             params.append(monitoring_subject)
         if parameter is not None:
-            query += " AND json_extract(threshold_json, '$.parameter')=?"
+            query += f" AND {self._field('parameter')}=?"
             params.append(parameter)
         if status is not None:
-            query += " AND json_extract(threshold_json, '$.status')=?"
+            query += f" AND {self._field('status')}=?"
             params.append(status)
         if search is not None:
             query += (
-                " AND (LOWER(threshold_id) LIKE ? OR LOWER(json_extract(threshold_json, '$.name')) LIKE ?)"
+                f" AND (LOWER(threshold_id) LIKE ? OR LOWER({self._field('name')}) LIKE ?)"
             )
             needle = f"%{search.lower()}%"
             params.extend([needle, needle])
         query += " ORDER BY threshold_id"
         return tuple(
             StoredThreshold(self._threshold_from_json(row[0]), int(row[1]))
-            for row in self.connection.execute(query, tuple(params)).fetchall()
+            for row in self._execute(query, tuple(params)).fetchall()
         )
 
     def update_threshold(
@@ -476,7 +466,7 @@ class SQLiteThresholdStore:
         if stored.revision >= MAX_SAFE_REVISION:
             raise ValueError("THRESHOLD_REVISION_EXHAUSTED")
         next_revision = stored.revision + 1
-        self.connection.execute(
+        self._execute(
             "UPDATE project_threshold SET revision=?, threshold_json=? "
             "WHERE tenant_id=? AND project_id=? AND threshold_id=?",
             (
@@ -518,7 +508,7 @@ class SQLiteThresholdStore:
             occurred_at,
             reason,
         )
-        self.connection.execute(
+        self._execute(
             "DELETE FROM project_threshold "
             "WHERE tenant_id=? AND project_id=? AND threshold_id=?",
             (tenant_id, project_id, threshold_id),
@@ -527,7 +517,7 @@ class SQLiteThresholdStore:
     def threshold_history(
         self, tenant_id: str, project_id: str, threshold_id: str
     ) -> tuple[ThresholdAuditEvent, ...]:
-        rows = self.connection.execute(
+        rows = self._execute(
             "SELECT entity_type, entity_id, revision, event_type, actor_id, occurred_at, reason "
             "FROM project_threshold_audit "
             "WHERE tenant_id=? AND project_id=? AND entity_type='threshold' AND entity_id=? "
@@ -550,14 +540,14 @@ class SQLiteThresholdStore:
         if not isinstance(run.run_sequence, int) or run.run_sequence < 1:
             raise ValueError("INVALID_THRESHOLD_RUN_SEQUENCE")
         self.get_threshold(run.tenant_id, run.project_id, run.threshold_id)
-        existing = self.connection.execute(
+        existing = self._execute(
             "SELECT run_json FROM project_threshold_run "
             "WHERE tenant_id=? AND project_id=? AND threshold_id=? AND run_sequence=?",
             (run.tenant_id, run.project_id, run.threshold_id, run.run_sequence),
         ).fetchone()
         if existing is not None:
             raise ValueError("THRESHOLD_RUN_ALREADY_RECORDED")
-        self.connection.execute(
+        self._execute(
             "INSERT INTO project_threshold_run "
             "(tenant_id, project_id, threshold_id, run_sequence, run_json) VALUES (?,?,?,?,?)",
             (
@@ -575,7 +565,7 @@ class SQLiteThresholdStore:
     def runs(
         self, tenant_id: str, project_id: str, threshold_id: str
     ) -> tuple[ThresholdRun, ...]:
-        rows = self.connection.execute(
+        rows = self._execute(
             "SELECT run_json FROM project_threshold_run "
             "WHERE tenant_id=? AND project_id=? AND threshold_id=? ORDER BY run_sequence",
             (tenant_id, project_id, threshold_id),
@@ -585,7 +575,7 @@ class SQLiteThresholdStore:
     def next_run_sequence(
         self, tenant_id: str, project_id: str, threshold_id: str
     ) -> int:
-        row = self.connection.execute(
+        row = self._execute(
             "SELECT COALESCE(MAX(run_sequence), 0) FROM project_threshold_run "
             "WHERE tenant_id=? AND project_id=? AND threshold_id=?",
             (tenant_id, project_id, threshold_id),
@@ -602,7 +592,7 @@ class SQLiteThresholdStore:
         occurred_at: datetime,
         reason: str,
     ) -> None:
-        self.connection.execute(
+        self._execute(
             "INSERT INTO project_threshold_audit "
             "(tenant_id, project_id, entity_type, entity_id, revision, event_type, actor_id, occurred_at, reason) "
             "VALUES (?,?,?,?,?,?,?,?,?)",
@@ -671,6 +661,102 @@ class SQLiteThresholdStore:
             generated_issue_id=data.get("generated_issue_id"),
         )
 
+class SQLiteThresholdStore(_SqlThresholdStore):
+    """Project-scoped thresholds, audit trail and runs over SQLite."""
+
+    placeholder = "?"
+
+    def _field(self, name: str) -> str:
+        return f"json_extract(threshold_json, '$.{name}')"
+
+    def _ddl(self) -> tuple[str, ...]:
+        return (
+            """CREATE TABLE IF NOT EXISTS project_threshold (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                threshold_id TEXT NOT NULL,
+                idempotency_key TEXT NOT NULL,
+                fingerprint TEXT NOT NULL,
+                revision INTEGER NOT NULL DEFAULT 1,
+                threshold_json TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, threshold_id),
+                UNIQUE (tenant_id, project_id, idempotency_key)
+            )""",
+            """CREATE TABLE IF NOT EXISTS project_threshold_audit (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                entity_type TEXT NOT NULL,
+                entity_id TEXT NOT NULL,
+                revision INTEGER NOT NULL,
+                event_type TEXT NOT NULL,
+                actor_id TEXT NOT NULL,
+                occurred_at TEXT NOT NULL,
+                reason TEXT NOT NULL DEFAULT '',
+                PRIMARY KEY (tenant_id, project_id, entity_type, entity_id, revision)
+            )""",
+            """CREATE TABLE IF NOT EXISTS project_threshold_run (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                threshold_id TEXT NOT NULL,
+                run_sequence INTEGER NOT NULL,
+                run_json TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, threshold_id, run_sequence)
+            )""",
+        )
+
+    def initialize(self) -> None:
+        self._execute("PRAGMA busy_timeout = 5000")
+        super().initialize()
+        self.connection.commit()
+
+
+class PostgresThresholdStore(_SqlThresholdStore):
+    """Project-scoped thresholds over the durable production database."""
+
+    placeholder = "%s"
+
+    def _field(self, name: str) -> str:
+        return f"(threshold_json::jsonb ->> '{name}')"
+
+    def _ddl(self) -> tuple[str, ...]:
+        return (
+            """CREATE TABLE IF NOT EXISTS project_threshold (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                threshold_id TEXT NOT NULL,
+                idempotency_key TEXT NOT NULL,
+                fingerprint TEXT NOT NULL,
+                revision INTEGER NOT NULL DEFAULT 1,
+                threshold_json TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, threshold_id),
+                UNIQUE (tenant_id, project_id, idempotency_key)
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_project_threshold_scope "
+            "ON project_threshold (tenant_id, project_id)",
+            """CREATE TABLE IF NOT EXISTS project_threshold_audit (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                entity_type TEXT NOT NULL,
+                entity_id TEXT NOT NULL,
+                revision INTEGER NOT NULL,
+                event_type TEXT NOT NULL,
+                actor_id TEXT NOT NULL,
+                occurred_at TIMESTAMPTZ NOT NULL,
+                reason TEXT NOT NULL DEFAULT '',
+                PRIMARY KEY (tenant_id, project_id, entity_type, entity_id, revision)
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_project_threshold_audit_scope "
+            "ON project_threshold_audit (tenant_id, project_id, entity_id, revision)",
+            """CREATE TABLE IF NOT EXISTS project_threshold_run (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                threshold_id TEXT NOT NULL,
+                run_sequence INTEGER NOT NULL,
+                run_json TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, threshold_id, run_sequence)
+            )""",
+        )
+
 
 __all__ = [
     "MONETARY_PARAMETERS",
@@ -678,6 +764,7 @@ __all__ = [
     "THRESHOLD_PARAMETERS",
     "THRESHOLD_STATUSES",
     "THRESHOLD_SUBJECTS",
+    "PostgresThresholdStore",
     "SQLiteThresholdStore",
     "StoredThreshold",
     "Threshold",
