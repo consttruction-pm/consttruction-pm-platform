@@ -886,3 +886,154 @@ test("Ctrl+A selects all visible activities through the shortcut catalogue", () 
   );
   assert.equal(shortcutUnavailableReason(shortcut, shellState().capabilities), null);
 });
+
+test("the shortcuts dialog offers rebinding controls and explains the browser-reserved chord", () => {
+  const recorded = recordHost();
+  renderDesktopShell(
+    recorded.host,
+    {
+      ...shellState(),
+      shortcutOverrides: { "shortcut.find": { keys: "Ctrl+Alt+F", chord: { key: "f", ctrlOrMeta: true, alt: true } } },
+    },
+    { onWindowOpen: () => {}, onWindowClose: () => {}, onCommand: () => {} },
+  );
+  const html = recorded.html();
+  assert.match(html, /data-shortcut-change="shortcut\.new"/);
+  assert.match(html, /data-shortcut-reset="shortcut\.find"/, "an overridden row can be reset individually");
+  assert.doesNotMatch(html, /data-shortcut-reset="shortcut\.new"/, "a default row has nothing to reset");
+  assert.match(html, /data-shortcut-reset-all/);
+  assert.match(html, /data-shortcut-capture-status/);
+  assert.match(html, /<kbd>Ctrl\+Alt\+F<\/kbd>/, "the override replaces the default keys in the dialog");
+  assert.match(html, /<kbd>Ctrl\+R<\/kbd> <span class="cp-shortcut-reason">Unavailable — Ctrl\+R is reserved by the browser/);
+});
+
+function shortcutCaptureHost() {
+  const keydown: Array<(event: Event) => void> = [];
+  const click: Array<(event: Event) => void> = [];
+  const status = { textContent: "", hidden: true, dataset: {} as Record<string, string> };
+  const rows = [
+    {
+      dataset: { shortcutId: "shortcut.find" },
+      classes: new Set<string>(),
+      classList: {
+        toggle(this: void, name: string, on: boolean) { on ? rowClasses().add(name) : rowClasses().delete(name); },
+        remove(this: void, name: string) { rowClasses().delete(name); },
+      },
+    },
+  ];
+  const rowClasses = () => rows[0].classes;
+  const button = { focused: false, focus() { this.focused = true; } };
+  const dialog = {
+    open: true,
+    querySelector: (selector: string) => {
+      if (selector === "[data-shortcut-capture-status]") return status;
+      if (selector === '[data-shortcut-change="shortcut.find"]') return button;
+      return null;
+    },
+    querySelectorAll: (selector: string) => (selector === "[data-shortcut-row]" ? rows : []),
+  };
+  const host = {
+    innerHTML: "",
+    addEventListener: (type: string, listener: (event: Event) => void) => {
+      if (type === "keydown") keydown.push(listener);
+      if (type === "click") click.push(listener);
+    },
+    querySelector: (selector: string) => (selector.includes('data-desktop-dialog="shortcuts"') ? dialog : null),
+    querySelectorAll: () => [],
+    contains: () => true,
+  };
+  return { host: host as unknown as HTMLElement, keydown, click, status, button, rows };
+}
+
+test("capturing a shortcut rejects typing chords and conflicts, then reports the accepted binding", () => {
+  const fixture = shortcutCaptureHost();
+  const changes: unknown[] = [];
+  renderDesktopShell(fixture.host, shellState(), {
+    onWindowOpen: () => {},
+    onWindowClose: () => {},
+    onCommand: () => {},
+    onShortcutOverridesChange: (next) => { changes.push(next); },
+  });
+  const change = { closest: (selector: string) => (selector === "[data-shortcut-change]" ? { dataset: { shortcutChange: "shortcut.find" } } : null) };
+  fixture.click[0]({ target: change } as unknown as Event);
+  assert.equal(fixture.button.focused, true, "the Change button keeps focus so the next key lands in the dialog");
+  assert.match(fixture.status.textContent, /Press the new shortcut/);
+
+  const press = (event: Record<string, unknown>) => {
+    const raw = { preventDefault: () => {}, stopPropagation: () => {}, target: null, ...event };
+    for (const listener of fixture.keydown) listener(raw as unknown as Event);
+  };
+  press({ key: "q" });
+  assert.match(fixture.status.textContent, /not a usable shortcut/);
+  assert.deepEqual(changes, [], "an unusable chord never reaches the workspace");
+
+  press({ key: "n", ctrlKey: true });
+  assert.match(fixture.status.textContent, /Already used by “New project”/);
+  assert.deepEqual(changes, []);
+
+  press({ key: "Escape" });
+  assert.equal(fixture.status.hidden, true, "Escape cancels the capture quietly");
+  assert.equal(fixture.button.focused, true);
+
+  fixture.click[0]({ target: change } as unknown as Event);
+  press({ key: "f", ctrlKey: true, altKey: true });
+  assert.deepEqual(changes, [
+    { "shortcut.find": { keys: "Ctrl+Alt+F", chord: { key: "f", ctrlOrMeta: true, alt: true } } },
+  ]);
+});
+
+test("Reset and Reset all hand the workspace an override map with the entry removed", () => {
+  const fixture = shortcutCaptureHost();
+  const changes: Array<Record<string, unknown>> = [];
+  const overrides = {
+    "shortcut.find": { keys: "Ctrl+Alt+F", chord: { key: "f", ctrlOrMeta: true, alt: true } },
+    "shortcut.new": { keys: "Ctrl+Alt+N", chord: { key: "n", ctrlOrMeta: true, alt: true } },
+  };
+  renderDesktopShell(fixture.host, { ...shellState(), shortcutOverrides: overrides }, {
+    onWindowOpen: () => {},
+    onWindowClose: () => {},
+    onCommand: () => {},
+    onShortcutOverridesChange: (next) => { changes.push(next); },
+  });
+  const reset = { closest: (selector: string) => (selector === "[data-shortcut-reset]" ? { dataset: { shortcutReset: "shortcut.find" } } : null) };
+  fixture.click[0]({ target: reset } as unknown as Event);
+  assert.deepEqual(changes.at(-1), { "shortcut.new": overrides["shortcut.new"] });
+
+  const resetAll = { closest: (selector: string) => (selector === "[data-shortcut-reset-all]" ? resetAll : null) };
+  fixture.click[0]({ target: resetAll } as unknown as Event);
+  assert.deepEqual(changes.at(-1), {});
+});
+
+test("a re-render cancels an in-flight capture so a refresh cannot rebind silently", () => {
+  const fixture = shortcutCaptureHost();
+  const changes: unknown[] = [];
+  const handlers = {
+    onWindowOpen: () => {},
+    onWindowClose: () => {},
+    onCommand: () => {},
+    onShortcutOverridesChange: (next: unknown) => { changes.push(next); },
+  };
+  renderDesktopShell(fixture.host, shellState(), handlers);
+  const change = { closest: (selector: string) => (selector === "[data-shortcut-change]" ? { dataset: { shortcutChange: "shortcut.find" } } : null) };
+  fixture.click[0]({ target: change } as unknown as Event);
+  renderDesktopShell(fixture.host, shellState(), handlers);
+  for (const listener of fixture.keydown) {
+    listener({ key: "f", ctrlKey: true, altKey: true, preventDefault: () => {}, stopPropagation: () => {}, target: null } as unknown as Event);
+  }
+  assert.deepEqual(changes, []);
+});
+
+test("each mapped shortcut also links to its official P6 Help topic", () => {
+  const recorded = recordHost();
+  renderDesktopShell(recorded.host, shellState(), {
+    onWindowOpen: () => {},
+    onWindowClose: () => {},
+    onCommand: () => {},
+  });
+  const html = recorded.html();
+  assert.match(html, /class="cp-shortcut-help" href="https:\/\/docs\.oracle\.com\/cd\/G48902_01\/client_help\/en_US\/managing_projects_using_the_eps\.htm"/);
+  assert.match(html, /aria-label="Help: Managing projects using the EPS"/);
+  assert.match(html, /target="_blank" rel="noopener noreferrer"/);
+  // An unmapped CUBI-only command stays without a link instead of citing a guess.
+  assert.match(html, /data-shortcut-id="shortcut\.find"><td>Find activities<\/td><td><kbd>Ctrl\+F<\/kbd><\/td><td class="cp-shortcut-actions">[^<]*<button[^>]*>Change<\/button><\/td><td class="cp-shortcut-help-cell"><\/td>/);
+});

@@ -13,6 +13,14 @@ import {
 } from "./workspace-toolbars.js";
 import { translateWorkspaceUiText } from "./workspace-localization.js";
 import { moveWorkspaceWindow, reorderWorkspaceWindows } from "./workspace-windows.js";
+import {
+  applyShortcutOverrides,
+  conflictingShortcut,
+  shortcutChordFromEvent,
+  withoutShortcutOverride,
+  type ShortcutOverrides,
+} from "./workspace-shortcut-preferences.js";
+import { commandHelp, windowHelp } from "./workspace-command-help.js";
 
 /**
  * Desktop chrome for the professional workspace: the application menu bar, the
@@ -211,6 +219,8 @@ export type DesktopShellState = {
   /** Persisted activity rows and WBS nodes, used by the live filter preview. */
   activities?: readonly WorkspaceActivityRow[];
   wbsNodes?: readonly WorkspaceWbsNode[];
+  /** Per-user shortcut deviations from the canonical catalogue. */
+  shortcutOverrides?: ShortcutOverrides;
 };
 
 export type DesktopShellHandlers = {
@@ -223,6 +233,8 @@ export type DesktopShellHandlers = {
   onLayoutOptions?: (patch: DesktopLayoutPatch) => void;
   onLocaleChange?: (locale: string) => void;
   onHome?: () => void;
+  /** Persisted catalog overrides; the shell never writes browser storage itself. */
+  onShortcutOverridesChange?: (overrides: ShortcutOverrides) => void;
 };
 
 export const WINDOW_TITLES: Record<WorkspaceMenuKey, LocalizedLabel> = {
@@ -294,6 +306,7 @@ const REASONS = {
   clipboard: { en: "The activity clipboard is not connected to this workspace yet", fa: "کلیپ‌بورد فعالیت هنوز به این محیط کار متصل نشده است" },
   deleteActivity: { en: "Deleting activities is not available in this workspace yet", fa: "حذف فعالیت هنوز در این محیط کار در دسترس نیست" },
   findNext: { en: "Find Next needs a result set from the current filter", fa: "یافتن مورد بعدی به نتیجهٔ فیلتر جاری نیاز دارد" },
+  browserReload: { en: "Ctrl+R is reserved by the browser for reload; use F5 or the Refresh command", fa: "Ctrl+R در مرورگر برای بارگذاری دوباره رزرو شده است؛ از F5 یا فرمان به‌روزرسانی استفاده کنید" },
   commit: { en: "There is no staged edit to commit", fa: "ویرایش آماده‌ای برای ثبت وجود ندارد" },
   replace: { en: "Replace is not available in this workspace yet", fa: "جایگزینی هنوز در این محیط کار در دسترس نیست" },
   leveling: { en: "Resource leveling is not available in this workspace yet", fa: "تسطیح منابع هنوز در این محیط کار در دسترس نیست" },
@@ -976,6 +989,10 @@ const DESKTOP_SHORTCUTS: readonly DesktopShortcut[] = [
   { id: "shortcut.select-all", label: { en: "Select all visible activities", fa: "انتخاب همهٔ فعالیت‌های نمایان" }, keys: "Ctrl+A", chord: { key: "a", ctrlOrMeta: true }, command: "edit.select-all", requires: { test: (caps) => caps.hasActivities, reason: REASONS.noActivities } },
   { id: "shortcut.find-next", label: { en: "Find next", fa: "یافتن مورد بعدی" }, keys: "F3", chord: { key: "F3" }, unavailable: REASONS.findNext },
   { id: "shortcut.refresh", label: { en: "Refresh project data", fa: "به‌روزرسانی داده‌های پروژه" }, keys: "F5", chord: { key: "F5" }, command: "workspace.refresh" },
+  // Version 26 Help lists Ctrl+R alongside F5. The browser owns Ctrl+R for
+  // reload, so the catalog records the mapping and states the CUBI substitute
+  // instead of silently hijacking the user's reload.
+  { id: "shortcut.refresh-ctrl-r", label: { en: "Refresh project data (Ctrl+R)", fa: "به‌روزرسانی داده‌های پروژه (Ctrl+R)" }, keys: "Ctrl+R", chord: { key: "r", ctrlOrMeta: true }, unavailable: REASONS.browserReload },
   { id: "shortcut.schedule", label: { en: "Schedule activities", fa: "زمان‌بندی فعالیت‌ها" }, keys: "F9", chord: { key: "F9" }, command: "tools.run-schedule" },
   { id: "shortcut.schedule-options", label: { en: "Schedule options", fa: "تنظیمات زمان‌بندی" }, keys: "Shift+F9", chord: { key: "F9", shift: true }, command: "project.schedule-options" },
   { id: "shortcut.leveling", label: { en: "Level resources", fa: "تسطیح منابع" }, keys: "F7", chord: { key: "F7" }, unavailable: REASONS.leveling },
@@ -987,7 +1004,10 @@ const DESKTOP_SHORTCUTS: readonly DesktopShortcut[] = [
 ];
 
 /** Catalog plus the live Alt+1…9 window bindings for the open tabs. */
-export function getDesktopShortcuts(openWindows: readonly WorkspaceMenuKey[] = []): DesktopShortcut[] {
+export function getDesktopShortcuts(
+  openWindows: readonly WorkspaceMenuKey[] = [],
+  overrides: ShortcutOverrides = {},
+): DesktopShortcut[] {
   const windowShortcuts = openWindows.slice(0, 9).map((key, index) => ({
     id: `shortcut.window.${key}`,
     label: WINDOW_TITLES[key],
@@ -995,7 +1015,7 @@ export function getDesktopShortcuts(openWindows: readonly WorkspaceMenuKey[] = [
     chord: { key: String(index + 1), alt: true } satisfies DesktopShortcutChord,
     window: key,
   }));
-  return [...DESKTOP_SHORTCUTS, ...windowShortcuts];
+  return applyShortcutOverrides([...DESKTOP_SHORTCUTS, ...windowShortcuts], overrides);
 }
 
 /** Null when the shortcut is executable in this state, otherwise the reason. */
@@ -1057,6 +1077,7 @@ export function matchDesktopShortcut(
 function renderShortcutsDialog(state: DesktopShellState): string {
   const locale = state.locale;
   const caps = state.capabilities;
+  const overrides = state.shortcutOverrides ?? {};
   const groups: Array<{ title: string; rows: DesktopShortcut[] }> = [
     { title: translateWorkspaceUiText(locale, "Workspace", "محیط کار"), rows: [] },
     { title: translateWorkspaceUiText(locale, "Editing", "ویرایش"), rows: [] },
@@ -1068,7 +1089,7 @@ function renderShortcutsDialog(state: DesktopShellState): string {
     if (/^shortcut\.(undo|redo|cut|copy|paste|delete|insert|find|select-all)$/.test(shortcut.id)) return 1;
     return 2;
   };
-  for (const shortcut of getDesktopShortcuts(state.openWindows)) {
+  for (const shortcut of getDesktopShortcuts(state.openWindows, overrides)) {
     groups[bucket(shortcut)].rows.push(shortcut);
   }
   const heading = translateWorkspaceUiText(locale, "Keyboard shortcuts", "کلیدهای میانبر");
@@ -1083,16 +1104,31 @@ function renderShortcutsDialog(state: DesktopShellState): string {
     "Conflicting bindings:",
     "میانبرهای متعارض:",
   );
-  const shortcuts = getDesktopShortcuts(state.openWindows);
+  const helpLabel = translateWorkspaceUiText(locale, "Help", "راهنما");
+  const changeLabel = translateWorkspaceUiText(locale, "Change", "تغییر");
+  const resetLabel = translateWorkspaceUiText(locale, "Reset", "بازنشانی");
+  const resetAllLabel = translateWorkspaceUiText(locale, "Reset all to defaults", "بازنشانی همه به پیش‌فرض");
+  const captureHint = translateWorkspaceUiText(
+    locale,
+    "A shortcut needs Ctrl or Alt with a letter, or a function/navigation key; a plain letter would hijack typing.",
+    "میانبر باید Ctrl یا Alt همراه یک حرف داشته باشد، یا یک کلید تابعی/پیمایش باشد؛ یک حرف تنها تایپ را مختل می‌کند.",
+  );
+  const hasOverrides = Object.keys(overrides).length > 0;
+  const shortcuts = getDesktopShortcuts(state.openWindows, overrides);
   const conflicts = shortcutConflicts(shortcuts);
   const sections = groups
     .filter((group) => group.rows.length > 0)
     .map((group) => `<h3>${escapeHtml(group.title)}</h3>
-      <table><thead><tr><th>${escapeHtml(command)}</th><th>${escapeHtml(shortcutWord)}</th></tr></thead>
+      <table><thead><tr><th>${escapeHtml(command)}</th><th>${escapeHtml(shortcutWord)}</th><th><span class="cp-visually-hidden">${escapeHtml(changeLabel)}</span></th><th><span class="cp-visually-hidden">${escapeHtml(helpLabel)}</span></th></tr></thead>
       <tbody>${group.rows.map((shortcut) => {
         const reason = shortcutUnavailableReason(shortcut, caps);
         const rowText = `${pick(shortcut.label, locale)} ${shortcut.keys}`.toLowerCase();
-        return `<tr data-shortcut-row data-shortcut-text="${escapeHtml(rowText)}"${reason ? ' class="is-unavailable"' : ""}><td>${escapeHtml(pick(shortcut.label, locale))}</td><td><kbd>${escapeHtml(shortcut.keys)}</kbd>${reason ? ` <span class="cp-shortcut-reason">${escapeHtml(unavailableWord)} — ${escapeHtml(pick(reason, locale))}</span>` : ""}</td></tr>`;
+        const overridden = Boolean(overrides[shortcut.id]);
+        const help = shortcut.command ? commandHelp(shortcut.command) : shortcut.window ? windowHelp(shortcut.window) : null;
+        const helpCell = help
+          ? `<td class="cp-shortcut-help-cell"><a class="cp-shortcut-help" href="${escapeHtml(help.topic.url)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(`${helpLabel}: ${help.topic.title}`)}" title="${escapeHtml(`${help.topic.source} — ${help.topic.title}`)}">${escapeHtml(helpLabel)}</a></td>`
+          : `<td class="cp-shortcut-help-cell"></td>`;
+        return `<tr data-shortcut-row data-shortcut-text="${escapeHtml(rowText)}" data-shortcut-id="${escapeHtml(shortcut.id)}"${reason ? ' class="is-unavailable"' : ""}><td>${escapeHtml(pick(shortcut.label, locale))}</td><td><kbd>${escapeHtml(shortcut.keys)}</kbd>${reason ? ` <span class="cp-shortcut-reason">${escapeHtml(unavailableWord)} — ${escapeHtml(pick(reason, locale))}</span>` : ""}</td><td class="cp-shortcut-actions"><button type="button" data-shortcut-change="${escapeHtml(shortcut.id)}">${escapeHtml(changeLabel)}</button>${overridden ? `<button type="button" data-shortcut-reset="${escapeHtml(shortcut.id)}">${escapeHtml(resetLabel)}</button>` : ""}</td>${helpCell}</tr>`;
       }).join("")}</tbody></table>`)
     .join("");
   return `<dialog class="cp-desktop-dialog" data-desktop-dialog="shortcuts" aria-labelledby="cp-shortcuts-heading">
@@ -1103,9 +1139,14 @@ function renderShortcutsDialog(state: DesktopShellState): string {
     ${conflicts.length
       ? `<p class="cp-shortcut-conflicts" role="alert">${escapeHtml(conflictLabel)} ${conflicts.map((conflict) => escapeHtml(`${conflict.keys} (${conflict.ids.join(", ")})`)).join(", ")}</p>`
       : ""}
+    <p class="cp-shortcut-capture" data-shortcut-capture-status role="status" hidden></p>
     ${sections}
+    <p class="cp-shortcut-capture-hint">${escapeHtml(captureHint)}</p>
     <p class="cp-shortcut-empty" data-shortcut-empty hidden>${escapeHtml(emptyLabel)}</p>
-    <form method="dialog"><button type="submit">${escapeHtml(close)}</button></form>
+    <form method="dialog" class="cp-shortcut-footer">
+      ${hasOverrides ? `<button type="button" data-shortcut-reset-all>${escapeHtml(resetAllLabel)}</button>` : ""}
+      <button type="submit">${escapeHtml(close)}</button>
+    </form>
   </dialog>`;
 }
 
@@ -1137,6 +1178,9 @@ export function renderDesktopShell(
   handlers: DesktopShellHandlers,
 ): void {
   runtimeByHost.set(host, { state, handlers });
+  // A re-render replaces the dialog DOM, so any in-flight capture would point
+  // at a detached row and silently rebind after a refresh; cancel it instead.
+  shortcutCaptureByHost.delete(host);
   const openFilter = host.querySelector<HTMLDialogElement>('dialog[data-desktop-dialog="filters"]');
   const filterSnapshot = openFilter?.open ? captureFilterDialog(openFilter) : null;
   const layout = state.layout ?? { groupBy: state.capabilities.groupByWbs ? "wbs" : "none", ganttScale: "day", showRelationships: true, density: "compact" };
@@ -1185,8 +1229,45 @@ export function renderDesktopShell(
 
 type ShellRuntime = { state: DesktopShellState; handlers: DesktopShellHandlers };
 const runtimeByHost = new WeakMap<HTMLElement, ShellRuntime>();
+/** Shortcut id whose next key chord is being captured, if any. */
+const shortcutCaptureByHost = new WeakMap<HTMLElement, { id: string }>();
 const boundHosts = new WeakSet<HTMLElement>();
 let documentBound = false;
+
+function shortcutDialog(host: HTMLElement): HTMLDialogElement | null {
+  return host.querySelector<HTMLDialogElement>('dialog[data-desktop-dialog="shortcuts"]');
+}
+
+function setShortcutCaptureMessage(
+  host: HTMLElement,
+  message: string,
+  tone: "info" | "error" | "" = "",
+): void {
+  const status = shortcutDialog(host)?.querySelector<HTMLElement>("[data-shortcut-capture-status]");
+  if (!status) return;
+  status.textContent = message;
+  status.hidden = !message;
+  status.dataset.tone = tone;
+}
+
+function beginShortcutCapture(host: HTMLElement, locale: string, id: string): void {
+  const dialog = shortcutDialog(host);
+  if (!dialog || !dialog.open) return;
+  shortcutCaptureByHost.set(host, { id });
+  dialog.querySelectorAll<HTMLElement>("[data-shortcut-row]").forEach((row) => {
+    row.classList.toggle("is-capturing", row.dataset.shortcutId === id);
+  });
+  setShortcutCaptureMessage(
+    host,
+    translateWorkspaceUiText(
+      locale,
+      "Press the new shortcut, or Escape to cancel",
+      "میانبر جدید را فشار دهید یا برای لغو Escape بزنید",
+    ),
+    "info",
+  );
+  dialog.querySelector<HTMLElement>(`[data-shortcut-change="${id}"]`)?.focus();
+}
 
 function popupFor(host: HTMLElement, menuId: string): HTMLElement | null {
   return host.querySelector<HTMLElement>(`[data-desktop-popup="${menuId}"]`);
@@ -1576,6 +1657,25 @@ function bindHost(host: HTMLElement): void {
     const runtime = runtimeByHost.get(host);
     if (!runtime) return;
 
+    // Shortcut rebinding: Change starts a key capture, Reset removes one
+    // override, Reset all clears the user's deviations. The shell only reports
+    // the next catalogue; persistence belongs to the workspace, not this dialog.
+    const changeShortcut = target.closest<HTMLElement>("[data-shortcut-change]");
+    if (changeShortcut?.dataset.shortcutChange) {
+      beginShortcutCapture(host, runtime.state.locale, changeShortcut.dataset.shortcutChange);
+      return;
+    }
+    const resetShortcut = target.closest<HTMLElement>("[data-shortcut-reset]");
+    if (resetShortcut?.dataset.shortcutReset) {
+      const overrides = runtime.state.shortcutOverrides ?? {};
+      runtime.handlers.onShortcutOverridesChange?.(withoutShortcutOverride(overrides, resetShortcut.dataset.shortcutReset));
+      return;
+    }
+    if (target.closest<HTMLElement>("[data-shortcut-reset-all]")) {
+      runtime.handlers.onShortcutOverridesChange?.({});
+      return;
+    }
+
     // Layout commands kept for the legacy command ribbon and keyboard paths:
     // they must open their owning dialog instead of leaving the workspace.
     const shellCommand = target.closest<HTMLElement>("[data-shell-command]");
@@ -1875,6 +1975,9 @@ function bindHost(host: HTMLElement): void {
   });
 
   bindShellKeydown(host, (event) => {
+    // A shortcut capture owns Escape (it cancels the capture) and must not
+    // also close the menu or pull focus out of the dialog.
+    if (shortcutCaptureByHost.has(host)) return;
     const target = event.target as HTMLElement | null;
     if (!target) return;
     if (event.key === "Escape") {
@@ -1900,6 +2003,58 @@ function bindHost(host: HTMLElement): void {
   bindShellKeydown(host, (event) => {
     const runtime = runtimeByHost.get(host);
     if (!runtime) return;
+
+    // A shortcut capture owns the keyboard until it completes or is cancelled,
+    // so the chord being recorded never also fires its current command.
+    const capture = shortcutCaptureByHost.get(host);
+    if (capture) {
+      event.preventDefault();
+      event.stopPropagation();
+      const dialog = shortcutDialog(host);
+      if (!dialog) {
+        shortcutCaptureByHost.delete(host);
+        return;
+      }
+      if (event.key === "Escape") {
+        shortcutCaptureByHost.delete(host);
+        dialog.querySelectorAll<HTMLElement>("[data-shortcut-row]").forEach((row) => row.classList.remove("is-capturing"));
+        setShortcutCaptureMessage(host, "");
+        return;
+      }
+      const binding = shortcutChordFromEvent(event);
+      if (!binding) {
+        setShortcutCaptureMessage(
+          host,
+          translateWorkspaceUiText(
+            runtime.state.locale,
+            "That is not a usable shortcut. Add Ctrl or Alt to a letter, or use a function or navigation key.",
+            "این میانبر قابل استفاده نیست. Ctrl یا Alt را با یک حرف به کار ببرید، یا از کلید تابعی یا پیمایش استفاده کنید.",
+          ),
+          "error",
+        );
+        return;
+      }
+      const overrides = runtime.state.shortcutOverrides ?? {};
+      const catalog = getDesktopShortcuts(runtime.state.openWindows, overrides);
+      const conflict = conflictingShortcut(catalog, capture.id, binding.keys);
+      if (conflict) {
+        const name = pick(conflict.label, runtime.state.locale);
+        setShortcutCaptureMessage(
+          host,
+          translateWorkspaceUiText(
+            runtime.state.locale,
+            `Already used by “${name}”. Choose another shortcut.`,
+            `پیش‌تر برای «${name}» استفاده شده است. میانبر دیگری انتخاب کنید.`,
+          ),
+          "error",
+        );
+        return;
+      }
+      shortcutCaptureByHost.delete(host);
+      runtime.handlers.onShortcutOverridesChange?.({ ...overrides, [capture.id]: binding });
+      return;
+    }
+
     // A control that already consumed the chord (grid navigation, splitter,
     // context menu) keeps precedence over the shell binding.
     if (event.defaultPrevented) return;
@@ -1942,7 +2097,10 @@ function bindHost(host: HTMLElement): void {
       }
     }
 
-    const shortcut = matchDesktopShortcut(event, getDesktopShortcuts(runtime.state.openWindows));
+    const shortcut = matchDesktopShortcut(
+      event,
+      getDesktopShortcuts(runtime.state.openWindows, runtime.state.shortcutOverrides ?? {}),
+    );
     if (!shortcut) return;
     if (shortcutUnavailableReason(shortcut, runtime.state.capabilities)) {
       // Documented but unserviced: the binding is reported in the dialog and
