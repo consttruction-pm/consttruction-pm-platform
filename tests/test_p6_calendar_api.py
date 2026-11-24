@@ -10,7 +10,10 @@ from construction_pm.application.authorization import AuthorizationContext, Auth
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.calendar_exception_repository import CalendarException, SQLiteCalendarExceptionRepository, EXCEPTION_NONWORK
-from construction_pm.calendar_master_repository import SQLiteCalendarMasterRepository
+from construction_pm.calendar_master_repository import (
+    CalendarPersistenceError,
+    SQLiteCalendarMasterRepository,
+)
 from construction_pm.calendar_snapshot_repository import SQLiteCalendarSnapshotRepository
 from construction_pm.calendar_work_hours_repository import SQLiteCalendarWorkHourRepository, CalendarWorkHourRule
 from construction_pm.p6_calendar_api import (
@@ -663,3 +666,135 @@ def test_exception_revision_increments_and_rejects_stale_edits():
             mode="nonwork", total_work_hours=None, intervals=(), expected_revision=0,
             auth_context=_auth(),
         )
+
+
+# ---------------------------------------------------------------------------
+# Root calendar definition: authenticated create/seal path (slice 5)
+# ---------------------------------------------------------------------------
+
+
+def _definition_payload(**overrides):
+    payload = {
+        "system": "gregorian",
+        "working_weekdays": [1, 2, 3, 4, 5],
+        "holidays": ["2026-11-03"],
+    }
+    payload.update(overrides)
+    return payload
+
+
+class _FailingSnapshotRepository(SQLiteCalendarSnapshotRepository):
+    """Persists nothing and fails like a storage fault after the master write."""
+
+    def save(self, calendar, calendar_definition):  # noqa: D401 - test double
+        raise CalendarPersistenceError("SNAPSHOT_WRITE_FAILED")
+
+
+def test_create_with_definition_persists_master_and_definition_together():
+    api, _ = _api()
+    created = api.create(
+        _scope(), _request("CAL-DEF"), auth_context=_auth(), definition=_definition_payload()
+    )
+    assert created["schedulable"] is True
+    assert created["record_revision"] == 1
+
+    stored = api.get_definition(_scope(), "CAL-DEF", "1", auth_context=_auth())
+    assert stored["schedulable"] is True
+    assert stored["calendar"]["record_revision"] == 1
+    assert stored["definition"]["working_weekdays"] == [1, 2, 3, 4, 5]
+    assert stored["definition"]["holidays"] == ["2026-11-03"]
+    assert stored["definition"]["system"] == "gregorian"
+
+
+def test_failed_definition_write_rolls_the_master_back():
+    conn = sqlite3.connect(":memory:")
+    master = SQLiteCalendarMasterRepository(conn)
+    api = P6CalendarAPI(
+        master,
+        _FailingSnapshotRepository(conn),
+        SQLiteCalendarExceptionRepository(conn),
+        default_project_policy(),
+        SQLiteCalendarWorkHourRepository(conn),
+        SQLiteTransactionManager(conn),
+    )
+    with pytest.raises(CalendarPersistenceError, match="SNAPSHOT_WRITE_FAILED"):
+        api.create(
+            _scope(), _request("CAL-ATOMIC"), auth_context=_auth(),
+            definition=_definition_payload(),
+        )
+    # No half-created master survives a failed definition write.
+    assert master.get(_scope(), "CAL-ATOMIC", "1") is None
+
+
+def test_malformed_definition_creates_nothing():
+    api, _ = _api()
+    with pytest.raises(P6CalendarAPIError, match="CALENDAR_DEFINITION_WORKING_WEEK_REQUIRED"):
+        api.create(
+            _scope(), _request("CAL-BAD"), auth_context=_auth(),
+            definition={"working_weekdays": []},
+        )
+    with pytest.raises(P6CalendarAPIError, match="CALENDAR_DEFINITION_UNSUPPORTED_FIELD"):
+        api.create(
+            _scope(), _request("CAL-BAD"), auth_context=_auth(),
+            definition=_definition_payload(working_dayz=[0]),
+        )
+    with pytest.raises(P6CalendarAPIError, match="CALENDAR_DEFINITION_INTERVALS_REQUIRED"):
+        api.create(
+            _scope(),
+            replace(_request("CAL-TIME"), kind="working-time"),
+            auth_context=_auth(),
+            definition={"working_weekdays": [0, 5]},
+        )
+    assert api.list(_scope(), auth_context=_auth())["calendars"] == []
+
+
+def test_save_definition_seals_a_bare_master_under_revision():
+    api, _ = _api()
+    bare = api.create(_scope(), _request("CAL-SEAL"), auth_context=_auth())
+    assert bare["schedulable"] is False
+    assert api.get_definition(_scope(), "CAL-SEAL", "1", auth_context=_auth())["definition"] is None
+
+    sealed = api.save_definition(
+        _scope(), "CAL-SEAL", "1", _definition_payload(), expected_revision=1, auth_context=_auth()
+    )
+    assert sealed["schedulable"] is True
+    assert sealed["calendar"]["record_revision"] == 2
+    assert sealed["definition"]["working_weekdays"] == [1, 2, 3, 4, 5]
+
+    # Re-submitting the identical definition is idempotent.
+    replay = api.save_definition(
+        _scope(), "CAL-SEAL", "1", _definition_payload(), expected_revision=2, auth_context=_auth()
+    )
+    assert replay["calendar"]["record_revision"] == 2
+
+    # A stored definition is immutable: a published calculation must stay
+    # reproducible until the user creates a new calendar version.
+    with pytest.raises(CalendarPersistenceError, match="CALENDAR_DEFINITION_IMMUTABLE"):
+        api.save_definition(
+            _scope(), "CAL-SEAL", "1", _definition_payload(working_weekdays=[0, 1, 2]),
+            expected_revision=2, auth_context=_auth(),
+        )
+    with pytest.raises(CalendarPersistenceError, match="REVISION_CONFLICT"):
+        api.save_definition(
+            _scope(), "CAL-SEAL", "1", _definition_payload(), expected_revision=1, auth_context=_auth()
+        )
+
+
+def test_time_calendar_definition_round_trips_through_canonical_snapshot():
+    api, _ = _api()
+    definition = {
+        "system": "gregorian",
+        "working_weekdays": [0, 1, 2, 3, 4],
+        "holidays": [],
+        "daily_intervals": {"0": [["08:00", "12:00"], ["13:00", "17:00"]]},
+    }
+    created = api.create(
+        _scope(), replace(_request("CAL-TIME-OK"), kind="working-time"),
+        auth_context=_auth(), definition=definition,
+    )
+    assert created["schedulable"] is True
+    stored = api.get_definition(_scope(), "CAL-TIME-OK", "1", auth_context=_auth())
+    assert stored["definition"]["kind"] == "working-time"
+    assert stored["definition"]["daily_intervals"]["0"] == [
+        ["08:00:00", "12:00:00"], ["13:00:00", "17:00:00"]
+    ]

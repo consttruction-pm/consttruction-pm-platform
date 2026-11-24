@@ -41,7 +41,7 @@ class P6CalendarReadAPI:
             "contract_version": P6_CALENDAR_READ_API_VERSION,
             "kind": "calendar_catalog",
             "scope": _scope(scope),
-            "calendars": [_calendar_dto(item) for item in calendars],
+            "calendars": [self._calendar_dto(item) for item in calendars],
         }
 
     def get_snapshot(
@@ -67,8 +67,25 @@ class P6CalendarReadAPI:
             "contract_version": P6_CALENDAR_READ_API_VERSION,
             "kind": "calendar_snapshot",
             "scope": _scope(scope),
-            "calendar": _calendar_dto(calendar),
+            "calendar": self._calendar_dto(calendar, schedulable=True),
             "snapshot": snapshot.snapshot,
+        }
+
+    def _calendar_dto(self, calendar: CalendarMaster, *, schedulable: bool | None = None) -> dict[str, object]:
+        if schedulable is None:
+            schedulable = self.snapshot_repository.get(calendar) is not None
+        return {
+            "calendar_id": calendar.calendar_id,
+            "calendar_version": calendar.calendar_version,
+            "kind": calendar.kind,
+            "calendar_type": calendar.calendar_type,
+            "name": calendar.name,
+            "record_revision": calendar.record_revision,
+            "base_calendar_id": calendar.base_calendar_id,
+            "base_calendar_version": calendar.base_calendar_version,
+            # A master with no stored definition cannot be consumed by the
+            # evaluator; the catalog says so instead of implying it can.
+            "schedulable": schedulable,
         }
 
 

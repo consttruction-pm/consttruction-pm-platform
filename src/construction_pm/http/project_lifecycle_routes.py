@@ -39,11 +39,20 @@ from ..scheduling_code_reference_api import build_scheduling_code_reference_payl
 from ..control_intelligence.contracts import ControlScope
 from ..control_intelligence.query import ScheduleQueryKind, ScheduleQueryRequest
 from ..backend_p0.models import BackendScope
-from ..calendar_master_repository import CalendarMasterRepository, SQLiteCalendarMasterRepository
+from ..calendar_master_repository import (
+    CalendarMasterRepository,
+    CalendarPersistenceError,
+    SQLiteCalendarMasterRepository,
+)
 from ..calendar_snapshot_repository import SQLiteCalendarSnapshotRepository
 from ..p6_calendar_read_api import P6CalendarReadAPI
 from ..p6_calendar_usage_api import P6CalendarUsageAPI
-from ..p6_calendar_api import P6CalendarAPI, P6CalendarCreateRequest, P6_CALENDAR_API_VERSION
+from ..p6_calendar_api import (
+    P6_CALENDAR_API_VERSION,
+    P6_CALENDAR_DEFINITION_VERSION,
+    P6CalendarAPI,
+    P6CalendarCreateRequest,
+)
 from ..calendar_exception_repository import CalendarException
 from ..calendar_work_hours_repository import CalendarWorkHourRule
 from ..scheduling.calendar_system import CalendarSystem, JalaliDate
@@ -763,7 +772,12 @@ class ProjectLifecycleHttpRoutes:
                             base_calendar_version=payload.get("base_calendar_version"),
                             system=payload.get("system"),
                         )
-                        return self._json(200, self._p6_calendar_api.create(scope, request, auth_context=auth))
+                        definition = payload.get("definition")
+                        if definition is not None and not isinstance(definition, dict):
+                            raise ValueError("definition must be an object")
+                        return self._json(200, self._p6_calendar_api.create(
+                            scope, request, auth_context=auth, definition=definition
+                        ))
                     if len(parts) == 2 and method in {"PATCH", "DELETE"}:
                         calendar_id, calendar_version = parts
                         if method == "DELETE":
@@ -795,6 +809,32 @@ class ProjectLifecycleHttpRoutes:
                         return self._json(200, self._p6_calendar_api.replace(
                             scope, str(payload.get("target_calendar_id", "")), str(payload.get("target_calendar_version", "")),
                             calendar_id, calendar_version, auth_context=auth,
+                        ))
+                    if len(parts) == 3 and parts[2] == "definition" and method in {"GET", "PUT"}:
+                        calendar_id, calendar_version, _resource = parts
+                        if method == "GET":
+                            result = self._p6_calendar_api.get_definition(
+                                scope, calendar_id, calendar_version, auth_context=auth
+                            )
+                            if result is None:
+                                return self._error(404, "P6_CALENDAR_NOT_FOUND", "error.p6.calendar.not_found")
+                            return self._json(200, result)
+                        # A definition is immutable once stored, so this seals a
+                        # master with its first definition under the master's
+                        # record revision. Later changes create a new version.
+                        definition = payload.get("definition")
+                        if not isinstance(definition, dict):
+                            raise ValueError("definition must be an object")
+                        expected_revision = payload.get("expected_revision")
+                        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int):
+                            raise ValueError("expected_revision required")
+                        return self._json(200, self._p6_calendar_api.save_definition(
+                            scope,
+                            calendar_id,
+                            calendar_version,
+                            definition,
+                            expected_revision=expected_revision,
+                            auth_context=auth,
                         ))
                     if len(parts) == 3 and parts[2] in {"exceptions", "work-hours"}:
                         calendar_id, calendar_version, resource = parts
@@ -882,7 +922,29 @@ class ProjectLifecycleHttpRoutes:
                             expected_revision=expected_revision,
                             auth_context=auth,
                         ))
-                except (TypeError, ValueError, ArithmeticError):
+                except CalendarPersistenceError as exc:
+                    code = _stable_error_code(exc, "P6_CALENDAR_REQUEST_INVALID")
+                    if code in {
+                        "REVISION_CONFLICT",
+                        "SNAPSHOT_IMMUTABLE_CONFLICT",
+                        "CALENDAR_DEFINITION_IMMUTABLE",
+                        "CALENDAR_ALREADY_EXISTS",
+                    }:
+                        return self._error(409, code, "error.p6.calendar.conflict")
+                    if code in {"CALENDAR_NOT_FOUND", "CALENDAR_VERSION_NOT_FOUND"}:
+                        return self._error(404, code, "error.p6.calendar.not_found")
+                    # Every other persistence failure keeps the existing
+                    # opaque code so internal messages never reach the client.
+                    return self._error(400, "P6_CALENDAR_REQUEST_INVALID", "error.request.invalid")
+                except (TypeError, ValueError, ArithmeticError) as exc:
+                    code = _stable_error_code(exc, "P6_CALENDAR_REQUEST_INVALID")
+                    if code.startswith("CALENDAR_DEFINITION_") or code in {
+                        "INVALID_CALENDAR_DEFINITION",
+                        "INVALID_CALENDAR_SYSTEM",
+                    }:
+                        # Definition validation is explicit and safe to name:
+                        # the caller must be able to correct the payload.
+                        return self._error(400, code, "error.request.invalid")
                     return self._error(400, "P6_CALENDAR_REQUEST_INVALID", "error.request.invalid")
             if method == "GET" and path.startswith("/api/projects/") and path.endswith("/p6/calendars"):
                 if self._p6_calendar_read_api is None:
