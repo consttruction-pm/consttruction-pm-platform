@@ -169,8 +169,17 @@ export type WbsPresentation = {
   labels: WbsBandLabels;
 };
 
+export type ChromeVisibility = {
+  titleBar: boolean;
+  menuBar: boolean;
+  statusBar: boolean;
+  toolRails: boolean;
+};
+
 export type WorkspacePresentation = {
   table: TablePresentation;
+  /** V26 View menu: show or hide the desktop chrome bars and tool rails. */
+  chrome: ChromeVisibility;
   bars: GanttBarStyleSet;
   timescale: GanttTimescale;
   wbs: WbsPresentation;
@@ -187,6 +196,13 @@ export type GanttBarFacts = {
   progress: number;
   hasActual: boolean;
   hasBaseline: boolean;
+};
+
+export const DEFAULT_CHROME: ChromeVisibility = {
+  titleBar: true,
+  menuBar: true,
+  statusBar: true,
+  toolRails: true,
 };
 
 const DEFAULT_TABLE: TablePresentation = {
@@ -283,6 +299,7 @@ const DEFAULT_GANTT: GanttChartSettings = {
 
 export const DEFAULT_PRESENTATION: WorkspacePresentation = {
   table: { ...DEFAULT_TABLE },
+  chrome: { ...DEFAULT_CHROME },
   filters: EMPTY_ACTIVITY_FILTERS,
   timescale: { ...DEFAULT_TIMESCALE },
   wbs: { ...DEFAULT_WBS, levelColors: [...DEFAULT_WBS_LEVEL_COLORS], labels: { ...DEFAULT_WBS.labels } },
@@ -493,7 +510,14 @@ export function normalizePresentation(value: unknown): WorkspacePresentation {
   for (const kind of GANTT_BAR_KINDS) {
     bars[kind] = normalizeBarStyle(barsInput[kind], DEFAULT_PRESENTATION.bars[kind]);
   }
+  const chromeInput = input.chrome && typeof input.chrome === "object" ? input.chrome as Record<string, unknown> : {};
   return {
+    chrome: {
+      titleBar: boolean(chromeInput.titleBar, DEFAULT_CHROME.titleBar),
+      menuBar: boolean(chromeInput.menuBar, DEFAULT_CHROME.menuBar),
+      statusBar: boolean(chromeInput.statusBar, DEFAULT_CHROME.statusBar),
+      toolRails: boolean(chromeInput.toolRails, DEFAULT_CHROME.toolRails),
+    },
     table: {
       fontFamily: oneOf(TABLE_FONT_FAMILIES, tableInput.fontFamily, DEFAULT_TABLE.fontFamily),
       fontSize: clampInteger(tableInput.fontSize, 9, 16, DEFAULT_TABLE.fontSize),

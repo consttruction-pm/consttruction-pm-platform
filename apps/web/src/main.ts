@@ -2280,6 +2280,21 @@ function renderApp(
         void saveCurrentLayout();
         return;
       }
+      case "view.title-bar":
+      case "view.menu-bar":
+      case "view.status-bar":
+      case "view.tool-rails": {
+        const key = command.replace("view.", "") as "title-bar" | "menu-bar" | "status-bar" | "tool-rails";
+        const field = { "title-bar": "titleBar", "menu-bar": "menuBar", "status-bar": "statusBar", "tool-rails": "toolRails" } as const;
+        const chrome = { ...visualPreferences.presentation.chrome, [field[key]]: !visualPreferences.presentation.chrome[field[key]] };
+        rememberVisualPreferences({
+          density: visualPreferences.density,
+          presentation: normalizePresentation({ ...visualPreferences.presentation, chrome }),
+        });
+        renderApp(container, state, persistence);
+        void saveCurrentLayout();
+        return;
+      }
       case "layout.open":
         activateWindow("schedule");
         // "Open Layout" opens the stored-layout chooser, not the Columns
@@ -2444,6 +2459,10 @@ function renderApp(
     document.documentElement.dataset.tableDensity = visualPreferences.density;
     document.documentElement.dataset.tableRowMode = table.rowHeightMode;
     document.documentElement.dataset.showIcons = String(table.showIcons);
+    document.documentElement.dataset.chromeTitle = String(visualPreferences.presentation.chrome.titleBar);
+    document.documentElement.dataset.chromeMenu = String(visualPreferences.presentation.chrome.menuBar);
+    document.documentElement.dataset.chromeStatus = String(visualPreferences.presentation.chrome.statusBar);
+    document.documentElement.dataset.chromeRails = String(visualPreferences.presentation.chrome.toolRails);
     document.documentElement.dataset.lineNumbers = String(table.lineNumbers);
     document.documentElement.style.setProperty("--cp-p6-row-height", `${table.rowHeight}px`);
     document.documentElement.style.setProperty("--cp-p6-font-size", `${table.fontSize}px`);

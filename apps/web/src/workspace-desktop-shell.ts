@@ -58,6 +58,10 @@ export type DesktopCommand =
   | "layout.save-as"
   | "view.fields"
   | "view.line-numbers"
+  | "view.title-bar"
+  | "view.menu-bar"
+  | "view.status-bar"
+  | "view.tool-rails"
   | "view.expand-all"
   | "view.collapse-all"
   | "view.collapse-to"
@@ -413,6 +417,10 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
         { id: "view.font-row", label: { en: "Table Font and Row…", fa: "قلم و ردیف جدول…" }, command: "dialog.font-row" },
         { id: "view.preferences", label: { en: "User Preferences…", fa: "ترجیحات کاربر…" }, command: "dialog.user-preferences" },
         { id: "view.line-numbers", label: { en: "Line Numbers", fa: "شمارهٔ ردیف" }, command: "view.line-numbers", checked: presentation.table.lineNumbers },
+        { id: "view.title-bar", label: { en: "Title Bar", fa: "نوار عنوان" }, command: "view.title-bar", checked: presentation.chrome.titleBar },
+        { id: "view.menu-bar", label: { en: "Menu Bar", fa: "نوار منو" }, command: "view.menu-bar", checked: presentation.chrome.menuBar },
+        { id: "view.status-bar", label: { en: "Status Bar", fa: "نوار وضعیت" }, command: "view.status-bar", checked: presentation.chrome.statusBar },
+        { id: "view.tool-rails", label: { en: "Tool Rails", fa: "ریل‌های ابزار" }, command: "view.tool-rails", checked: presentation.chrome.toolRails },
         separator("view.sep1"),
         {
           id: "view.expand-all",
