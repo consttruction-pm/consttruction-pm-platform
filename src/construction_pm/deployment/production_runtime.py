@@ -50,9 +50,15 @@ from ..global_administration_http import GlobalAdministrationHttpMiddleware
 from ..knowledge.postgres_store import PostgresKnowledgeStore
 from ..knowledge.runtime import build_knowledge_runtime
 from ..p6_activity_master_api import P6ActivityMasterAPI
+from ..p6_issue_api import P6IssueAPI
+from ..p6_issue_repository import PostgresP6IssueRepository
 from ..risk_api import RiskAPI
 from ..risk_application import RiskApplicationService
 from ..risk_persistence import PostgresRiskStore
+from ..threshold_api import ThresholdAPI
+from ..threshold_application import ThresholdApplicationService
+from ..threshold_metrics import ProjectMetricReader
+from ..threshold_persistence import PostgresThresholdStore
 from ..application.authorization import (
     RoleBasedAuthorizationPolicy,
     default_role_permissions,
@@ -502,6 +508,29 @@ class ProductionRuntime:
         risk_api = RiskAPI(
             RiskApplicationService(risk_store, policy, transaction_manager)
         )
+        # Threshold definitions, audit and monitoring over the same durable
+        # database. The issue writer shares the monitor's transaction (no
+        # nested manager) so a raised issue and its run commit atomically.
+        issue_repository = PostgresP6IssueRepository(connection)
+        threshold_store = PostgresThresholdStore(connection)
+        issue_api = P6IssueAPI(issue_repository, policy)
+
+        def _threshold_issue_writer(issue, *, context, occurred_at):
+            issue_api.create(issue, auth_context=context, occurred_at=occurred_at)
+            return issue.issue_id
+
+        threshold_api = ThresholdAPI(
+            ThresholdApplicationService(
+                threshold_store,
+                policy,
+                transaction_manager,
+                # Expense and budget sources are not part of the deployed
+                # surface yet; monitoring those parameters fails closed with
+                # *_SOURCE_NOT_CONNECTED instead of inventing a zero.
+                ProjectMetricReader(issue_repository, None, None),
+                _threshold_issue_writer,
+            )
+        )
         form_repository = PostgresFormBuilderRepository(connection, initialize=False)
         form_builder_api = FormBuilderAPI(
             form_repository,
@@ -534,6 +563,7 @@ class ProductionRuntime:
             p6_obs_node_api=P6OBSNodeAPI(obs_node_service, policy),
             p6_layout_definition_api=P6LayoutDefinitionAPI(layout_repository, policy),
             risk_api=risk_api,
+            threshold_api=threshold_api,
             form_builder_api=form_builder_api,
             ai_action_runtime=ai_action_runtime,
             ai_assistant_provider=ai_assistant_provider,

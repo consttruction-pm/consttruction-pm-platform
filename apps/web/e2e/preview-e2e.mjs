@@ -3664,6 +3664,187 @@ async function main() {
     await page.click('dialog[data-desktop-dialog="font-row"] [data-dialog-cancel]');
     record("single desktop chrome sequence and promoted layout commands work", chromeStructure);
 
+    // Thresholds: the full create -> reload -> edit -> stale revision -> monitor
+    // -> delete cycle against the real runtime, with no mocked transport.
+    await page.click('[data-toolbar-command="toolbar.thresholds-window"]');
+    await page.waitForSelector(
+      '[data-thresholds-page] [data-threshold-action="new"]',
+      "thresholds window with its register commands",
+    );
+    const thresholdId = "TH-E2E-UI-1";
+    const thresholdUpper = "2000";
+    await page.click('[data-threshold-action="new"]');
+    await page.waitForSelector("form[data-threshold-form]", "threshold create form");
+    await page.evaluate(`(() => {
+      const form = document.querySelector("form[data-threshold-form]");
+      const set = (name, value) => {
+        const field = form.querySelector('[name="' + name + '"]');
+        if (!field) throw new Error("missing field " + name);
+        field.value = value;
+        field.dispatchEvent(new Event("input", { bubbles: true }));
+      };
+      set("threshold-id", "${thresholdId}");
+      set("threshold-name", "E2E expense ceiling");
+      set("threshold-upper", "1000");
+      set("threshold-warning", "10");
+      set("threshold-issue", "50");
+      set("threshold-manager", "E2E Planner");
+      form.requestSubmit();
+      return true;
+    })()`);
+    await page.waitForSelector(`[data-threshold-id="${thresholdId}"]`, "stored threshold row", 30000);
+    const thresholdCreated = await page.evaluate(`(() => ({
+      notice: document.querySelector("[data-threshold-notice]")?.textContent ?? "",
+      row: document.querySelector('[data-threshold-id="${thresholdId}"]')?.textContent?.replace(/\\s+/g, " ").trim() ?? "",
+      revision: Array.from(document.querySelectorAll(".cp-register-details input[readonly]")).at(-1)?.value ?? null,
+    }))()`);
+    assert(/saved/i.test(thresholdCreated.notice), "the create must confirm the stored threshold: " + thresholdCreated.notice);
+    assert(thresholdCreated.row.includes("E2E expense ceiling"), "the register must read the stored threshold back: " + thresholdCreated.row);
+
+    // A full document reload must read the same persisted row.
+    await page.navigate(
+      `${baseUrl}/app?project=${PROJECT_ID}&view=live`,
+      ".cp-workspace",
+      "reload the workspace before re-reading thresholds",
+    );
+    await page.click('[data-toolbar-command="toolbar.thresholds-window"]');
+    await page.waitForSelector(`[data-threshold-id="${thresholdId}"]`, "threshold persisted across a full document reload", 30000);
+    const thresholdReloaded = await page.evaluate(`(() => {
+      const row = document.querySelector('[data-threshold-id="${thresholdId}"]');
+      row?.click();
+      return { row: row?.textContent?.replace(/\\s+/g, " ").trim() ?? "" };
+    })()`);
+    assert(thresholdReloaded.row.includes("E2E expense ceiling"), "the reloaded register must show the stored threshold");
+    await page.waitFor(
+      `Array.from(document.querySelectorAll(".cp-register-details input[readonly]")).at(-1)?.value === "1"`,
+      "reloaded threshold revision 1",
+      15000,
+    );
+
+    // Edit with expected_revision and verify the new revision is read back.
+    await page.click(`[data-threshold-edit="${thresholdId}"]`);
+    await page.waitForSelector("form[data-threshold-form]", "threshold edit form");
+    await page.evaluate(`(() => {
+      const form = document.querySelector("form[data-threshold-form]");
+      const field = form.querySelector('[name="threshold-upper"]');
+      field.value = "${thresholdUpper}";
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      form.requestSubmit();
+      return true;
+    })()`);
+    await page.waitFor(
+      `Array.from(document.querySelectorAll(".cp-register-details input[readonly]")).at(-1)?.value === "2"`,
+      "threshold revision 2 after the guarded edit",
+      30000,
+    );
+    const staleRevision = await page.evaluate(
+      `(async () => {
+        const response = await fetch("/api/projects/${PROJECT_ID}/thresholds/${thresholdId}", {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            threshold_id: "${thresholdId}",
+            name: "Stale overwrite attempt",
+            monitoring_subject: "cost",
+            parameter: "expense_actual_total",
+            currency: "USD",
+            lower_threshold: null,
+            upper_threshold: "1",
+            warning_level: "1",
+            issue_level: "2",
+            responsible_manager: "E2E Planner",
+            status: "active",
+            expected_revision: 1,
+          }),
+        });
+        const payload = await response.json();
+        const read = await fetch("/api/projects/${PROJECT_ID}/thresholds/${thresholdId}").then((item) => item.json());
+        return {
+          status: response.status,
+          code: payload.code ?? null,
+          revision: read.revision,
+          upper: read.upper_threshold,
+          name: read.name,
+        };
+      })()`,
+      { awaitPromise: true },
+    );
+    assert(
+      staleRevision.status === 409 && staleRevision.code === "THRESHOLD_REVISION_CONFLICT",
+      "a stale expected_revision must be rejected: " + JSON.stringify(staleRevision),
+    );
+    assert(
+      staleRevision.revision === 2 && staleRevision.upper === thresholdUpper && staleRevision.name === "E2E expense ceiling",
+      "the rejected edit must leave the stored definition untouched: " + JSON.stringify(staleRevision),
+    );
+
+    // Monitoring reads the authoritative expense total (zero expenses) and
+    // appends one immutable run; the audit trail lists both transitions.
+    await page.click('[data-threshold-monitor]');
+    await page.waitForSelector("[data-threshold-notice]", "monitoring confirmation", 30000);
+    await page.waitFor(
+      `document.querySelector(".cp-threshold-runs")?.textContent?.includes("Normal") === true`,
+      "monitoring run rendered from the server",
+      30000,
+    );
+    const thresholdEvidence = await page.evaluate(`(() => ({
+      notice: document.querySelector("[data-threshold-notice]")?.textContent ?? "",
+      runs: document.querySelectorAll(".cp-threshold-runs tbody tr").length,
+      history: document.querySelector(".cp-threshold-history")?.textContent ?? "",
+      revision: Array.from(document.querySelectorAll(".cp-register-details input[readonly]")).at(-1)?.value ?? null,
+    }))()`);
+    assert(/Monitoring recorded/i.test(thresholdEvidence.notice), "monitoring must confirm the run: " + thresholdEvidence.notice);
+    assert(thresholdEvidence.runs === 1, "one monitoring run must be listed: " + thresholdEvidence.runs);
+    assert(/created/i.test(thresholdEvidence.history) && /updated/i.test(thresholdEvidence.history), "the audit history must list create and update: " + thresholdEvidence.history);
+    assert(thresholdEvidence.revision === "2", "the detail panel must keep the current revision");
+    await page.screenshot("04a-workspace-thresholds.png");
+    record("threshold create, reload, guarded edit, stale rejection, monitoring and audit run end to end", {
+      threshold_id: thresholdId,
+      revision: thresholdEvidence.revision,
+      runs: thresholdEvidence.runs,
+      stale: staleRevision,
+    });
+
+    await page.click(`[data-threshold-delete="${thresholdId}"]`);
+    await page.waitFor(
+      `Boolean(document.querySelector('[data-threshold-id="${thresholdId}"]')) === false`,
+      "threshold removed from the register after delete",
+      30000,
+    );
+    await page.navigate(
+      `${baseUrl}/app?project=${PROJECT_ID}&view=live`,
+      ".cp-workspace",
+      "reload after threshold delete",
+    );
+    await page.click('[data-toolbar-command="toolbar.thresholds-window"]');
+    await page.waitForSelector('[data-thresholds-page] [data-threshold-action="new"]', "thresholds window after delete", 30000);
+    await page.waitFor(
+      `Boolean(document.querySelector('[data-threshold-id="${thresholdId}"]')) === false`,
+      "deleted threshold stays deleted after a full reload",
+      15000,
+    );
+    await page.waitFor(
+      `document.querySelector("[data-thresholds-page]")?.textContent?.includes("No thresholds are stored") === true`,
+      "empty threshold register after the reload",
+      15000,
+    );
+    const thresholdAfterDelete = await page.evaluate(`(() => ({
+      rows: document.querySelectorAll("[data-threshold-row]").length,
+      text: document.querySelector(".cp-register-table")?.textContent ?? document.querySelector("[data-thresholds-page]")?.textContent ?? "",
+    }))()`);
+    assert(thresholdAfterDelete.rows === 0 && /No thresholds are stored/i.test(thresholdAfterDelete.text.replace(/\s+/g, " ")), "the register must report its honest empty state: " + JSON.stringify(thresholdAfterDelete));
+    record("threshold delete survives a full reload and leaves the register empty", thresholdAfterDelete);
+
+    // Return to Activities so later chrome assertions read the schedule window.
+    await page.evaluate(`(() => {
+      const rail = document.querySelector('[data-rail-action="activities"]');
+      if (rail) { rail.click(); return "rail"; }
+      const nav = document.querySelector('[data-nav-flyout] button[data-menu="schedule"]');
+      if (nav) { nav.click(); return "nav"; }
+      throw new Error("no route back to Activities");
+    })()`);
+    await page.waitForSelector("#cp-activity-grid", "Activities restored after the threshold journey", 30000);
+
     const headerLabels = await page.evaluate(`(() =>
       Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column")).map((th) => th.textContent.replace("ƒx", "").trim())
     )()`);

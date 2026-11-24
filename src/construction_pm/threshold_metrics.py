@@ -45,6 +45,8 @@ class ProjectMetricReader:
                 total += len(self.issue_repository.list(scope, status=status))
             return Decimal(total)
         if parameter == "expense_actual_total":
+            if self.cost_store is None:
+                raise KeyError("THRESHOLD_EXPENSE_SOURCE_NOT_CONNECTED")
             if not currency:
                 raise KeyError("THRESHOLD_CURRENCY_REQUIRED")
             total = Decimal("0")
@@ -56,6 +58,8 @@ class ProjectMetricReader:
                     total += expense.actual_amount
             return total
         if parameter == "budget_balance":
+            if self.budget_store is None:
+                raise KeyError("THRESHOLD_BUDGET_SOURCE_NOT_CONNECTED")
             if not currency:
                 raise KeyError("THRESHOLD_CURRENCY_REQUIRED")
             current = Decimal("0")

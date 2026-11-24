@@ -295,24 +295,24 @@ def test_migration_ledger_is_versioned_idempotent_and_reports_drift():
     schema = _schema_name("cubi_mig")
     connection, first = _apply_drift_free_schema(schema)
     try:
-        assert first.ledger_version == 16
-        assert len(first.applied) == 16
+        assert first.ledger_version == 17
+        assert len(first.applied) == 17
         assert first.already_applied == ()
-        assert first.table_count == 95
+        assert first.table_count == 98
         assert first.drift is None
 
         second = apply_migrations(connection)
         assert second.applied == ()
-        assert second.already_applied == tuple(range(1, 17))
+        assert second.already_applied == tuple(range(1, 18))
         assert second.drift is None
-        assert second.table_count == 95
+        assert second.table_count == 98
 
         rows = connection.execute(
             f"SELECT version, name, checksum, step_revision, runtime_version "
             f"FROM {LEDGER_TABLE} ORDER BY version"
         ).fetchall()
-        assert [row[0] for row in rows] == list(range(1, 17))
-        assert all(row[2] and row[3] >= 1 and row[4] == 16 for row in rows)
+        assert [row[0] for row in rows] == list(range(1, 18))
+        assert all(row[2] and row[3] >= 1 and row[4] == 17 for row in rows)
 
         # An edited history is reported, never silently accepted.
         connection.execute(
@@ -363,8 +363,8 @@ def test_runtime_readiness_uses_the_migrated_schema(runtime):
     assert status == 200
     readiness = json.loads(body)
     assert readiness["status"] == "ready"
-    assert readiness["schema"]["version"] == 16
-    assert readiness["schema"]["tables"] == 95
+    assert readiness["schema"]["version"] == 17
+    assert readiness["schema"]["tables"] == 98
 
 
 # ---------------------------------------------------------------------------
@@ -1166,3 +1166,214 @@ def test_username_signup_is_durable_and_duplicate_recovery_keeps_postgres_usable
     )
     assert status == 201, body
 
+
+
+# ---------------------------------------------------------------------------
+# P0-E: threshold register end-to-end over the production PostgreSQL runtime
+# ---------------------------------------------------------------------------
+
+
+def _threshold_payload(threshold_id: str, **overrides):
+    payload = {
+        "threshold_id": threshold_id,
+        "name": "Open issue ceiling",
+        "monitoring_subject": "quality",
+        "parameter": "open_issue_count",
+        "currency": None,
+        "lower_threshold": None,
+        "upper_threshold": "4",
+        "warning_level": "2",
+        "issue_level": "3",
+        "responsible_manager": "Planner",
+        "status": "active",
+    }
+    payload.update(overrides)
+    return payload
+
+
+def _db_rows(runtime, statement: str, params: tuple = ()):
+    import psycopg
+
+    connection = psycopg.connect(
+        os.environ["CONSTRUCTION_PM_POSTGRES_DSN"],
+        autocommit=True,
+        options=f"-c search_path={runtime.test_ids['schema']}",
+    )
+    try:
+        return connection.execute(statement, params).fetchall()
+    finally:
+        connection.close()
+
+
+def test_threshold_register_end_to_end_over_postgres(runtime):
+    ids = runtime.test_ids
+    project = ids["project_a"]
+    base = f"/api/projects/{project}/thresholds"
+    planner_cookie, planner_csrf = login(runtime, "planner", PLANNER_PASSWORD)
+    viewer_cookie, viewer_csrf = login(runtime, "viewer", VIEWER_PASSWORD)
+    outsider_cookie, outsider_csrf = login(runtime, "outsider", ADMIN_PASSWORD)
+    threshold_id = f"TH-E2E-{ids['suffix']}"
+
+    # 1. The register starts empty for this project.
+    status, _, body = call(runtime, "GET", base, cookie=planner_cookie)
+    assert status == 200, body
+    assert json.loads(body)["thresholds"] == []
+
+    # 2. Create, persisted through the production composition.
+    status, _, body = call(
+        runtime,
+        "POST",
+        base,
+        body=_threshold_payload(threshold_id),
+        cookie=planner_cookie,
+        csrf=planner_csrf,
+        headers={"Idempotency-Key": f"idem-{threshold_id}"},
+    )
+    assert status == 200, body
+    created = json.loads(body)
+    assert created["revision"] == 1 and created["upper_threshold"] == "4"
+
+    # 3. Reload in a new request: the row is a real PostgreSQL record.
+    status, _, body = call(runtime, "GET", f"{base}/{threshold_id}", cookie=planner_cookie)
+    assert status == 200, body
+    assert json.loads(body)["revision"] == 1
+    stored = _db_rows(
+        runtime,
+        "SELECT revision, threshold_json FROM project_threshold "
+        "WHERE tenant_id=%s AND project_id=%s AND threshold_id=%s",
+        (ids["tenant_a"], project, threshold_id),
+    )
+    assert len(stored) == 1 and stored[0][0] == 1
+
+    # 4. Edit with expected_revision, then verify the new revision.
+    status, _, body = call(
+        runtime,
+        "PATCH",
+        f"{base}/{threshold_id}",
+        body=_threshold_payload(threshold_id, upper_threshold="9", expected_revision=1),
+        cookie=planner_cookie,
+        csrf=planner_csrf,
+    )
+    assert status == 200, body
+    assert json.loads(body)["revision"] == 2
+    status, _, body = call(runtime, "GET", f"{base}/{threshold_id}", cookie=planner_cookie)
+    assert json.loads(body)["revision"] == 2
+    assert json.loads(body)["upper_threshold"] == "9"
+
+    # 5. A stale revision is rejected and changes nothing.
+    status, _, body = call(
+        runtime,
+        "PATCH",
+        f"{base}/{threshold_id}",
+        body=_threshold_payload(threshold_id, upper_threshold="1", expected_revision=1),
+        cookie=planner_cookie,
+        csrf=planner_csrf,
+    )
+    assert status == 409, body
+    assert json.loads(body)["code"] == "THRESHOLD_REVISION_CONFLICT"
+    status, _, body = call(runtime, "GET", f"{base}/{threshold_id}", cookie=planner_cookie)
+    assert json.loads(body)["revision"] == 2 and json.loads(body)["upper_threshold"] == "9"
+
+    # 6. Audit history records both transitions.
+    status, _, body = call(runtime, "GET", f"{base}/{threshold_id}/history", cookie=planner_cookie)
+    assert status == 200, body
+    events = json.loads(body)["events"]
+    assert [(event["event_type"], event["revision"]) for event in events] == [
+        ("created", 1),
+        ("updated", 2),
+    ]
+
+    # 7. Monitoring writes an immutable run; the open-issue source is connected.
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"{base}/{threshold_id}/monitor",
+        body={},
+        cookie=planner_cookie,
+        csrf=planner_csrf,
+        headers={"Idempotency-Key": f"monitor-{threshold_id}"},
+    )
+    assert status == 200, body
+    run = json.loads(body)["run"]
+    assert run["level"] == "normal" and run["observed_value"] == "0"
+    runs = _db_rows(
+        runtime,
+        "SELECT run_sequence FROM project_threshold_run "
+        "WHERE tenant_id=%s AND project_id=%s AND threshold_id=%s",
+        (ids["tenant_a"], project, threshold_id),
+    )
+    assert runs == [(1,)]
+
+    # A parameter whose source is not deployed fails closed instead of
+    # inventing an observed value.
+    cost_id = f"TH-COST-{ids['suffix']}"
+    status, _, body = call(
+        runtime,
+        "POST",
+        base,
+        body=_threshold_payload(
+            cost_id,
+            monitoring_subject="cost",
+            parameter="expense_actual_total",
+            currency="USD",
+        ),
+        cookie=planner_cookie,
+        csrf=planner_csrf,
+        headers={"Idempotency-Key": f"idem-{cost_id}"},
+    )
+    assert status == 200, body
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"{base}/{cost_id}/monitor",
+        body={},
+        cookie=planner_cookie,
+        csrf=planner_csrf,
+        headers={"Idempotency-Key": f"monitor-{cost_id}"},
+    )
+    assert status == 400, body
+    assert json.loads(body)["code"] == "THRESHOLD_EXPENSE_SOURCE_NOT_CONNECTED"
+
+    # 8. Permissions: a viewer reads but never writes; another tenant cannot
+    # reach the project at all.
+    status, _, body = call(runtime, "GET", base, cookie=viewer_cookie)
+    assert status == 200 and len(json.loads(body)["thresholds"]) == 2
+    status, _, body = call(
+        runtime,
+        "POST",
+        base,
+        body=_threshold_payload(f"TH-VIEWER-{ids['suffix']}"),
+        cookie=viewer_cookie,
+        csrf=viewer_csrf,
+        headers={"Idempotency-Key": f"idem-viewer-{ids['suffix']}"},
+    )
+    assert status == 403, body
+    status, _, body = call(runtime, "GET", base, cookie=outsider_cookie)
+    assert status == 403, body
+
+    # 9. Delete with the current revision, then confirm the row and its runs
+    # are gone while the audit trail still proves the full cycle.
+    status, _, body = call(
+        runtime,
+        "DELETE",
+        f"{base}/{threshold_id}",
+        body={"expected_revision": 2},
+        cookie=planner_cookie,
+        csrf=planner_csrf,
+    )
+    assert status == 200, body
+    status, _, body = call(runtime, "GET", f"{base}/{threshold_id}", cookie=planner_cookie)
+    assert status == 404, body
+    assert _db_rows(
+        runtime,
+        "SELECT COUNT(*) FROM project_threshold "
+        "WHERE tenant_id=%s AND project_id=%s",
+        (ids["tenant_a"], project),
+    ) == [(1,)]
+    audit = _db_rows(
+        runtime,
+        "SELECT event_type, revision FROM project_threshold_audit "
+        "WHERE tenant_id=%s AND project_id=%s AND entity_id=%s ORDER BY revision",
+        (ids["tenant_a"], project, threshold_id),
+    )
+    assert audit == [("created", 1), ("updated", 2), ("deleted", 3)]

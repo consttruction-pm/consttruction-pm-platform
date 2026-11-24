@@ -386,6 +386,15 @@ class PostgresDocumentContentRepository:
 
     def append(self, version: DocumentContentVersion) -> DocumentContentVersion:
         version.validate()
+        # Serialize appends for one document so two callers cannot read the
+        # same MAX(version) and then race the next version allocation. The lock
+        # is transaction-scoped: it is released by commit or rollback.
+        scope_key = "\x1f".join(
+            (version.tenant_id, version.project_id, version.document_id)
+        )
+        self.connection.execute(
+            "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", (scope_key,)
+        )
         existing = self.get_by_idempotency(
             version.tenant_id,
             version.project_id,
@@ -407,6 +416,25 @@ class PostgresDocumentContentRepository:
         ).fetchone()
         next_version = int(row[0]) + 1
         if next_version != version.version:
+            # A concurrent append of the same idempotency key may have
+            # committed after the check above (the read and this computation
+            # are separate statements). Re-read before declaring a gap: the
+            # stored version is authoritative and repeating a write must be
+            # idempotent rather than fail with DOCUMENT_CONTENT_VERSION_GAP.
+            existing = self.get_by_idempotency(
+                version.tenant_id,
+                version.project_id,
+                version.document_id,
+                version.idempotency_key,
+            )
+            if existing is not None:
+                if (
+                    existing.content_hash != version.content_hash
+                    or existing.content_type != version.content_type
+                    or existing.byte_size != version.byte_size
+                ):
+                    raise DocumentIdempotencyReuse("DOCUMENT_CONTENT_IDEMPOTENCY_KEY_REUSE")
+                return existing
             raise DocumentContentPersistenceError("DOCUMENT_CONTENT_VERSION_GAP")
         cur = self.connection.execute(
             "INSERT INTO project_document_content "

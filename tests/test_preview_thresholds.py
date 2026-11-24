@@ -178,26 +178,74 @@ def test_preview_threshold_monitoring_raises_a_real_issue(tmp_path: Path) -> Non
         assert status == 200, body[:300]
         assert json.loads(body)["revision"] == 2
 
+        # A stale expected_revision must be rejected without changing the row.
         status, body = _request(
             runtime.app,
-            "DELETE",
-            f"{BASE}/thresholds/TH-COST-1?expected_revision=2",
+            "PATCH",
+            f"{BASE}/thresholds/TH-COST-1",
+            body=_threshold(upper_threshold="5", expected_revision=1),
             cookie=planner.session_id,
         )
-        assert status == 200 and json.loads(body)["deleted"] is True
+        assert status == 409, body[:300]
+        assert json.loads(body)["code"] == "THRESHOLD_REVISION_CONFLICT"
         status, body = _request(
-            runtime.app, "GET", f"{BASE}/thresholds/TH-COST-1", cookie=viewer.session_id
+            runtime.app, "GET", f"{BASE}/thresholds/TH-COST-1", cookie=planner.session_id
         )
-        assert status == 404, body[:300]
+        current = json.loads(body)
+        assert current["revision"] == 2 and current["upper_threshold"] == "2000"
 
+        status, body = _request(
+            runtime.app,
+            "GET",
+            f"{BASE}/thresholds/TH-COST-1/history",
+            cookie=planner.session_id,
+        )
+        assert status == 200, body[:300]
+        assert [
+            (event["event_type"], event["revision"])
+            for event in json.loads(body)["events"]
+        ] == [("created", 1), ("updated", 2)]
+
+        # Reopen the database: the definition and its revision are durable.
+        runtime.close()
         reopened = open_preview_runtime(tmp_path / "preview.sqlite3")
         try:
             reader = reopened.sessions.create(DEMO_USERS_BY_ROLE["viewer"])
+            writer = reopened.sessions.create(DEMO_USERS_BY_ROLE["planner"])
+            status, body = _request(
+                reopened.app, "GET", f"{BASE}/thresholds/TH-COST-1", cookie=reader.session_id
+            )
+            assert status == 200, body[:300]
+            restored = json.loads(body)
+            assert restored["revision"] == 2 and restored["upper_threshold"] == "2000"
+
+            status, body = _request(
+                reopened.app,
+                "DELETE",
+                f"{BASE}/thresholds/TH-COST-1?expected_revision=2",
+                cookie=writer.session_id,
+            )
+            assert status == 200 and json.loads(body)["deleted"] is True
+            status, body = _request(
+                reopened.app, "GET", f"{BASE}/thresholds/TH-COST-1", cookie=reader.session_id
+            )
+            assert status == 404, body[:300]
             status, body = _request(
                 reopened.app, "GET", f"{BASE}/thresholds", cookie=reader.session_id
             )
             assert status == 200 and json.loads(body)["thresholds"] == []
         finally:
             reopened.close()
+
+        # The audit trail keeps the full cycle after the definition is deleted.
+        import sqlite3
+
+        with sqlite3.connect(tmp_path / "preview.sqlite3") as audit:
+            events = audit.execute(
+                "SELECT event_type, revision FROM project_threshold_audit "
+                "WHERE tenant_id=? AND project_id=? ORDER BY revision",
+                ("cubi-preview-tenant", PROJECT),
+            ).fetchall()
+        assert events == [("created", 1), ("updated", 2), ("deleted", 3)]
     finally:
         runtime.close()

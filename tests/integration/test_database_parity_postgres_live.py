@@ -481,3 +481,107 @@ def test_timezone_microseconds_and_json_round_trip_live() -> None:
         read = exchange.read_run("parity-tenant", "parity-project", "EXR-parity-1")
         assert read.result == _exchange_run().result
         assert read.occurred_at == NOW.isoformat()
+
+
+def test_replayed_append_committed_during_version_allocation_is_idempotent_live() -> None:
+    """The flake that raised DOCUMENT_CONTENT_VERSION_GAP.
+
+    The first version is already committed by another request. This caller is
+    forced to observe the pre-commit state on its idempotency read (the exact
+    window that produced the CI flake) while the version read happens after the
+    commit. The append must return the stored row, not declare a version gap.
+    """
+
+    schema = "parity_" + uuid.uuid4().hex[:10]
+    with psycopg.connect(DSN) as admin:
+        admin.execute(f"CREATE SCHEMA {schema}")
+        admin.execute(f"SET search_path TO {schema}")
+        PostgresDocumentContentRepository(admin).initialize()
+        admin.commit()
+
+        other = psycopg.connect(DSN)
+        try:
+            other.execute(f"SET search_path TO {schema}")
+            stored = PostgresDocumentContentRepository(other).append(_version())
+            other.commit()
+        finally:
+            other.close()
+
+        admin.execute(f"SET search_path TO {schema}")
+        repository = PostgresDocumentContentRepository(admin)
+        original = repository.get_by_idempotency
+        calls: list[str] = []
+
+        def stale_first_read(*args):
+            if not calls:
+                calls.append("stale")
+                return None
+            return original(*args)
+
+        repository.get_by_idempotency = stale_first_read  # type: ignore[method-assign]
+        try:
+            replayed = repository.append(_version())
+            admin.commit()
+            assert replayed == stored
+            assert calls == ["stale"]
+            row_count = admin.execute(
+                "SELECT COUNT(*) FROM project_document_content"
+            ).fetchone()[0]
+            assert row_count == 1
+        finally:
+            admin.execute("SET search_path TO public")
+            admin.execute(f"DROP SCHEMA {schema} CASCADE")
+            admin.commit()
+
+
+def test_append_waits_for_the_document_transaction_lock_live() -> None:
+    """Two appends for one document serialize instead of racing MAX(version)."""
+
+    schema = "parity_" + uuid.uuid4().hex[:10]
+    with psycopg.connect(DSN) as admin:
+        admin.execute(f"CREATE SCHEMA {schema}")
+        admin.execute(f"SET search_path TO {schema}")
+        PostgresDocumentContentRepository(admin).initialize()
+        admin.commit()
+
+        holder = psycopg.connect(DSN)
+        contender = psycopg.connect(DSN)
+        try:
+            holder.execute(f"SET search_path TO {schema}")
+            contender.execute(f"SET search_path TO {schema}")
+            first = PostgresDocumentContentRepository(holder).append(_version())
+            started = threading.Event()
+            finished = threading.Event()
+            result: dict[str, object] = {}
+
+            def worker() -> None:
+                started.set()
+                try:
+                    result["value"] = PostgresDocumentContentRepository(contender).append(_version())
+                    contender.commit()
+                except Exception as exc:  # pragma: no cover - failure path
+                    result["error"] = str(exc)
+                finally:
+                    finished.set()
+
+            thread = threading.Thread(target=worker)
+            thread.start()
+            assert started.wait(timeout=5)
+            # The contender must block on the advisory lock while the first
+            # append is uncommitted.
+            assert not finished.wait(timeout=0.4)
+            holder.commit()
+            assert finished.wait(timeout=10)
+            thread.join(timeout=5)
+            assert "error" not in result, result.get("error")
+            assert result["value"] == first
+            row_count = admin.execute(
+                "SELECT COUNT(*) FROM project_document_content"
+            ).fetchone()[0]
+            assert row_count == 1
+        finally:
+            holder.close()
+            contender.close()
+            admin.execute("SET search_path TO public")
+            admin.execute(f"DROP SCHEMA {schema} CASCADE")
+            admin.commit()
