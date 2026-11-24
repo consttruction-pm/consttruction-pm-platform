@@ -10501,3 +10501,18 @@ body.cp-toolbar-dragging .cp-tool-btn { cursor: grabbing; }
 .cp-admin-edit-form input:not([type="checkbox"]) { padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font: inherit; }
 .cp-admin-edit-form .cp-admin-role { flex-direction: row; align-items: center; gap: 6px; }
 .cp-admin-edit-form button { justify-self: start; padding: 6px 12px; border: 1px solid #b9c6d5; border-radius: 6px; background: #fff; font: inherit; cursor: pointer; }
+
+/* V26 View menu: chrome bar visibility. Hidden bars are removed from layout,
+   not left as invisible space; the tool rails collapse their grid tracks. */
+html[data-chrome-title="false"] .cp-titlebar,
+html[data-chrome-menu="false"] .cp-menubar,
+html[data-chrome-status="false"] .cp-statusbar {
+  display: none !important;
+}
+html[data-chrome-rails="false"] .cp-p6-shell {
+  --cp-tool-rail-left: 0px;
+  --cp-tool-rail-right: 0px;
+}
+html[data-chrome-rails="false"] .cp-p6-shell .cp-tool-rail {
+  display: none !important;
+}

@@ -220,3 +220,25 @@ test("font families resolve to concrete stacks without third-party product names
     assert.doesNotMatch(stack, /oracle|primavera/i);
   }
 });
+
+test("chrome visibility defaults to visible and survives normalization", () => {
+  assert.deepEqual(DEFAULT_PRESENTATION.chrome, {
+    titleBar: true,
+    menuBar: true,
+    statusBar: true,
+    toolRails: true,
+  });
+  const hidden = normalizePresentation({
+    ...DEFAULT_PRESENTATION,
+    chrome: { titleBar: false, menuBar: false, statusBar: false, toolRails: false },
+  });
+  assert.equal(hidden.chrome.titleBar, false);
+  assert.equal(hidden.chrome.menuBar, false);
+  assert.equal(hidden.chrome.statusBar, false);
+  assert.equal(hidden.chrome.toolRails, false);
+  const partial = normalizePresentation({ chrome: { menuBar: false } });
+  assert.equal(partial.chrome.menuBar, false);
+  assert.equal(partial.chrome.titleBar, true);
+  assert.equal(partial.chrome.statusBar, true);
+  assert.equal(partial.chrome.toolRails, true);
+});
