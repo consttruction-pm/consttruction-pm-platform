@@ -204,6 +204,24 @@ function renderPanel(host: HTMLElement, input: WorkspaceCommentsInput): void {
   });
 }
 
+/**
+ * Open the comments rail from a command (the Action toolbar, a menu item or a
+ * shortcut). Re-renders the panel against the latest context so the first open
+ * is never an empty overlay, then moves focus to the comment body.
+ */
+export function openWorkspaceComments(workspace: HTMLElement): boolean {
+  const host = workspace.querySelector<HTMLElement>("[data-comments-panel]");
+  const runtime = host ? commentsRuntime.get(host) : undefined;
+  if (!host || !runtime) return false;
+  renderPanel(host, runtime.input);
+  host.hidden = false;
+  workspace.querySelectorAll<HTMLElement>("[data-comments-toggle]").forEach((button) => {
+    button.setAttribute("aria-pressed", "true");
+  });
+  host.querySelector<HTMLTextAreaElement>('[name="body"]')?.focus({ preventScroll: true });
+  return true;
+}
+
 export function enhanceWorkspaceComments(workspace: HTMLElement, input: WorkspaceCommentsInput): void {
   const host = workspace.querySelector<HTMLElement>("[data-comments-panel]");
   if (!host) return;

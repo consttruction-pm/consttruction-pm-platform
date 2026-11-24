@@ -3523,6 +3523,27 @@ a.cp-submenu-item:hover,a.cp-submenu-item:focus-visible{color:var(--cubi-enginee
 .cp-menubar-item-label { flex: 1 1 auto; }
 .cp-menubar-item-shortcut { flex: 0 0 auto; color: #6a7686; font-size: 11px; font-variant-numeric: tabular-nums; }
 .cp-menubar-item-reason { flex: 0 1 auto; max-width: 190px; color: #8a5a1c; font-size: 10.5px; text-align: end; }
+/* View → Windows flyout. It is fixed-positioned at open time so the parent
+   popup's scroll viewport can never clip it. */
+.cp-menubar-submenu { position: relative; }
+.cp-menubar-submenu-trigger { justify-content: flex-start; }
+.cp-menubar-submenu-arrow { flex: 0 0 auto; color: #4a5d73; font-size: 13px; line-height: 1; }
+.cp-menubar-submenu-popup {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 60;
+  min-width: 236px;
+  max-width: min(92vw, 340px);
+  max-height: min(70vh, 480px);
+  overflow: auto;
+  padding: 5px;
+  border: 1px solid var(--cubi-neutral-border, #c8d1dc);
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 14px 34px rgba(8, 26, 47, .18);
+}
+.cp-menubar-submenu-popup[hidden] { display: none !important; }
 .cp-toolbar {
   display: flex;
   align-items: center;
@@ -3670,6 +3691,12 @@ a.cp-submenu-item:hover,a.cp-submenu-item:focus-visible{color:var(--cubi-enginee
 .cp-desktop-dialog td { padding: 6px 8px; border-bottom: 1px solid #e6ebf1; font-size: 12.5px; text-align: start; }
 .cp-desktop-dialog kbd { padding: 1px 5px; border: 1px solid #cfd8e3; border-radius: 3px; background: #f6f8fb; font-size: 11.5px; }
 .cp-desktop-dialog form { display: flex; justify-content: flex-end; }
+.cp-shortcut-search { display: grid; gap: 4px; margin: 0 0 10px; font-size: 12px; color: #41556d; }
+.cp-shortcut-search input { width: 100%; min-height: 30px; padding: 4px 8px; border: 1px solid #c8d1dc; border-radius: 4px; font: inherit; }
+.cp-shortcut-search input:focus-visible { outline: 2px solid var(--cubi-engineering-blue, #1769aa); outline-offset: 1px; }
+.cp-shortcut-conflicts { margin: 0 0 10px; padding: 6px 8px; border: 1px solid #e0b48a; border-radius: 4px; background: #fff6ec; color: #8a4b13; font-size: 12px; }
+.cp-shortcut-empty { margin: 0 0 10px; color: #6b7787; font-size: 12.5px; }
+.cp-desktop-dialog tr[hidden] { display: none; }
 .cp-desktop-dialog form button {
   min-height: 32px;
   padding: 5px 14px;

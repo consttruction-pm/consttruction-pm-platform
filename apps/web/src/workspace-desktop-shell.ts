@@ -131,6 +131,8 @@ export type DesktopMenuItem = {
   disabledReason?: LocalizedLabel;
   checked?: boolean;
   separator?: boolean;
+  /** Nested entries; the parent row is a flyout, not a command. */
+  submenu?: readonly DesktopMenuItem[];
 };
 
 export type DesktopMenu = {
@@ -247,6 +249,21 @@ export const WINDOW_TITLES: Record<WorkspaceMenuKey, LocalizedLabel> = {
   backup: { en: "Backup / Recovery", fa: "پشتیبان‌گیری / بازیابی" },
 };
 
+/**
+ * The seven windows a Version 26 operator switches between most often. The
+ * View → Windows flyout always lists them so a closed window can be reopened
+ * from the menu, and appends any other open tab so nothing becomes unreachable.
+ */
+export const WINDOW_SWITCHER: readonly WorkspaceMenuKey[] = [
+  "schedule",
+  "project",
+  "wbs",
+  "resources",
+  "assignments",
+  "reports",
+  "tracking",
+];
+
 function language(locale: string): "en" | "fa" {
   return locale.split("-")[0] === "fa" ? "fa" : "en";
 }
@@ -304,12 +321,23 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
   // Show on Top / Show on Bottom only address the Activities window layout.
   const layoutScopeOk = state.activeWindow === "schedule";
   const layoutScopeReason = layoutScopeOk ? undefined : unavailable(REASONS.activitiesWindow, locale);
-  const windowItem = (key: WorkspaceMenuKey, shortcut?: string): DesktopMenuItem => ({
+  const windowShortcut = (key: WorkspaceMenuKey): string | undefined => {
+    const index = state.openWindows.indexOf(key);
+    return index >= 0 && index < 9 ? `Alt+${index + 1}` : undefined;
+  };
+  const windowItem = (key: WorkspaceMenuKey, shortcut = windowShortcut(key)): DesktopMenuItem => ({
     id: `window.${key}`,
     label: WINDOW_TITLES[key],
     shortcut,
     window: key,
+    checked: state.activeWindow === key,
   });
+  // The canonical seven stay listed even when closed so the flyout can reopen
+  // them; any other open window is appended so no tab becomes menu-invisible.
+  const windowSwitcher = [...WINDOW_SWITCHER];
+  for (const key of state.openWindows) {
+    if (!windowSwitcher.includes(key)) windowSwitcher.push(key);
+  }
   const layoutReason = caps.hasLayout ? undefined : unavailable(REASONS.noLayout, locale);
   const hidden = new Set(state.hiddenToolbarGroups ?? []);
   const separator = (id: string): DesktopMenuItem => ({ id, label: { en: "—", fa: "—" }, separator: true });
@@ -534,7 +562,11 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
         { id: "view.theme-copper", label: { en: "CUBI Copper", fa: "CUBI مس" }, command: "view.theme-copper", checked: state.theme === "copper" },
         { id: "view.theme-midnight", label: { en: "CUBI Midnight", fa: "CUBI نیمه‌شب" }, command: "view.theme-midnight", checked: state.theme === "midnight" },
         separator("view.sep4"),
-        ...state.openWindows.map((key, index) => windowItem(key, index < 9 ? `Alt+${index + 1}` : undefined)),
+        {
+          id: "view.windows",
+          label: { en: "Windows", fa: "پنجره‌ها" },
+          submenu: windowSwitcher.map((key) => windowItem(key)),
+        },
         {
           id: "view.close-window",
           label: { en: "Close current window", fa: "بستن پنجرهٔ جاری" },
@@ -548,6 +580,12 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
       accessKey: "p",
       label: { en: "Project", fa: "پروژه" },
       items: [
+        {
+          id: "project.activities",
+          label: WINDOW_TITLES.schedule,
+          window: "schedule",
+          shortcut: windowShortcut("schedule"),
+        },
         { id: "project.settings", label: { en: "Project properties…", fa: "مشخصات پروژه…" }, command: "project.settings" },
         { id: "project.add-wbs", label: { en: "Add WBS element", fa: "افزودن عنصر WBS" }, command: "project.add-wbs" },
         {
@@ -781,6 +819,7 @@ function escapeHtml(value: string): string {
 
 function renderMenuItem(item: DesktopMenuItem, locale: string): string {
   if (item.separator) return `<div class="cp-menubar-separator" role="separator"></div>`;
+  if (item.submenu?.length) return renderSubmenuItem(item, locale);
   const disabled = Boolean(item.disabledReason);
   const reason = item.disabledReason ? pick(item.disabledReason, locale) : "";
   const target = item.window
@@ -795,6 +834,22 @@ function renderMenuItem(item: DesktopMenuItem, locale: string): string {
     <span class="cp-menubar-item-label">${escapeHtml(pick(item.label, locale))}</span>
     ${reason ? `<span class="cp-menubar-item-reason">${escapeHtml(reason)}</span>` : item.shortcut ? `<span class="cp-menubar-item-shortcut">${escapeHtml(item.shortcut)}</span>` : ""}
   </button>`;
+}
+
+function renderSubmenuItem(item: DesktopMenuItem, locale: string): string {
+  const icon = desktopMenuIcon(item.id);
+  const label = pick(item.label, locale);
+  return `<div class="cp-menubar-submenu" data-desktop-submenu="${escapeHtml(item.id)}">
+    <button type="button" role="menuitem" aria-haspopup="true" aria-expanded="false" class="cp-menubar-item cp-menubar-submenu-trigger" data-desktop-submenu-trigger="${escapeHtml(item.id)}">
+      <span class="cp-menubar-item-check" aria-hidden="true"></span>
+      <span class="cp-menubar-item-icon" aria-hidden="true">${icon ? workspaceIcon(icon) : ""}</span>
+      <span class="cp-menubar-item-label">${escapeHtml(label)}</span>
+      <span class="cp-menubar-submenu-arrow" aria-hidden="true">›</span>
+    </button>
+    <div class="cp-menubar-submenu-popup" role="menu" data-desktop-submenu-popup="${escapeHtml(item.id)}" aria-label="${escapeHtml(label)}" hidden>
+      ${item.submenu!.map((child) => renderMenuItem(child, locale)).join("")}
+    </div>
+  </div>`;
 }
 
 function renderMenus(state: DesktopShellState): string {
@@ -953,6 +1008,26 @@ export function shortcutUnavailableReason(
   return null;
 }
 
+/**
+ * A chord bound to more than one command is a conflict: whichever entry runs
+ * first silently shadows the other. The catalogue must stay conflict-free,
+ * and the shortcuts dialog reports any conflict instead of hiding it.
+ */
+export function shortcutConflicts(
+  shortcuts: readonly DesktopShortcut[],
+): Array<{ keys: string; ids: string[] }> {
+  const byKeys = new Map<string, string[]>();
+  for (const shortcut of shortcuts) {
+    const normalized = shortcut.keys.replace(/\s+/g, "").toLowerCase();
+    const ids = byKeys.get(normalized) ?? [];
+    ids.push(shortcut.id);
+    byKeys.set(normalized, ids);
+  }
+  return [...byKeys.entries()]
+    .filter(([, ids]) => ids.length > 1)
+    .map(([keys, ids]) => ({ keys, ids }));
+}
+
 export type DesktopKeyEvent = {
   key: string;
   code?: string;
@@ -1001,18 +1076,35 @@ function renderShortcutsDialog(state: DesktopShellState): string {
   const shortcutWord = translateWorkspaceUiText(locale, "Shortcut", "میانبر");
   const close = translateWorkspaceUiText(locale, "Close", "بستن");
   const unavailableWord = translateWorkspaceUiText(locale, "Unavailable", "در دسترس نیست");
+  const searchLabel = translateWorkspaceUiText(locale, "Search commands or keys", "جست‌وجوی فرمان یا کلید");
+  const emptyLabel = translateWorkspaceUiText(locale, "No shortcut matches this search.", "هیچ میانبری با این جست‌وجو مطابقت ندارد.");
+  const conflictLabel = translateWorkspaceUiText(
+    locale,
+    "Conflicting bindings:",
+    "میانبرهای متعارض:",
+  );
+  const shortcuts = getDesktopShortcuts(state.openWindows);
+  const conflicts = shortcutConflicts(shortcuts);
   const sections = groups
     .filter((group) => group.rows.length > 0)
     .map((group) => `<h3>${escapeHtml(group.title)}</h3>
       <table><thead><tr><th>${escapeHtml(command)}</th><th>${escapeHtml(shortcutWord)}</th></tr></thead>
       <tbody>${group.rows.map((shortcut) => {
         const reason = shortcutUnavailableReason(shortcut, caps);
-        return `<tr${reason ? ' class="is-unavailable"' : ""}><td>${escapeHtml(pick(shortcut.label, locale))}</td><td><kbd>${escapeHtml(shortcut.keys)}</kbd>${reason ? ` <span class="cp-shortcut-reason">${escapeHtml(unavailableWord)} — ${escapeHtml(pick(reason, locale))}</span>` : ""}</td></tr>`;
+        const rowText = `${pick(shortcut.label, locale)} ${shortcut.keys}`.toLowerCase();
+        return `<tr data-shortcut-row data-shortcut-text="${escapeHtml(rowText)}"${reason ? ' class="is-unavailable"' : ""}><td>${escapeHtml(pick(shortcut.label, locale))}</td><td><kbd>${escapeHtml(shortcut.keys)}</kbd>${reason ? ` <span class="cp-shortcut-reason">${escapeHtml(unavailableWord)} — ${escapeHtml(pick(reason, locale))}</span>` : ""}</td></tr>`;
       }).join("")}</tbody></table>`)
     .join("");
   return `<dialog class="cp-desktop-dialog" data-desktop-dialog="shortcuts" aria-labelledby="cp-shortcuts-heading">
     <h2 id="cp-shortcuts-heading">${escapeHtml(heading)}</h2>
+    <label class="cp-shortcut-search"><span>${escapeHtml(searchLabel)}</span>
+      <input type="search" data-shortcut-search placeholder="${escapeHtml(searchLabel)}" aria-label="${escapeHtml(searchLabel)}">
+    </label>
+    ${conflicts.length
+      ? `<p class="cp-shortcut-conflicts" role="alert">${escapeHtml(conflictLabel)} ${conflicts.map((conflict) => escapeHtml(`${conflict.keys} (${conflict.ids.join(", ")})`)).join(", ")}</p>`
+      : ""}
     ${sections}
+    <p class="cp-shortcut-empty" data-shortcut-empty hidden>${escapeHtml(emptyLabel)}</p>
     <form method="dialog"><button type="submit">${escapeHtml(close)}</button></form>
   </dialog>`;
 }
@@ -1108,6 +1200,12 @@ function closeMenus(host: HTMLElement, restoreFocus = false): void {
   const overflowPopup = host.querySelector<HTMLElement>("[data-toolbar-overflow-popup]");
   if (overflowPopup) overflowPopup.hidden = true;
   host.querySelector<HTMLElement>("[data-toolbar-overflow]")?.setAttribute("aria-expanded", "false");
+  host.querySelectorAll<HTMLElement>("[data-desktop-submenu-trigger]").forEach((trigger) => {
+    trigger.setAttribute("aria-expanded", "false");
+  });
+  host.querySelectorAll<HTMLElement>("[data-desktop-submenu-popup]").forEach((popup) => {
+    popup.hidden = true;
+  });
   let restored = false;
   host.querySelectorAll<HTMLElement>("[data-desktop-menu]").forEach((trigger) => {
     const wasOpen = trigger.getAttribute("aria-expanded") === "true";
@@ -1134,6 +1232,42 @@ function openMenu(host: HTMLElement, menuId: string, focusFirst = false): void {
   if (focusFirst) {
     popup.querySelector<HTMLElement>("button:not([disabled])")?.focus();
   }
+}
+
+function toggleSubmenu(host: HTMLElement, submenuId: string, open?: boolean): void {
+  const trigger = host.querySelector<HTMLElement>(`[data-desktop-submenu-trigger="${submenuId}"]`);
+  const popup = host.querySelector<HTMLElement>(`[data-desktop-submenu-popup="${submenuId}"]`);
+  if (!trigger || !popup) return;
+  const next = open ?? popup.hidden;
+  if (!next) {
+    popup.hidden = true;
+    trigger.setAttribute("aria-expanded", "false");
+    return;
+  }
+  popup.hidden = false;
+  trigger.setAttribute("aria-expanded", "true");
+  // The parent popup scrolls, so a flyout anchored with plain CSS would be
+  // clipped by that viewport. Place it in the window instead, flipping to the
+  // opposite side when the row is too close to the screen edge.
+  if (typeof window !== "undefined" && typeof trigger.getBoundingClientRect === "function") {
+    const row = trigger.getBoundingClientRect();
+    const box = popup.getBoundingClientRect();
+    const gap = 2;
+    const margin = 8;
+    const rtl = typeof getComputedStyle === "function"
+      && getComputedStyle(trigger).direction === "rtl";
+    let left = rtl ? row.left - box.width - gap : row.right + gap;
+    if (left < margin) left = row.right + gap;
+    if (left + box.width > window.innerWidth - margin) left = row.left - box.width - gap;
+    if (left < margin) left = margin;
+    let top = row.top - 5;
+    if (top + box.height > window.innerHeight - margin) {
+      top = Math.max(margin, window.innerHeight - box.height - margin);
+    }
+    popup.style.left = `${Math.round(left)}px`;
+    popup.style.top = `${Math.round(top)}px`;
+  }
+  popup.querySelector<HTMLElement>("button:not([disabled])")?.focus();
 }
 
 export type DesktopDialogName = "shortcuts" | "about" | "filters" | "group-sort" | "timescale" | "bars" | "font-row" | "user-preferences";
@@ -1626,6 +1760,12 @@ function bindHost(host: HTMLElement): void {
       else openMenu(host, trigger.dataset.desktopMenu);
       return;
     }
+    const submenuTrigger = target.closest<HTMLElement>("[data-desktop-submenu-trigger]");
+    if (submenuTrigger?.dataset.desktopSubmenuTrigger) {
+      event.stopPropagation();
+      toggleSubmenu(host, submenuTrigger.dataset.desktopSubmenuTrigger);
+      return;
+    }
     const commandTarget = target.closest<HTMLElement>("[data-desktop-command], [data-desktop-window]");
     if (commandTarget) {
       if (commandTarget.hasAttribute("disabled")) return;
@@ -1680,6 +1820,24 @@ function bindHost(host: HTMLElement): void {
     const runtime = runtimeByHost.get(host);
     if (!runtime) return;
     runtime.handlers.onLocaleChange?.(target.value);
+  });
+
+  // The shortcuts dialog filters its own catalog; Escape and the shortcut
+  // bindings stay disabled while the modal owns the keyboard.
+  host.addEventListener("input", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement) || !target.matches("[data-shortcut-search]")) return;
+    const dialog = target.closest<HTMLDialogElement>('[data-desktop-dialog="shortcuts"]');
+    if (!dialog) return;
+    const query = target.value.trim().toLowerCase();
+    let visible = 0;
+    dialog.querySelectorAll<HTMLElement>("[data-shortcut-row]").forEach((row) => {
+      const match = !query || (row.dataset.shortcutText ?? "").includes(query);
+      row.hidden = !match;
+      if (match) visible += 1;
+    });
+    const empty = dialog.querySelector<HTMLElement>("[data-shortcut-empty]");
+    if (empty) empty.hidden = visible > 0;
   });
 
   host.addEventListener("submit", (event) => {
@@ -1807,21 +1965,40 @@ function bindHost(host: HTMLElement): void {
   // Inside an open menu: arrows, Home/End and first-letter navigation.
   bindShellKeydown(host, (event) => {
     const target = event.target as HTMLElement | null;
-    const popup = target?.closest<HTMLElement>("[data-desktop-popup]");
+    const popup = target?.closest<HTMLElement>("[data-desktop-popup], [data-desktop-submenu-popup]");
     if (!popup || popup.hidden) return;
-    const items = Array.from(popup.querySelectorAll<HTMLElement>("button:not([disabled])"));
+    const items = Array.from(popup.querySelectorAll<HTMLElement>("button:not([disabled])"))
+      // A nested flyout owns its own rows even while it is collapsed.
+      .filter((button) => button.closest("[data-desktop-popup], [data-desktop-submenu-popup]") === popup);
     if (!items.length) return;
     const current = items.indexOf(target?.closest<HTMLElement>("button") ?? items[0]);
     const focusItem = (index: number): void => {
       const next = items[(index + items.length) % items.length];
       next?.focus();
     };
+    const focused = target?.closest<HTMLElement>("button");
+    const isSubmenuPopup = popup.hasAttribute("data-desktop-submenu-popup");
     if (event.key === "ArrowDown") { event.preventDefault(); focusItem(current + 1); return; }
     if (event.key === "ArrowUp") { event.preventDefault(); focusItem(current - 1); return; }
     if (event.key === "Home") { event.preventDefault(); focusItem(0); return; }
     if (event.key === "End") { event.preventDefault(); focusItem(items.length - 1); return; }
     if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
       event.preventDefault();
+      // Left closes a flyout and returns focus to its row; Right opens the
+      // focused flyout row instead of leaving the menu it belongs to.
+      if (event.key === "ArrowLeft" && isSubmenuPopup) {
+        const submenuId = popup.dataset.desktopSubmenuPopup;
+        popup.hidden = true;
+        host.querySelector<HTMLElement>(`[data-desktop-submenu-trigger="${submenuId}"]`)?.focus();
+        host.querySelector<HTMLElement>(`[data-desktop-submenu-trigger="${submenuId}"]`)?.setAttribute("aria-expanded", "false");
+        return;
+      }
+      const submenuRow = focused?.dataset.desktopSubmenuTrigger;
+      if (event.key === "ArrowRight" && submenuRow) {
+        toggleSubmenu(host, submenuRow, true);
+        return;
+      }
+      if (isSubmenuPopup) return;
       const triggers = Array.from(host.querySelectorAll<HTMLElement>("[data-desktop-menu]"));
       const activeTrigger = popup.closest(".cp-menubar-group")?.querySelector<HTMLElement>("[data-desktop-menu]");
       const index = triggers.indexOf(activeTrigger ?? triggers[0]);

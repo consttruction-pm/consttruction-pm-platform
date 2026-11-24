@@ -249,14 +249,14 @@ export const TOOLBAR_COMMANDS: readonly ToolbarCommandDefinition[] = [
   cmd("layout.open", { en: "Open Layout", fa: "بازکردن چیدمان" }, "folder", ["layout"], run("layout.open"), { windows: scheduleOnly, disabledReason: whenWindow(scheduleOnly, (context) => (context.capabilities.canOpenFieldChooser ? null : R.fields)) }),
   cmd("layout.save", { en: "Save Layout", fa: "ذخیرهٔ چیدمان" }, "save", ["layout"], run("layout.save"), { windows: scheduleOnly, disabledReason: whenWindow(scheduleOnly, (context) => (context.capabilities.hasLayout ? null : R.layout)) }),
   cmd("layout.save-as", { en: "Save Layout As", fa: "ذخیرهٔ چیدمان با نام" }, "saveAs", ["layout"], run("layout.save-as"), { windows: scheduleOnly, disabledReason: whenWindow(scheduleOnly, (context) => (context.capabilities.hasLayout ? null : R.layout)) }),
-  cmd("layout.bars", { en: "Bars", fa: "میله‌ها" }, "bars", ["layout"], run("dialog.bars"), { windows: chartWindows }),
+  cmd("layout.bars", { en: "Bars", fa: "میله‌ها" }, "bars", ["layout"], run("dialog.bars"), { windows: chartWindows, disabledReason: whenWindow(chartWindows) }),
   cmd("layout.columns", { en: "Columns", fa: "ستون‌ها" }, "columns", ["layout"], run("view.fields"), { windows: scheduleOnly, disabledReason: whenWindow(scheduleOnly, (context) => (context.capabilities.canOpenFieldChooser ? null : R.fields)) }),
-  cmd("layout.timescale", { en: "Timescale", fa: "مقیاس زمانی" }, "clock", ["layout"], run("dialog.timescale"), { windows: chartWindows }),
-  cmd("layout.filters", { en: "Filters", fa: "فیلترها" }, "filter", ["layout"], run("dialog.filters"), { windows: scheduleOnly }),
-  cmd("layout.group-sort", { en: "Group & Sort", fa: "گروه و ترتیب" }, "sort", ["layout"], run("dialog.group-sort"), { windows: scheduleOnly }),
-  cmd("layout.group-wbs", { en: "Group by WBS", fa: "گروه‌بندی بر اساس WBS" }, "group", ["layout", "activity"], run("edit.group-wbs"), { windows: scheduleOnly, active: (context) => context.capabilities.groupByWbs }),
-  cmd("layout.line-numbers", { en: "Line Numbers", fa: "شمارهٔ ردیف" }, "lineNumbers", ["layout"], run("view.line-numbers"), { windows: scheduleOnly, active: (context) => Boolean(context.lineNumbers) }),
-  cmd("layout.font-row", { en: "Table Font", fa: "قلم جدول" }, "font", ["layout"], run("dialog.font-row"), { windows: scheduleOnly }),
+  cmd("layout.timescale", { en: "Timescale", fa: "مقیاس زمانی" }, "clock", ["layout"], run("dialog.timescale"), { windows: chartWindows, disabledReason: whenWindow(chartWindows) }),
+  cmd("layout.filters", { en: "Filters", fa: "فیلترها" }, "filter", ["layout"], run("dialog.filters"), { windows: scheduleOnly, disabledReason: whenWindow(scheduleOnly) }),
+  cmd("layout.group-sort", { en: "Group & Sort", fa: "گروه و ترتیب" }, "sort", ["layout"], run("dialog.group-sort"), { windows: scheduleOnly, disabledReason: whenWindow(scheduleOnly) }),
+  cmd("layout.group-wbs", { en: "Group by WBS", fa: "گروه‌بندی بر اساس WBS" }, "group", ["layout", "activity"], run("edit.group-wbs"), { windows: scheduleOnly, active: (context) => context.capabilities.groupByWbs, disabledReason: whenWindow(scheduleOnly) }),
+  cmd("layout.line-numbers", { en: "Line Numbers", fa: "شمارهٔ ردیف" }, "lineNumbers", ["layout"], run("view.line-numbers"), { windows: scheduleOnly, active: (context) => Boolean(context.lineNumbers), disabledReason: whenWindow(scheduleOnly) }),
+  cmd("layout.font-row", { en: "Table Font", fa: "قلم جدول" }, "font", ["layout"], run("dialog.font-row"), { windows: scheduleOnly, disabledReason: whenWindow(scheduleOnly) }),
   cmd("prefs.user", { en: "User Preferences", fa: "ترجیحات کاربر" }, "settings", ["layout", "administrator", "administration"], run("dialog.user-preferences")),
 
   // Right rail — Enterprise (all honest disabled entries).
@@ -286,25 +286,25 @@ export const TOOLBAR_COMMANDS: readonly ToolbarCommandDefinition[] = [
   cmd("admin.settings", { en: "Administration", fa: "مدیریت" }, "administration", ["administrator"], win("settings"), { adminOnly: true }),
 
   // Right rail — Bottom Layout.
-  cmd("bottom.details", { en: "Show Details", fa: "نمایش جزئیات" }, "details", ["bottom-layout"], run("view.bottom-details"), { windows: scheduleOnly, active: (context) => Boolean(context.detailsVisible) }),
-  cmd("bottom.trace", { en: "Show Trace Logic", fa: "نمایش ردیابی منطق" }, "network", ["bottom-layout"], run("view.bottom-trace"), { windows: scheduleOnly }),
-  cmd("bottom.usage-profile", { en: "Show Usage Profile", fa: "نمایش نمودار استفاده" }, "progress", ["bottom-layout"], run("view.bottom-usage-profile"), { windows: scheduleOnly }),
-  cmd("bottom.usage-spreadsheet", { en: "Show Usage Spreadsheet", fa: "نمایش جدول استفاده" }, "table", ["bottom-layout"], run("view.bottom-usage-spreadsheet"), { windows: scheduleOnly }),
-  cmd("bottom.none", { en: "Hide Details", fa: "پنهان‌کردن جزئیات" }, "close", ["bottom-layout"], run("view.bottom-none"), { windows: scheduleOnly }),
+  cmd("bottom.details", { en: "Show Details", fa: "نمایش جزئیات" }, "details", ["bottom-layout"], run("view.bottom-details"), { windows: scheduleOnly, active: (context) => Boolean(context.detailsVisible), disabledReason: whenWindow(scheduleOnly) }),
+  cmd("bottom.trace", { en: "Show Trace Logic", fa: "نمایش ردیابی منطق" }, "network", ["bottom-layout"], run("view.bottom-trace"), { windows: scheduleOnly, disabledReason: whenWindow(scheduleOnly, (context) => (context.capabilities.hasSelectedActivity && context.capabilities.hasRelationships ? null : context.capabilities.hasSelectedActivity ? R.relationships : R.selection)) }),
+  cmd("bottom.usage-profile", { en: "Show Usage Profile", fa: "نمایش نمودار استفاده" }, "progress", ["bottom-layout"], run("view.bottom-usage-profile"), { windows: scheduleOnly, disabledReason: whenWindow(scheduleOnly) }),
+  cmd("bottom.usage-spreadsheet", { en: "Show Usage Spreadsheet", fa: "نمایش جدول استفاده" }, "table", ["bottom-layout"], run("view.bottom-usage-spreadsheet"), { windows: scheduleOnly, disabledReason: whenWindow(scheduleOnly) }),
+  cmd("bottom.none", { en: "Hide Details", fa: "پنهان‌کردن جزئیات" }, "close", ["bottom-layout"], run("view.bottom-none"), { windows: scheduleOnly, disabledReason: whenWindow(scheduleOnly) }),
 
   // Right rail — Display.
-  cmd("display.zoom-in", { en: "Zoom In", fa: "بزرگ‌نمایی" }, "zoomIn", ["display"], run("view.zoom-in"), { windows: chartWindows }),
-  cmd("display.zoom-out", { en: "Zoom Out", fa: "کوچک‌نمایی" }, "zoomOut", ["display"], run("view.zoom-out"), { windows: chartWindows }),
-  cmd("display.fit", { en: "Fit", fa: "تناسب" }, "fit", ["display"], run("view.fit"), { windows: chartWindows }),
+  cmd("display.zoom-in", { en: "Zoom In", fa: "بزرگ‌نمایی" }, "zoomIn", ["display"], run("view.zoom-in"), { windows: chartWindows, disabledReason: whenWindow(chartWindows) }),
+  cmd("display.zoom-out", { en: "Zoom Out", fa: "کوچک‌نمایی" }, "zoomOut", ["display"], run("view.zoom-out"), { windows: chartWindows, disabledReason: whenWindow(chartWindows) }),
+  cmd("display.fit", { en: "Fit", fa: "تناسب" }, "fit", ["display"], run("view.fit"), { windows: chartWindows, disabledReason: whenWindow(chartWindows) }),
   cmd("display.panels", { en: "Panels", fa: "پنل‌ها" }, "panels", ["display"], run("view.toggle-details"), { active: (context) => context.detailsVisible !== false }),
-  cmd("display.gantt", { en: "Gantt Chart", fa: "نمودار گانت" }, "gantt", ["display"], run("view.toggle-gantt"), { windows: chartWindows, active: (context) => context.ganttVisible !== false }),
+  cmd("display.gantt", { en: "Gantt Chart", fa: "نمودار گانت" }, "gantt", ["display"], run("view.toggle-gantt"), { windows: chartWindows, active: (context) => context.ganttVisible !== false, disabledReason: whenWindow(chartWindows) }),
   cmd("display.expand-all", { en: "Expand All", fa: "بازکردن همه" }, "expand", ["display"], run("view.expand-all"), { windows: chartWindows, disabledReason: whenWindow(chartWindows, (context) => (context.capabilities.hasWbs && context.capabilities.groupByWbs ? null : R.wbsGroup)) }),
   cmd("display.collapse-all", { en: "Collapse All", fa: "بستن همه" }, "collapse", ["display"], run("view.collapse-all"), { windows: chartWindows, disabledReason: whenWindow(chartWindows, (context) => (context.capabilities.hasWbs && context.capabilities.groupByWbs ? null : R.wbsGroup)) }),
   cmd("display.collapse-to", { en: "Collapse To", fa: "بستن تا" }, "collapseTo", ["display", "critical-check"], run("view.collapse-to"), { windows: chartWindows, disabledReason: whenWindow(chartWindows, (context) => (context.capabilities.hasWbs && context.capabilities.groupByWbs ? null : R.wbsGroup)) }),
   cmd("display.fullscreen", { en: "Full Screen", fa: "تمام‌صفحه" }, "fullscreen", ["display"], { kind: "fullscreen" }),
 
   // Right rail — Find.
-  cmd("find.find", { en: "Find", fa: "یافتن" }, "find", ["find"], run("edit.find"), { windows: scheduleOnly }),
+  cmd("find.find", { en: "Find", fa: "یافتن" }, "find", ["find"], run("edit.find"), { windows: scheduleOnly, disabledReason: whenWindow(scheduleOnly) }),
   cmd("find.next", { en: "Find Next", fa: "یافتن مورد بعدی" }, "right", ["find"], run("edit.find"), { windows: scheduleOnly, disabledReason: always(R.findNext) }),
 
   // Right rail — Dictionaries.

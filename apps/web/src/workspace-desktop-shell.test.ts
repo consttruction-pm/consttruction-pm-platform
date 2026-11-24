@@ -8,8 +8,11 @@ import {
   getDesktopToolbarGroups,
   matchDesktopShortcut,
   renderDesktopShell,
+  shortcutConflicts,
   shortcutUnavailableReason,
   type DesktopShellCapabilities,
+  type DesktopMenuItem,
+  type DesktopShortcut,
   type DesktopShellState,
 } from "./workspace-desktop-shell.js";
 import { DEFAULT_PRESENTATION, type WorkspacePresentation } from "./workspace-presentation.js";
@@ -261,7 +264,17 @@ test("the menu bar mirrors the eight professional workspace menus in order", () 
   assert.ok(!refused.some((menu) => menu.id === "administration"), "non-administrators keep the role-gated menu out");
 });
 
-test("the View menu lists the toolbar families as real toggles and the open windows as Alt chords", () => {
+function flattenMenuItems(items: readonly DesktopMenuItem[]): DesktopMenuItem[] {
+  return items.flatMap((item) => [item, ...(item.submenu ? flattenMenuItems(item.submenu) : [])]);
+}
+
+function menusById(): Map<string, DesktopMenuItem> {
+  return new Map(
+    getDesktopMenus(shellState()).flatMap((menu) => flattenMenuItems(menu.items).map((item) => [item.id, item])),
+  );
+}
+
+test("the View menu lists the toolbar families as real toggles and exposes a Windows flyout", () => {
   const view = getDesktopMenus(shellState({}, "en", undefined, ["edit"]))
     .find((menu) => menu.id === "view");
   assert.ok(view);
@@ -272,13 +285,32 @@ test("the View menu lists the toolbar families as real toggles and the open wind
   );
   assert.equal(toggles.find((item) => item.command === "view.toolbar-wbs")?.checked, true);
   assert.equal(toggles.find((item) => item.command === "view.toolbar-edit")?.checked, false, "a hidden family stays listed so it can be restored");
-  const windows = view.items.filter((item) => item.id.startsWith("window."));
-  assert.deepEqual(windows.map((item) => item.shortcut), ["Alt+1", "Alt+2"]);
+  const windows = view.items.find((item) => item.id === "view.windows");
+  assert.ok(windows?.submenu, "View keeps its window list in a Windows flyout");
+  assert.deepEqual(
+    windows.submenu.map((item) => item.id),
+    ["window.schedule", "window.project", "window.wbs", "window.resources", "window.assignments", "window.reports", "window.tracking"],
+  );
+  assert.equal(windows.submenu.find((item) => item.id === "window.schedule")?.checked, true, "the active window carries the checkmark");
+  assert.equal(windows.submenu.find((item) => item.id === "window.project")?.checked, false);
+  assert.equal(windows.submenu.find((item) => item.id === "window.wbs")?.shortcut, undefined, "a closed window has no Alt chord");
+  assert.deepEqual(
+    windows.submenu.filter((item) => item.shortcut).map((item) => item.shortcut),
+    ["Alt+2", "Alt+1"],
+  );
   assert.match(view.items.map((item) => `${item.label.en} ${item.label.fa}`).join(" "), /CUBI قطبی/);
 });
 
+test("the Project menu opens the Activities window before any other project command", () => {
+  const project = getDesktopMenus(shellState()).find((menu) => menu.id === "project");
+  assert.ok(project);
+  assert.equal(project.items[0]?.id, "project.activities");
+  assert.equal(project.items[0]?.window, "schedule");
+  assert.equal(project.items[0]?.label.en, "Activities");
+});
+
 test("window shortcuts only advertise the Alt+1…9 keys the keydown handler claims", () => {
-  const byId = new Map(getDesktopMenus(shellState()).flatMap((menu) => menu.items.map((item) => [item.id, item])));
+  const byId = menusById();
   assert.equal(byId.get("window.project")?.shortcut, "Alt+1");
   assert.equal(byId.get("window.schedule")?.shortcut, "Alt+2");
   // More windows can be open, but only nine single-digit Alt chords
@@ -318,20 +350,29 @@ test("the consolidated menus keep every scheduling, resource and report command"
 });
 
 test("every menu entry opens a window, runs a command, or states why it is unavailable", () => {
+  const check = (menuId: string, items: readonly DesktopMenuItem[], locale: string): void => {
+    for (const item of items) {
+      if (item.separator) continue;
+      if (item.submenu) {
+        assert.ok(item.submenu.length > 0, `${menuId}/${item.id} is an empty flyout`);
+        assert.ok(item.label[locale === "fa" ? "fa" : "en"].trim().length > 0);
+        check(menuId, item.submenu, locale);
+        continue;
+      }
+      assert.ok(
+        Boolean(item.window) || Boolean(item.command) || Boolean(item.disabledReason),
+        `${menuId}/${item.id} has no effect`,
+      );
+      assert.ok(
+        !item.disabledReason || !item.window,
+        `${menuId}/${item.id} must not advertise a window it cannot open`,
+      );
+      assert.ok(item.label[locale === "fa" ? "fa" : "en"].trim().length > 0);
+    }
+  };
   for (const locale of ["en", "fa"]) {
     for (const menu of getDesktopMenus(shellState({}, locale))) {
-      for (const item of menu.items) {
-        if (item.separator) continue;
-        assert.ok(
-          Boolean(item.window) || Boolean(item.command) || Boolean(item.disabledReason),
-          `${menu.id}/${item.id} has no effect`,
-        );
-        assert.ok(
-          !item.disabledReason || !item.window,
-          `${menu.id}/${item.id} must not advertise a window it cannot open`,
-        );
-        assert.ok(item.label[locale === "fa" ? "fa" : "en"].trim().length > 0);
-      }
+      check(menu.id, menu.items, locale);
     }
   }
 });
@@ -524,6 +565,30 @@ test("every shortcut in the catalog is documented, unique and executable or expl
   assert.deepEqual(getDesktopShortcuts([]).filter((item) => item.id.startsWith("shortcut.window.")), []);
 });
 
+test("the shortcut catalogue is conflict-free and conflicts are reported", () => {
+  assert.deepEqual(shortcutConflicts(getDesktopShortcuts(["project", "schedule", "wbs"])), []);
+  const clash: DesktopShortcut[] = [
+    { id: "shortcut.test-a", label: { en: "A", fa: "الف" }, keys: "Ctrl+K", chord: { key: "k", ctrlOrMeta: true } },
+    { id: "shortcut.test-b", label: { en: "B", fa: "ب" }, keys: "Ctrl+K", chord: { key: "k", ctrlOrMeta: true } },
+  ];
+  assert.deepEqual(shortcutConflicts(clash), [{ keys: "ctrl+k", ids: ["shortcut.test-a", "shortcut.test-b"] }]);
+});
+
+test("the shortcuts dialog is searchable and explains conflicts", () => {
+  const recorded = recordHost();
+  renderDesktopShell(recorded.host, shellState(), {
+    onWindowOpen: () => {},
+    onWindowClose: () => {},
+    onCommand: () => {},
+  });
+  const html = recorded.html();
+  assert.match(html, /data-desktop-dialog="shortcuts"/);
+  assert.match(html, /data-shortcut-search/);
+  assert.match(html, /data-shortcut-row data-shortcut-text="new project ctrl\+n"/);
+  assert.match(html, /data-shortcut-empty hidden/);
+  assert.doesNotMatch(html, /cp-shortcut-conflicts/);
+});
+
 test("the shortcut matcher honours every modifier and the availability gate", () => {
   const shortcuts = getDesktopShortcuts(["schedule"]);
   const match = (event: { key: string; ctrlKey?: boolean; shiftKey?: boolean; altKey?: boolean; code?: string }) =>
@@ -644,6 +709,22 @@ test("menu triggers expose their Alt access key and separators render as separat
   assert.match(html, /class="cp-menubar-separator" role="separator"/);
 });
 
+test("the View → Windows flyout renders collapsed with the active window checked", () => {
+  const recorded = recordHost();
+  renderDesktopShell(recorded.host, shellState(), {
+    onWindowOpen: () => {},
+    onWindowClose: () => {},
+    onCommand: () => {},
+  });
+  const html = recorded.html();
+  assert.match(html, /data-desktop-submenu="view\.windows"/);
+  assert.match(html, /aria-expanded="false" class="cp-menubar-item cp-menubar-submenu-trigger" data-desktop-submenu-trigger="view\.windows"/);
+  assert.match(html, /data-desktop-submenu-popup="view\.windows"[^>]*hidden/);
+  assert.match(html, /data-desktop-item="window\.schedule"[^>]*data-desktop-window="schedule"[^>]*aria-checked="true"/);
+  assert.match(html, /data-desktop-item="window\.wbs"[^>]*data-desktop-window="wbs"/);
+  assert.doesNotMatch(html, /data-desktop-item="window\.wbs"[^>]*aria-checked="true"/);
+});
+
 test("View menu exposes the Activities Show on Top and Show on Bottom layouts", () => {
   const view = getDesktopMenus({
     ...shellState(),
@@ -678,16 +759,22 @@ test("logic layouts explain why they are unavailable instead of pretending to wo
 
 test("every application menu item resolves to one recognizable command icon", async () => {
   const { desktopMenuIcon } = await import("./workspace-command-icons.js");
-  for (const menu of getDesktopMenus(shellState())) {
-    for (const item of menu.items) {
+  const check = (menuId: string, items: readonly DesktopMenuItem[]): void => {
+    for (const item of items) {
       if (item.separator) {
         assert.equal(desktopMenuIcon(item.id), undefined, `${item.id} is a separator`);
         continue;
       }
-      assert.ok(desktopMenuIcon(item.id), `${menu.id}/${item.id} must carry an icon`);
+      assert.ok(desktopMenuIcon(item.id), `${menuId}/${item.id} must carry an icon`);
+      if (item.submenu) check(menuId, item.submenu);
     }
+  };
+  for (const menu of getDesktopMenus(shellState())) {
+    check(menu.id, menu.items);
   }
   assert.equal(desktopMenuIcon("window.schedule"), "gantt");
+  assert.equal(desktopMenuIcon("view.windows"), "workspace");
+  assert.equal(desktopMenuIcon("project.activities"), "gantt");
   assert.equal(desktopMenuIcon("view.toolbar-layout"), "workspace");
   assert.equal(desktopMenuIcon("view.theme-classic"), "workspace");
 });
