@@ -137,7 +137,7 @@ from ..p6_schedule_snapshot_publication_api import (
 )
 from ..schedule_snapshot_publisher import AuthoritativeScheduleSnapshotPublisher
 from ..p6_cost_account_api import P6CostAccountAPI
-from .calendar_registry import build_postgres_calendar_registry
+from .calendar_registry import CalendarRegistryError, build_postgres_calendar_registry
 from ..p6_obs_api import P6OBSNodeAPI
 from ..p6_obs_repository import P6OBSApplicationService, PostgresP6OBSRepository
 from ..budget_api import BudgetAPI
@@ -151,6 +151,24 @@ from ..p6_expense_api import P6ExpenseAPI
 from ..p6_expense_repository import (
     P6ExpenseApplicationService,
     PostgresP6ExpenseRepository,
+)
+from ..p6_activity_period_actual_repository import (
+    PostgresP6ActivityPeriodActualRepository,
+)
+from ..p6_earned_value_read_model import (
+    P6EarnedValueReadModelError,
+    P6EarnedValueReadModelService,
+)
+from ..p6_earned_value_read_model_api import P6EarnedValueReadModelAPI
+from ..report_api import ReportAPI
+from ..report_application import (
+    AuthoritativeReportDataset,
+    ReportApplicationService,
+)
+from ..report_persistence import PostgresReportStore
+from ..report_schedules import (
+    PostgresReportScheduleStore,
+    ReportScheduleService,
 )
 from ..p6_field_registry_api import P6FieldRegistryAPI
 from ..p6_field_registry_repository import (
@@ -746,6 +764,61 @@ class ProductionRuntime:
         risk_api = RiskAPI(
             RiskApplicationService(risk_store, policy, transaction_manager)
         )
+        # The report register, its immutable run snapshots and its schedules
+        # are durable rows. The dataset builder reads the same activity,
+        # resource and risk repositories the rest of the surface writes, so a
+        # report is a stored query over Shared Core facts, not a second engine.
+        report_store = PostgresReportStore(connection)
+        report_schedule_store = PostgresReportScheduleStore(connection)
+        report_api = ReportAPI(
+            ReportApplicationService(
+                report_store,
+                AuthoritativeReportDataset(
+                    activity_repository, resource_repository, risk_store
+                ),
+                policy,
+                transaction_manager,
+            ),
+            schedules=ReportScheduleService(
+                report_schedule_store,
+                report_store,
+                policy,
+                transaction_manager,
+            ),
+        )
+
+        def _evm_resolver(scope):
+            """Resolve the persisted project calendar for one measurement."""
+
+            settings = schedule_settings_repository.get(scope)
+            if settings is None:
+                raise P6EarnedValueReadModelError(
+                    "EVM_PROJECT_CALENDAR_REQUIRED"
+                )
+            try:
+                registry = calendar_registry_factory()
+                return registry.resolve(settings.project_calendar)
+            except (CalendarRegistryError, KeyError, TypeError, ValueError) as exc:
+                raise P6EarnedValueReadModelError(
+                    "EVM_PROJECT_CALENDAR_UNRESOLVED"
+                ) from exc
+
+        # Earned value is measured from persisted facts only: the captured
+        # baseline window, current progress, period actuals, expenses and the
+        # stored project calendar. Assignment decomposition stays disabled
+        # because a baseline activity budget is not a priced assignment split.
+        earned_value_read_api = P6EarnedValueReadModelAPI(
+            P6EarnedValueReadModelService(
+                baseline_activities=baseline_activity_repository,
+                activities=activity_repository,
+                actuals=PostgresP6ActivityPeriodActualRepository(connection),
+                expenses=expense_repository,
+                resolver_provider=_evm_resolver,
+                wbs_repository=wbs_repository,
+                resource_assignments=None,
+            ),
+            policy,
+        )
         # Threshold definitions, audit and monitoring over the same durable
         # database. The issue writer shares the monitor's transaction (no
         # nested manager) so a raised issue and its run commit atomically.
@@ -864,6 +937,11 @@ class ProductionRuntime:
             p6_baseline_capture_api=baseline_capture_api,
             p6_expense_api=p6_expense_api,
             budget_api=budget_api,
+            # Stored reports and their schedules, plus the earned-value
+            # measurement over the captured baseline. Without these kwargs the
+            # report branch is disabled and both routes answer ROUTE_NOT_FOUND.
+            report_api=report_api,
+            p6_earned_value_read_api=earned_value_read_api,
             # Durable rescheduling: submit/status/result/cancel plus a
             # token-guarded worker that runs the one shared scheduling engine.
             scheduling_job_repository=scheduling_job_repository,

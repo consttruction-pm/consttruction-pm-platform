@@ -297,24 +297,24 @@ def test_migration_ledger_is_versioned_idempotent_and_reports_drift():
     schema = _schema_name("cubi_mig")
     connection, first = _apply_drift_free_schema(schema)
     try:
-        assert first.ledger_version == 20
-        assert len(first.applied) == 20
+        assert first.ledger_version == 21
+        assert len(first.applied) == 21
         assert first.already_applied == ()
-        assert first.table_count == 102
+        assert first.table_count == 107
         assert first.drift is None
 
         second = apply_migrations(connection)
         assert second.applied == ()
-        assert second.already_applied == tuple(range(1, 21))
+        assert second.already_applied == tuple(range(1, 22))
         assert second.drift is None
-        assert second.table_count == 102
+        assert second.table_count == 107
 
         rows = connection.execute(
             f"SELECT version, name, checksum, step_revision, runtime_version "
             f"FROM {LEDGER_TABLE} ORDER BY version"
         ).fetchall()
-        assert [row[0] for row in rows] == list(range(1, 21))
-        assert all(row[2] and row[3] >= 1 and row[4] == 20 for row in rows)
+        assert [row[0] for row in rows] == list(range(1, 22))
+        assert all(row[2] and row[3] >= 1 and row[4] == 21 for row in rows)
 
         # An edited history is reported, never silently accepted.
         connection.execute(
@@ -365,8 +365,8 @@ def test_runtime_readiness_uses_the_migrated_schema(runtime):
     assert status == 200
     readiness = json.loads(body)
     assert readiness["status"] == "ready"
-    assert readiness["schema"]["version"] == 20
-    assert readiness["schema"]["tables"] == 102
+    assert readiness["schema"]["version"] == 21
+    assert readiness["schema"]["tables"] == 107
 
 
 # ---------------------------------------------------------------------------
@@ -5099,3 +5099,617 @@ def test_budget_register_is_operational_end_to_end(runtime):
         "WHERE tenant_id=%s AND project_id=%s",
         (tenant, project),
     ) == [("BL-1",)]
+
+
+# ---------------------------------------------------------------------------
+# Reports: the stored register, immutable runs and the EVM measurement
+# ---------------------------------------------------------------------------
+
+
+def test_reports_and_earned_value_are_operational_end_to_end(runtime):
+    """Stored reports, schedules and earned value over real PostgreSQL facts.
+
+    One independent project is driven through the production WSGI surface. A
+    report definition is stored, replayed idempotently, run into an immutable
+    snapshot and read back by a fresh session, filtered by a bound parameter and
+    exported from the stored run only. A schedule is created, updated with a
+    revision guard and recorded in history. The same project's captured
+    baseline is then measured through the versioned EVM route, which must read
+    planned value, progress and cost from persisted rows and leave the immutable
+    baseline untouched. Viewer and cross-tenant access are enforced throughout.
+    """
+
+    import psycopg
+
+    from construction_pm.project_schedule_settings_repository import (
+        _schedule_options_payload,
+    )
+    from construction_pm.scheduling.schedule_options import ScheduleOptions
+
+    ids = runtime.test_ids
+    suffix = uuid.uuid4().hex[:8]
+    project = f"project-rep-{suffix}"
+    tenant = ids["tenant_a"]
+    admin, admin_csrf = login(runtime, "admin", ADMIN_PASSWORD)
+
+    # 1. Independent project with planner and viewer memberships.
+    status, _, body = call(
+        runtime,
+        "POST",
+        "/api/projects",
+        body={
+            "project_id": project,
+            "name": f"Reports acceptance {suffix}",
+            "start_date": "2026-11-02",
+        },
+        cookie=admin,
+        csrf=admin_csrf,
+    )
+    assert status == 201, body
+    seed = psycopg.connect(
+        os.environ["CONSTRUCTION_PM_POSTGRES_DSN"],
+        autocommit=True,
+        options=f"-c search_path={ids['schema']}",
+    )
+    try:
+        for key in ("planner", "viewer"):
+            seed.execute(
+                "INSERT INTO project_lifecycle_memberships "
+                "(tenant_id, project_id, user_id) VALUES (%s, %s, %s) "
+                "ON CONFLICT DO NOTHING",
+                (tenant, project, ids["users"][key].user_id),
+            )
+    finally:
+        seed.close()
+    cookie, csrf = login(runtime, "planner", PLANNER_PASSWORD)
+
+    def project_revision() -> int:
+        status, _, body = call(runtime, "GET", "/api/projects", cookie=cookie)
+        assert status == 200, body
+        return int(
+            next(
+                item["revision"]
+                for item in json.loads(body)["projects"]
+                if item["project_id"] == project
+            )
+        )
+
+    # 2. Durable calendar, WBS, activity and schedule settings.
+    calendar_id, calendar_version = f"CAL-REP-{suffix}", "v1"
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/calendars",
+        body={
+            "calendar_id": calendar_id,
+            "calendar_version": calendar_version,
+            "calendar_type": "project",
+            "kind": "working-day",
+            "name": "Reporting calendar",
+            "definition": {
+                "system": "gregorian",
+                "working_weekdays": [0, 1, 2, 3, 4],
+            },
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+
+    root_wbs = f"root-rep-{suffix}"
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/wbs",
+        body={
+            "wbs_id": root_wbs,
+            "code": f"1-{suffix}",
+            "name": "Project summary",
+            "parent_kind": "project",
+            "sequence_number": 1,
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 201, body
+    wbs_id = f"wbs-rep-{suffix}"
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/wbs",
+        body={
+            "wbs_id": wbs_id,
+            "code": f"2-{suffix}",
+            "name": "Construction",
+            "parent_kind": "wbs",
+            "parent_wbs_id": root_wbs,
+            "sequence_number": 2,
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 201, body
+
+    activity_id = f"REP-A-{suffix}"
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/activities",
+        body={
+            "activity_id": activity_id,
+            "name": "Place concrete",
+            "duration_value": 3,
+            "duration_unit": "working-day",
+            "wbs_id": wbs_id,
+            "planned_finish": "2026-11-04",
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 201, body
+
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/schedule/settings",
+        body={
+            "contract_version": "p6-project-schedule-settings-api.v1",
+            "expected_record_revision": 0,
+            "mode": "DATE_BASED",
+            "project_calendar_id": calendar_id,
+            "project_calendar_version": calendar_version,
+            "project_calendar_system": "gregorian",
+            "project_start": "2026-11-02",
+            "project_finish": None,
+            "schedule_options": _schedule_options_payload(
+                ScheduleOptions(data_date=None)
+            ),
+            "project_leveling_priority": 50,
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status in {200, 201}, body
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/schedule/snapshots",
+        body={
+            "contract_version": "p6-schedule-snapshot-api.v1",
+            "timezone": "UTC",
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status in {200, 201}, body
+
+    # 3. A costed plan captured as an immutable baseline window.
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/expenses",
+        body={
+            "expense_id": f"EXP-{suffix}",
+            "name": "Concrete supply",
+            "category": "MATERIAL",
+            "activity_id": activity_id,
+            "expense_date": "2026-11-03",
+            "planned_cost": "1000",
+            "actual_cost": "0",
+            "remaining_cost": "1000",
+            "currency": "USD",
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+
+    baseline_id = f"BL-REP-{suffix}"
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/baselines/capture",
+        body={
+            "contract_version": "p6-baseline-capture-api.v1",
+            "baseline_id": baseline_id,
+            "name": "Approved plan",
+            "baseline_type": "USER_SELECTED",
+            "expected_revision": project_revision(),
+            "currency": "USD",
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 201, body
+    captured = json.loads(body)
+    assert captured["counts"]["activities"] == 1
+    assert float(captured["counts"]["budgeted_cost"]) == 1000.0
+    baseline_query = (
+        "SELECT activity_id, planned_start, planned_finish, budgeted_cost, "
+        "currency FROM p6_baseline_activity "
+        "WHERE tenant_id=%s AND project_id=%s AND baseline_id=%s "
+        "ORDER BY activity_id"
+    )
+    baseline_before = _db_rows(
+        runtime, baseline_query, (tenant, project, baseline_id)
+    )
+    assert baseline_before == [
+        (activity_id, "2026-11-02", "2026-11-04", "1000", "USD")
+    ]
+
+    # 4. Progress is recorded on the current activity without touching the
+    #    stored baseline window.
+    status, _, body = call(
+        runtime,
+        "PATCH",
+        f"/api/projects/{project}/p6/activities/{activity_id}",
+        body={
+            "expected_revision": 1,
+            "actual_start": "2026-11-02",
+            "percent_complete": 40.0,
+            "remaining_duration": 2,
+            "status": "In Progress",
+            "status_code": "Active",
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+
+    # 5. The report catalogue is served from the shared definition.
+    base = f"/api/projects/{project}/reports"
+    status, _, body = call(runtime, "GET", f"{base}/catalogue", cookie=cookie)
+    assert status == 200, body
+    catalogue = json.loads(body)
+    subjects = {item["subject"] for item in catalogue["subjects"]}
+    assert subjects == {"activities", "resources", "risks"}
+    assert "csv" in catalogue["export_formats"]
+
+    # 6. A definition is stored once and a replay returns the same revision.
+    report_id = "REP-1"
+    definition_body = {
+        "report_id": report_id,
+        "name": "Activity status",
+        "description": "Current stored progress",
+        "subject": "activities",
+        "columns": ["activity_id", "name", "status", "percent_complete"],
+        "parameters": [
+            {"key": "status", "required": False, "default": "In Progress"}
+        ],
+    }
+    status, _, body = call(
+        runtime,
+        "POST",
+        base,
+        body=definition_body,
+        cookie=cookie,
+        csrf=csrf,
+        headers={"Idempotency-Key": f"rep-def-{suffix}"},
+    )
+    assert status == 200, body
+    created = json.loads(body)
+    assert created["report_id"] == report_id
+    assert created["record_revision"] == 1
+    assert created["parameters"][0]["default"] == "In Progress"
+
+    status, _, body = call(
+        runtime,
+        "POST",
+        base,
+        body=definition_body,
+        cookie=cookie,
+        csrf=csrf,
+        headers={"Idempotency-Key": f"rep-def-{suffix}"},
+    )
+    assert status == 200, body
+    assert json.loads(body)["record_revision"] == 1
+
+    status, _, body = call(
+        runtime,
+        "POST",
+        base,
+        body={**definition_body, "name": "Different shape"},
+        cookie=cookie,
+        csrf=csrf,
+        headers={"Idempotency-Key": f"rep-def-{suffix}"},
+    )
+    assert status == 409, body
+    assert json.loads(body)["code"] == "REPORT_IDEMPOTENCY_KEY_REUSE"
+
+    status, _, body = call(
+        runtime,
+        "GET",
+        base,
+        cookie=cookie,
+        query="subject=activities&search=Activity",
+    )
+    assert status == 200, body
+    listed = json.loads(body)["reports"]
+    assert [item["report_id"] for item in listed] == [report_id]
+    status, _, body = call(runtime, "GET", f"{base}/{report_id}", cookie=cookie)
+    assert status == 200, body
+    assert json.loads(body)["columns"] == [
+        "activity_id",
+        "name",
+        "status",
+        "percent_complete",
+    ]
+    status, _, body = call(
+        runtime, "GET", f"{base}/{report_id}/history", cookie=cookie
+    )
+    assert status == 200, body
+    assert [item["event_type"] for item in json.loads(body)["events"]] == [
+        "created"
+    ]
+
+    # 7. A run materializes the bound default from stored facts, and an
+    #    explicit parameter overrides it for the same stored definition.
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"{base}/{report_id}/run",
+        body={},
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+    run = json.loads(body)
+    run_id = run["run_id"]
+    assert run["row_count"] == 1
+    assert run["rows"] == [
+        {
+            "activity_id": activity_id,
+            "name": "Place concrete",
+            "status": "In Progress",
+            "percent_complete": 40.0,
+        }
+    ]
+    assert run["parameters"] == {"status": "In Progress"}
+    assert run["parameter_sources"] == {"status": "default"}
+
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"{base}/{report_id}/run",
+        body={"parameters": {"status": "Not Started"}},
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+    empty = json.loads(body)
+    assert empty["row_count"] == 0
+    assert empty["parameter_sources"] == {"status": "explicit"}
+
+    status, _, body = call(
+        runtime, "GET", f"{base}/{report_id}/runs", cookie=cookie
+    )
+    assert status == 200, body
+    stored_runs = json.loads(body)["runs"]
+    assert len(stored_runs) == 2
+    assert {item["run_id"] for item in stored_runs} == {run_id, empty["run_id"]}
+
+    # 8. A new session retrieves the stored run, and the export is rendered
+    #    from that snapshot only.
+    fresh_cookie, _ = login(runtime, "planner", PLANNER_PASSWORD)
+    status, _, body = call(
+        runtime,
+        "GET",
+        f"{base}/{report_id}/runs/{run_id}",
+        cookie=fresh_cookie,
+    )
+    assert status == 200, body
+    assert json.loads(body)["rows"] == run["rows"]
+    status, headers, body = call(
+        runtime,
+        "GET",
+        f"{base}/{report_id}/runs/{run_id}/export",
+        cookie=fresh_cookie,
+        query="format=csv",
+    )
+    assert status == 200, body
+    assert headers["x-content-sha256"][0]
+    assert activity_id in body.decode("utf-8")
+
+    # 9. A schedule is stored, updated under a revision guard and audited.
+    schedule_body = {
+        "schedule_id": "SCH-1",
+        "cadence": "daily",
+        "run_time": "09:00",
+        "timezone": "UTC",
+        "project_revision": project_revision(),
+        "export_format": "csv",
+        "locale": "en",
+        "parameters": {"status": "In Progress"},
+        "enabled": True,
+    }
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"{base}/{report_id}/schedules",
+        body=schedule_body,
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+    schedule = json.loads(body)
+    assert schedule["schedule_id"] == "SCH-1"
+    assert schedule["revision"] == 1
+    assert schedule["next_run_at"]
+
+    status, _, body = call(
+        runtime,
+        "PUT",
+        f"{base}/{report_id}/schedules/SCH-1",
+        body={
+            **schedule_body,
+            "run_time": "10:00",
+            "expected_revision": 1,
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+    updated = json.loads(body)
+    assert updated["revision"] == 2
+    assert updated["run_time"] == "10:00"
+
+    status, _, body = call(
+        runtime,
+        "PUT",
+        f"{base}/{report_id}/schedules/SCH-1",
+        body={
+            **schedule_body,
+            "run_time": "11:00",
+            "expected_revision": 1,
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 409, body
+    assert json.loads(body)["code"] == "REPORT_SCHEDULE_REVISION_CONFLICT"
+
+    status, _, body = call(
+        runtime,
+        "GET",
+        f"{base}/{report_id}/schedules",
+        cookie=cookie,
+    )
+    assert status == 200, body
+    assert [
+        item["schedule_id"] for item in json.loads(body)["schedules"]
+    ] == ["SCH-1"]
+    status, _, body = call(
+        runtime,
+        "GET",
+        f"{base}/{report_id}/schedules/SCH-1",
+        cookie=cookie,
+    )
+    assert status == 200, body
+    assert json.loads(body)["revision"] == 2
+    status, _, body = call(
+        runtime,
+        "GET",
+        f"{base}/{report_id}/schedules/SCH-1/history",
+        cookie=cookie,
+    )
+    assert status == 200, body
+    assert [item["event_type"] for item in json.loads(body)["events"]] == [
+        "created",
+        "updated",
+    ]
+
+    # 10. The earned-value route measures the captured baseline from persisted
+    #     planned value, current progress and stored cost.
+    evm_path = f"/api/projects/{project}/p6/earned-value"
+    evm_body = {
+        "contract_version": "p6-earned-value-read-model.v1",
+        "baseline_id": baseline_id,
+        "data_date": "2026-11-10",
+        "currency": "USD",
+    }
+    status, _, body = call(
+        runtime, "POST", evm_path, body=evm_body, cookie=cookie, csrf=csrf
+    )
+    assert status == 200, body
+    measurement = json.loads(body)
+    assert measurement["kind"] == "p6_earned_value_read_model"
+    assert measurement["baseline_id"] == baseline_id
+    assert measurement["data_date"] == "2026-11-10"
+    assert measurement["currency"] == "USD"
+    earned = measurement["earned_value"]
+    assert float(earned["budget_at_completion"]) == 1000.0
+    assert float(earned["planned_value"]) == 1000.0
+    assert float(earned["earned_value"]) == 400.0
+    assert float(earned["actual_cost"]) == 0.0
+
+    status, _, body = call(
+        runtime,
+        "POST",
+        evm_path,
+        body={**evm_body, "client_value": "999"},
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 400, body
+    assert json.loads(body)["code"] == "EVM_REQUEST_UNKNOWN_FIELD"
+
+    status, _, body = call(
+        runtime,
+        "POST",
+        evm_path,
+        body={**evm_body, "data_date": "2026-11-20"},
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+    assert json.loads(body)["data_date"] == "2026-11-20"
+
+    # 11. Authorization: a viewer reads reports, runs and the measurement but
+    #     cannot write; another tenant sees nothing.
+    viewer_cookie, viewer_csrf = login(runtime, "viewer", VIEWER_PASSWORD)
+    status, _, body = call(runtime, "GET", base, cookie=viewer_cookie)
+    assert status == 200, body
+    status, _, body = call(
+        runtime, "GET", f"{base}/{report_id}/runs/{run_id}", cookie=viewer_cookie
+    )
+    assert status == 200, body
+    status, _, body = call(
+        runtime, "POST", evm_path, body=evm_body, cookie=viewer_cookie, csrf=viewer_csrf
+    )
+    assert status == 200, body
+    status, _, body = call(
+        runtime,
+        "POST",
+        base,
+        body={**definition_body, "report_id": "REP-V"},
+        cookie=viewer_cookie,
+        csrf=viewer_csrf,
+        headers={"Idempotency-Key": "viewer-report"},
+    )
+    assert status == 403, body
+    assert json.loads(body)["code"] == "REPORT_PERMISSION_DENIED"
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"{base}/{report_id}/schedules",
+        body={**schedule_body, "schedule_id": "SCH-V"},
+        cookie=viewer_cookie,
+        csrf=viewer_csrf,
+    )
+    assert status == 403, body
+    assert json.loads(body)["code"] == "REPORT_SCHEDULE_PERMISSION_DENIED"
+
+    outsider_cookie, _ = login(runtime, "outsider", ADMIN_PASSWORD)
+    status, _, body = call(runtime, "GET", base, cookie=outsider_cookie)
+    assert status == 403, body
+    status, _, body = call(
+        runtime, "POST", evm_path, body=evm_body, cookie=outsider_cookie
+    )
+    assert status == 403, body
+
+    # 12. Every stored row belongs to this tenant/project, and the baseline has
+    #     not moved while the measurement and exports were produced.
+    assert _db_rows(
+        runtime,
+        "SELECT report_id, revision FROM project_report_definition "
+        "WHERE tenant_id=%s AND project_id=%s",
+        (tenant, project),
+    ) == [(report_id, 1)]
+    assert _db_rows(
+        runtime,
+        "SELECT report_id, generated_by FROM project_report_run "
+        "WHERE tenant_id=%s AND project_id=%s ORDER BY generated_at, run_id",
+        (tenant, project),
+    ) == [
+        (report_id, ids["users"]["planner"].user_id),
+        (report_id, ids["users"]["planner"].user_id),
+    ]
+    assert _db_rows(
+        runtime,
+        "SELECT schedule_id, cadence, enabled FROM project_report_schedule "
+        "WHERE tenant_id=%s AND project_id=%s",
+        (tenant, project),
+    ) == [("SCH-1", "daily", 1)]
+    assert _db_rows(
+        runtime, baseline_query, (tenant, project, baseline_id)
+    ) == baseline_before
