@@ -340,6 +340,34 @@ def _initialize_scheduling_jobs(connection: Any) -> None:
     _harden_tables(connection, ("scheduling_jobs", "scheduling_job_results"))
 
 
+def _initialize_reports(connection: Any) -> None:
+    """Create the report register, its runs and its schedules.
+
+    The report HTTP surface is a stored register: a definition, the immutable
+    run snapshot it produces and the schedule that re-runs it all live in
+    PostgreSQL. Neither store's DDL ran in an earlier step (the reference
+    engineering step creates no report table), so composing ``/reports`` without
+    this step would answer every request with a missing-relation error. Both
+    ``initialize`` calls are additive and never rewrite an existing row.
+    """
+
+    from ..report_persistence import PostgresReportStore
+    from ..report_schedules import PostgresReportScheduleStore
+
+    PostgresReportStore(connection).initialize()
+    PostgresReportScheduleStore(connection).initialize()
+    _harden_tables(
+        connection,
+        (
+            "project_report_definition",
+            "project_report_audit",
+            "project_report_idempotency",
+            "project_report_run",
+            "project_report_schedule",
+        ),
+    )
+
+
 def _initialize_knowledge(connection: Any) -> None:
     from ..knowledge.postgres_store import PostgresKnowledgeStore
 
@@ -513,6 +541,7 @@ PRODUCTION_STEPS: tuple[MigrationStep, ...] = (
     MigrationStep(18, "resource-spread-buckets", 1, _initialize_resource_spread),
     MigrationStep(19, "activity-progress-history", 1, _initialize_activity_progress),
     MigrationStep(20, "scheduling-jobs", 1, _initialize_scheduling_jobs),
+    MigrationStep(21, "report-register-and-schedules", 1, _initialize_reports),
 )
 
 
