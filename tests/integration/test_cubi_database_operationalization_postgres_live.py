@@ -4307,3 +4307,440 @@ def test_rescheduling_jobs_and_schedule_variance_are_operational_end_to_end(runt
         cookie=outsider_cookie,
     )
     assert status == 403, body
+
+
+# ---------------------------------------------------------------------------
+# Costs: the expense register and its rollup into the immutable baseline
+# ---------------------------------------------------------------------------
+
+
+def test_expenses_are_operational_and_roll_into_the_baseline(runtime):
+    """Cost facts are durable, authorized and captured into Schedule Variance.
+
+    One independent project is driven through the real HTTP surface: a schedule
+    is published, activity- and WBS-linked expenses are recorded and read back
+    in a new session, an identical replay is idempotent, a changed replay is a
+    conflict, and baseline capture rolls the activity-linked planned cost into
+    the immutable baseline window while a WBS-only expense is reported as
+    unattributed instead of silently disappearing. Viewer and tenant
+    authorization is enforced, and cost never moves the schedule.
+    """
+
+    from construction_pm.project_schedule_settings_repository import (
+        _schedule_options_payload,
+    )
+    from construction_pm.scheduling.schedule_options import ScheduleOptions
+
+    ids = runtime.test_ids
+    suffix = uuid.uuid4().hex[:8]
+    project = f"project-cost-{suffix}"
+    tenant = ids["tenant_a"]
+    admin, admin_csrf = login(runtime, "admin", ADMIN_PASSWORD)
+
+    status, _, body = call(
+        runtime,
+        "POST",
+        "/api/projects",
+        body={
+            "project_id": project,
+            "name": f"Cost acceptance {suffix}",
+            "start_date": "2026-11-02",
+        },
+        cookie=admin,
+        csrf=admin_csrf,
+    )
+    assert status == 201, body
+    import psycopg
+
+    seed = psycopg.connect(
+        os.environ["CONSTRUCTION_PM_POSTGRES_DSN"],
+        autocommit=True,
+        options=f"-c search_path={ids['schema']}",
+    )
+    try:
+        for key in ("planner", "viewer"):
+            seed.execute(
+                "INSERT INTO project_lifecycle_memberships "
+                "(tenant_id, project_id, user_id) VALUES (%s, %s, %s) "
+                "ON CONFLICT DO NOTHING",
+                (tenant, project, ids["users"][key].user_id),
+            )
+    finally:
+        seed.close()
+    cookie, csrf = login(runtime, "planner", PLANNER_PASSWORD)
+
+    def project_revision() -> int:
+        status, _, body = call(runtime, "GET", "/api/projects", cookie=cookie)
+        assert status == 200, body
+        return int(
+            next(
+                item["revision"]
+                for item in json.loads(body)["projects"]
+                if item["project_id"] == project
+            )
+        )
+
+    calendar_id, calendar_version = f"CAL-COST-{suffix}", "v1"
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/calendars",
+        body={
+            "calendar_id": calendar_id,
+            "calendar_version": calendar_version,
+            "calendar_type": "project",
+            "kind": "working-day",
+            "name": "Cost calendar",
+            "definition": {
+                "system": "gregorian",
+                "working_weekdays": [0, 1, 2, 3, 4],
+            },
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+
+    root_wbs = f"root-cost-{suffix}"
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/wbs",
+        body={
+            "wbs_id": root_wbs,
+            "code": f"1-{suffix}",
+            "name": "Project summary",
+            "parent_kind": "project",
+            "sequence_number": 1,
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 201, body
+    wbs_id = f"wbs-cost-{suffix}"
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/wbs",
+        body={
+            "wbs_id": wbs_id,
+            "code": f"2-{suffix}",
+            "name": "Structure",
+            "parent_kind": "wbs",
+            "parent_wbs_id": root_wbs,
+            "sequence_number": 2,
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 201, body
+
+    activity_id = f"COST-A-{suffix}"
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/activities",
+        body={
+            "activity_id": activity_id,
+            "name": "Place concrete",
+            "duration_value": 3,
+            "duration_unit": "working-day",
+            "wbs_id": wbs_id,
+            "planned_finish": "2026-11-04",
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 201, body
+
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/schedule/settings",
+        body={
+            "contract_version": "p6-project-schedule-settings-api.v1",
+            "expected_record_revision": 0,
+            "mode": "DATE_BASED",
+            "project_calendar_id": calendar_id,
+            "project_calendar_version": calendar_version,
+            "project_calendar_system": "gregorian",
+            "project_start": "2026-11-02",
+            "project_finish": None,
+            "schedule_options": _schedule_options_payload(
+                ScheduleOptions(data_date=None)
+            ),
+            "project_leveling_priority": 50,
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status in {200, 201}, body
+
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/schedule/snapshots",
+        body={
+            "contract_version": "p6-schedule-snapshot-api.v1",
+            "timezone": "UTC",
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status in {200, 201}, body
+
+    # 1. The register starts empty and is readable without a body.
+    status, _, body = call(
+        runtime, "GET", f"/api/projects/{project}/p6/expenses", cookie=cookie
+    )
+    assert status == 200, body
+    assert json.loads(body)["expenses"] == []
+
+    revision = project_revision()
+    expense_a = f"EXP-A-{suffix}"
+    expense_w = f"EXP-W-{suffix}"
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/expenses",
+        body={
+            "expense_id": expense_a,
+            "name": "Concrete supply",
+            "category": "MATERIAL",
+            "activity_id": activity_id,
+            "expense_date": "2026-11-03",
+            "planned_cost": "1500.25",
+            "actual_cost": "0",
+            "remaining_cost": "1500.25",
+            "currency": "USD",
+            "note": "activity-linked budget",
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+    stored_expense = json.loads(body)["expense"]
+    assert stored_expense["expense_id"] == expense_a
+    assert stored_expense["planned_cost"] == "1500.25"
+    assert stored_expense["activity_id"] == activity_id
+
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/expenses",
+        body={
+            "expense_id": expense_w,
+            "name": "Site overhead",
+            "category": "OVERHEAD",
+            "wbs_id": root_wbs,
+            "planned_cost": "100",
+            "currency": "USD",
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+
+    # 2. Filters are query parameters, not a request body.
+    status, _, body = call(
+        runtime,
+        "GET",
+        f"/api/projects/{project}/p6/expenses",
+        cookie=cookie,
+        query=f"activity_id={activity_id}",
+    )
+    assert status == 200, body
+    assert [
+        item["expense"]["expense_id"] for item in json.loads(body)["expenses"]
+    ] == [expense_a]
+    status, _, body = call(
+        runtime,
+        "GET",
+        f"/api/projects/{project}/p6/expenses",
+        cookie=cookie,
+        query=f"wbs_id={root_wbs}",
+    )
+    assert status == 200, body
+    assert [
+        item["expense"]["expense_id"] for item in json.loads(body)["expenses"]
+    ] == [expense_w]
+
+    status, _, body = call(
+        runtime,
+        "GET",
+        f"/api/projects/{project}/p6/expenses/{expense_a}",
+        cookie=cookie,
+    )
+    assert status == 200, body
+    assert json.loads(body)["expense"]["actual_cost"] == "0"
+
+    # A new session reads the identical stored cost facts.
+    reload_cookie, _ = login(runtime, "planner", PLANNER_PASSWORD)
+    status, _, body = call(
+        runtime,
+        "GET",
+        f"/api/projects/{project}/p6/expenses/{expense_a}",
+        cookie=reload_cookie,
+    )
+    assert status == 200, body
+    assert json.loads(body)["expense"]["remaining_cost"] == "1500.25"
+
+    # 3. An identical replay is idempotent; a changed payload is a conflict.
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/expenses",
+        body={
+            "expense_id": expense_a,
+            "name": "Concrete supply",
+            "category": "MATERIAL",
+            "activity_id": activity_id,
+            "expense_date": "2026-11-03",
+            "planned_cost": "1500.25",
+            "actual_cost": "0",
+            "remaining_cost": "1500.25",
+            "currency": "USD",
+            "note": "activity-linked budget",
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/expenses",
+        body={
+            "expense_id": expense_a,
+            "name": "Changed after the fact",
+            "category": "MATERIAL",
+            "activity_id": activity_id,
+            "planned_cost": "9999",
+            "currency": "USD",
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 409, body
+    assert json.loads(body)["code"] == "IMMUTABLE_EXPENSE"
+
+    stored_rows = _db_rows(
+        runtime,
+        "SELECT expense_id, activity_id, wbs_id, planned_cost, actual_cost, "
+        "remaining_cost, currency, project_revision FROM p6_expense "
+        "WHERE tenant_id=%s AND project_id=%s ORDER BY expense_id",
+        (tenant, project),
+    )
+    assert stored_rows == [
+        (expense_a, activity_id, None, "1500.25", "0", "1500.25", "USD", revision),
+        (expense_w, None, root_wbs, "100", None, None, "USD", revision),
+    ]
+
+    # 4. Baseline capture rolls the activity-linked planned cost into the
+    #    immutable window and reports the WBS-only expense as unattributed.
+    baseline_id = f"BL-COST-{suffix}"
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/baselines/capture",
+        body={
+            "contract_version": "p6-baseline-capture-api.v1",
+            "baseline_id": baseline_id,
+            "name": "Costed plan",
+            "baseline_type": "USER_SELECTED",
+            "expected_revision": revision,
+            "currency": "USD",
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 201, body
+    captured = json.loads(body)
+    assert captured["counts"]["activities"] == 1
+    assert captured["counts"]["budgeted_cost"] == "1500.25"
+    assert captured["unattributed_expense_ids"] == [expense_w]
+
+    status, _, body = call(
+        runtime,
+        "GET",
+        f"/api/projects/{project}/p6/baselines/{baseline_id}/activities",
+        cookie=cookie,
+    )
+    assert status == 200, body
+    rows = {item["activity_id"]: item for item in json.loads(body)["activities"]}
+    assert rows[activity_id]["budgeted_cost"] == "1500.25"
+    assert rows[activity_id]["currency"] == "USD"
+
+    # Cost is not schedule: planned duration and planned finish are untouched.
+    status, _, body = call(
+        runtime,
+        "GET",
+        f"/api/projects/{project}/p6/activities/{activity_id}",
+        cookie=cookie,
+    )
+    assert status == 200, body
+    master = json.loads(body)["activity"]
+    assert master["duration_value"] == "3"
+    assert master["planned_finish"] == "2026-11-04"
+
+    # 5. Authorization: a viewer reads cost but cannot record it; another
+    #    tenant sees nothing and cannot write.
+    viewer_cookie, viewer_csrf = login(runtime, "viewer", VIEWER_PASSWORD)
+    status, _, body = call(
+        runtime, "GET", f"/api/projects/{project}/p6/expenses", cookie=viewer_cookie
+    )
+    assert status == 200, body
+    assert len(json.loads(body)["expenses"]) == 2
+    status, _, body = call(
+        runtime,
+        "GET",
+        f"/api/projects/{project}/p6/expenses/{expense_a}",
+        cookie=viewer_cookie,
+    )
+    assert status == 200, body
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/expenses",
+        body={
+            "expense_id": f"EXP-V-{suffix}",
+            "name": "Viewer attempt",
+            "category": "OTHER",
+            "planned_cost": "1",
+            "currency": "USD",
+        },
+        cookie=viewer_cookie,
+        csrf=viewer_csrf,
+    )
+    assert status == 403, body
+    assert json.loads(body)["code"] == "AUTHORIZATION_PERMISSION_DENIED"
+
+    outsider_cookie, outsider_csrf = login(runtime, "outsider", ADMIN_PASSWORD)
+    status, _, body = call(
+        runtime,
+        "GET",
+        f"/api/projects/{project}/p6/expenses",
+        cookie=outsider_cookie,
+    )
+    assert status == 403, body
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/expenses",
+        body={
+            "expense_id": f"EXP-O-{suffix}",
+            "name": "Outsider attempt",
+            "category": "OTHER",
+        },
+        cookie=outsider_cookie,
+        csrf=outsider_csrf,
+    )
+    assert status == 403, body
+
+    final_rows = _db_rows(
+        runtime,
+        "SELECT expense_id FROM p6_expense WHERE tenant_id=%s AND project_id=%s "
+        "ORDER BY expense_id",
+        (tenant, project),
+    )
+    assert final_rows == [(expense_a,), (expense_w,)]

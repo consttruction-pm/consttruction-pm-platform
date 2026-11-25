@@ -5093,13 +5093,28 @@ class ProjectLifecycleHttpRoutes:
                     except (TypeError, ValueError, ArithmeticError):
                         return self._error(400, "P6_ISSUE_REQUEST_INVALID", "error.request.invalid")
             if path.startswith("/api/projects/") and "/p6/expenses" in path and self._p6_expense_api is not None:
+                split = urlsplit(path)
+                route_path = split.path
+                query = {
+                    key: values[-1]
+                    for key, values in parse_qs(split.query, keep_blank_values=True).items()
+                }
                 prefix = "/p6/expenses"
-                project_id = path[len("/api/projects/"):].split(prefix, 1)[0].rstrip("/")
-                suffix = path[len("/api/projects/") + len(project_id) + len(prefix):]
+                project_id = route_path[len("/api/projects/"):].split(prefix, 1)[0].rstrip("/")
+                suffix = route_path[len("/api/projects/") + len(project_id) + len(prefix):]
                 if not project_id:
                     return self._error(400, "P6_EXPENSE_REQUEST_INVALID", "error.request.invalid")
                 try:
-                    context = self._api.open_project(session_id, project_id, now=now).context
+                    if method == "POST":
+                        # Recording cost is a write operation. A viewer may read
+                        # the register, but must not create or move cost facts.
+                        context = self._api.authorize_project(
+                            session_id, project_id, Permission.PROJECT_WRITE, now=now
+                        ).context
+                    else:
+                        context = self._api.open_project(
+                            session_id, project_id, now=now
+                        ).context
                 except ProjectLifecycleError as exc:
                     if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
                         return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
@@ -5108,15 +5123,15 @@ class ProjectLifecycleHttpRoutes:
                 auth = context.authorization_context(session.roles)
                 scope = BackendScope(context.tenant_id, context.project_id, context.revision)
                 try:
-                    payload = json.loads(body.decode("utf-8") or "{}")
+                    payload = json.loads(body.decode("utf-8") or "{}") if body else {}
                     if not isinstance(payload, dict):
                         raise ValueError("invalid payload")
                     expense_id = suffix.strip("/")
                     if method == "GET" and not expense_id:
                         result = self._p6_expense_api.list(
                             scope,
-                            activity_id=payload.get("activity_id"),
-                            wbs_id=payload.get("wbs_id"),
+                            activity_id=query.get("activity_id"),
+                            wbs_id=query.get("wbs_id"),
                             auth_context=auth,
                         )
                         return self._json(200, {
@@ -5144,6 +5159,15 @@ class ProjectLifecycleHttpRoutes:
                             note=payload.get("note"),
                         )
                         return self._json(200, self._p6_expense_api.create(expense, auth_context=auth))
+                except AuthorizationError as exc:
+                    return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
+                except P6ExpensePersistenceError as exc:
+                    code = str(exc)
+                    if code in {"REVISION_CONFLICT", "IMMUTABLE_EXPENSE"}:
+                        # An expense id is immutable: a different payload for a
+                        # stored id is a conflict, never a silent overwrite.
+                        return self._error(409, code, "error.p6.expense.conflict")
+                    return self._error(400, _stable_error_code(exc, "P6_EXPENSE_REQUEST_INVALID"), "error.request.invalid")
                 except (TypeError, ValueError, ArithmeticError):
                     return self._error(400, "P6_EXPENSE_REQUEST_INVALID", "error.request.invalid")
             if "/p6/activity-period-actuals" in path and self._p6_activity_period_actual_api is not None:
