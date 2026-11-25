@@ -304,6 +304,23 @@ def _initialize_resource_spread(connection: Any) -> None:
     _harden_tables(connection, ("p6_resource_spread_bucket",))
 
 
+def _initialize_activity_progress(connection: Any) -> None:
+    """Create the append-only activity progress event store.
+
+    ``P6ActivityProgressAPI`` records every progress-bearing activity edit as an
+    immutable event and the Progress window reads those events back. The
+    repository DDL existed, but no production step created the table, so wiring
+    the API without this step would leave two live routes failing on a missing
+    relation. The table reuses the repository DDL and is hardened like every
+    later step.
+    """
+
+    from ..activity_progress_history import PostgresActivityProgressHistoryRepository
+
+    PostgresActivityProgressHistoryRepository(connection).initialize()
+    _harden_tables(connection, ("activity_progress_event",))
+
+
 def _initialize_knowledge(connection: Any) -> None:
     from ..knowledge.postgres_store import PostgresKnowledgeStore
 
@@ -475,6 +492,7 @@ PRODUCTION_STEPS: tuple[MigrationStep, ...] = (
     MigrationStep(16, "post-reference-state-and-data-api-hardening", 1, _harden_public_data_api),
     MigrationStep(17, "threshold-register", 1, _initialize_thresholds),
     MigrationStep(18, "resource-spread-buckets", 1, _initialize_resource_spread),
+    MigrationStep(19, "activity-progress-history", 1, _initialize_activity_progress),
 )
 
 

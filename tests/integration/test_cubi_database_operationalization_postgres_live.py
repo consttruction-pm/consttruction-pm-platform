@@ -295,24 +295,24 @@ def test_migration_ledger_is_versioned_idempotent_and_reports_drift():
     schema = _schema_name("cubi_mig")
     connection, first = _apply_drift_free_schema(schema)
     try:
-        assert first.ledger_version == 18
-        assert len(first.applied) == 18
+        assert first.ledger_version == 19
+        assert len(first.applied) == 19
         assert first.already_applied == ()
-        assert first.table_count == 99
+        assert first.table_count == 100
         assert first.drift is None
 
         second = apply_migrations(connection)
         assert second.applied == ()
-        assert second.already_applied == tuple(range(1, 19))
+        assert second.already_applied == tuple(range(1, 20))
         assert second.drift is None
-        assert second.table_count == 99
+        assert second.table_count == 100
 
         rows = connection.execute(
             f"SELECT version, name, checksum, step_revision, runtime_version "
             f"FROM {LEDGER_TABLE} ORDER BY version"
         ).fetchall()
-        assert [row[0] for row in rows] == list(range(1, 19))
-        assert all(row[2] and row[3] >= 1 and row[4] == 18 for row in rows)
+        assert [row[0] for row in rows] == list(range(1, 20))
+        assert all(row[2] and row[3] >= 1 and row[4] == 19 for row in rows)
 
         # An edited history is reported, never silently accepted.
         connection.execute(
@@ -363,8 +363,8 @@ def test_runtime_readiness_uses_the_migrated_schema(runtime):
     assert status == 200
     readiness = json.loads(body)
     assert readiness["status"] == "ready"
-    assert readiness["schema"]["version"] == 18
-    assert readiness["schema"]["tables"] == 99
+    assert readiness["schema"]["version"] == 19
+    assert readiness["schema"]["tables"] == 100
 
 
 # ---------------------------------------------------------------------------
@@ -3117,6 +3117,586 @@ def test_resources_and_assignments_drive_the_production_schedule(runtime):
             "max_units": "10",
             "effective_from": "2026-12-01",
             "expected_revision": project_revision + 1,
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 409, body
+    assert json.loads(body)["code"] == "REVISION_CONFLICT"
+
+
+# ---------------------------------------------------------------------------
+# Data Date + Progress: the shared engine consumes persisted progress facts
+# ---------------------------------------------------------------------------
+
+
+def test_data_date_and_progress_are_operational_end_to_end(runtime):
+    """Data Date and progress survive the full production chain.
+
+    One independent project is driven through the real HTTP surface: Data Date
+    is stored in the project schedule settings, Actual Start/Finish, percent
+    complete and Remaining Duration are stored on the Activity Master with
+    append-only history, the shared scheduler is re-run, and a new session
+    reads the same stored values. Planned Duration and baseline fields must be
+    untouched, and the revision conflict and authorization boundaries must
+    still hold.
+    """
+
+    from datetime import date
+
+    import psycopg
+
+    from construction_pm.activity_progress_history import (
+        PostgresActivityProgressHistoryRepository,
+    )
+    from construction_pm.backend_p0.models import BackendScope
+    from construction_pm.project_schedule_settings_repository import (
+        _schedule_options_payload,
+    )
+    from construction_pm.scheduling.schedule_options import ScheduleOptions
+
+    ids = runtime.test_ids
+    suffix = uuid.uuid4().hex[:8]
+    project = f"project-dd-{suffix}"
+    tenant = ids["tenant_a"]
+    admin, admin_csrf = login(runtime, "admin", ADMIN_PASSWORD)
+
+    # 1. An independent project created through the real lifecycle API.
+    status, _, body = call(
+        runtime,
+        "POST",
+        "/api/projects",
+        body={
+            "project_id": project,
+            "name": f"Data date acceptance {suffix}",
+            "start_date": "2026-11-02",
+        },
+        cookie=admin,
+        csrf=admin_csrf,
+    )
+    assert status == 201, body
+    project_revision = int(json.loads(body)["context"]["revision"])
+
+    # Membership for the planner and viewer is provisioned in this isolated
+    # schema; the project-admin surface is not the subject of this slice.
+    seed = psycopg.connect(
+        os.environ["CONSTRUCTION_PM_POSTGRES_DSN"],
+        autocommit=True,
+        options=f"-c search_path={ids['schema']}",
+    )
+    try:
+        for key in ("planner", "viewer"):
+            seed.execute(
+                "INSERT INTO project_lifecycle_memberships "
+                "(tenant_id, project_id, user_id) VALUES (%s, %s, %s) "
+                "ON CONFLICT DO NOTHING",
+                (tenant, project, ids["users"][key].user_id),
+            )
+    finally:
+        seed.close()
+
+    cookie, csrf = login(runtime, "planner", PLANNER_PASSWORD)
+
+    # 2. A durable working-week calendar defined through the product route.
+    calendar_id, calendar_version = f"CAL-DD-{suffix}", "v1"
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/calendars",
+        body={
+            "calendar_id": calendar_id,
+            "calendar_version": calendar_version,
+            "calendar_type": "project",
+            "kind": "working-day",
+            "name": "Data date calendar",
+            "definition": {
+                "system": "gregorian",
+                "working_weekdays": [0, 1, 2, 3, 4],
+            },
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+    assert json.loads(body)["schedulable"] is True
+    resource_calendar = f"CAL-DDR-{suffix}"
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/calendars",
+        body={
+            "calendar_id": resource_calendar,
+            "calendar_version": "v1",
+            "calendar_type": "resource",
+            "kind": "working-day",
+            "name": "Data date crew calendar",
+            "definition": {
+                "system": "gregorian",
+                "working_weekdays": [0, 1, 2, 3, 4],
+            },
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+
+    # 3. WBS and a three-activity chain A -> B -> C.
+    root_wbs = f"root-dd-{suffix}"
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/wbs",
+        body={
+            "wbs_id": root_wbs,
+            "code": f"1-{suffix}",
+            "name": "Project summary",
+            "parent_kind": "project",
+            "sequence_number": 1,
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 201, body
+
+    wbs_id = f"wbs-dd-{suffix}"
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/wbs",
+        body={
+            "wbs_id": wbs_id,
+            "code": f"2-{suffix}",
+            "name": "Structure",
+            "parent_kind": "wbs",
+            "parent_wbs_id": root_wbs,
+            "sequence_number": 2,
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 201, body
+
+    activity_a, activity_b, activity_c = (
+        f"DD-A-{suffix}",
+        f"DD-B-{suffix}",
+        f"DD-C-{suffix}",
+    )
+    planned_durations = {activity_a: 3, activity_b: 2, activity_c: 2}
+    for activity_id, duration, name in (
+        (activity_a, 3, "Excavate"),
+        (activity_b, 2, "Footings"),
+        (activity_c, 2, "Backfill"),
+    ):
+        status, _, body = call(
+            runtime,
+            "POST",
+            f"/api/projects/{project}/p6/activities",
+            body={
+                "activity_id": activity_id,
+                "name": name,
+                "duration_value": duration,
+                "duration_unit": "working-day",
+                "wbs_id": wbs_id,
+            },
+            cookie=cookie,
+            csrf=csrf,
+        )
+        assert status == 201, body
+
+    for index, (predecessor, successor) in enumerate(
+        ((activity_a, activity_b), (activity_b, activity_c))
+    ):
+        status, _, body = call(
+            runtime,
+            "POST",
+            f"/api/projects/{project}/p6/relationships",
+            body={
+                "relationship_id": f"REL-DD-{index}-{suffix}",
+                "predecessor_id": predecessor,
+                "successor_id": successor,
+                "relationship_type": "FS",
+                "lag_value": "0",
+                "lag_unit": "working-day",
+            },
+            cookie=cookie,
+            csrf=csrf,
+        )
+        assert status in {200, 201}, body
+
+    # 4. A resource assignment on the not-started successor, proving progress
+    #    and the resource surface coexist on the same project.
+    resource_id = f"RES-DD-{suffix}"
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/resources",
+        body={
+            "resource_id": resource_id,
+            "name": "Civil crew",
+            "resource_type": "labor",
+            "calendar_id": resource_calendar,
+            "default_units_per_time": "8",
+            "unit_of_measure": "labor-unit",
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+    assignment_id = f"AS-DD-{suffix}"
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/resource-assignments",
+        body={
+            "contract_version": "p6-resource-write-api.v1",
+            "assignment_id": assignment_id,
+            "activity_id": activity_c,
+            "resource_id": resource_id,
+            "units": "16",
+            "unit": "labor-unit",
+            "calendar_id": resource_calendar,
+            "calendar_version": "v1",
+            "units_per_time": "8",
+            "units_per_time_period": "day",
+            "hours_per_units_time_period": "8",
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+
+    # 5. Data Date stored in the project schedule settings.
+    settings_payload = {
+        "contract_version": "p6-project-schedule-settings-api.v1",
+        "expected_record_revision": 0,
+        "mode": "DATE_BASED",
+        "project_calendar_id": calendar_id,
+        "project_calendar_version": calendar_version,
+        "project_calendar_system": "gregorian",
+        "project_start": "2026-11-02",
+        "project_finish": None,
+        "schedule_options": _schedule_options_payload(
+            ScheduleOptions(data_date=date(2026, 11, 16))
+        ),
+        "project_leveling_priority": 50,
+    }
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/schedule/settings",
+        body=settings_payload,
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status in {200, 201}, body
+    status, _, body = call(
+        runtime,
+        "GET",
+        f"/api/projects/{project}/p6/schedule/settings",
+        cookie=cookie,
+    )
+    assert status == 200, body
+    stored_settings = json.loads(body)
+    assert stored_settings["schedule_options"]["data_date"] == "2026-11-16"
+    settings_revision = stored_settings["record_revision"]
+
+    # 6. Actual Start / Actual Finish / percent / Remaining Duration, stored on
+    #    the Activity Master with an immutable progress event.
+    status, _, body = call(
+        runtime,
+        "PATCH",
+        f"/api/projects/{project}/p6/activities/{activity_a}",
+        body={
+            "expected_revision": 1,
+            "actual_start": "2026-11-02",
+            "actual_finish": "2026-11-04",
+            "percent_complete": 100.0,
+            "remaining_duration": 0,
+            "status": "Completed",
+            "status_code": "Active",
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+    status, _, body = call(
+        runtime,
+        "PATCH",
+        f"/api/projects/{project}/p6/activities/{activity_b}",
+        body={
+            "expected_revision": 1,
+            "actual_start": "2026-11-05",
+            "percent_complete": 40.0,
+            "remaining_duration": 2,
+            "status": "In Progress",
+            "status_code": "Active",
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+    assert json.loads(body)["activity"]["percent_complete"] == 40.0
+
+    status, _, body = call(
+        runtime,
+        "GET",
+        f"/api/projects/{project}/p6/activities/{activity_b}/progress-history",
+        cookie=cookie,
+    )
+    assert status == 200, body
+    history = json.loads(body)
+    assert [event["to_record_revision"] for event in history["events"]] == [2]
+    assert history["percent_complete_trend"][-1]["percent_complete"] == "40.0"
+    assert history["out_of_sequence_review"]["is_out_of_sequence"] is False
+
+    # A stale revision must not overwrite or re-audit the stored progress.
+    stale = psycopg.connect(
+        os.environ["CONSTRUCTION_PM_POSTGRES_DSN"],
+        autocommit=True,
+        options=f"-c search_path={ids['schema']}",
+    )
+    try:
+        stale_events = PostgresActivityProgressHistoryRepository(stale).list(
+            BackendScope(tenant, project, project_revision), activity_b
+        )
+        assert len(stale_events) == 1
+        assert stale_events[0].changes and any(
+            change.field == "percent_complete" and change.after == "40.0"
+            for change in stale_events[0].changes
+        )
+    finally:
+        stale.close()
+
+    status, _, body = call(
+        runtime,
+        "PATCH",
+        f"/api/projects/{project}/p6/activities/{activity_b}",
+        body={"expected_revision": 1, "percent_complete": 90.0},
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 409, body
+    assert json.loads(body)["code"] == "REVISION_CONFLICT"
+    status, _, body = call(
+        runtime,
+        "GET",
+        f"/api/projects/{project}/p6/activities/{activity_b}/progress-history",
+        cookie=cookie,
+    )
+    assert len(json.loads(body)["events"]) == 1
+
+    # 7. Re-run the shared scheduler with the stored Data Date and progress.
+    status, _, body = call(runtime, "GET", "/api/projects", cookie=cookie)
+    assert status == 200, body
+    project_revision = int(
+        next(
+            item["revision"]
+            for item in json.loads(body)["projects"]
+            if item["project_id"] == project
+        )
+    )
+    headers = {
+        "X-Tenant-Id": tenant,
+        "X-Project-Id": project,
+        "X-Project-Revision": str(project_revision),
+    }
+
+    def publish_and_read():
+        status, _, body = call(
+            runtime,
+            "POST",
+            f"/api/projects/{project}/p6/schedule/snapshots",
+            body={
+                "contract_version": "p6-schedule-snapshot-api.v1",
+                "timezone": "UTC",
+            },
+            cookie=cookie,
+            csrf=csrf,
+        )
+        assert status in {200, 201}, body
+        assert json.loads(body)["kind"] == "schedule_input_snapshot"
+        status, _, body = call(
+            runtime,
+            "GET",
+            "/api/v2/workspace/control-room/read",
+            cookie=cookie,
+            headers=headers,
+        )
+        assert status == 200, body
+        workspace = json.loads(body)["workspace"]
+        return (
+            {item["id"]: item["cells"] for item in workspace["activities"]},
+            {item["id"]: item["gantt"] for item in workspace["activities"]},
+        )
+
+    def save_settings(data_date):
+        status, _, body = call(
+            runtime,
+            "GET",
+            f"/api/projects/{project}/p6/schedule/settings",
+            cookie=cookie,
+        )
+        assert status == 200, body
+        revision = json.loads(body)["record_revision"]
+        status, _, body = call(
+            runtime,
+            "POST",
+            f"/api/projects/{project}/p6/schedule/settings",
+            body={
+                **settings_payload,
+                "expected_record_revision": revision,
+                "schedule_options": _schedule_options_payload(
+                    ScheduleOptions(data_date=data_date)
+                ),
+            },
+            cookie=cookie,
+            csrf=csrf,
+        )
+        assert status in {200, 201}, body
+
+    cells, gantt = publish_and_read()
+
+    # An in-progress activity keeps its Actual Start; the Data Date bounds the
+    # remaining work, so the forecast finish moves to the current period.
+    assert cells[activity_b]["activity.early_start"] == "2026-11-05"
+    assert gantt[activity_b]["start"] == "2026-11-05"
+    assert gantt[activity_b]["progressPercent"] == 40
+    assert cells[activity_b]["activity.early_finish"] >= "2026-11-16"
+    assert gantt[activity_b]["finish"] == cells[activity_b]["activity.early_finish"]
+    with_data_date_finish = cells[activity_b]["activity.early_finish"]
+
+    # Scheduling the same progress facts without a Data Date finishes earlier:
+    # the stored Data Date is the actual driver, not a label on the settings.
+    save_settings(None)
+    no_date_cells, _ = publish_and_read()
+    assert no_date_cells[activity_b]["activity.early_start"] == "2026-11-05"
+    assert (
+        no_date_cells[activity_b]["activity.early_finish"]
+        < with_data_date_finish
+    )
+
+    # Restoring the Data Date reproduces the identical forecast.
+    save_settings(date(2026, 11, 16))
+    cells, gantt = publish_and_read()
+    assert cells[activity_b]["activity.early_finish"] == with_data_date_finish
+    # The chain stays critical and the stored progress does not invent float.
+    assert cells[activity_b]["activity.total_float"] == 0
+    assert cells[activity_c]["activity.total_float"] == 0
+    assert cells[activity_b]["activity.is_critical"] is True
+    assert cells[activity_c]["activity.is_critical"] is True
+    assert (
+        cells[activity_b]["activity.early_finish"]
+        <= cells[activity_c]["activity.early_start"]
+    )
+    # Planned Duration and baselines are untouched by progress recording.
+    for activity_id, duration in planned_durations.items():
+        assert cells[activity_id]["activity.planned_duration"] == str(duration)
+        assert not any(key.startswith("activity.baseline") for key in cells[activity_id])
+
+    # 8. A new session reads the same stored values and the same forecast.
+    reload_cookie, _ = login(runtime, "planner", PLANNER_PASSWORD)
+    status, _, body = call(
+        runtime,
+        "GET",
+        f"/api/projects/{project}/p6/schedule/settings",
+        cookie=reload_cookie,
+    )
+    assert status == 200, body
+    assert json.loads(body)["schedule_options"]["data_date"] == "2026-11-16"
+    status, _, body = call(
+        runtime,
+        "GET",
+        f"/api/projects/{project}/p6/activities",
+        cookie=reload_cookie,
+    )
+    assert status == 200, body
+    stored = {
+        item["activity"]["activity_id"]: item["activity"]
+        for item in json.loads(body)["activities"]
+    }
+    assert stored[activity_a]["status"] == "Completed"
+    assert stored[activity_a]["actual_finish"] == "2026-11-04"
+    assert stored[activity_b]["percent_complete"] == 40.0
+    assert stored[activity_b]["remaining_duration"] == 2
+    assert stored[activity_b]["actual_start"] == "2026-11-05"
+    for activity_id, duration in planned_durations.items():
+        assert stored[activity_id]["duration_value"] == str(duration)
+    status, _, body = call(
+        runtime,
+        "GET",
+        "/api/v2/workspace/control-room/read",
+        cookie=reload_cookie,
+        headers=headers,
+    )
+    assert status == 200, body
+    reloaded = {
+        item["id"]: item["cells"]
+        for item in json.loads(body)["workspace"]["activities"]
+    }
+    for activity_id in (activity_a, activity_b, activity_c):
+        assert (
+            reloaded[activity_id]["activity.planned_duration"]
+            == cells[activity_id]["activity.planned_duration"]
+        )
+    assert (
+        reloaded[activity_b]["activity.early_start"]
+        == cells[activity_b]["activity.early_start"]
+    )
+    assert (
+        reloaded[activity_b]["activity.total_float"]
+        == cells[activity_b]["activity.total_float"]
+    )
+
+    # 9. Authorization: a viewer reads the stored progress but cannot write it;
+    #    another tenant sees nothing.
+    viewer_cookie, viewer_csrf = login(runtime, "viewer", VIEWER_PASSWORD)
+    status, _, body = call(
+        runtime,
+        "GET",
+        f"/api/projects/{project}/p6/activities/{activity_b}/progress-history",
+        cookie=viewer_cookie,
+    )
+    assert status == 200, body
+    assert json.loads(body)["events"]
+    status, _, body = call(
+        runtime,
+        "PATCH",
+        f"/api/projects/{project}/p6/activities/{activity_b}",
+        body={"expected_revision": 2, "percent_complete": 60.0},
+        cookie=viewer_cookie,
+        csrf=viewer_csrf,
+    )
+    assert status == 403, body
+    outsider_cookie, outsider_csrf = login(runtime, "outsider", ADMIN_PASSWORD)
+    status, _, body = call(
+        runtime,
+        "GET",
+        f"/api/projects/{project}/p6/activities/{activity_b}/progress-history",
+        cookie=outsider_cookie,
+    )
+    assert status == 403, body
+    status, _, body = call(
+        runtime,
+        "PATCH",
+        f"/api/projects/{project}/p6/activities/{activity_b}",
+        body={"expected_revision": 2, "percent_complete": 60.0},
+        cookie=outsider_cookie,
+        csrf=outsider_csrf,
+    )
+    assert status == 403, body
+
+    # 10. The stored settings still carry the same record revision, so a stale
+    #     editor cannot silently move the Data Date.
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/schedule/settings",
+        body={
+            **settings_payload,
+            "expected_record_revision": settings_revision - 1,
+            "schedule_options": _schedule_options_payload(
+                ScheduleOptions(data_date=date(2026, 12, 1))
+            ),
         },
         cookie=cookie,
         csrf=csrf,

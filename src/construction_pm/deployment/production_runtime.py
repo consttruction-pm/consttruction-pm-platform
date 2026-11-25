@@ -28,6 +28,7 @@ from typing import Any, Iterator, Mapping
 from urllib.parse import parse_qs, quote, urlsplit, urlunsplit
 
 from ..activity_master_repository import PostgresActivityMasterRepository
+from ..activity_progress_history import PostgresActivityProgressHistoryRepository
 from ..ai_action_activity_tools import (
     AIActionExecutionIdempotencyStore,
     build_activity_create_tool,
@@ -493,6 +494,11 @@ class ProductionRuntime:
         )
         checkout_lease = PostgresProjectCheckoutLease(connection)
         activity_repository = PostgresActivityMasterRepository(connection)
+        # Append-only progress events: the same store the Progress window
+        # reads, written in the same transaction as the Activity Master save.
+        progress_history_repository = PostgresActivityProgressHistoryRepository(
+            connection
+        )
         wbs_repository = PostgresWBSMasterRepository(connection)
         relationship_repository = PostgresRelationshipMasterRepository(connection)
         field_repository = PostgresP6FieldRegistryRepository(connection)
@@ -716,6 +722,8 @@ class ProductionRuntime:
             calculation_context_repository=calculation_context_repository,
             authorization_policy=policy,
             activity_master_repository=activity_repository,
+            activity_progress_history_repository=progress_history_repository,
+            activity_progress_transaction_manager=transaction_manager,
             wbs_master_repository=wbs_repository,
             relationship_master_repository=relationship_repository,
             checkout_lease=checkout_lease,
