@@ -48,7 +48,23 @@ export type WorkspaceProjectCalendar = {
   workingWeekdays: readonly number[];
   /** Canonical ISO Gregorian holiday dates stored in the calendar snapshot. */
   holidays: readonly string[];
+  /**
+   * Canonical ISO Gregorian dates the persisted calendar exceptions make
+   * working even though the snapshot calls them holidays/weekends. Counted by
+   * the Shared Core projection, never inferred in the browser.
+   */
+  workingDates: readonly string[];
+  /**
+   * Canonical ISO Gregorian dates the persisted calendar exceptions make
+   * non-working even though the snapshot calls them working days.
+   */
+  nonWorkingDates: readonly string[];
   errorCode: string | null;
+  /**
+   * Set when the exception projection could not be read. Base weekend/holiday
+   * shading stays valid in that case; no exception shading is claimed.
+   */
+  dayFactsErrorCode: string | null;
 };
 export type WorkspacePanel = "project_wbs" | "activity_grid" | "gantt" | "details";
 export type WorkspaceMenuKey =
@@ -316,7 +332,7 @@ export function createWorkspaceState(
     direction: getWorkspaceLocaleDirection(locale),
     calendarMode,
     calendarCatalog: { status: "not-loaded", calendars: [], errorCode: null },
-    projectCalendar: { status: "not-loaded", calendarId: null, calendarVersion: null, workingWeekdays: [], holidays: [], errorCode: null },
+    projectCalendar: { status: "not-loaded", calendarId: null, calendarVersion: null, workingWeekdays: [], holidays: [], workingDates: [], nonWorkingDates: [], errorCode: null, dayFactsErrorCode: null },
     ganttScale: "month",
     showGanttRelationships: true,
     activeMenu: "schedule",

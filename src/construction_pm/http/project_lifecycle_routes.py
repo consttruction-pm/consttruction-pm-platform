@@ -45,6 +45,10 @@ from ..calendar_master_repository import (
     SQLiteCalendarMasterRepository,
 )
 from ..calendar_snapshot_repository import SQLiteCalendarSnapshotRepository
+from ..p6_calendar_day_facts_api import (
+    CalendarDayFactsError,
+    P6CalendarDayFactsAPI,
+)
 from ..p6_calendar_read_api import P6CalendarReadAPI
 from ..p6_calendar_usage_api import P6CalendarUsageAPI
 from ..p6_calendar_api import (
@@ -339,6 +343,7 @@ class ProjectLifecycleHttpRoutes:
         p6_formula_authority_api: P6FormulaAuthorityAPI | None = None,
         p6_formula_column_api: P6FormulaColumnAPI | None = None,
         p6_calendar_read_api: P6CalendarReadAPI | None = None,
+        p6_calendar_day_facts_api: P6CalendarDayFactsAPI | None = None,
         p6_calendar_usage_api: P6CalendarUsageAPI | None = None,
         p6_calendar_api: P6CalendarAPI | None = None,
         p6_baseline_api: P6BaselineAPI | None = None,
@@ -404,6 +409,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_formula_authority_api = p6_formula_authority_api
         self._p6_formula_column_api = p6_formula_column_api
         self._p6_calendar_read_api = p6_calendar_read_api
+        self._p6_calendar_day_facts_api = p6_calendar_day_facts_api
         self._p6_calendar_usage_api = p6_calendar_usage_api
         self._p6_calendar_api = p6_calendar_api
         self._p6_baseline_api = p6_baseline_api
@@ -1024,6 +1030,44 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(400, _stable_error_code(exc, "REQUEST_INVALID"), "error.request.invalid")
                 if result is None:
                     return self._error(404, "P6_CALENDAR_NOT_FOUND", "error.p6.calendar.not_found")
+                return self._json(200, result)
+            if method == "GET" and path.startswith("/api/projects/") and "/p6/calendars/" in path and path.endswith("/day-facts"):
+                if self._p6_calendar_day_facts_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                prefix, suffix = path.split("/p6/calendars/", 1)
+                project_id = prefix[len("/api/projects/"):]
+                parts = suffix[:-len("/day-facts")].rstrip("/").split("/")
+                if not project_id or len(parts) != 2 or not all(parts):
+                    return self._error(400, "P6_CALENDAR_REQUEST_INVALID", "error.request.invalid")
+                calendar_id, calendar_version = parts
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                try:
+                    result = self._p6_calendar_day_facts_api.get_day_facts(
+                        BackendScope(context.tenant_id, context.project_id, context.revision),
+                        calendar_id,
+                        calendar_version,
+                        auth_context=auth,
+                    )
+                except AuthorizationError as exc:
+                    return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
+                except CalendarPersistenceError as exc:
+                    code = _stable_error_code(exc, "P6_CALENDAR_REQUEST_INVALID")
+                    if code in {"CALENDAR_NOT_FOUND", "CALENDAR_SNAPSHOT_NOT_FOUND", "BASE_CALENDAR_NOT_FOUND"}:
+                        return self._error(404, "P6_CALENDAR_NOT_FOUND", "error.p6.calendar.not_found")
+                    if code == "CALENDAR_INHERITANCE_CYCLE":
+                        return self._error(409, code, "error.p6.calendar.conflict")
+                    return self._error(400, "P6_CALENDAR_REQUEST_INVALID", "error.request.invalid")
+                except CalendarDayFactsError:
+                    # An exception mode or work-hour rule the Shared Core cannot
+                    # consume must not be guessed away in a projection.
+                    return self._error(400, "P6_CALENDAR_DAY_FACTS_UNRESOLVED", "error.request.invalid")
                 return self._json(200, result)
             if method == "GET" and path.startswith("/api/projects/") and path.endswith("/p6/mappings"):
                 if self._p6_mapping_api is None:

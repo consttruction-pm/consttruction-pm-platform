@@ -396,6 +396,16 @@ export type GanttCalendarFacts = {
   workingWeekdays: readonly number[];
   /** Canonical ISO Gregorian holiday dates. */
   holidays: readonly string[];
+  /**
+   * Canonical ISO Gregorian dates a persisted calendar exception makes
+   * working. Wins over holidays and the weekend rule.
+   */
+  workingDates?: readonly string[];
+  /**
+   * Canonical ISO Gregorian dates a persisted calendar exception makes
+   * non-working. Wins over the working-weekday rule.
+   */
+  nonWorkingDates?: readonly string[];
 };
 
 /**
@@ -421,6 +431,8 @@ export function createGanttNonWorkingBands(
   const workingWeekdays = new Set(calendar.workingWeekdays.filter((day) => Number.isInteger(day) && day >= 0 && day <= 6));
   if (!workingWeekdays.size) return [];
   const holidays = new Set(calendar.holidays.filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date)));
+  const workingDates = new Set((calendar.workingDates ?? []).filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date)));
+  const nonWorkingDates = new Set((calendar.nonWorkingDates ?? []).filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date)));
 
   const firstDay = Math.floor(scale.startMs / DAY_MS) * DAY_MS;
   const lastDay = Math.floor(scale.endMs / DAY_MS) * DAY_MS;
@@ -453,7 +465,14 @@ export function createGanttNonWorkingBands(
     const date = new Date(at).toISOString().slice(0, 10);
     // Python's date.weekday() runs Monday = 0 ... Sunday = 6.
     const weekday = (new Date(at).getUTCDay() + 6) % 7;
-    const kind = holidays.has(date) ? "holiday" : workingWeekdays.has(weekday) ? null : "weekend";
+    // Persisted-exception overrides are authoritative over the snapshot's
+    // holidays and weekday rule; both lists come from the Shared Core
+    // projection, so this only orders facts, it never reclassifies a day.
+    const kind = workingDates.has(date)
+      ? null
+      : nonWorkingDates.has(date) || holidays.has(date)
+        ? "holiday"
+        : workingWeekdays.has(weekday) ? null : "weekend";
     if (!kind) {
       flush();
       continue;

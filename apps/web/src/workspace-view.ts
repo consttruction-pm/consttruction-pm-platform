@@ -5376,6 +5376,8 @@ function renderGantt(
     ? createGanttNonWorkingBands(viewScale, {
       workingWeekdays: projectCalendar.workingWeekdays,
       holidays: projectCalendar.holidays,
+      workingDates: projectCalendar.workingDates,
+      nonWorkingDates: projectCalendar.nonWorkingDates,
     })
     : [];
   const nonWorkingLayer = nonWorkingBands.length

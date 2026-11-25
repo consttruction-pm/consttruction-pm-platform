@@ -6,7 +6,7 @@ import { projectControlIntelligence, type ControlRoomIntelligenceSnapshot } from
 import { projectSmartGuide } from "./workspace-smart-guide.js";
 import { projectSiteDailyLog, type SiteDailyLogSnapshot } from "./workspace-site-log.js";
 import { projectFieldIssue, type FieldIssueSnapshot } from "./workspace-field-issues.js";
-import { loadCalendarSnapshot } from "./workspace-calendars.js";
+import { loadCalendarDayFacts, loadCalendarSnapshot } from "./workspace-calendars.js";
 import { projectChangeNotice, projectChangeCase, projectClaimRecord, projectChangeClaimImpact, type ChangeNoticeSnapshot, type ChangeCaseSnapshot, type ClaimRecordSnapshot, type ChangeClaimImpactSnapshot } from "./workspace-change-claim.js";
 import { projectDocument, type DocumentSnapshot } from "./workspace-document.js";
 import { projectProcurementRFQ, projectProcurementQuote, projectProcurementBidComparison, projectPurchaseOrder, projectProcurementCommitment, projectProcurementDelivery, type ProcurementRFQSnapshot, type ProcurementQuoteSnapshot, type ProcurementBidComparisonSnapshot, type PurchaseOrderSnapshot, type ProcurementCommitmentSnapshot, type ProcurementDeliverySnapshot } from "./workspace-procurement.js";
@@ -279,7 +279,17 @@ export class WorkspaceReadClient {
   ): Promise<WorkspaceProjectCalendar> {
     const calendarId = typeof primaryCalendarId === "string" ? primaryCalendarId.trim() : "";
     if (!calendarId) {
-      return { status: "not-loaded", calendarId: null, calendarVersion: null, workingWeekdays: [], holidays: [], errorCode: null };
+      return {
+        status: "not-loaded",
+        calendarId: null,
+        calendarVersion: null,
+        workingWeekdays: [],
+        holidays: [],
+        workingDates: [],
+        nonWorkingDates: [],
+        errorCode: null,
+        dayFactsErrorCode: null,
+      };
     }
     const record = calendars.find((calendar) => calendar.calendarId === calendarId);
     if (!record) {
@@ -289,7 +299,10 @@ export class WorkspaceReadClient {
         calendarVersion: null,
         workingWeekdays: [],
         holidays: [],
+        workingDates: [],
+        nonWorkingDates: [],
         errorCode: "CALENDAR_NOT_FOUND",
+        dayFactsErrorCode: null,
       };
     }
     const snapshotResult = await loadCalendarSnapshot(this.transport, context, record.calendarId, record.calendarVersion);
@@ -300,7 +313,10 @@ export class WorkspaceReadClient {
         calendarVersion: record.calendarVersion,
         workingWeekdays: [],
         holidays: [],
+        workingDates: [],
+        nonWorkingDates: [],
         errorCode: snapshotResult.error.code,
+        dayFactsErrorCode: null,
       };
     }
     const snapshot = snapshotResult.data.snapshot;
@@ -313,8 +329,28 @@ export class WorkspaceReadClient {
         calendarVersion: record.calendarVersion,
         workingWeekdays: [],
         holidays: [],
+        workingDates: [],
+        nonWorkingDates: [],
         errorCode: "CALENDAR_WORKWEEK_MISSING",
+        dayFactsErrorCode: null,
       };
+    }
+    // Persisted exceptions are mutable rows outside the immutable snapshot.
+    // The Shared Core projection decides which dates they change; if it is
+    // unavailable the base week/holiday shading stays valid and only the
+    // exception overlay is withheld.
+    const dayFactsResult = await loadCalendarDayFacts(
+      this.transport,
+      context,
+      record.calendarId,
+      record.calendarVersion,
+    );
+    const workingDates: string[] = [];
+    const nonWorkingDates: string[] = [];
+    if (dayFactsResult.ok) {
+      for (const fact of dayFactsResult.data.overrides) {
+        (fact.working ? workingDates : nonWorkingDates).push(fact.date);
+      }
     }
     return {
       status: "loaded",
@@ -322,7 +358,10 @@ export class WorkspaceReadClient {
       calendarVersion: record.calendarVersion,
       workingWeekdays: Object.freeze([...snapshot.workingWeekdays]),
       holidays: Object.freeze([...snapshot.holidays]),
+      workingDates: Object.freeze(workingDates),
+      nonWorkingDates: Object.freeze(nonWorkingDates),
       errorCode: null,
+      dayFactsErrorCode: dayFactsResult.ok ? null : dayFactsResult.error.code,
     };
   }
 }

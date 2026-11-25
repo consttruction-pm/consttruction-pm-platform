@@ -15,6 +15,7 @@ import {
 
 export const CALENDAR_CATALOG_CONTRACT = "p6-calendar-read-api.v1";
 export const CALENDAR_API_CONTRACT = "p6-calendar.v1";
+export const CALENDAR_DAY_FACTS_CONTRACT = "p6-calendar-day-facts.v1";
 export const CALENDAR_USAGE_CONTRACT = "p6-calendar-usage-api.v1";
 
 export type CalendarFactorSet = {
@@ -256,6 +257,64 @@ export async function loadCalendarSnapshot(
   } catch (error) {
     return localError(error instanceof Error ? error.message : "INVALID_CALENDAR_SNAPSHOT");
   }
+}
+
+export type CalendarDayFact = {
+  date: string;
+  working: boolean;
+  source: string;
+};
+
+export type CalendarDayFacts = {
+  calendarId: string;
+  calendarVersion: string;
+  overrides: readonly CalendarDayFact[];
+};
+
+/**
+ * Read the Shared Core projection of persisted calendar exceptions for one
+ * versioned calendar. The server resolves local-over-inherited-over-standard
+ * precedence; the browser must not re-derive it. A malformed payload is
+ * rejected instead of being partially trusted.
+ */
+export async function loadCalendarDayFacts(
+  transport: ApiTransport,
+  context: ProjectContext,
+  calendarId: string,
+  calendarVersion: string,
+): Promise<ApiResult<CalendarDayFacts>> {
+  if (!calendarId || !calendarVersion) return localError("CALENDAR_REFERENCE_REQUIRED");
+  const result = await transport.get<unknown>(calendarPath(context, calendarId, calendarVersion, "day-facts"), context);
+  if (!result.ok) return result;
+  const payload = result.data;
+  if (
+    !isRecord(payload)
+    || payload.contract_version !== CALENDAR_DAY_FACTS_CONTRACT
+    || payload.kind !== "calendar_day_facts"
+    || !isRecord(payload.calendar)
+    || !Array.isArray(payload.overrides)
+  ) {
+    return localError("INVALID_CALENDAR_DAY_FACTS");
+  }
+  if (payload.calendar.calendar_id !== calendarId || payload.calendar.calendar_version !== calendarVersion) {
+    return localError("CALENDAR_REFERENCE_MISMATCH");
+  }
+  const overrides: CalendarDayFact[] = [];
+  for (const item of payload.overrides) {
+    if (!isRecord(item) || typeof item.date !== "string" || typeof item.working !== "boolean" || typeof item.source !== "string") {
+      return localError("INVALID_CALENDAR_DAY_FACTS");
+    }
+    if (!isValidCanonicalIsoDate(item.date)) return localError("INVALID_CALENDAR_DAY_FACTS");
+    overrides.push({ date: item.date, working: item.working, source: item.source });
+  }
+  return {
+    ok: true,
+    data: {
+      calendarId,
+      calendarVersion,
+      overrides: Object.freeze(overrides),
+    },
+  };
 }
 
 export async function loadCalendarCatalogue(

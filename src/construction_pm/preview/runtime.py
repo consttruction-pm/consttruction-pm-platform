@@ -223,6 +223,7 @@ from construction_pm.p6_baseline_repository import (
 from construction_pm.p6_baseline_update import P6BaselineUpdateService
 from construction_pm.p6_baseline_update_api import P6BaselineUpdateAPI
 from construction_pm.p6_calendar_api import P6CalendarAPI
+from construction_pm.p6_calendar_day_facts_api import P6CalendarDayFactsAPI
 from construction_pm.p6_calendar_read_api import P6CalendarReadAPI
 from construction_pm.p6_calendar_usage_api import P6CalendarUsageAPI
 from construction_pm.p6_current_activity_value_repository import (
@@ -2006,6 +2007,13 @@ def open_preview_runtime(
         p6_calendar_read_api=P6CalendarReadAPI(
             repositories.calendars,
             repositories.calendar_snapshots,
+            policy,
+        ),
+        p6_calendar_day_facts_api=P6CalendarDayFactsAPI(
+            repositories.calendars,
+            repositories.calendar_snapshots,
+            repositories.calendar_exceptions,
+            repositories.calendar_work_hours,
             policy,
         ),
         p6_calendar_usage_api=P6CalendarUsageAPI(
