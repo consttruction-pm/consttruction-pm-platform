@@ -78,6 +78,7 @@ from ..p6_baseline_repository import (
     PostgresP6BaselineRepository,
 )
 from ..p6_calendar_api import P6CalendarAPI
+from ..p6_calendar_day_facts_api import P6CalendarDayFactsAPI
 from ..p6_calendar_read_api import P6CalendarReadAPI
 from ..p6_issue_api import P6IssueAPI
 from ..p6_issue_repository import PostgresP6IssueRepository
@@ -874,6 +875,13 @@ class ProductionRuntime:
         calendar_read_api = P6CalendarReadAPI(
             calendar_master_repository, calendar_snapshot_repository, policy
         )
+        calendar_day_facts_api = P6CalendarDayFactsAPI(
+            calendar_master_repository,
+            calendar_snapshot_repository,
+            calendar_exception_repository,
+            calendar_work_hours_repository,
+            policy,
+        )
         form_repository = PostgresFormBuilderRepository(connection, initialize=False)
         form_builder_api = FormBuilderAPI(
             form_repository,
@@ -909,6 +917,7 @@ class ProductionRuntime:
             p6_obs_node_api=P6OBSNodeAPI(obs_node_service, policy),
             p6_calendar_api=calendar_api,
             p6_calendar_read_api=calendar_read_api,
+            p6_calendar_day_facts_api=calendar_day_facts_api,
             # Resources and Activity Resource Assignments are first-class
             # production surfaces: without these kwargs the router answers
             # ROUTE_NOT_FOUND and the workspace cannot persist or read work

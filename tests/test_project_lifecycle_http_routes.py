@@ -38,8 +38,15 @@ from construction_pm.p6_formula_definition_repository import (
     P6FormulaDefinitionApplicationService,
     SQLiteP6FormulaDefinitionRepository,
 )
+from construction_pm.calendar_exception_repository import (
+    EXCEPTION_NONWORK,
+    CalendarException as PersistedCalendarException,
+    SQLiteCalendarExceptionRepository,
+)
 from construction_pm.calendar_master_repository import CalendarMaster, SQLiteCalendarMasterRepository
 from construction_pm.calendar_snapshot_repository import SQLiteCalendarSnapshotRepository
+from construction_pm.calendar_work_hours_repository import SQLiteCalendarWorkHourRepository
+from construction_pm.p6_calendar_day_facts_api import P6CalendarDayFactsAPI
 from construction_pm.p6_calendar_read_api import P6CalendarReadAPI, P6_CALENDAR_READ_API_VERSION
 from construction_pm.p6_baseline_api import P6BaselineAPI, P6_BASELINE_API_VERSION
 from construction_pm.p6_financial_period_api import P6FinancialPeriodAPI, P6_FINANCIAL_PERIOD_API_VERSION
@@ -1536,6 +1543,15 @@ def p6_routes(roles=frozenset({"project_admin"})):
     calendar_repository = SQLiteCalendarMasterRepository(connection)
     snapshot_repository = SQLiteCalendarSnapshotRepository(connection)
     calendar_api = P6CalendarReadAPI(calendar_repository, snapshot_repository, default_project_policy())
+    calendar_exceptions = SQLiteCalendarExceptionRepository(connection)
+    calendar_work_hours = SQLiteCalendarWorkHourRepository(connection)
+    calendar_day_facts_api = P6CalendarDayFactsAPI(
+        calendar_repository,
+        snapshot_repository,
+        calendar_exceptions,
+        calendar_work_hours,
+        default_project_policy(),
+    )
     baseline_api = P6BaselineAPI(
         P6BaselineApplicationService(SQLiteP6BaselineRepository(connection), transaction_manager),
         default_project_policy(),
@@ -1560,6 +1576,7 @@ def p6_routes(roles=frozenset({"project_admin"})):
         p6_formula_authority_api=formula_api,
         p6_formula_column_api=formula_column_api,
         p6_calendar_read_api=calendar_api,
+        p6_calendar_day_facts_api=calendar_day_facts_api,
         p6_baseline_api=baseline_api,
         p6_financial_period_api=financial_period_api,
         p6_mapping_api=mapping_api,
@@ -1715,6 +1732,45 @@ def test_p6_calendar_snapshot_route_returns_canonical_shared_core_snapshot():
     assert payload["contract_version"] == P6_CALENDAR_READ_API_VERSION
     assert payload["calendar"]["calendar_version"] == "1"
     assert payload["snapshot"]["time_period_factors"]["hours_per_day"] == "8"
+
+
+def test_p6_calendar_day_facts_route_projects_effective_exception_days():
+    r, _, _ = p6_routes()
+    scope = BackendScope("t1", "p1", 2)
+    calendar = CalendarMaster(scope, "CAL-1", "1", "working-day", "Project Calendar")
+    saved = r._p6_calendar_day_facts_api.calendar_repository.save(calendar)
+    r._p6_calendar_day_facts_api.snapshot_repository.save(
+        saved,
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4})),
+    )
+    r._p6_calendar_day_facts_api.exception_repository.save(
+        PersistedCalendarException(
+            scope, "CAL-1", "1", date(2026, 11, 4), EXCEPTION_NONWORK,
+            system=CalendarSystem.GREGORIAN,
+        )
+    )
+
+    status, _, body = r.handle(
+        "GET", "/api/projects/p1/p6/calendars/CAL-1/1/day-facts", cookies={"cp_session": "s1"}
+    )
+    assert status == 200
+    payload = json.loads(body)
+    assert payload["contract_version"] == "p6-calendar-day-facts.v1"
+    assert payload["kind"] == "calendar_day_facts"
+    assert payload["calendar"]["calendar_id"] == "CAL-1"
+    assert payload["overrides"] == [
+        {"date": "2026-11-04", "working": False, "source": "local"},
+    ]
+
+    status, _, body = r.handle(
+        "GET", "/api/projects/p1/p6/calendars/MISSING/1/day-facts", cookies={"cp_session": "s1"}
+    )
+    assert status == 404
+    assert json.loads(body)["code"] == "P6_CALENDAR_NOT_FOUND"
+
+    status, _, body = r.handle("GET", "/api/projects/p1/p6/calendars/CAL-1/1/day-facts")
+    assert status == 401
+    assert json.loads(body)["code"] == "SESSION_REQUIRED"
 
 
 def test_p6_calendar_routes_require_session_and_reject_cross_scope():

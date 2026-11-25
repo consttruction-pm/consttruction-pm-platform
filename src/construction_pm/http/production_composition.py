@@ -21,6 +21,7 @@ from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
 from construction_pm.p6_activity_progress_api import P6ActivityProgressAPI
 from construction_pm.p6_wbs_master_api import P6WBSMasterAPI
 from construction_pm.p6_calendar_api import P6CalendarAPI
+from construction_pm.p6_calendar_day_facts_api import P6CalendarDayFactsAPI
 from construction_pm.p6_calendar_read_api import P6CalendarReadAPI
 from construction_pm.p6_calendar_usage_api import P6CalendarUsageAPI
 from construction_pm.p6_baseline_activity_api import P6BaselineActivityAPI
@@ -139,6 +140,7 @@ def build_project_lifecycle_wsgi_app(
     p6_formula_authority_api: P6FormulaAuthorityAPI | None = None,
     p6_formula_column_api: P6FormulaColumnAPI | None = None,
     p6_calendar_read_api: P6CalendarReadAPI | None = None,
+    p6_calendar_day_facts_api: P6CalendarDayFactsAPI | None = None,
     p6_calendar_usage_api: P6CalendarUsageAPI | None = None,
     p6_calendar_api: P6CalendarAPI | None = None,
     p6_baseline_api: P6BaselineAPI | None = None,
@@ -428,6 +430,7 @@ def build_project_lifecycle_wsgi_app(
         p6_formula_authority_api=p6_formula_authority_api,
         p6_formula_column_api=p6_formula_column_api,
         p6_calendar_read_api=p6_calendar_read_api,
+        p6_calendar_day_facts_api=p6_calendar_day_facts_api,
         p6_calendar_usage_api=p6_calendar_usage_api,
         p6_calendar_api=p6_calendar_api,
         p6_baseline_api=p6_baseline_api,

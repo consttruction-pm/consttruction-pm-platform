@@ -416,11 +416,31 @@ function calendarSnapshot(workingWeekdays: unknown, holidays: unknown): ApiResul
   };
 }
 
+function calendarDayFacts(overrides: readonly { date: string; working: boolean; source: string }[] = []): ApiResult<unknown> {
+  return {
+    ok: true,
+    data: {
+      contract_version: "p6-calendar-day-facts.v1",
+      kind: "calendar_day_facts",
+      scope: { tenant_id: context.tenant_id, project_id: context.project_id, project_revision: context.revision },
+      calendar: {
+        calendar_id: "CAL-1",
+        calendar_version: "1",
+        kind: "working-day",
+        system: "gregorian",
+        record_revision: 3,
+      },
+      overrides,
+    },
+  };
+}
+
 test("workspace read resolves the primary calendar's version-bound non-working facts", async () => {
   const transport = new PathTransport({
     [READ_PATH]: { ok: true, data: workspaceSnapshot() },
     [CALENDARS_PATH]: calendarCatalogue(),
     [`${CALENDARS_PATH}/CAL-1/1/snapshot`]: calendarSnapshot([0, 1, 2, 3, 4], ["2026-10-28"]),
+    [`${CALENDARS_PATH}/CAL-1/1/day-facts`]: calendarDayFacts(),
   });
 
   const result = await new WorkspaceReadClient(transport).load(context, { primaryCalendarId: "CAL-1" });
@@ -433,9 +453,53 @@ test("workspace read resolves the primary calendar's version-bound non-working f
     calendarVersion: "1",
     workingWeekdays: [0, 1, 2, 3, 4],
     holidays: ["2026-10-28"],
+    workingDates: [],
+    nonWorkingDates: [],
     errorCode: null,
+    dayFactsErrorCode: null,
   });
-  assert.deepEqual(transport.paths, [READ_PATH, CALENDARS_PATH, `${CALENDARS_PATH}/CAL-1/1/snapshot`]);
+  assert.deepEqual(transport.paths, [READ_PATH, CALENDARS_PATH, `${CALENDARS_PATH}/CAL-1/1/snapshot`, `${CALENDARS_PATH}/CAL-1/1/day-facts`]);
+});
+
+test("workspace read projects persisted exceptions through the shared-core day facts", async () => {
+  const transport = new PathTransport({
+    [READ_PATH]: { ok: true, data: workspaceSnapshot() },
+    [CALENDARS_PATH]: calendarCatalogue(),
+    [`${CALENDARS_PATH}/CAL-1/1/snapshot`]: calendarSnapshot([0, 1, 2, 3, 4], ["2026-10-28"]),
+    [`${CALENDARS_PATH}/CAL-1/1/day-facts`]: calendarDayFacts([
+      { date: "2026-10-28", working: true, source: "local" },
+      { date: "2026-11-04", working: false, source: "local" },
+    ]),
+  });
+
+  const result = await new WorkspaceReadClient(transport).load(context, { primaryCalendarId: "CAL-1" });
+
+  assert.equal(result.ok, true);
+  if (!result.ok) throw new Error("expected success");
+  assert.deepEqual(result.data.projectCalendar.workingDates, ["2026-10-28"]);
+  assert.deepEqual(result.data.projectCalendar.nonWorkingDates, ["2026-11-04"]);
+  assert.equal(result.data.projectCalendar.dayFactsErrorCode, null);
+});
+
+test("workspace read keeps base shading and names a failed exception projection", async () => {
+  const transport = new PathTransport({
+    [READ_PATH]: { ok: true, data: workspaceSnapshot() },
+    [CALENDARS_PATH]: calendarCatalogue(),
+    [`${CALENDARS_PATH}/CAL-1/1/snapshot`]: calendarSnapshot([0, 1, 2, 3, 4], ["2026-10-28"]),
+    [`${CALENDARS_PATH}/CAL-1/1/day-facts`]: {
+      ok: false,
+      error: { code: "P6_CALENDAR_DAY_FACTS_UNRESOLVED", retryable: false, message_key: "error.request.invalid", available_actions: [] },
+    },
+  });
+
+  const result = await new WorkspaceReadClient(transport).load(context, { primaryCalendarId: "CAL-1" });
+
+  assert.equal(result.ok, true);
+  if (!result.ok) throw new Error("expected success");
+  assert.equal(result.data.projectCalendar.status, "loaded");
+  assert.deepEqual(result.data.projectCalendar.workingDates, []);
+  assert.deepEqual(result.data.projectCalendar.nonWorkingDates, []);
+  assert.equal(result.data.projectCalendar.dayFactsErrorCode, "P6_CALENDAR_DAY_FACTS_UNRESOLVED");
 });
 
 test("workspace read reports an unknown primary calendar without inventing a workweek", async () => {
@@ -454,7 +518,10 @@ test("workspace read reports an unknown primary calendar without inventing a wor
     calendarVersion: null,
     workingWeekdays: [],
     holidays: [],
+    workingDates: [],
+    nonWorkingDates: [],
     errorCode: "CALENDAR_NOT_FOUND",
+    dayFactsErrorCode: null,
   });
 });
 

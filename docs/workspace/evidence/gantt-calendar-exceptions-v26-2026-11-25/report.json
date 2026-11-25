@@ -1,0 +1,81 @@
+{
+  "contract": "cubi-gantt-calendar-exceptions-v26.v1",
+  "baseUrl": "http://127.0.0.1:4211",
+  "gitHead": "768e6f6ce89623bbfef9663eb9f93249d1ea0661",
+  "testedCodeSha": "768e6f6ce89623bbfef9663eb9f93249d1ea0661",
+  "capturedAt": "2026-11-25T08:48:48.995Z",
+  "calendar": {
+    "id": "CUBI-RPS-CAL",
+    "version": "1"
+  },
+  "dates": {
+    "nonwork": "2026-11-05",
+    "weekend": "2026-10-31"
+  },
+  "scenarios": [
+    {
+      "bands": 11,
+      "weekend": {
+        "kind": "weekend",
+        "from": "2026-10-31",
+        "to": "2026-11-01",
+        "days": 2
+      },
+      "id": "01",
+      "name": "پیش از استثنا، باند فقط از snapshot می‌آید و روز کاری ۵ نوامبر باند ندارد",
+      "status": "pass",
+      "at": "2026-11-25T08:48:52.155Z"
+    },
+    {
+      "band": {
+        "kind": "holiday",
+        "from": "2026-11-05",
+        "to": "2026-11-05",
+        "days": 1
+      },
+      "facts": 1,
+      "id": "02",
+      "name": "استثنای nonwork واقعی، روز کاری را به باند تعطیل تبدیل می‌کند",
+      "status": "pass",
+      "at": "2026-11-25T08:48:53.278Z"
+    },
+    {
+      "sunday": {
+        "kind": "weekend",
+        "from": "2026-11-01",
+        "to": "2026-11-01",
+        "days": 1
+      },
+      "facts": 2,
+      "id": "03",
+      "name": "استثنای total-work-hours روی شنبه، باند آخر هفته را برمی‌دارد",
+      "status": "pass",
+      "at": "2026-11-25T08:48:54.121Z"
+    },
+    {
+      "bands": 11,
+      "id": "04",
+      "name": "حذف استثناها باندها را به وضعیت snapshot برمی‌گرداند",
+      "status": "pass",
+      "at": "2026-11-25T08:48:54.968Z"
+    },
+    {
+      "exceptions": 0,
+      "consoleErrors": 0,
+      "apiFailures": 0,
+      "id": "05",
+      "name": "هیچ استثنا، خطای کنسول یا پاسخ 5xx در سناریوها ثبت نشد",
+      "status": "pass",
+      "at": "2026-11-25T08:48:54.968Z"
+    }
+  ],
+  "screenshots": [
+    "01-before-exception.png",
+    "02-nonwork-exception-band.png",
+    "03-working-override.png",
+    "04-after-cleanup.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": []
+}

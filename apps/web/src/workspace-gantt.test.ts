@@ -318,6 +318,46 @@ test("non-working bands follow the persisted workweek and holidays", () => {
   assert.ok(Math.abs(bands[0].widthPercent - (2 / 14) * 100) < 1e-9);
 });
 
+test("a persisted non-working exception shades a working weekday", () => {
+  const startMs = Date.parse("2026-09-28T00:00:00Z");
+  const endMs = Date.parse("2026-10-12T00:00:00Z");
+  const bands = createGanttNonWorkingBands(
+    { startMs, endMs, rangeMs: endMs - startMs },
+    { workingWeekdays: [0, 1, 2, 3, 4], holidays: [], nonWorkingDates: ["2026-10-06"] },
+  );
+  assert.deepEqual(bands.map((band) => [band.kind, band.fromDate, band.toDate, band.days]), [
+    ["weekend", "2026-10-03", "2026-10-04", 2],
+    ["holiday", "2026-10-06", "2026-10-06", 1],
+    ["weekend", "2026-10-10", "2026-10-11", 2],
+  ]);
+});
+
+test("a persisted working exception removes only the overridden day from a weekend", () => {
+  const startMs = Date.parse("2026-09-28T00:00:00Z");
+  const endMs = Date.parse("2026-10-12T00:00:00Z");
+  const bands = createGanttNonWorkingBands(
+    { startMs, endMs, rangeMs: endMs - startMs },
+    { workingWeekdays: [0, 1, 2, 3, 4], holidays: ["2026-10-11"], workingDates: ["2026-10-10"] },
+  );
+  assert.deepEqual(bands.map((band) => [band.kind, band.fromDate, band.toDate, band.days]), [
+    ["weekend", "2026-10-03", "2026-10-04", 2],
+    ["holiday", "2026-10-11", "2026-10-11", 1],
+  ]);
+});
+
+test("a working exception overrides a stored holiday", () => {
+  const startMs = Date.parse("2026-09-28T00:00:00Z");
+  const endMs = Date.parse("2026-10-12T00:00:00Z");
+  const bands = createGanttNonWorkingBands(
+    { startMs, endMs, rangeMs: endMs - startMs },
+    { workingWeekdays: [0, 1, 2, 3, 4], holidays: ["2026-10-07"], workingDates: ["2026-10-07"] },
+  );
+  assert.deepEqual(bands.map((band) => [band.kind, band.fromDate, band.toDate, band.days]), [
+    ["weekend", "2026-10-03", "2026-10-04", 2],
+    ["weekend", "2026-10-10", "2026-10-11", 2],
+  ]);
+});
+
 test("a holiday on an already non-working weekday stays a distinct holiday band", () => {
   const startMs = Date.parse("2026-10-03T00:00:00Z");
   const endMs = Date.parse("2026-10-05T00:00:00Z");
