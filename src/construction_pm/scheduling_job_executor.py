@@ -188,9 +188,9 @@ class SchedulingJobExecutor:
             raise SchedulingExecutionError("INVALID_DISPATCH_BATCH")
         if idle_polls_before_exit < 1:
             raise SchedulingExecutionError("INVALID_IDLE_POLLS")
-        if execution_mode not in ("thread", "process"):
+        if execution_mode not in ("thread", "process", "inline"):
             raise SchedulingExecutionError("INVALID_EXECUTION_MODE")
-        if execution_mode == "thread" and (
+        if execution_mode in ("thread", "inline") and (
             slot_policy is not None
             or workload_estimator is not None
             or result_cache is not None
@@ -357,6 +357,13 @@ class SchedulingJobExecutor:
         for job in candidates:
             if dispatched >= slots:
                 break
+            if self._execution_mode == "inline":
+                # The worker runs on the caller's thread. This is the correct
+                # mode when every repository is bound to the request-scoped
+                # connection: a spawned thread would not share that context.
+                self._run_job(job)
+                dispatched += 1
+                continue
             with self._lock:
                 if job.job_id in self._in_flight:
                     continue
@@ -418,12 +425,14 @@ class SchedulingJobExecutor:
             queue_wait_ms=queue_wait,
         )
 
-        heartbeat = _LeaseHeartbeat(
-            service=self._service,
-            job=claimed,
-            interval=max(self._service.lease_ttl.total_seconds() / 3.0, 0.05),
-        )
-        heartbeat.start()
+        heartbeat = None
+        if self._execution_mode != "inline":
+            heartbeat = _LeaseHeartbeat(
+                service=self._service,
+                job=claimed,
+                interval=max(self._service.lease_ttl.total_seconds() / 3.0, 0.05),
+            )
+            heartbeat.start()
         started = time.perf_counter()
         try:
             if self._engine_identity is not None:
@@ -437,7 +446,7 @@ class SchedulingJobExecutor:
                     )
             with self._budget.permit():
                 result = self._calculate(claimed)
-            if heartbeat.cancelled:
+            if heartbeat is not None and heartbeat.cancelled:
                 raise SchedulingJobCancelled("SCHEDULING_JOB_CANCELLED")
             self._service.complete(
                 tenant_id=claimed.tenant_id,
@@ -467,8 +476,9 @@ class SchedulingJobExecutor:
                 run_ms=run_ms,
             )
         finally:
-            heartbeat.stop()
-            heartbeat.join(timeout=5.0)
+            if heartbeat is not None:
+                heartbeat.stop()
+                heartbeat.join(timeout=5.0)
             with self._lock:
                 self._in_flight.pop(claimed.job_id, None)
 

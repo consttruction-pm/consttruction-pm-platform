@@ -68,6 +68,15 @@ from ..global_administration_http import GlobalAdministrationHttpMiddleware
 from ..knowledge.postgres_store import PostgresKnowledgeStore
 from ..knowledge.runtime import build_knowledge_runtime
 from ..p6_activity_master_api import P6ActivityMasterAPI
+from ..p6_baseline_activity_api import P6BaselineActivityAPI
+from ..p6_baseline_activity_repository import PostgresP6BaselineActivityRepository
+from ..p6_baseline_api import P6BaselineAPI
+from ..p6_baseline_capture import P6BaselineCaptureService, PublishedScheduleCaptureSource
+from ..p6_baseline_capture_api import P6BaselineCaptureAPI
+from ..p6_baseline_repository import (
+    P6BaselineApplicationService,
+    PostgresP6BaselineRepository,
+)
 from ..p6_calendar_api import P6CalendarAPI
 from ..p6_calendar_read_api import P6CalendarReadAPI
 from ..p6_issue_api import P6IssueAPI
@@ -135,6 +144,7 @@ from ..p6_cost_account_repository import (
     P6CostAccountApplicationService,
     PostgresP6CostAccountRepository,
 )
+from ..p6_expense_repository import PostgresP6ExpenseRepository
 from ..p6_field_registry_api import P6FieldRegistryAPI
 from ..p6_field_registry_repository import (
     P6FieldRegistryApplicationService,
@@ -150,6 +160,7 @@ from ..p6_user_defined_fields_repository import (
     PostgresP6UserDefinedFieldRepository,
 )
 from ..postgres_project_lifecycle import PostgresProjectRepository
+from ..postgres_scheduling_job_lifecycle import PostgresSchedulingJobRepository
 from ..project_schedule_settings_repository import (
     PostgresProjectScheduleSettingsRepository,
 )
@@ -193,6 +204,10 @@ class ProductionSettings:
     # connection default (normally ``public``). This exists so a deployment or
     # test can isolate one tenant-independent schema without a second database.
     schema: str = ""
+    # Machine worker token. Without it the worker control endpoints answer 404
+    # so a misconfigured deployment never exposes anonymous execution; the
+    # submit/status/result routes remain usable.
+    scheduling_worker_token: str | None = None
 
     @classmethod
     def from_environment(
@@ -255,6 +270,9 @@ class ProductionSettings:
             max_pool_size=max(1, min(8, int(env.get("CONSTRUCTION_PM_DB_POOL_SIZE", "2") or 2))),
             connect_timeout=max(2, min(30, int(env.get("CONSTRUCTION_PM_DB_CONNECT_TIMEOUT", "10") or 10))),
             schema=schema,
+            scheduling_worker_token=(
+                env.get("CONSTRUCTION_PM_SCHEDULING_WORKER_TOKEN", "").strip() or None
+            ),
         )
 
 
@@ -587,6 +605,40 @@ class ProductionRuntime:
             calculation_context_repository=calculation_context_repository,
             leveling_input_resolver=resource_leveling_input_resolver,
         )
+        # Durable rescheduling jobs and their immutable results. The same
+        # PostgreSQL rows back submit/status/result/cancel and the worker tick;
+        # the job lifecycle stays one authoritative engine, never a second
+        # scheduler.
+        scheduling_job_repository = PostgresSchedulingJobRepository(connection)
+        # Baselines are immutable stored windows. Capture reads the newest
+        # published Shared Core facts and writes the baseline row and its
+        # activity windows atomically; the read APIs expose those stored rows.
+        baseline_repository = PostgresP6BaselineRepository(connection)
+        baseline_activity_repository = PostgresP6BaselineActivityRepository(connection)
+        expense_repository = PostgresP6ExpenseRepository(connection)
+        baseline_capture_api = P6BaselineCaptureAPI(
+            P6BaselineCaptureService(
+                baseline_repository,
+                baseline_activity_repository,
+                activity_repository,
+                resource_assignment_repository,
+                expense_repository,
+                PublishedScheduleCaptureSource(
+                    PublishedScheduleFactsProvider(
+                        snapshot_repository, schedule_query_provider
+                    )
+                ),
+                transaction_manager,
+            ),
+            policy,
+        )
+        p6_baseline_api = P6BaselineAPI(
+            P6BaselineApplicationService(baseline_repository, transaction_manager),
+            policy,
+        )
+        p6_baseline_activity_api = P6BaselineActivityAPI(
+            baseline_activity_repository, baseline_repository, policy
+        )
         # The workspace read projects the newest published snapshot through the
         # single Shared Core evaluator. Without this provider the grid renders
         # persisted inputs only and no date, float or criticality is invented.
@@ -780,6 +832,22 @@ class ProductionRuntime:
             # /p6/issues stays unreachable (ROUTE_NOT_FOUND) in production.
             p6_issue_api=issue_api,
             form_builder_api=form_builder_api,
+            # Baselines and Schedule Variance are product surfaces, not test
+            # fixtures: capture writes immutable rows from published facts and
+            # the read APIs serve those same rows.
+            p6_baseline_api=p6_baseline_api,
+            p6_baseline_activity_api=p6_baseline_activity_api,
+            p6_baseline_capture_api=baseline_capture_api,
+            # Durable rescheduling: submit/status/result/cancel plus a
+            # token-guarded worker that runs the one shared scheduling engine.
+            scheduling_job_repository=scheduling_job_repository,
+            # Inline is required here: every repository is bound to the
+            # request-scoped PostgreSQL connection, so the worker must execute
+            # on the request thread instead of a spawned thread with no
+            # connection context. Leases, CAS and the single-flight index still
+            # prevent two workers from running the same job.
+            scheduling_execution_mode="inline",
+            scheduling_worker_token=self.settings.scheduling_worker_token,
             ai_action_runtime=ai_action_runtime,
             ai_assistant_provider=ai_assistant_provider,
             environment={},

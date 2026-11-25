@@ -131,28 +131,29 @@ def _provider() -> AuthoritativeScheduleQueryProvider:
     )
 
 
-def _routes():
+def _routes(roles=frozenset({"project_admin"}), job_api=None):
     now = datetime(2026, 10, 20, tzinfo=timezone.utc)
     session = AuthenticatedSession(
-        "s1", "u1", TENANT, frozenset({"project_admin"}), now + timedelta(hours=1)
+        "s1", "u1", TENANT, frozenset(roles), now + timedelta(hours=1)
     )
     lifecycle = ProjectLifecycleAPI(
         ProjectLifecycleService(Sessions(session), Projects(), default_project_policy())
     )
     provider = _provider()
-    service = SchedulingJobService(InMemorySchedulingJobRepository())
-    runner = SchedulingEngineJobRunner(
-        service,
-        provider=provider,
-        budget=GlobalExecutionBudget(2),
-        poll_interval=0.002,
-    )
-    job_api = SchedulingJobAPI(
-        service,
-        runner=runner,
-        worker_token=WORKER_TOKEN,
-        snapshot_repository=provider.snapshot_repository,
-    )
+    if job_api is None:
+        service = SchedulingJobService(InMemorySchedulingJobRepository())
+        runner = SchedulingEngineJobRunner(
+            service,
+            provider=provider,
+            budget=GlobalExecutionBudget(2),
+            poll_interval=0.002,
+        )
+        job_api = SchedulingJobAPI(
+            service,
+            runner=runner,
+            worker_token=WORKER_TOKEN,
+            snapshot_repository=provider.snapshot_repository,
+        )
     query_api = ScheduleQueryAPI(
         ScheduleQueryApplicationService(
             provider=provider,
@@ -354,3 +355,40 @@ def test_synchronous_schedule_query_route_is_unchanged():
     assert body["contract_version"] == "schedule-query-result.v1"
     assert body["query_id"] == "Q-HTTP"
     assert body["data"]["activity_count"] == 3
+
+
+def test_a_viewer_can_read_a_run_but_cannot_submit_or_cancel_one():
+    routes, _ = _routes()
+    job_id = _decode(_submit_job(routes))[2]["job_id"]
+
+    viewer_routes, _ = _routes(
+        roles={"viewer"}, job_api=routes._scheduling_job_api
+    )
+    status_status, _, status_view = _decode(
+        viewer_routes.handle(
+            "GET", f"/api/v1/schedule/projects/{PROJECT}/jobs/{job_id}", cookies=COOKIE
+        )
+    )
+    assert status_status == 200
+    assert status_view["job_id"] == job_id
+
+    submit_status, _, submit_view = _decode(
+        viewer_routes.handle(
+            "POST",
+            f"/api/v1/schedule/projects/{PROJECT}/jobs",
+            cookies=COOKIE,
+            body=json.dumps({"snapshot_id": SNAPSHOT_ID}).encode("utf-8"),
+        )
+    )
+    assert submit_status == 403
+    assert submit_view["code"] == "AUTHORIZATION_PERMISSION_DENIED"
+
+    cancel_status, _, cancel_view = _decode(
+        viewer_routes.handle(
+            "POST",
+            f"/api/v1/schedule/projects/{PROJECT}/jobs/{job_id}/cancel",
+            cookies=COOKIE,
+        )
+    )
+    assert cancel_status == 403
+    assert cancel_view["code"] == "AUTHORIZATION_PERMISSION_DENIED"
