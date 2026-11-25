@@ -368,6 +368,23 @@ def _initialize_reports(connection: Any) -> None:
     )
 
 
+def _initialize_project_closeout(connection: Any) -> None:
+    """Create the closeout record and its append-only event log.
+
+    Closing and reopening a project must be a durable, audited lifecycle
+    operation rather than a status edit. The store is additive, and the new
+    tables receive the same Revoke + restrictive-RLS hardening as every table
+    created after step 16.
+    """
+
+    from ..project_closeout import PostgresProjectCloseoutStore
+
+    PostgresProjectCloseoutStore(connection).initialize()
+    _harden_tables(
+        connection, ("project_closeout", "project_closeout_event")
+    )
+
+
 def _initialize_knowledge(connection: Any) -> None:
     from ..knowledge.postgres_store import PostgresKnowledgeStore
 
@@ -542,6 +559,7 @@ PRODUCTION_STEPS: tuple[MigrationStep, ...] = (
     MigrationStep(19, "activity-progress-history", 1, _initialize_activity_progress),
     MigrationStep(20, "scheduling-jobs", 1, _initialize_scheduling_jobs),
     MigrationStep(21, "report-register-and-schedules", 1, _initialize_reports),
+    MigrationStep(22, "project-closeout", 1, _initialize_project_closeout),
 )
 
 

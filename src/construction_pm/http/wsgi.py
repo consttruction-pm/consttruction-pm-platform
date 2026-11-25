@@ -66,6 +66,7 @@ class ProjectLifecycleWsgiApp:
             or (path.startswith("/api/projects/") and "/thresholds" in path)
             or (path.startswith("/api/projects/") and "/risks" in path)
             or (path.startswith("/api/projects/") and "/reports" in path)
+            or (path.startswith("/api/projects/") and "/closeout" in path)
             or (path.startswith("/api/projects/") and path.endswith("/tracking/read"))
             or (path.startswith("/api/projects/") and "/administration" in path)
             or (path.startswith("/api/projects/") and "/exchange" in path)

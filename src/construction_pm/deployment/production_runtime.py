@@ -161,6 +161,11 @@ from ..p6_earned_value_read_model import (
 )
 from ..p6_earned_value_read_model_api import P6EarnedValueReadModelAPI
 from ..report_api import ReportAPI
+from ..project_closeout import (
+    PostgresProjectCloseoutStore,
+    ProjectCloseoutAPI,
+    ProjectCloseoutService,
+)
 from ..report_application import (
     AuthoritativeReportDataset,
     ReportApplicationService,
@@ -825,6 +830,18 @@ class ProductionRuntime:
         issue_repository = PostgresP6IssueRepository(connection)
         threshold_store = PostgresThresholdStore(connection)
         issue_api = P6IssueAPI(issue_repository, policy)
+        # Closing and reopening a project is a durable, audited lifecycle
+        # operation with its own revision and append-only event log. It is
+        # separate from the V26 status field and gateable only on stored
+        # issue facts, so it cannot be faked from presentation state.
+        closeout_api = ProjectCloseoutAPI(
+            ProjectCloseoutService(
+                PostgresProjectCloseoutStore(connection),
+                issue_repository,
+                policy,
+                transaction_manager,
+            )
+        )
 
         def _threshold_issue_writer(issue, *, context, occurred_at):
             issue_api.create(issue, auth_context=context, occurred_at=occurred_at)
@@ -941,6 +958,7 @@ class ProductionRuntime:
             # measurement over the captured baseline. Without these kwargs the
             # report branch is disabled and both routes answer ROUTE_NOT_FOUND.
             report_api=report_api,
+            closeout_api=closeout_api,
             p6_earned_value_read_api=earned_value_read_api,
             # Durable rescheduling: submit/status/result/cancel plus a
             # token-guarded worker that runs the one shared scheduling engine.

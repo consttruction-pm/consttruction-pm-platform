@@ -297,24 +297,24 @@ def test_migration_ledger_is_versioned_idempotent_and_reports_drift():
     schema = _schema_name("cubi_mig")
     connection, first = _apply_drift_free_schema(schema)
     try:
-        assert first.ledger_version == 21
-        assert len(first.applied) == 21
+        assert first.ledger_version == 22
+        assert len(first.applied) == 22
         assert first.already_applied == ()
-        assert first.table_count == 107
+        assert first.table_count == 109
         assert first.drift is None
 
         second = apply_migrations(connection)
         assert second.applied == ()
-        assert second.already_applied == tuple(range(1, 22))
+        assert second.already_applied == tuple(range(1, 23))
         assert second.drift is None
-        assert second.table_count == 107
+        assert second.table_count == 109
 
         rows = connection.execute(
             f"SELECT version, name, checksum, step_revision, runtime_version "
             f"FROM {LEDGER_TABLE} ORDER BY version"
         ).fetchall()
-        assert [row[0] for row in rows] == list(range(1, 22))
-        assert all(row[2] and row[3] >= 1 and row[4] == 21 for row in rows)
+        assert [row[0] for row in rows] == list(range(1, 23))
+        assert all(row[2] and row[3] >= 1 and row[4] == 22 for row in rows)
 
         # An edited history is reported, never silently accepted.
         connection.execute(
@@ -365,8 +365,8 @@ def test_runtime_readiness_uses_the_migrated_schema(runtime):
     assert status == 200
     readiness = json.loads(body)
     assert readiness["status"] == "ready"
-    assert readiness["schema"]["version"] == 21
-    assert readiness["schema"]["tables"] == 107
+    assert readiness["schema"]["version"] == 22
+    assert readiness["schema"]["tables"] == 109
 
 
 # ---------------------------------------------------------------------------
@@ -5713,3 +5713,344 @@ def test_reports_and_earned_value_are_operational_end_to_end(runtime):
     assert _db_rows(
         runtime, baseline_query, (tenant, project, baseline_id)
     ) == baseline_before
+
+
+# ---------------------------------------------------------------------------
+# P0-M: project closeout and reopening over stored facts
+# ---------------------------------------------------------------------------
+
+
+def test_project_closeout_and_reopening_are_durable_over_postgres(runtime):
+    """Closing is a guarded lifecycle operation, not a status edit.
+
+    The project used here is created inside this test so its issue register is
+    deterministic; every closeout request still travels through the production
+    WSGI composition, and every assertion reads PostgreSQL back.
+    """
+
+    ids = runtime.test_ids
+    tenant = ids["tenant_a"]
+    project = f"closeout-{ids['suffix']}"
+    base = f"/api/projects/{project}/closeout"
+    admin_cookie, admin_csrf = login(runtime, "admin", ADMIN_PASSWORD)
+    planner_cookie, planner_csrf = login(runtime, "planner", PLANNER_PASSWORD)
+    viewer_cookie, _viewer_csrf = login(runtime, "viewer", VIEWER_PASSWORD)
+    outsider_cookie, outsider_csrf = login(runtime, "outsider", ADMIN_PASSWORD)
+    admin_id = ids["users"]["admin"].user_id
+
+    connection = runtime.pool.acquire()
+    try:
+        connection.execute(
+            "INSERT INTO project_lifecycle_projects "
+            "(tenant_id, project_id, name) VALUES (%s, %s, %s)",
+            (tenant, project, "Closeout Project"),
+        )
+        for key in ("admin", "planner", "viewer"):
+            connection.execute(
+                "INSERT INTO project_lifecycle_memberships "
+                "(tenant_id, project_id, user_id) VALUES (%s, %s, %s)",
+                (tenant, project, ids["users"][key].user_id),
+            )
+        connection.commit()
+    finally:
+        runtime.pool.release(connection, healthy=True)
+
+    # 1. A project with no closeout row reads as open at revision zero.
+    status, _, body = call(runtime, "GET", base, cookie=admin_cookie)
+    assert status == 200, body
+    payload = json.loads(body)
+    assert payload["contract_version"] == "project-closeout.v1"
+    assert payload["closeout"] == {
+        "project_id": project,
+        "state": "open",
+        "record_revision": 0,
+        "closed_at": None,
+        "closed_by": "",
+        "note": "",
+        "open_issue_count": 0,
+        "updated_at": None,
+    }
+    status, _, body = call(runtime, "GET", f"{base}/history", cookie=viewer_cookie)
+    assert status == 200, body
+    assert json.loads(body)["events"] == []
+
+    # 2. Read is open to a viewer; only a project administrator may close.
+    status, _, body = call(runtime, "GET", base, cookie=viewer_cookie)
+    assert status == 200, body
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"{base}/close",
+        body={"expected_revision": 0, "note": "planner attempt"},
+        cookie=planner_cookie,
+        csrf=planner_csrf,
+    )
+    assert status == 403, body
+    assert json.loads(body)["code"] == "CLOSEOUT_PERMISSION_DENIED"
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"{base}/close",
+        body={"expected_revision": 0},
+        cookie=outsider_cookie,
+        csrf=outsider_csrf,
+    )
+    assert status == 403, body
+
+    # 3. An open issue blocks closeout, and nothing is written.
+    issue_base = f"/api/projects/{project}/p6/issues"
+    issue_one = f"ISS-CLOSEOUT-1-{ids['suffix']}"
+    status, _, body = call(
+        runtime,
+        "POST",
+        issue_base,
+        body=_issue_payload(issue_one),
+        cookie=planner_cookie,
+        csrf=planner_csrf,
+    )
+    assert status == 200, body
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"{base}/close",
+        body={"expected_revision": 0, "note": "attempt with open issue"},
+        cookie=admin_cookie,
+        csrf=admin_csrf,
+    )
+    assert status == 409, body
+    assert json.loads(body)["code"] == "CLOSEOUT_OPEN_ISSUES:1"
+    assert _db_rows(
+        runtime,
+        "SELECT COUNT(*) FROM project_closeout WHERE tenant_id=%s AND project_id=%s",
+        (tenant, project),
+    ) == [(0,)]
+
+    # 4. Once the issue is resolved, closeout succeeds with revision one.
+    status, _, body = call(
+        runtime,
+        "PATCH",
+        f"{issue_base}/{issue_one}",
+        body=_issue_payload(
+            issue_one,
+            status="resolved",
+            resolution_note="Facade delivered",
+            expected_revision=1,
+        ),
+        cookie=planner_cookie,
+        csrf=planner_csrf,
+    )
+    assert status == 200, body
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"{base}/close",
+        body={"expected_revision": 0, "note": "all issues resolved"},
+        cookie=admin_cookie,
+        csrf=admin_csrf,
+    )
+    assert status == 200, body
+    closed = json.loads(body)["closeout"]
+    assert closed["state"] == "closed"
+    assert closed["record_revision"] == 1
+    assert closed["closed_by"] == admin_id
+    assert closed["closed_at"] is not None
+    assert closed["note"] == "all issues resolved"
+    assert closed["open_issue_count"] == 0
+
+    # 5. A repeated close is an idempotent no-op, even with a stale revision,
+    #    and it does not append a second event.
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"{base}/close",
+        body={"expected_revision": 7},
+        cookie=admin_cookie,
+        csrf=admin_csrf,
+    )
+    assert status == 200, body
+    assert json.loads(body)["closeout"]["record_revision"] == 1
+    assert _db_rows(
+        runtime,
+        "SELECT COUNT(*) FROM project_closeout_event "
+        "WHERE tenant_id=%s AND project_id=%s",
+        (tenant, project),
+    ) == [(1,)]
+
+    # 6. Reopening moves to revision two and clears the closed fields.
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"{base}/reopen",
+        body={"expected_revision": 1, "note": "punch list rework"},
+        cookie=admin_cookie,
+        csrf=admin_csrf,
+    )
+    assert status == 200, body
+    reopened = json.loads(body)["closeout"]
+    assert reopened["state"] == "open"
+    assert reopened["record_revision"] == 2
+    assert reopened["closed_at"] is None and reopened["closed_by"] == ""
+    assert reopened["note"] == "punch list rework"
+    # A repeated reopen is also an idempotent no-op.
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"{base}/reopen",
+        body={"expected_revision": 0},
+        cookie=admin_cookie,
+        csrf=admin_csrf,
+    )
+    assert status == 200, body
+    assert json.loads(body)["closeout"]["record_revision"] == 2
+
+    # 7. Re-closing a reopened project with an open issue is blocked again.
+    issue_two = f"ISS-CLOSEOUT-2-{ids['suffix']}"
+    status, _, body = call(
+        runtime,
+        "POST",
+        issue_base,
+        body=_issue_payload(issue_two, title="Second open issue"),
+        cookie=planner_cookie,
+        csrf=planner_csrf,
+    )
+    assert status == 200, body
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"{base}/close",
+        body={"expected_revision": 2},
+        cookie=admin_cookie,
+        csrf=admin_csrf,
+    )
+    assert status == 409, body
+    assert json.loads(body)["code"] == "CLOSEOUT_OPEN_ISSUES:1"
+    status, _, body = call(
+        runtime,
+        "PATCH",
+        f"{issue_base}/{issue_two}",
+        body=_issue_payload(
+            issue_two,
+            title="Second open issue",
+            status="closed",
+            resolution_note="Verified on site",
+            expected_revision=1,
+        ),
+        cookie=planner_cookie,
+        csrf=planner_csrf,
+    )
+    assert status == 200, body
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"{base}/close",
+        body={"expected_revision": 2, "note": "second close"},
+        cookie=admin_cookie,
+        csrf=admin_csrf,
+    )
+    assert status == 200, body
+    assert json.loads(body)["closeout"]["record_revision"] == 3
+
+    # 8. A stale revision against a real state change is a conflict.
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"{base}/reopen",
+        body={"expected_revision": 1},
+        cookie=admin_cookie,
+        csrf=admin_csrf,
+    )
+    assert status == 409, body
+    assert json.loads(body)["code"] == "CLOSEOUT_REVISION_CONFLICT"
+    assert _db_rows(
+        runtime,
+        "SELECT state, record_revision FROM project_closeout "
+        "WHERE tenant_id=%s AND project_id=%s",
+        (tenant, project),
+    ) == [("closed", 3)]
+
+    # 9. Malformed bodies and unknown subpaths fail closed without writing.
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"{base}/close",
+        body={},
+        cookie=admin_cookie,
+        csrf=admin_csrf,
+    )
+    assert status == 400, body
+    assert json.loads(body)["code"] == "CLOSEOUT_REQUEST_INVALID"
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"{base}/close",
+        body={"expected_revision": True},
+        cookie=admin_cookie,
+        csrf=admin_csrf,
+    )
+    assert status == 400, body
+    status, _, body = call(
+        runtime, "GET", f"{base}/unknown", cookie=admin_cookie
+    )
+    assert status == 400, body
+    assert json.loads(body)["code"] == "CLOSEOUT_REQUEST_INVALID"
+
+    # 10. Reopen once more so the ledger ends open, then read the full history.
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"{base}/reopen",
+        body={"expected_revision": 3, "note": "final reopen"},
+        cookie=admin_cookie,
+        csrf=admin_csrf,
+    )
+    assert status == 200, body
+    assert json.loads(body)["closeout"]["record_revision"] == 4
+    status, _, body = call(runtime, "GET", f"{base}/history", cookie=viewer_cookie)
+    assert status == 200, body
+    events = json.loads(body)["events"]
+    assert [(item["record_revision"], item["action"]) for item in events] == [
+        (1, "closed"),
+        (2, "reopened"),
+        (3, "closed"),
+        (4, "reopened"),
+    ]
+    assert all(item["actor_id"] == admin_id for item in events)
+    assert [item["note"] for item in events] == [
+        "all issues resolved",
+        "punch list rework",
+        "second close",
+        "final reopen",
+    ]
+
+    # 11. The stored rows are exact, and the V26 status field never moved:
+    #     closeout is its own fact, not an alias of project status.
+    assert _db_rows(
+        runtime,
+        "SELECT state, record_revision, closed_by, note, open_issue_count "
+        "FROM project_closeout WHERE tenant_id=%s AND project_id=%s",
+        (tenant, project),
+    ) == [("open", 4, "", "final reopen", 0)]
+    assert _db_rows(
+        runtime,
+        "SELECT event_id, action, record_revision, actor_id "
+        "FROM project_closeout_event WHERE tenant_id=%s AND project_id=%s "
+        "ORDER BY record_revision",
+        (tenant, project),
+    ) == [
+        ("closed-1", "closed", 1, admin_id),
+        ("reopened-2", "reopened", 2, admin_id),
+        ("closed-3", "closed", 3, admin_id),
+        ("reopened-4", "reopened", 4, admin_id),
+    ]
+    assert _db_rows(
+        runtime,
+        "SELECT status, revision FROM project_lifecycle_projects "
+        "WHERE tenant_id=%s AND project_id=%s",
+        (tenant, project),
+    ) == [("active", 0)]
+
+    # 12. Cross-tenant history stays invisible.
+    status, _, body = call(
+        runtime, "GET", f"{base}/history", cookie=outsider_cookie
+    )
+    assert status == 403, body
