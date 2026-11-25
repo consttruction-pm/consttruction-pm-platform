@@ -160,6 +160,7 @@ from ..report_api import ReportAPI
 from ..report_parameters import ReportParameterError, bindings_from_payload
 from ..report_persistence import ReportDefinition
 from ..report_schedules import ReportSchedule, ReportScheduleError
+from ..project_closeout import ProjectCloseoutAPI
 from ..administration_api import AdministrationAPI
 from ..exchange_api import ExchangeAPI
 from ..backup_api import BackupAPI
@@ -361,6 +362,7 @@ class ProjectLifecycleHttpRoutes:
         threshold_api: ThresholdAPI | None = None,
         risk_api: RiskAPI | None = None,
         report_api: ReportAPI | None = None,
+        closeout_api: ProjectCloseoutAPI | None = None,
         administration_api: AdministrationAPI | None = None,
         exchange_api: ExchangeAPI | None = None,
         backup_api: BackupAPI | None = None,
@@ -425,6 +427,7 @@ class ProjectLifecycleHttpRoutes:
         self._threshold_api = threshold_api
         self._risk_api = risk_api
         self._report_api = report_api
+        self._closeout_api = closeout_api
         self._administration_api = administration_api
         self._exchange_api = exchange_api
         self._backup_api = backup_api
@@ -4489,6 +4492,118 @@ class ProjectLifecycleHttpRoutes:
                         except (TypeError, ValueError, ArithmeticError):
                             return self._error(
                                 400, "REPORT_REQUEST_INVALID", "error.request.invalid"
+                            )
+            if self._closeout_api is not None:
+                split = urlsplit(path)
+                if split.path.startswith("/api/projects/") and "/closeout" in split.path:
+                    rest = split.path[len("/api/projects/"):]
+                    closeout_project_id, marker, closeout_suffix = rest.partition(
+                        "/closeout"
+                    )
+                    if (
+                        marker
+                        and closeout_project_id
+                        and (not closeout_suffix or closeout_suffix.startswith("/"))
+                    ):
+                        try:
+                            context = self._api.open_project(
+                                session_id, closeout_project_id, now=now
+                            ).context
+                        except ProjectLifecycleError as exc:
+                            if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                                return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
+                            raise
+                        session = self._api.get_session(session_id, now=now)
+                        auth = context.authorization_context(session.roles)
+                        parts = [
+                            part
+                            for part in closeout_suffix.strip("/").split("/")
+                            if part
+                        ]
+
+                        def _closeout_reply(result: dict[str, object]):
+                            if "code" not in result or "category" not in result:
+                                return self._json(200, result)
+                            code = str(result["code"])
+                            category = str(result["category"])
+                            if category == "authorization":
+                                return self._error(403, code, "error.authorization.denied")
+                            if category == "conflict":
+                                return self._error(409, code, "error.project.closeout.conflict")
+                            return self._error(400, code, "error.request.invalid")
+
+                        def _closeout_expected_revision() -> int:
+                            value = payload.get("expected_revision")
+                            if (
+                                isinstance(value, bool)
+                                or not isinstance(value, int)
+                                or value < 0
+                            ):
+                                raise ValueError("INVALID_CLOSEOUT_REVISION")
+                            return value
+
+                        try:
+                            payload = (
+                                json.loads(body.decode("utf-8") or "{}") if body else {}
+                            )
+                            if not isinstance(payload, dict):
+                                raise ValueError("invalid payload")
+                            if method == "GET" and not parts:
+                                return _closeout_reply(
+                                    self._closeout_api.read(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        context=auth,
+                                    )
+                                )
+                            if method == "GET" and parts == ["history"]:
+                                return _closeout_reply(
+                                    self._closeout_api.history(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        context=auth,
+                                    )
+                                )
+                            if method == "POST" and parts == ["close"]:
+                                return _closeout_reply(
+                                    self._closeout_api.close(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        project_revision=context.revision,
+                                        expected_revision=(
+                                            _closeout_expected_revision()
+                                        ),
+                                        note=str(payload.get("note") or ""),
+                                        context=auth,
+                                        actor_id=session.user_id,
+                                        occurred_at=now,
+                                    )
+                                )
+                            if method == "POST" and parts == ["reopen"]:
+                                return _closeout_reply(
+                                    self._closeout_api.reopen(
+                                        tenant_id=context.tenant_id,
+                                        project_id=context.project_id,
+                                        project_revision=context.revision,
+                                        expected_revision=(
+                                            _closeout_expected_revision()
+                                        ),
+                                        note=str(payload.get("note") or ""),
+                                        context=auth,
+                                        actor_id=session.user_id,
+                                        occurred_at=now,
+                                    )
+                                )
+                            return self._error(
+                                400,
+                                "CLOSEOUT_REQUEST_INVALID",
+                                "error.request.invalid",
+                            )
+                        except (TypeError, ValueError, ArithmeticError):
+                            return self._error(
+                                400,
+                                "CLOSEOUT_REQUEST_INVALID",
+                                "error.request.invalid",
                             )
             if self._administration_api is not None:
                 split = urlsplit(path)

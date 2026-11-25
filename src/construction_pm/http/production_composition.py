@@ -62,6 +62,7 @@ from construction_pm.budget_api import BudgetAPI
 from construction_pm.cost_api import CostAPI
 from construction_pm.risk_api import RiskAPI
 from construction_pm.report_api import ReportAPI
+from construction_pm.project_closeout import ProjectCloseoutAPI
 from construction_pm.administration_api import AdministrationAPI
 from construction_pm.backup_api import BackupAPI
 from construction_pm.exchange_api import ExchangeAPI
@@ -167,6 +168,7 @@ def build_project_lifecycle_wsgi_app(
     threshold_api: ThresholdAPI | None = None,
     risk_api: RiskAPI | None = None,
     report_api: ReportAPI | None = None,
+    closeout_api: ProjectCloseoutAPI | None = None,
     administration_api: AdministrationAPI | None = None,
     exchange_api: ExchangeAPI | None = None,
     backup_api: BackupAPI | None = None,
@@ -453,6 +455,7 @@ def build_project_lifecycle_wsgi_app(
         threshold_api=threshold_api,
         risk_api=risk_api,
         report_api=report_api,
+        closeout_api=closeout_api,
         administration_api=administration_api,
         exchange_api=exchange_api,
         backup_api=backup_api,
