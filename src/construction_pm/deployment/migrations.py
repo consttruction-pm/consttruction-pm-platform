@@ -321,6 +321,25 @@ def _initialize_activity_progress(connection: Any) -> None:
     _harden_tables(connection, ("activity_progress_event",))
 
 
+def _initialize_scheduling_jobs(connection: Any) -> None:
+    """Create the durable scheduling job and result tables.
+
+    The rescheduling API (``/api/v1/schedule/projects/{id}/jobs``) and the
+    worker control endpoints are only meaningful when the lifecycle can store
+    its job, lease and immutable result. The repository DDL already carried the
+    single-flight partial index and the lease/result tables, but no production
+    step created them, so composing the surface without this step would answer
+    every submission with a missing-relation error. ``initialize`` is additive
+    and never rewrites an existing row; the tables are then hardened like every
+    later step.
+    """
+
+    from ..postgres_scheduling_job_lifecycle import PostgresSchedulingJobRepository
+
+    PostgresSchedulingJobRepository(connection).initialize()
+    _harden_tables(connection, ("scheduling_jobs", "scheduling_job_results"))
+
+
 def _initialize_knowledge(connection: Any) -> None:
     from ..knowledge.postgres_store import PostgresKnowledgeStore
 
@@ -493,6 +512,7 @@ PRODUCTION_STEPS: tuple[MigrationStep, ...] = (
     MigrationStep(17, "threshold-register", 1, _initialize_thresholds),
     MigrationStep(18, "resource-spread-buckets", 1, _initialize_resource_spread),
     MigrationStep(19, "activity-progress-history", 1, _initialize_activity_progress),
+    MigrationStep(20, "scheduling-jobs", 1, _initialize_scheduling_jobs),
 )
 
 

@@ -271,7 +271,7 @@ def build_project_lifecycle_wsgi_app(
         )
     elif scheduling_job_repository is not None:
         scheduling_job_service = SchedulingJobService(scheduling_job_repository)
-        if scheduling_execution_mode not in ("thread", "process"):
+        if scheduling_execution_mode not in ("thread", "process", "inline"):
             raise ValueError("SCHEDULING_EXECUTION_MODE_INVALID")
         if scheduling_execution_mode == "process":
             # Process workers must build their own repositories in the child;

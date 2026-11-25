@@ -154,13 +154,13 @@ class SchedulingEngineJobRunner:
         poll_interval: float = 0.05,
         clock: Callable[[], datetime] | None = None,
     ) -> None:
-        if execution_mode not in ("thread", "process"):
+        if execution_mode not in ("thread", "process", "inline"):
             raise SchedulingJobRunnerError("INVALID_EXECUTION_MODE")
         if execution_mode == "process" and provider_factory is None:
             # A forked child cannot safely reuse the parent's database
             # connection; without a factory the worker would corrupt state.
             raise SchedulingJobRunnerError("PROCESS_MODE_REQUIRES_PROVIDER_FACTORY")
-        if execution_mode == "thread" and provider is None:
+        if execution_mode in ("thread", "inline") and provider is None:
             raise SchedulingJobRunnerError("THREAD_MODE_REQUIRES_PROVIDER")
         if job_timeout is not None and job_timeout <= 0:
             raise SchedulingJobRunnerError("INVALID_JOB_TIMEOUT")

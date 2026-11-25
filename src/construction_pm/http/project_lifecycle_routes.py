@@ -8133,7 +8133,17 @@ class ProjectLifecycleHttpRoutes:
                 400, "SCHEDULING_JOB_REQUEST_INVALID", "error.request.invalid"
             )
         try:
-            context = self._api.open_project(session_id, project_id, now=now).context
+            if method == "POST":
+                # Submitting and cancelling a durable run are write operations.
+                # A viewer may read status and a completed result, but must not
+                # start or stop a calculation.
+                context = self._api.authorize_project(
+                    session_id, project_id, Permission.PROJECT_WRITE, now=now
+                ).context
+            else:
+                context = self._api.open_project(
+                    session_id, project_id, now=now
+                ).context
         except ProjectLifecycleError as exc:
             if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
                 return self._error(

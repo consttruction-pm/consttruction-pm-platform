@@ -59,6 +59,7 @@ VIEWER_PASSWORD = "viewer horse battery staple"
 WEB_ROOT = Path(__file__).resolve().parents[2] / "apps" / "web"
 ORG_LIBRARY = "/api/forms/organization"
 STARTER_TEMPLATE = "contractor-daily-site-report"
+SCHEDULING_WORKER_TOKEN = "operationalization-worker-token-0123456789"
 
 
 def _schema_name(prefix: str) -> str:
@@ -103,6 +104,7 @@ def runtime() -> ProductionRuntime:
         static_root=WEB_ROOT,
         max_pool_size=2,
         schema=schema,
+        scheduling_worker_token=SCHEDULING_WORKER_TOKEN,
     )
     instance = ProductionRuntime(settings)
     instance._initialize()
@@ -295,24 +297,24 @@ def test_migration_ledger_is_versioned_idempotent_and_reports_drift():
     schema = _schema_name("cubi_mig")
     connection, first = _apply_drift_free_schema(schema)
     try:
-        assert first.ledger_version == 19
-        assert len(first.applied) == 19
+        assert first.ledger_version == 20
+        assert len(first.applied) == 20
         assert first.already_applied == ()
-        assert first.table_count == 100
+        assert first.table_count == 102
         assert first.drift is None
 
         second = apply_migrations(connection)
         assert second.applied == ()
-        assert second.already_applied == tuple(range(1, 20))
+        assert second.already_applied == tuple(range(1, 21))
         assert second.drift is None
-        assert second.table_count == 100
+        assert second.table_count == 102
 
         rows = connection.execute(
             f"SELECT version, name, checksum, step_revision, runtime_version "
             f"FROM {LEDGER_TABLE} ORDER BY version"
         ).fetchall()
-        assert [row[0] for row in rows] == list(range(1, 20))
-        assert all(row[2] and row[3] >= 1 and row[4] == 19 for row in rows)
+        assert [row[0] for row in rows] == list(range(1, 21))
+        assert all(row[2] and row[3] >= 1 and row[4] == 20 for row in rows)
 
         # An edited history is reported, never silently accepted.
         connection.execute(
@@ -363,8 +365,8 @@ def test_runtime_readiness_uses_the_migrated_schema(runtime):
     assert status == 200
     readiness = json.loads(body)
     assert readiness["status"] == "ready"
-    assert readiness["schema"]["version"] == 19
-    assert readiness["schema"]["tables"] == 100
+    assert readiness["schema"]["version"] == 20
+    assert readiness["schema"]["tables"] == 102
 
 
 # ---------------------------------------------------------------------------
@@ -3703,3 +3705,605 @@ def test_data_date_and_progress_are_operational_end_to_end(runtime):
     )
     assert status == 409, body
     assert json.loads(body)["code"] == "REVISION_CONFLICT"
+
+
+def test_rescheduling_jobs_and_schedule_variance_are_operational_end_to_end(runtime):
+    """Durable rescheduling and Schedule Variance over the production runtime.
+
+    One independent project is driven through the real HTTP surface: a schedule
+    snapshot is published, a durable job is submitted and stored, a real worker
+    executes the one shared engine, the immutable result is read back by a new
+    request and a new session, duplicate submission is single-flight, a second
+    worker tick cannot recalculate a completed job, and viewer/tenant
+    authorization is enforced. A baseline captured from published facts and the
+    master Planned Duration must stay unchanged while progress and the Data
+    Date move the forecast, and Tracking must report the resulting Schedule
+    Variance from the same stored facts.
+    """
+
+    from datetime import date
+
+    import psycopg
+
+    from construction_pm.project_schedule_settings_repository import (
+        _schedule_options_payload,
+    )
+    from construction_pm.scheduling.schedule_options import ScheduleOptions
+
+    ids = runtime.test_ids
+    suffix = uuid.uuid4().hex[:8]
+    project = f"project-rsch-{suffix}"
+    tenant = ids["tenant_a"]
+    admin, admin_csrf = login(runtime, "admin", ADMIN_PASSWORD)
+
+    # 1. Independent project and memberships for the planner and viewer.
+    status, _, body = call(
+        runtime,
+        "POST",
+        "/api/projects",
+        body={
+            "project_id": project,
+            "name": f"Rescheduling acceptance {suffix}",
+            "start_date": "2026-11-02",
+        },
+        cookie=admin,
+        csrf=admin_csrf,
+    )
+    assert status == 201, body
+    seed = psycopg.connect(
+        os.environ["CONSTRUCTION_PM_POSTGRES_DSN"],
+        autocommit=True,
+        options=f"-c search_path={ids['schema']}",
+    )
+    try:
+        for key in ("planner", "viewer"):
+            seed.execute(
+                "INSERT INTO project_lifecycle_memberships "
+                "(tenant_id, project_id, user_id) VALUES (%s, %s, %s) "
+                "ON CONFLICT DO NOTHING",
+                (tenant, project, ids["users"][key].user_id),
+            )
+    finally:
+        seed.close()
+    cookie, csrf = login(runtime, "planner", PLANNER_PASSWORD)
+
+    def project_revision() -> int:
+        status, _, body = call(runtime, "GET", "/api/projects", cookie=cookie)
+        assert status == 200, body
+        return int(
+            next(
+                item["revision"]
+                for item in json.loads(body)["projects"]
+                if item["project_id"] == project
+            )
+        )
+
+    # 2. Durable working-week calendar, WBS and an FS chain with a stored
+    #    planned finish that becomes the comparison plan.
+    calendar_id, calendar_version = f"CAL-RSCH-{suffix}", "v1"
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/calendars",
+        body={
+            "calendar_id": calendar_id,
+            "calendar_version": calendar_version,
+            "calendar_type": "project",
+            "kind": "working-day",
+            "name": "Rescheduling calendar",
+            "definition": {
+                "system": "gregorian",
+                "working_weekdays": [0, 1, 2, 3, 4],
+            },
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+
+    root_wbs = f"root-rsch-{suffix}"
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/wbs",
+        body={
+            "wbs_id": root_wbs,
+            "code": f"1-{suffix}",
+            "name": "Project summary",
+            "parent_kind": "project",
+            "sequence_number": 1,
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 201, body
+    wbs_id = f"wbs-rsch-{suffix}"
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/wbs",
+        body={
+            "wbs_id": wbs_id,
+            "code": f"2-{suffix}",
+            "name": "Structure",
+            "parent_kind": "wbs",
+            "parent_wbs_id": root_wbs,
+            "sequence_number": 2,
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 201, body
+
+    activity_a, activity_b = f"RSCH-A-{suffix}", f"RSCH-B-{suffix}"
+    planned_durations = {activity_a: 4, activity_b: 3}
+    planned_finish = {activity_a: "2026-11-10", activity_b: "2026-11-14"}
+    for activity_id, duration, name in (
+        (activity_a, 4, "Place concrete"),
+        (activity_b, 3, "Cure and inspect"),
+    ):
+        status, _, body = call(
+            runtime,
+            "POST",
+            f"/api/projects/{project}/p6/activities",
+            body={
+                "activity_id": activity_id,
+                "name": name,
+                "duration_value": duration,
+                "duration_unit": "working-day",
+                "wbs_id": wbs_id,
+                "planned_finish": planned_finish[activity_id],
+            },
+            cookie=cookie,
+            csrf=csrf,
+        )
+        assert status == 201, body
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/relationships",
+        body={
+            "relationship_id": f"REL-RSCH-{suffix}",
+            "predecessor_id": activity_a,
+            "successor_id": activity_b,
+            "relationship_type": "FS",
+            "lag_value": "0",
+            "lag_unit": "working-day",
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status in {200, 201}, body
+
+    settings_payload = {
+        "contract_version": "p6-project-schedule-settings-api.v1",
+        "expected_record_revision": 0,
+        "mode": "DATE_BASED",
+        "project_calendar_id": calendar_id,
+        "project_calendar_version": calendar_version,
+        "project_calendar_system": "gregorian",
+        "project_start": "2026-11-02",
+        "project_finish": None,
+        "schedule_options": _schedule_options_payload(
+            ScheduleOptions(data_date=date(2026, 11, 16))
+        ),
+        "project_leveling_priority": 50,
+    }
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/schedule/settings",
+        body=settings_payload,
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status in {200, 201}, body
+
+    def publish_snapshot() -> str:
+        status, _, body = call(
+            runtime,
+            "POST",
+            f"/api/projects/{project}/p6/schedule/snapshots",
+            body={
+                "contract_version": "p6-schedule-snapshot-api.v1",
+                "timezone": "UTC",
+            },
+            cookie=cookie,
+            csrf=csrf,
+        )
+        assert status in {200, 201}, body
+        payload = json.loads(body)
+        assert payload["kind"] == "schedule_input_snapshot"
+        return payload["snapshot_id"]
+
+    def save_settings(data_date) -> None:
+        status, _, body = call(
+            runtime,
+            "GET",
+            f"/api/projects/{project}/p6/schedule/settings",
+            cookie=cookie,
+        )
+        assert status == 200, body
+        revision = json.loads(body)["record_revision"]
+        status, _, body = call(
+            runtime,
+            "POST",
+            f"/api/projects/{project}/p6/schedule/settings",
+            body={
+                **settings_payload,
+                "expected_record_revision": revision,
+                "schedule_options": _schedule_options_payload(
+                    ScheduleOptions(data_date=data_date)
+                ),
+            },
+            cookie=cookie,
+            csrf=csrf,
+        )
+        assert status in {200, 201}, body
+
+    def workspace_cells():
+        headers = {
+            "X-Tenant-Id": tenant,
+            "X-Project-Id": project,
+            "X-Project-Revision": str(project_revision()),
+        }
+        status, _, body = call(
+            runtime,
+            "GET",
+            "/api/v2/workspace/control-room/read",
+            cookie=cookie,
+            headers=headers,
+        )
+        assert status == 200, body
+        workspace = json.loads(body)["workspace"]
+        return {item["id"]: item["cells"] for item in workspace["activities"]}
+
+    def tracking_rows():
+        status, _, body = call(
+            runtime,
+            "GET",
+            f"/api/projects/{project}/tracking/read",
+            cookie=cookie,
+        )
+        assert status == 200, body
+        payload = json.loads(body)
+        assert payload["contract_version"] == "tracking-read-model.v1"
+        return {row["activity_id"]: row for row in payload["rows"]}
+
+    snapshot_one = publish_snapshot()
+    revision_one = project_revision()
+    cells_before = workspace_cells()
+    for activity_id, duration in planned_durations.items():
+        assert cells_before[activity_id]["activity.planned_duration"] == str(duration)
+
+    # 3. A durable job is submitted at the snapshot's own revision. The row is
+    #    stored before any worker runs, and duplicate submission is single-flight.
+    submit_path = f"/api/v1/schedule/projects/{project}/jobs"
+    status, _, body = call(
+        runtime,
+        "POST",
+        submit_path,
+        body={"snapshot_id": snapshot_one},
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 202, body
+    submitted = json.loads(body)
+    job_id = submitted["job_id"]
+    assert submitted["state"] == "QUEUED"
+    assert submitted["deduplicated"] is False
+
+    status, _, body = call(
+        runtime,
+        "POST",
+        submit_path,
+        body={"snapshot_id": snapshot_one},
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+    duplicate = json.loads(body)
+    assert duplicate["deduplicated"] is True
+    assert duplicate["job_id"] == job_id
+
+    stored_job = _db_rows(
+        runtime,
+        "SELECT state, attempts, revision, request_fingerprint, run_parameters_json "
+        "FROM scheduling_jobs WHERE tenant_id=%s AND project_id=%s AND job_id=%s",
+        (tenant, project, job_id),
+    )
+    assert len(stored_job) == 1
+    assert stored_job[0][0] == "QUEUED"
+    stored_parameters = json.loads(stored_job[0][4])
+    assert stored_parameters["snapshot_id"] == snapshot_one
+    assert stored_parameters["project_revision"] == str(revision_one)
+
+    status, _, body = call(
+        runtime,
+        "GET",
+        f"{submit_path}/{job_id}/result",
+        cookie=cookie,
+    )
+    assert status == 409, body
+    assert json.loads(body)["code"] == "SCHEDULING_JOB_NOT_SUCCEEDED"
+
+    # 4. The real worker claims and executes the job on the shared engine.
+    tick_headers = {"X-Worker-Token": SCHEDULING_WORKER_TOKEN}
+    status, _, body = call(
+        runtime, "POST", "/api/v1/schedule/worker/tick", body={}, headers=tick_headers
+    )
+    assert status == 200, body
+    outcome = json.loads(body)
+    assert outcome["outcome"]["claimed"] == 1
+    assert outcome["outcome"]["succeeded"] == 1
+
+    status, _, body = call(
+        runtime, "GET", f"{submit_path}/{job_id}", cookie=cookie
+    )
+    assert status == 200, body
+    status_view = json.loads(body)
+    assert status_view["state"] == "SUCCEEDED"
+    assert status_view["revision"] >= 2
+    completed_revision = status_view["revision"]
+
+    status, _, body = call(
+        runtime, "GET", f"{submit_path}/{job_id}/result", cookie=cookie
+    )
+    assert status == 200, body
+    result_view = json.loads(body)
+    output_hash = result_view["result"]["output_hash"]
+    assert len(output_hash) == 64
+    assert result_view["result"]["payload"]["activity_count"] == 2
+
+    stored = _db_rows(
+        runtime,
+        "SELECT state, attempts, revision FROM scheduling_jobs "
+        "WHERE tenant_id=%s AND project_id=%s AND job_id=%s",
+        (tenant, project, job_id),
+    )
+    assert stored == [("SUCCEEDED", 1, completed_revision)]
+    stored_results = _db_rows(
+        runtime,
+        "SELECT engine_version, calculation_identity, output_hash "
+        "FROM scheduling_job_results "
+        "WHERE tenant_id=%s AND project_id=%s AND job_id=%s",
+        (tenant, project, job_id),
+    )
+    assert stored_results == [
+        (
+            status_view["engine_version"],
+            status_view["calculation_identity"],
+            output_hash,
+        )
+    ]
+
+    # A second tick has nothing to claim, so the same run is never recalculated.
+    status, _, body = call(
+        runtime, "POST", "/api/v1/schedule/worker/tick", body={}, headers=tick_headers
+    )
+    assert status == 200, body
+    assert json.loads(body)["outcome"]["claimed"] == 0
+    assert json.loads(body)["outcome"]["succeeded"] == 0
+
+    # A new request and a new session retrieve the identical immutable result.
+    reload_cookie, _ = login(runtime, "planner", PLANNER_PASSWORD)
+    status, _, body = call(
+        runtime, "GET", f"{submit_path}/{job_id}/result", cookie=reload_cookie
+    )
+    assert status == 200, body
+    assert json.loads(body)["result"]["output_hash"] == output_hash
+
+    # A completed run is a new generation, never a silently reused result.
+    status, _, body = call(
+        runtime,
+        "POST",
+        submit_path,
+        body={"snapshot_id": snapshot_one},
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 202, body
+    second_generation = json.loads(body)
+    assert second_generation["job_id"] != job_id
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"{submit_path}/{second_generation['job_id']}/cancel",
+        body={},
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+    assert json.loads(body)["state"] == "CANCELLED"
+
+    # 5. A baseline captured from the published facts is an immutable stored
+    #    window; its rows must not move when progress is recorded.
+    baseline_id = f"BL-RSCH-{suffix}"
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/p6/baselines/capture",
+        body={
+            "contract_version": "p6-baseline-capture-api.v1",
+            "baseline_id": baseline_id,
+            "name": "Approved plan",
+            "baseline_type": "USER_SELECTED",
+            "expected_revision": revision_one,
+            "currency": "USD",
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 201, body
+    captured = json.loads(body)
+    assert captured["kind"] == "p6_baseline_capture"
+    assert captured["counts"]["activities"] == 2
+    assert captured["baseline"]["baseline_id"] == baseline_id
+
+    status, _, body = call(
+        runtime, "GET", f"/api/projects/{project}/p6/baselines", cookie=cookie
+    )
+    assert status == 200, body
+    assert [
+        item["baseline"]["baseline_id"] for item in json.loads(body)["baselines"]
+    ] == [baseline_id]
+    status, _, body = call(
+        runtime,
+        "GET",
+        f"/api/projects/{project}/p6/baselines/{baseline_id}/activities",
+        cookie=cookie,
+    )
+    assert status == 200, body
+    baseline_windows = {
+        item["activity_id"]: (item["planned_start"], item["planned_finish"])
+        for item in json.loads(body)["activities"]
+    }
+    assert baseline_windows == {
+        activity_a: ("2026-11-02", "2026-11-05"),
+        activity_b: ("2026-11-06", "2026-11-10"),
+    }
+    baseline_hash_query = (
+        "SELECT activity_id, planned_start, planned_finish, budgeted_cost, "
+        "currency, wbs_id, earned_value_technique FROM p6_baseline_activity "
+        "WHERE tenant_id=%s AND project_id=%s AND baseline_id=%s "
+        "ORDER BY activity_id"
+    )
+    baseline_before = _db_rows(
+        runtime, baseline_hash_query, (tenant, project, baseline_id)
+    )
+
+    # 6. Progress moves the forecast, but Planned Duration and the stored
+    #    baseline rows stay untouched.
+    status, _, body = call(
+        runtime,
+        "PATCH",
+        f"/api/projects/{project}/p6/activities/{activity_a}",
+        body={
+            "expected_revision": 1,
+            "actual_start": "2026-11-10",
+            "percent_complete": 60.0,
+            "remaining_duration": 2,
+            "status": "In Progress",
+            "status_code": "Active",
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+
+    publish_snapshot()
+    cells_with_date = workspace_cells()
+    rows_with_date = tracking_rows()
+    assert (
+        cells_with_date[activity_a]["activity.planned_duration"]
+        == str(planned_durations[activity_a])
+    )
+    assert (
+        cells_with_date[activity_b]["activity.planned_duration"]
+        == str(planned_durations[activity_b])
+    )
+
+    status, _, body = call(
+        runtime,
+        "GET",
+        f"/api/projects/{project}/p6/activities/{activity_a}",
+        cookie=cookie,
+    )
+    assert status == 200, body
+    progressed = json.loads(body)["activity"]
+    assert progressed["percent_complete"] == 60.0
+    assert progressed["status"] == "In Progress"
+    assert progressed["actual_start"] == "2026-11-10"
+    assert progressed["planned_finish"] == planned_finish[activity_a]
+
+    tracked_a = rows_with_date[activity_a]
+    assert tracked_a["planned_finish"] == planned_finish[activity_a]
+    assert tracked_a["finish"] >= "2026-11-16"
+    variance_with_date = tracked_a["finish_variance_days"]
+    assert variance_with_date == (
+        date.fromisoformat(tracked_a["finish"])
+        - date.fromisoformat(planned_finish[activity_a])
+    ).days
+    assert variance_with_date > 0
+    finish_with_date = tracked_a["finish"]
+
+    # 7. The stored Data Date is the actual driver of the variance: without it
+    #    the same progress finishes earlier and the Schedule Variance shrinks;
+    #    restoring it reproduces the identical forecast and variance.
+    save_settings(None)
+    publish_snapshot()
+    rows_without_date = tracking_rows()
+    assert rows_without_date[activity_a]["finish"] < finish_with_date
+    assert rows_without_date[activity_a]["finish_variance_days"] < variance_with_date
+
+    save_settings(date(2026, 11, 16))
+    publish_snapshot()
+    rows_restored = tracking_rows()
+    assert rows_restored[activity_a]["finish"] == finish_with_date
+    assert rows_restored[activity_a]["finish_variance_days"] == variance_with_date
+
+    # Planned Duration and the master planned finish never move; the baseline
+    # rows captured before progress are byte-for-byte the same facts.
+    cells_after = workspace_cells()
+    for activity_id, duration in planned_durations.items():
+        assert cells_after[activity_id]["activity.planned_duration"] == str(duration)
+    status, _, body = call(
+        runtime, "GET", f"/api/projects/{project}/p6/activities", cookie=cookie
+    )
+    assert status == 200, body
+    masters = {
+        item["activity"]["activity_id"]: item["activity"]
+        for item in json.loads(body)["activities"]
+    }
+    for activity_id, duration in planned_durations.items():
+        assert masters[activity_id]["duration_value"] == str(duration)
+        assert masters[activity_id]["planned_finish"] == planned_finish[activity_id]
+    baseline_after = _db_rows(
+        runtime, baseline_hash_query, (tenant, project, baseline_id)
+    )
+    assert baseline_after == baseline_before
+
+    # 8. Authorization: a viewer can read status and result but cannot submit or
+    #    cancel; another tenant cannot see the run at all.
+    viewer_cookie, viewer_csrf = login(runtime, "viewer", VIEWER_PASSWORD)
+    status, _, body = call(
+        runtime, "GET", f"{submit_path}/{job_id}", cookie=viewer_cookie
+    )
+    assert status == 200, body
+    status, _, body = call(
+        runtime, "GET", f"{submit_path}/{job_id}/result", cookie=viewer_cookie
+    )
+    assert status == 200, body
+    assert json.loads(body)["result"]["output_hash"] == output_hash
+    status, _, body = call(
+        runtime,
+        "POST",
+        submit_path,
+        body={"snapshot_id": snapshot_one},
+        cookie=viewer_cookie,
+        csrf=viewer_csrf,
+    )
+    assert status == 403, body
+    assert json.loads(body)["code"] == "AUTHORIZATION_PERMISSION_DENIED"
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"{submit_path}/{job_id}/cancel",
+        body={},
+        cookie=viewer_cookie,
+        csrf=viewer_csrf,
+    )
+    assert status == 403, body
+
+    outsider_cookie, _ = login(runtime, "outsider", ADMIN_PASSWORD)
+    status, _, body = call(
+        runtime, "GET", f"{submit_path}/{job_id}", cookie=outsider_cookie
+    )
+    assert status == 403, body
+    status, _, body = call(
+        runtime,
+        "GET",
+        f"/api/projects/{project}/p6/baselines",
+        cookie=outsider_cookie,
+    )
+    assert status == 403, body
