@@ -9,6 +9,8 @@ This index tracks individual page specifications required by `docs/standards/CUB
 | Page | Record | Status |
 |---|---|---|
 | ENT-07 — Projects register and project portal | [ENT-07-projects-register.md](ENT-07-projects-register.md) | Implemented; local full-stack verification passed; official Preview blocked; visual parity not claimed |
+| ENG-WS-DATA-DATE — Data Date and progress line | [ENG-WS-DATA-DATE.md](ENG-WS-DATA-DATE.md) | Implemented; stored in PostgreSQL and consumed by the shared scheduler; end-to-end PostgreSQL evidence; visual parity not claimed |
+| ENG-WS-TRACKING — Tracking | [ENG-WS-TRACKING.md](ENG-WS-TRACKING.md) | Implemented; read-only versioned projection over published schedule and assignment facts; PostgreSQL evidence; visual parity not claimed |
 
 ## Enterprise page-by-page Help and icon specification
 
