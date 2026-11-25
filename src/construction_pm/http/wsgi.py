@@ -54,6 +54,7 @@ class ProjectLifecycleWsgiApp:
             path.startswith("/api/forms/")
             or (path.startswith("/api/projects/") and "/forms" in path)
             or (path.startswith("/api/projects/") and "/p6/issues" in path)
+            or (path.startswith("/api/projects/") and "/p6/expenses" in path)
             or (path.startswith("/api/projects/") and path.endswith("/documents"))
             or (path.startswith("/api/projects/") and "/documents/" in path)
             or (path.startswith("/api/projects/") and path.endswith("/budget/lines"))

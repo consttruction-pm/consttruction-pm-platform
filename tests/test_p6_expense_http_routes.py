@@ -8,6 +8,7 @@ from construction_pm.application.project_lifecycle_api import ProjectLifecycleAP
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.http.project_lifecycle_routes import ProjectLifecycleHttpRoutes
 from construction_pm.p6_expense_api import P6_EXPENSE_API_VERSION
+from construction_pm.p6_expense_repository import P6ExpensePersistenceError
 
 
 class Sessions:
@@ -47,13 +48,13 @@ class FakeExpenseAPI:
         return ({"contract_version": P6_EXPENSE_API_VERSION, "expense": {"expense_id": "e-1"}},)
 
 
-def routes():
+def routes(roles=frozenset({"project_admin"}), expense_api=None):
     now = datetime(2026, 9, 30, tzinfo=timezone.utc)
-    session = AuthenticatedSession("s1", "u1", "t1", frozenset({"project_admin"}), now + timedelta(hours=1))
+    session = AuthenticatedSession("s1", "u1", "t1", roles, now + timedelta(hours=1))
     service = __import__("construction_pm.application.project_lifecycle", fromlist=["ProjectLifecycleService"]).ProjectLifecycleService(
         Sessions(session), Projects(), default_project_policy()
     )
-    fake = FakeExpenseAPI()
+    fake = FakeExpenseAPI() if expense_api is None else expense_api
     return ProjectLifecycleHttpRoutes(
         ProjectLifecycleAPI(service),
         clock=type("Clock", (), {"now": lambda self: now})(),
@@ -93,3 +94,72 @@ def test_p6_expense_http_list_and_get_and_cross_scope_rejection():
 
     status, _, _ = r.handle("GET", "/api/projects/other/p6/expenses/e-1", cookies={"cp_session": "s1"})
     assert status == 403
+
+
+def test_p6_expense_http_list_reads_query_filters_and_accepts_a_bodyless_get():
+    r, fake = routes()
+    status, _, body = r.handle(
+        "GET", "/api/projects/p1/p6/expenses?activity_id=a-1&wbs_id=wbs-1",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 200
+    assert json.loads(body)["expenses"][0]["expense"]["expense_id"] == "e-1"
+    call = fake.calls[-1]
+    assert call[0] == "list"
+    assert call[2] == "a-1"
+    assert call[3] == "wbs-1"
+
+
+def test_p6_expense_http_viewer_can_read_but_cannot_record_cost():
+    r, fake = routes(roles=frozenset({"viewer"}))
+    status, _, body = r.handle(
+        "GET", "/api/projects/p1/p6/expenses", cookies={"cp_session": "s1"}
+    )
+    assert status == 200, body
+
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/expenses",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"expense_id": "e-2", "name": "Crane", "category": "SITE"}).encode(),
+    )
+    assert status == 403, body
+    assert json.loads(body)["code"] == "AUTHORIZATION_PERMISSION_DENIED"
+    assert all(call[0] != "create" for call in fake.calls)
+
+
+class _ConflictingExpenseAPI(FakeExpenseAPI):
+    def __init__(self, code):
+        super().__init__()
+        self.code = code
+
+    def create(self, expense, *, auth_context):
+        raise P6ExpensePersistenceError(self.code)
+
+
+def test_p6_expense_http_immutable_replay_is_a_conflict_not_an_overwrite():
+    r, _ = routes(expense_api=_ConflictingExpenseAPI("IMMUTABLE_EXPENSE"))
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/expenses",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"expense_id": "e-1", "name": "Changed", "category": "SITE"}).encode(),
+    )
+    assert status == 409, body
+    assert json.loads(body)["code"] == "IMMUTABLE_EXPENSE"
+
+
+def test_p6_expense_http_revision_conflict_is_a_conflict():
+    r, _ = routes(expense_api=_ConflictingExpenseAPI("REVISION_CONFLICT"))
+    status, _, body = r.handle(
+        "GET", "/api/projects/p1/p6/expenses/e-1", cookies={"cp_session": "s1"}
+    )
+    assert status == 200
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/expenses",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"expense_id": "e-1", "name": "x", "category": "SITE"}).encode(),
+    )
+    assert status == 409, body
+    assert json.loads(body)["code"] == "REVISION_CONFLICT"

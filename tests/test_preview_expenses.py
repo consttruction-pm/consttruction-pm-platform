@@ -203,8 +203,8 @@ def test_preview_expense_and_cost_account_writes_are_authorized_and_immutable(tm
             cookie=planner.session_id,
             body=json.dumps(_expense(planned_cost="999.00")).encode(),
         )
-        assert status == 400
-        assert json.loads(body)["code"] == "P6_EXPENSE_REQUEST_INVALID"
+        assert status == 409
+        assert json.loads(body)["code"] == "IMMUTABLE_EXPENSE"
 
         status, body = _request(
             runtime.app,
