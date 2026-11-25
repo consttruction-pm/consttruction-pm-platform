@@ -787,9 +787,9 @@ class PostgresBudgetStore(SQLiteBudgetStore):
 
     The store owns the same tables and revision rules as the preview store, but
     uses the PostgreSQL placeholder and JSON operators and never commits: the
-    request or the importer owns the transaction. Only the line surface is
-    exposed here; changes and funding stay with the preview store until the
-    production composition serves them.
+    request or the importer owns the transaction. Lines, changes, funding and
+    the audit trail are all served here, because the production runtime exposes
+    the full register and observes ``budget_balance`` from these rows.
     """
 
     def initialize(self) -> None:
@@ -924,4 +924,272 @@ class PostgresBudgetStore(SQLiteBudgetStore):
         return tuple(
             StoredBudgetLine(self._line_from_json(row[0]), int(row[1]))
             for row in self.connection.execute(query, tuple(params)).fetchall()
+        )
+
+    # -- budget lines (continuation) --------------------------------------
+    def update_line(
+        self,
+        line: BudgetLine,
+        *,
+        expected_revision: int,
+        actor_id: str,
+        occurred_at: datetime,
+        event_type: str = "updated",
+        audit_reason: str = "",
+    ) -> StoredBudgetLine:
+        line.validate()
+        _validate_audit(actor_id, occurred_at)
+        self._check_revision(expected_revision, "INVALID_EXPECTED_BUDGET_REVISION")
+        row = self.connection.execute(
+            "SELECT revision FROM project_budget_line "
+            "WHERE tenant_id=%s AND project_id=%s AND budget_line_id=%s",
+            (line.tenant_id, line.project_id, line.budget_line_id),
+        ).fetchone()
+        if row is None:
+            raise KeyError("BUDGET_LINE_NOT_FOUND")
+        current = int(row[0])
+        if expected_revision != current:
+            raise BudgetRevisionConflict("BUDGET_REVISION_CONFLICT")
+        if current >= MAX_SAFE_REVISION:
+            raise ValueError("BUDGET_REVISION_EXHAUSTED")
+        next_revision = current + 1
+        self.connection.execute(
+            "UPDATE project_budget_line SET revision=%s, line_json=%s "
+            "WHERE tenant_id=%s AND project_id=%s AND budget_line_id=%s",
+            (
+                next_revision,
+                json.dumps(line.as_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+                line.tenant_id, line.project_id, line.budget_line_id,
+            ),
+        )
+        self._audit(line, "line", line.budget_line_id, next_revision, event_type, actor_id, occurred_at, audit_reason)
+        return StoredBudgetLine(line, next_revision)
+
+    # -- budget changes ---------------------------------------------------
+    def list_changes(
+        self, tenant_id: str, project_id: str, budget_line_id: str
+    ) -> tuple[StoredBudgetChange, ...]:
+        return tuple(
+            StoredBudgetChange(self._change_from_json(row[0]), int(row[1]))
+            for row in self.connection.execute(
+                "SELECT change_json, revision FROM project_budget_change "
+                "WHERE tenant_id=%s AND project_id=%s AND budget_line_id=%s ORDER BY change_id",
+                (tenant_id, project_id, budget_line_id),
+            ).fetchall()
+        )
+
+    def create_change(
+        self, change: BudgetChange, *, actor_id: str, occurred_at: datetime
+    ) -> StoredBudgetChange:
+        change.validate()
+        _validate_audit(actor_id, occurred_at)
+        self.get_line(change.tenant_id, change.project_id, change.budget_line_id)
+        payload = json.dumps(change.as_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        existing = self.connection.execute(
+            "SELECT change_json FROM project_budget_change "
+            "WHERE tenant_id=%s AND project_id=%s AND budget_line_id=%s AND change_id=%s",
+            (change.tenant_id, change.project_id, change.budget_line_id, change.change_id),
+        ).fetchone()
+        if existing is not None:
+            if existing[0] != payload:
+                raise ValueError("BUDGET_CHANGE_ALREADY_EXISTS")
+            return self.get_change(change.tenant_id, change.project_id, change.change_id)
+        try:
+            self.connection.execute(
+                "INSERT INTO project_budget_change "
+                "(tenant_id, project_id, budget_line_id, change_id, revision, change_json) "
+                "VALUES (%s,%s,%s,%s,%s,%s)",
+                (
+                    change.tenant_id, change.project_id, change.budget_line_id,
+                    change.change_id, 1, payload,
+                ),
+            )
+        except Exception as exc:
+            if "duplicate key" in str(exc).lower():
+                raise ValueError("BUDGET_CHANGE_ALREADY_EXISTS") from exc
+            raise
+        self._audit(change, "change", change.change_id, 1, "created", actor_id, occurred_at, change.reason)
+        return StoredBudgetChange(change, 1)
+
+    def get_change(self, tenant_id: str, project_id: str, change_id: str) -> StoredBudgetChange:
+        row = self.connection.execute(
+            "SELECT change_json, revision FROM project_budget_change "
+            "WHERE tenant_id=%s AND project_id=%s AND change_id=%s",
+            (tenant_id, project_id, change_id),
+        ).fetchone()
+        if row is None:
+            raise KeyError("BUDGET_CHANGE_NOT_FOUND")
+        return StoredBudgetChange(self._change_from_json(row[0]), int(row[1]))
+
+    def transition_change(
+        self,
+        *,
+        tenant_id: str,
+        project_id: str,
+        change_id: str,
+        status: str,
+        expected_revision: int,
+        actor_id: str,
+        occurred_at: datetime,
+        reason: str = "",
+    ) -> StoredBudgetChange:
+        _validate_audit(actor_id, occurred_at)
+        if status not in ("approved", "rejected"):
+            raise ValueError("INVALID_BUDGET_CHANGE_STATUS")
+        self._check_revision(expected_revision, "INVALID_EXPECTED_BUDGET_REVISION")
+        stored = self.get_change(tenant_id, project_id, change_id)
+        if stored.change.status != "pending":
+            raise ValueError("BUDGET_INVALID_CHANGE_STATUS_TRANSITION")
+        if stored.revision != expected_revision:
+            raise BudgetRevisionConflict("BUDGET_REVISION_CONFLICT")
+        if stored.revision >= MAX_SAFE_REVISION:
+            raise ValueError("BUDGET_REVISION_EXHAUSTED")
+        transitioned = replace(stored.change, status=status)
+        next_revision = stored.revision + 1
+        self.connection.execute(
+            "UPDATE project_budget_change SET revision=%s, change_json=%s "
+            "WHERE tenant_id=%s AND project_id=%s AND change_id=%s",
+            (
+                next_revision,
+                json.dumps(transitioned.as_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+                tenant_id, project_id, change_id,
+            ),
+        )
+        self._audit(transitioned, "change", change_id, next_revision, "status_transition", actor_id, occurred_at, reason)
+        return StoredBudgetChange(transitioned, next_revision)
+
+    # -- funding ----------------------------------------------------------
+    def list_funding(self, tenant_id: str, project_id: str) -> tuple[StoredFundingSource, ...]:
+        return tuple(
+            StoredFundingSource(self._funding_from_json(row[0]), int(row[1]))
+            for row in self.connection.execute(
+                "SELECT funding_json, revision FROM project_budget_funding "
+                "WHERE tenant_id=%s AND project_id=%s ORDER BY funding_id",
+                (tenant_id, project_id),
+            ).fetchall()
+        )
+
+    def persist_funding(
+        self,
+        funding: FundingSource,
+        *,
+        idempotency_key: str,
+        actor_id: str,
+        occurred_at: datetime,
+    ) -> StoredFundingSource:
+        funding.validate()
+        self._validate_key(idempotency_key)
+        _validate_audit(actor_id, occurred_at)
+        payload = funding.as_dict()
+        fingerprint = _fingerprint(payload)
+        existing = self.connection.execute(
+            "SELECT funding_id, fingerprint FROM project_budget_funding "
+            "WHERE tenant_id=%s AND project_id=%s AND idempotency_key=%s",
+            (funding.tenant_id, funding.project_id, idempotency_key),
+        ).fetchone()
+        if existing is not None:
+            if existing[1] != fingerprint:
+                raise BudgetIdempotencyReuse("BUDGET_IDEMPOTENCY_KEY_REUSE")
+            return self._get_funding(funding.tenant_id, funding.project_id, str(existing[0]))
+        try:
+            self.connection.execute(
+                "INSERT INTO project_budget_funding "
+                "(tenant_id, project_id, funding_id, idempotency_key, fingerprint, revision, funding_json) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s)",
+                (
+                    funding.tenant_id, funding.project_id, funding.funding_id,
+                    idempotency_key, fingerprint, 1,
+                    json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+                ),
+            )
+        except Exception as exc:
+            if "duplicate key" in str(exc).lower():
+                raise ValueError("BUDGET_FUNDING_ALREADY_EXISTS") from exc
+            raise
+        self._audit(funding, "funding", funding.funding_id, 1, "created", actor_id, occurred_at, "")
+        return StoredFundingSource(funding, 1)
+
+    def update_funding(
+        self,
+        funding: FundingSource,
+        *,
+        expected_revision: int,
+        actor_id: str,
+        occurred_at: datetime,
+        event_type: str = "updated",
+        audit_reason: str = "",
+    ) -> StoredFundingSource:
+        funding.validate()
+        _validate_audit(actor_id, occurred_at)
+        self._check_revision(expected_revision, "INVALID_EXPECTED_BUDGET_REVISION")
+        row = self.connection.execute(
+            "SELECT revision FROM project_budget_funding "
+            "WHERE tenant_id=%s AND project_id=%s AND funding_id=%s",
+            (funding.tenant_id, funding.project_id, funding.funding_id),
+        ).fetchone()
+        if row is None:
+            raise KeyError("BUDGET_FUNDING_NOT_FOUND")
+        current = int(row[0])
+        if expected_revision != current:
+            raise BudgetRevisionConflict("BUDGET_REVISION_CONFLICT")
+        next_revision = current + 1
+        self.connection.execute(
+            "UPDATE project_budget_funding SET revision=%s, funding_json=%s "
+            "WHERE tenant_id=%s AND project_id=%s AND funding_id=%s",
+            (
+                next_revision,
+                json.dumps(funding.as_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+                funding.tenant_id, funding.project_id, funding.funding_id,
+            ),
+        )
+        self._audit(funding, "funding", funding.funding_id, next_revision, event_type, actor_id, occurred_at, audit_reason)
+        return StoredFundingSource(funding, next_revision)
+
+    def line_history(
+        self, tenant_id: str, project_id: str, budget_line_id: str
+    ) -> tuple[BudgetAuditEvent, ...]:
+        self.get_line(tenant_id, project_id, budget_line_id)
+        rows = self.connection.execute(
+            "SELECT entity_type, entity_id, revision, event_type, actor_id, occurred_at, reason "
+            "FROM project_budget_audit "
+            "WHERE tenant_id=%s AND project_id=%s AND entity_type='line' AND entity_id=%s ORDER BY revision",
+            (tenant_id, project_id, budget_line_id),
+        ).fetchall()
+        return tuple(
+            BudgetAuditEvent(
+                row[0], row[1], int(row[2]), row[3], row[4], _coerce_datetime(row[5]), row[6]
+            )
+            for row in rows
+        )
+
+    # -- helpers ----------------------------------------------------------
+    def _get_funding(self, tenant_id: str, project_id: str, funding_id: str) -> StoredFundingSource:
+        row = self.connection.execute(
+            "SELECT funding_json, revision FROM project_budget_funding "
+            "WHERE tenant_id=%s AND project_id=%s AND funding_id=%s",
+            (tenant_id, project_id, funding_id),
+        ).fetchone()
+        if row is None:
+            raise KeyError("BUDGET_FUNDING_NOT_FOUND")
+        return StoredFundingSource(self._funding_from_json(row[0]), int(row[1]))
+
+    def _audit(
+        self,
+        entity: BudgetLine | BudgetChange | FundingSource,
+        entity_type: str,
+        entity_id: str,
+        revision: int,
+        event_type: str,
+        actor_id: str,
+        occurred_at: datetime,
+        reason: str,
+    ) -> None:
+        self.connection.execute(
+            "INSERT INTO project_budget_audit "
+            "(tenant_id, project_id, entity_type, entity_id, revision, event_type, actor_id, occurred_at, reason) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (
+                entity.tenant_id, entity.project_id, entity_type, entity_id, revision,
+                event_type, actor_id, occurred_at, reason,
+            ),
         )

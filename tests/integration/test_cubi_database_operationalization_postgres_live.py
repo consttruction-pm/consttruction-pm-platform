@@ -4744,3 +4744,358 @@ def test_expenses_are_operational_and_roll_into_the_baseline(runtime):
         (tenant, project),
     )
     assert final_rows == [(expense_a,), (expense_w,)]
+
+
+# ---------------------------------------------------------------------------
+# Budget integration: the register, its derived summary and the threshold source
+# ---------------------------------------------------------------------------
+
+
+def test_budget_register_is_operational_end_to_end(runtime):
+    """Original budget, changes, funding and the derived summary over PostgreSQL.
+
+    The production runtime now serves the budget register through
+    ``PostgresBudgetStore``. This test drives the real HTTP surface: line
+    creation is idempotent, updates are revision-guarded, a pending change is
+    visible but not counted, approval is admin-only and moves the current
+    budget, funding is stored separately, the summary derives the balance, the
+    audit history is ordered, and a ``budget_balance`` threshold observes the
+    same stored rows.
+    """
+
+    ids = runtime.test_ids
+    suffix = uuid.uuid4().hex[:8]
+    project = f"project-budget-{suffix}"
+    tenant = ids["tenant_a"]
+    admin, admin_csrf = login(runtime, "admin", ADMIN_PASSWORD)
+
+    status, _, body = call(
+        runtime,
+        "POST",
+        "/api/projects",
+        body={
+            "project_id": project,
+            "name": f"Budget acceptance {suffix}",
+            "start_date": "2026-11-02",
+        },
+        cookie=admin,
+        csrf=admin_csrf,
+    )
+    assert status == 201, body
+    import psycopg
+
+    seed = psycopg.connect(
+        os.environ["CONSTRUCTION_PM_POSTGRES_DSN"],
+        autocommit=True,
+        options=f"-c search_path={ids['schema']}",
+    )
+    try:
+        for key in ("admin", "planner", "viewer"):
+            seed.execute(
+                "INSERT INTO project_lifecycle_memberships "
+                "(tenant_id, project_id, user_id) VALUES (%s, %s, %s) "
+                "ON CONFLICT DO NOTHING",
+                (tenant, project, ids["users"][key].user_id),
+            )
+    finally:
+        seed.close()
+    cookie, csrf = login(runtime, "planner", PLANNER_PASSWORD)
+
+    base = f"/api/projects/{project}/budget"
+    line_body = {
+        "budget_line_id": "BL-1",
+        "description": "Civil works",
+        "currency": "USD",
+        "original_amount": "1000.00",
+        "cost_account_id": "CA-1",
+        "period_id": "FY26",
+    }
+
+    # 1. Create is idempotent under the request header and a fresh session can
+    #    read the stored line.
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"{base}/lines",
+        body=line_body,
+        cookie=cookie,
+        csrf=csrf,
+        headers={"Idempotency-Key": "line-1"},
+    )
+    assert status == 200, body
+    created = json.loads(body)
+    assert created["budget_line_id"] == "BL-1"
+    assert created["original_amount"] == "1000.00"
+    assert created["revision"] == 1
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"{base}/lines",
+        body=line_body,
+        cookie=cookie,
+        csrf=csrf,
+        headers={"Idempotency-Key": "line-1"},
+    )
+    assert status == 200, body
+    assert json.loads(body)["revision"] == 1
+
+    # A different payload under the same idempotency key is a conflict.
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"{base}/lines",
+        body={**line_body, "original_amount": "2000.00"},
+        cookie=cookie,
+        csrf=csrf,
+        headers={"Idempotency-Key": "line-1"},
+    )
+    assert status == 409, body
+    assert json.loads(body)["code"] == "BUDGET_IDEMPOTENCY_KEY_REUSE"
+
+    reload_cookie, _ = login(runtime, "planner", PLANNER_PASSWORD)
+    status, _, body = call(
+        runtime, "GET", f"{base}/lines/BL-1", cookie=reload_cookie
+    )
+    assert status == 200, body
+    assert json.loads(body)["original_amount"] == "1000.00"
+
+    status, _, body = call(
+        runtime, "GET", f"{base}/lines", cookie=cookie, query="currency=USD&search=civil"
+    )
+    assert status == 200, body
+    assert [item["budget_line_id"] for item in json.loads(body)["budget_lines"]] == ["BL-1"]
+    status, _, body = call(
+        runtime, "GET", f"{base}/lines", cookie=cookie, query="currency=EUR"
+    )
+    assert status == 200, body
+    assert json.loads(body)["budget_lines"] == []
+
+    # 2. Updates are revision-guarded.
+    status, _, body = call(
+        runtime,
+        "PATCH",
+        f"{base}/lines/BL-1",
+        body={
+            **line_body,
+            "original_amount": "1200.00",
+            "expected_revision": 1,
+            "reason": "approved re-estimate",
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+    assert json.loads(body)["revision"] == 2
+    status, _, body = call(
+        runtime,
+        "PATCH",
+        f"{base}/lines/BL-1",
+        body={**line_body, "original_amount": "1300.00", "expected_revision": 1},
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 409, body
+    assert json.loads(body)["code"] == "BUDGET_REVISION_CONFLICT"
+
+    # 3. A pending change is visible but not counted; approval is admin-only.
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"{base}/lines/BL-1/changes",
+        body={
+            "change_id": "CH-1",
+            "amount": "250.00",
+            "reason": "scope increase",
+            "status": "pending",
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+    assert json.loads(body)["status"] == "pending"
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"{base}/lines/BL-1/changes",
+        body={
+            "change_id": "CH-2",
+            "amount": "100.00",
+            "reason": "unapproved extra",
+            "status": "pending",
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+
+    status, _, body = call(
+        runtime,
+        "GET",
+        f"{base}/summary",
+        cookie=cookie,
+    )
+    assert status == 200, body
+    summary = json.loads(body)["currencies"]
+    assert len(summary) == 1
+    assert summary[0]["original_budget"] == "1200.00"
+    assert summary[0]["approved_changes"] == "0.00"
+    assert summary[0]["current_budget"] == "1200.00"
+    assert summary[0]["pending_changes"] == "350.00"
+
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"{base}/changes/CH-1/status",
+        body={"status": "approved", "expected_revision": 1},
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 403, body
+    assert json.loads(body)["code"] == "BUDGET_APPROVAL_REQUIRES_ADMIN"
+
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"{base}/changes/CH-1/status",
+        body={"status": "approved", "expected_revision": 1, "reason": "owner approved"},
+        cookie=admin,
+        csrf=admin_csrf,
+    )
+    assert status == 200, body
+    approved = json.loads(body)
+    assert approved["status"] == "approved"
+    assert approved["revision"] == 2
+
+    # 4. Funding is stored separately and the summary derives the balance.
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"{base}/funding",
+        body={
+            "funding_id": "FD-1",
+            "name": "Owner capital",
+            "source_type": "internal",
+            "currency": "USD",
+            "amount": "500.00",
+            "period_id": "FY26",
+        },
+        cookie=cookie,
+        csrf=csrf,
+        headers={"Idempotency-Key": "funding-1"},
+    )
+    assert status == 200, body
+    assert json.loads(body)["amount"] == "500.00"
+    status, _, body = call(
+        runtime,
+        "PATCH",
+        f"{base}/funding/FD-1",
+        body={
+            "name": "Owner capital",
+            "source_type": "internal",
+            "currency": "USD",
+            "amount": "700.00",
+            "period_id": "FY26",
+            "expected_revision": 1,
+        },
+        cookie=cookie,
+        csrf=csrf,
+    )
+    assert status == 200, body
+    assert json.loads(body)["revision"] == 2
+
+    status, _, body = call(runtime, "GET", f"{base}/summary", cookie=cookie)
+    assert status == 200, body
+    summary = json.loads(body)["currencies"][0]
+    assert summary["original_budget"] == "1200.00"
+    assert summary["approved_changes"] == "250.00"
+    assert summary["current_budget"] == "1450.00"
+    assert summary["pending_changes"] == "100.00"
+    assert summary["funding"] == "700.00"
+    assert summary["funding_balance"] == "750.00"
+
+    # 5. The audit trail is ordered and the rows are stored in PostgreSQL.
+    status, _, body = call(runtime, "GET", f"{base}/lines/BL-1/history", cookie=cookie)
+    assert status == 200, body
+    events = json.loads(body)["events"]
+    assert [event["event_type"] for event in events] == ["created", "updated"]
+    assert [event["revision"] for event in events] == [1, 2]
+    assert all(event["occurred_at"] for event in events)
+    status, _, body = call(runtime, "GET", f"{base}/lines/BL-1/changes", cookie=cookie)
+    assert status == 200, body
+    assert [
+        (item["change_id"], item["status"], item["revision"])
+        for item in json.loads(body)["changes"]
+    ] == [("CH-1", "approved", 2), ("CH-2", "pending", 1)]
+    stored = _db_rows(
+        runtime,
+        "SELECT budget_line_id, revision FROM project_budget_line "
+        "WHERE tenant_id=%s AND project_id=%s",
+        (tenant, project),
+    )
+    assert stored == [("BL-1", 2)]
+
+    # 6. A budget_balance threshold observes the same stored rows.
+    threshold_id = f"THR-BUD-{suffix}"
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/thresholds",
+        body={
+            "threshold_id": threshold_id,
+            "name": "Budget balance ceiling",
+            "monitoring_subject": "cost",
+            "parameter": "budget_balance",
+            "currency": "USD",
+            "lower_threshold": None,
+            "upper_threshold": "1000.00",
+            "warning_level": "2",
+            "issue_level": "3",
+            "responsible_manager": "Planner",
+            "status": "active",
+        },
+        cookie=admin,
+        csrf=admin_csrf,
+        headers={"Idempotency-Key": f"thr-{threshold_id}"},
+    )
+    assert status == 200, body
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"/api/projects/{project}/thresholds/{threshold_id}/monitor",
+        body={},
+        cookie=admin,
+        csrf=admin_csrf,
+        headers={"Idempotency-Key": f"monitor-{threshold_id}"},
+    )
+    assert status == 200, body
+    run = json.loads(body)["run"]
+    assert run["observed_value"] == "750"
+    assert run["level"] == "normal"
+
+    # 7. Authorization: viewers read, cannot write; another tenant sees nothing.
+    viewer_cookie, viewer_csrf = login(runtime, "viewer", VIEWER_PASSWORD)
+    status, _, body = call(runtime, "GET", f"{base}/lines", cookie=viewer_cookie)
+    assert status == 200, body
+    status, _, body = call(runtime, "GET", f"{base}/summary", cookie=viewer_cookie)
+    assert status == 200, body
+    status, _, body = call(
+        runtime,
+        "POST",
+        f"{base}/lines",
+        body={**line_body, "budget_line_id": "BL-V"},
+        cookie=viewer_cookie,
+        csrf=viewer_csrf,
+        headers={"Idempotency-Key": "viewer-line"},
+    )
+    assert status == 403, body
+    assert json.loads(body)["code"] == "BUDGET_PERMISSION_DENIED"
+
+    outsider_cookie, _ = login(runtime, "outsider", ADMIN_PASSWORD)
+    status, _, body = call(runtime, "GET", f"{base}/lines", cookie=outsider_cookie)
+    assert status == 403, body
+    assert _db_rows(
+        runtime,
+        "SELECT budget_line_id FROM project_budget_line "
+        "WHERE tenant_id=%s AND project_id=%s",
+        (tenant, project),
+    ) == [("BL-1",)]

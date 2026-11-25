@@ -140,6 +140,9 @@ from ..p6_cost_account_api import P6CostAccountAPI
 from .calendar_registry import build_postgres_calendar_registry
 from ..p6_obs_api import P6OBSNodeAPI
 from ..p6_obs_repository import P6OBSApplicationService, PostgresP6OBSRepository
+from ..budget_api import BudgetAPI
+from ..budget_application import BudgetApplicationService
+from ..budget_persistence import PostgresBudgetStore
 from ..p6_cost_account_repository import (
     P6CostAccountApplicationService,
     PostgresP6CostAccountRepository,
@@ -628,6 +631,14 @@ class ProductionRuntime:
             P6ExpenseApplicationService(expense_repository, transaction_manager),
             policy,
         )
+        # The budget register is the sanctioned plan side of cost: original
+        # budget, approved changes and funding are stored facts. The same
+        # PostgreSQL store is passed to the threshold reader so a budget
+        # parameter is observed from the rows the API writes.
+        budget_store = PostgresBudgetStore(connection)
+        budget_api = BudgetAPI(
+            BudgetApplicationService(budget_store, policy, transaction_manager)
+        )
         baseline_capture_api = P6BaselineCaptureAPI(
             P6BaselineCaptureService(
                 baseline_repository,
@@ -751,10 +762,11 @@ class ProductionRuntime:
                 threshold_store,
                 policy,
                 transaction_manager,
-                # Expense and budget sources are not part of the deployed
-                # surface yet; monitoring those parameters fails closed with
-                # *_SOURCE_NOT_CONNECTED instead of inventing a zero.
-                ProjectMetricReader(issue_repository, None, None),
+                # The budget register is connected, so budget_balance is read
+                # from the rows the API writes. The legacy cost store is still
+                # preview-only, so expense_actual_total stays disconnected and
+                # fails closed instead of inventing a zero.
+                ProjectMetricReader(issue_repository, None, budget_store),
                 _threshold_issue_writer,
             )
         )
@@ -851,6 +863,7 @@ class ProductionRuntime:
             p6_baseline_activity_api=p6_baseline_activity_api,
             p6_baseline_capture_api=baseline_capture_api,
             p6_expense_api=p6_expense_api,
+            budget_api=budget_api,
             # Durable rescheduling: submit/status/result/cancel plus a
             # token-guarded worker that runs the one shared scheduling engine.
             scheduling_job_repository=scheduling_job_repository,
