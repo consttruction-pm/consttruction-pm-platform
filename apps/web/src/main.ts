@@ -113,6 +113,7 @@ import { mountWorkspaceReportsPage } from "./workspace-reports.js";
 import { mountWorkspaceTrackingPage } from "./workspace-tracking.js";
 import { mountWorkspaceAdministrationPage } from "./workspace-administration.js";
 import { mountWorkspaceExchangePage } from "./workspace-exchange.js";
+import { downloadActivityWorkbook, saveWorkbookDownload } from "./workspace-activity-export.js";
 import { mountWorkspaceBackupPage } from "./workspace-backup.js";
 import { mountWorkspaceThresholdsPage } from "./workspace-thresholds.js";
 import { mountWorkspaceIssuesPage } from "./workspace-issues.js";
@@ -1824,6 +1825,20 @@ function renderApp(
   const languageSelect = createWorkspaceLanguageSelect(state.locale, changeLocale);
   status.replaceChildren(document.createTextNode(shellLabels.status), languageSelect, calendarButton, detailsButton, themeSelect);
   const aiTransport = new FetchApiTransport(window.location.origin);
+  const reportActivityExportNotice = (message: string, kind: "ok" | "error"): void => {
+    // The notice sits above the activity table so a failed or verified export is
+    // visible in the window the command belongs to.
+    const host = container.querySelector<HTMLElement>("#cp-activity-grid")?.parentElement ?? container;
+    let notice = container.querySelector<HTMLElement>("[data-activity-export-notice]");
+    if (!notice) {
+      notice = document.createElement("p");
+      notice.dataset.activityExportNotice = "true";
+    }
+    notice.dataset.state = kind;
+    notice.setAttribute("role", kind === "error" ? "alert" : "status");
+    notice.textContent = message;
+    if (!notice.isConnected) host.prepend(notice);
+  };
   const reportWbsMutationError = (error: unknown): void => {
     console.error("WBS mutation failed", error);
     const message = error instanceof Error ? error.message : "WBS_MUTATION_FAILED";
@@ -2078,6 +2093,34 @@ function renderApp(
         pendingDesktopFocusSelector = "[data-activity-filter]";
         activateWindow("schedule");
         return;
+      case "edit.export-excel": {
+        // The workbook is rendered by the authoritative exchange service from
+        // persisted activity facts and verified against the response digest
+        // before the browser offers it. No grid value is assembled locally.
+        void (async () => {
+          const result = await downloadActivityWorkbook(aiTransport, state.context);
+          if (!result.ok) {
+            reportActivityExportNotice(
+              translateWorkspaceUiText(state.locale, `Excel export failed (${result.error.code}).`, `خروجی اکسل ناموفق بود (${result.error.code}).`),
+              "error",
+            );
+            return;
+          }
+          saveWorkbookDownload(result.data);
+          const verified = result.data.sha256
+            ? translateWorkspaceUiText(state.locale, "digest verified", "هش تأیید شد")
+            : translateWorkspaceUiText(state.locale, "digest header missing", "سرآیند هش موجود نیست");
+          reportActivityExportNotice(
+            translateWorkspaceUiText(
+              state.locale,
+              `${result.data.filename} · ${result.data.byteSize} bytes · ${verified}`,
+              `${result.data.filename} · ${result.data.byteSize} بایت · ${verified}`,
+            ),
+            "ok",
+          );
+        })();
+        return;
+      }
       case "edit.group-wbs":
         if (state.activityGroupBy !== "wbs") {
           renderApp(container, setActivityGroupBy(state, "wbs"), persistence);
@@ -2274,11 +2317,23 @@ function renderApp(
         activateWindow("schedule");
         openWorkspaceDrawer(container, "[data-tools-drawer]");
         return;
-      case "activity.assign-resources":
-        pendingDesktopFocusSelector = "#cp-resource-capacity input, #cp-resource-capacity select, #cp-resource-capacity button";
-        activateWindow("resources");
-        openWorkspaceDrawer(container, "[data-tools-drawer]");
+      case "activity.assign-resources": {
+        // Assignment write is a real revision-checked service. The command opens
+        // that window's own create form with the selected activity pre-filled and
+        // never invents a browser-side assignment.
+        const activityId = state.selectedActivityId;
+        if (!activityId) return;
+        pendingDesktopAction = () => {
+          container.querySelector<HTMLButtonElement>('[data-assignment-action="new"]')?.click();
+          const select = container.querySelector<HTMLSelectElement>('[data-assignment-form] select[name="activity-id"]');
+          if (select) {
+            select.value = activityId;
+            select.dispatchEvent(new Event("change", { bubbles: true }));
+          }
+        };
+        activateWindow("assignments");
         return;
+      }
       case "activity.predecessors":
       case "activity.successors":
         pendingDesktopFocusSelector = "#cp-logic select[name='predecessor_id'], #cp-logic select[name='successor_id'], #cp-logic button";
@@ -3222,6 +3277,15 @@ function renderApp(
           return;
         case "group-sort":
           openDesktopDialog(desktopHost, "group-sort");
+          return;
+        case "filters":
+          openDesktopDialog(desktopHost, "filters");
+          return;
+        case "edit.export-excel":
+          runDesktopCommand("edit.export-excel");
+          return;
+        case "activity.assign-resources":
+          runDesktopCommand("activity.assign-resources");
           return;
       }
     },
