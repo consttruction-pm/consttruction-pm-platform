@@ -2156,8 +2156,8 @@ function activityMenuItems(
     contextItem(state, "delete", ACTIVITY_CONTEXT_LABELS.delete, "delete", { shortcut: "Del", disabled: true, reason: ACTIVITY_CONTEXT_REASONS.delete }),
     contextItem(state, "dissolve", ACTIVITY_CONTEXT_LABELS.dissolve, "dissolve", { disabled: true, reason: ACTIVITY_CONTEXT_REASONS.dissolve }),
     contextItem(state, "renumber", ACTIVITY_CONTEXT_LABELS.renumber, "renumber", { disabled: true, reason: ACTIVITY_CONTEXT_REASONS.renumber }),
-    contextItem(state, "export-excel", ACTIVITY_CONTEXT_LABELS.exportExcel, "excel", { disabled: true, reason: ACTIVITY_CONTEXT_REASONS.exportExcel }),
-    contextItem(state, "assign", ACTIVITY_CONTEXT_LABELS.assign, "assignment", { disabled: true, reason: ACTIVITY_CONTEXT_REASONS.assign }),
+    contextItem(state, "edit.export-excel", ACTIVITY_CONTEXT_LABELS.exportExcel, "excel"),
+    contextItem(state, "activity.assign-resources", ACTIVITY_CONTEXT_LABELS.assign, "assignment", { disabled: !hasActivity }),
     contextItem(state, "link", ACTIVITY_CONTEXT_LABELS.link, "link", { disabled: !hasActivity }),
     contextItem(state, "columns", ACTIVITY_CONTEXT_LABELS.columns, "columns", { disabled: !hasActivity, separator: true }),
     contextItem(state, "line-numbers", ACTIVITY_CONTEXT_LABELS.lineNumbers, "lineNumbers", { checked: lineNumbers }),
@@ -2372,10 +2372,12 @@ function runWorkspaceMenuCommand(
     case "line-numbers":
     case "font-row":
     case "group-sort":
-      options.onActivityContextCommand?.(command, activityId);
-      return;
     case "filters":
-      container.querySelector<HTMLInputElement>("[data-activity-filter]")?.focus();
+      options.onActivityContextCommand?.(command as ActivityContextCommand, activityId);
+      return;
+    case "edit.export-excel":
+    case "activity.assign-resources":
+      options.onActivityContextCommand?.(command as ActivityContextCommand, activityId);
       return;
     case "expand-all":
       setCollapsedWbsIds(projectId, []);
@@ -2719,7 +2721,10 @@ export type ActivityContextCommand =
   | "columns"
   | "line-numbers"
   | "font-row"
-  | "group-sort";
+  | "group-sort"
+  | "filters"
+  | "edit.export-excel"
+  | "activity.assign-resources";
 
 export type WorkspaceActivitySelection = {
   /** Ctrl/Cmd-click: toggle this row without clearing the others. */
@@ -4815,8 +4820,6 @@ const ACTIVITY_CONTEXT_REASONS = {
   delete: { en: "The activity delete route is not exposed by this runtime.", fa: "مسیر حذف فعالیت در این محیط اجرا ارائه نشده است." },
   dissolve: { en: "Dissolving a group has no server-side contract.", fa: "انحلال گروه قرارداد سمت سرور ندارد." },
   renumber: { en: "Activity ID renumbering is not implemented.", fa: "شماره‌گذاری دوبارهٔ شناسهٔ فعالیت پیاده‌سازی نشده است." },
-  exportExcel: { en: "Only XML interchange is available; no XLSX export route exists.", fa: "تنها تبادل XML در دسترس است؛ مسیر خروجی XLSX وجود ندارد." },
-  assign: { en: "Resource assignment write is not available; capacity is read-only.", fa: "نوشتن تخصیص منبع در دسترس نیست؛ ظرفیت فقط خواندنی است." },
 } as const;
 
 function contextMenuText(label: { en: string; fa: string }, locale: string): string {

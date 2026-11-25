@@ -646,3 +646,57 @@ def test_csv_export_neutralises_formula_injection(tmp_path: Path) -> None:
         assert "'=SUM(1,1)" in values
     finally:
         runtime.close()
+
+
+def _request_headers(app, method: str, path: str, *, cookie: str | None = None):
+    """Return (status, headers, body) so streaming headers can be asserted."""
+    path_only, _, query_string = path.partition("?")
+    environ: dict[str, object] = {
+        "REQUEST_METHOD": method,
+        "PATH_INFO": path_only,
+        "QUERY_STRING": query_string,
+        "CONTENT_LENGTH": "0",
+        "wsgi.input": BytesIO(b""),
+    }
+    if cookie is not None:
+        environ["HTTP_COOKIE"] = f"cp_session={cookie}"
+    captured: dict[str, object] = {}
+
+    def start_response(status, response_headers) -> None:
+        captured["status"] = status
+        captured["headers"] = {str(k).lower(): str(v) for k, v in response_headers}
+
+    chunks = b"".join(app(environ, start_response))
+    return int(str(captured["status"]).split(" ", 1)[0]), captured["headers"], chunks
+
+
+def test_activities_workbook_export_carries_a_verifiable_digest(tmp_path: Path) -> None:
+    """The Activities window Export to Excel verifies bytes against this header."""
+    import hashlib
+
+    runtime = open_preview_runtime(tmp_path / "preview.sqlite3", reset=True)
+    try:
+        viewer = runtime.sessions.create(DEMO_USERS_BY_ROLE["viewer"])
+        status, headers, body = _request_headers(
+            runtime.app,
+            "GET",
+            f"{BASE}/export?dataset=activities&format=xlsx",
+            cookie=viewer.session_id,
+        )
+        assert status == 200, body[:300]
+        assert headers["content-type"].startswith(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        assert "activities.xlsx" in headers["content-disposition"]
+        assert len(body) > 0
+        assert headers["x-content-sha256"] == hashlib.sha256(body).hexdigest()
+
+        # An unauthenticated caller never receives workbook bytes.
+        status, _, unauth = _request_headers(
+            runtime.app,
+            "GET",
+            f"{BASE}/export?dataset=activities&format=xlsx",
+        )
+        assert status in {401, 403}, unauth[:200]
+    finally:
+        runtime.close()

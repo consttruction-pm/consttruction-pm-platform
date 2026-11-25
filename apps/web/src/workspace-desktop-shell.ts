@@ -40,6 +40,7 @@ export type DesktopCommand =
   | "edit.undo"
   | "edit.redo"
   | "edit.find"
+  | "edit.export-excel"
   | "edit.group-wbs"
   | "edit.sort-toggle"
   | "edit.select-all"

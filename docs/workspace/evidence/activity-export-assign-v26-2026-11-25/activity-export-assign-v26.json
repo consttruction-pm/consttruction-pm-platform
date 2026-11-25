@@ -1,0 +1,57 @@
+{
+  "contract": "cubi-activity-export-assign-v26.v1",
+  "baseUrl": "http://127.0.0.1:4207",
+  "gitHead": "1593e6027c61b3a35b6dee0c7e12ca8a4570fc0a",
+  "testedCodeSha": "1593e6027c61b3a35b6dee0c7e12ca8a4570fc0a",
+  "capturedAt": "2026-11-25T08:17:06.490Z",
+  "scenarios": [
+    {
+      "exportLabel": "Export to Excel",
+      "assignLabel": "Assign",
+      "selectedActivity": "A110",
+      "id": "01",
+      "name": "منوی زمینهٔ ردیف، Export to Excel و Assign Resources را فعال (بدون دلیل غیرفعال) نشان می‌دهد",
+      "status": "pass",
+      "at": "2026-11-25T08:17:09.215Z"
+    },
+    {
+      "notice": "activities.xlsx · 6016 bytes · digest verified",
+      "download": {
+        "name": "activities.xlsx",
+        "byteSize": 6016,
+        "sha256": "0c82e83ed387aad4b9aefc6dd037cfc7fee6b2c38a29aca6ee61ac157b3a71ea"
+      },
+      "id": "02",
+      "name": "Export to Excel یک activities.xlsx واقعی با هش تأییدشدهٔ پاسخ دانلود می‌کند",
+      "status": "pass",
+      "at": "2026-11-25T08:17:09.428Z"
+    },
+    {
+      "activeMenu": "assignments",
+      "activityId": "A110",
+      "assignmentsBefore": 0,
+      "assignmentsAfter": 0,
+      "id": "03",
+      "name": "Assign Resources پنجرهٔ تخصیص را با فرم ایجاد و فعالیت انتخاب‌شده پیش‌پُرشده باز می‌کند و رکورد جعلی نمی‌سازد",
+      "status": "pass",
+      "at": "2026-11-25T08:17:10.240Z"
+    },
+    {
+      "exceptions": 0,
+      "consoleErrors": 0,
+      "apiFailures": 0,
+      "id": "04",
+      "name": "بدون خطای JavaScript، پاسخ ۵xx یا نقض کنسول",
+      "status": "pass",
+      "at": "2026-11-25T08:17:10.240Z"
+    }
+  ],
+  "screenshots": [
+    "01-row-menu-enabled.png",
+    "02-export-notice.png",
+    "03-assign-prefilled.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": []
+}

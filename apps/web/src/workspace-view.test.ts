@@ -2519,7 +2519,7 @@ test("activity context menu exposes the reference commands, real ones enabled an
   const commands = items.map((item) => item.command);
   for (const command of [
     "details", "cut", "copy", "paste", "fill-down", "add", "delete", "dissolve", "renumber",
-    "export-excel", "assign", "link", "columns", "line-numbers", "font-row", "filters",
+    "edit.export-excel", "activity.assign-resources", "link", "columns", "line-numbers", "font-row", "filters",
     "group-sort", "expand-all", "collapse-all", "collapse-to",
   ]) {
     assert.ok(commands.includes(command), `missing context command ${command}`);
@@ -2528,8 +2528,12 @@ test("activity context menu exposes the reference commands, real ones enabled an
   assert.equal(byCommand.get("cut")?.disabled, true);
   assert.match(byCommand.get("cut")?.reason ?? "", /activity delete route/);
   assert.equal(byCommand.get("delete")?.disabled, true);
-  assert.match(byCommand.get("export-excel")?.reason ?? "", /no XLSX export route exists/);
-  assert.match(byCommand.get("assign")?.reason ?? "", /Resource assignment write is not available/);
+  // Export to Excel and Assign are real service paths now, so they are enabled
+  // instead of carrying a stale "not available" reason.
+  assert.notEqual(byCommand.get("edit.export-excel")?.disabled, true);
+  assert.equal(byCommand.get("edit.export-excel")?.reason, undefined);
+  assert.notEqual(byCommand.get("activity.assign-resources")?.disabled, true);
+  assert.equal(byCommand.get("activity.assign-resources")?.reason, undefined);
   assert.notEqual(byCommand.get("details")?.disabled, true);
   assert.notEqual(byCommand.get("link")?.disabled, true);
 
