@@ -157,7 +157,6 @@ export type DesktopMenuId =
   | "edit"
   | "view"
   | "project"
-  | "organization"
   | "tools"
   | "administration"
   | "help";
@@ -634,21 +633,6 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
         { id: "project.baseline", label: { en: "Baselines…", fa: "خطوط مبنا…" }, disabledReason: unavailable(REASONS.baseline, locale) },
         { id: "project.compare", label: { en: "Compare baselines…", fa: "مقایسهٔ خطوط مبنا…" }, disabledReason: unavailable(REASONS.compare, locale) },
         { id: "project.progress", label: { en: "Update progress…", fa: "به‌روزرسانی پیشرفت…" }, disabledReason: unavailable(REASONS.progress, locale) },
-      ],
-    },
-    {
-      id: "organization",
-      accessKey: "n",
-      label: { en: "Enterprise", fa: "سازمان" },
-      items: [
-        { id: "enterprise.projects", label: WINDOW_TITLES.project, window: "project" },
-        { id: "enterprise.resources", label: WINDOW_TITLES.resources, window: "resources" },
-        { id: "enterprise.assignments", label: { en: "Resource assignments", fa: "تخصیص منابع" }, window: "assignments" },
-        { id: "enterprise.roles", label: { en: "Roles…", fa: "نقش‌ها…" }, window: "roles" },
-        { id: "enterprise.calendars", label: { en: "Calendars…", fa: "تقویم‌ها…" }, window: "calendars" },
-        { id: "enterprise.udfs", label: { en: "User defined fields…", fa: "فیلدهای سفارشی…" }, disabledReason: unavailable(REASONS.udfs, locale) },
-        { id: "enterprise.forms", label: { en: "Forms & Workflows…", fa: "فرم‌ها و گردش‌کار…" }, command: "forms.open" },
-        { id: "enterprise.ai-workbench", label: { en: "AI Workbench", fa: "کارگاه هوشمند" }, command: "workbench.open" },
       ],
     },
     {
