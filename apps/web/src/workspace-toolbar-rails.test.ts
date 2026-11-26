@@ -39,7 +39,7 @@ import { renderToolbarRails } from "./workspace-toolbar-view.js";
 import { WORKSPACE_NAVIGATION } from "./workspace-navigation.js";
 
 const RIGHT_FAMILIES = [
-  "project-tools", "assign", "edit", "layout", "enterprise", "print", "action",
+  "project-tools", "assign", "edit", "layout", "print", "action",
   "administrator", "bottom-layout", "display", "find", "dictionaries", "publish",
   "standard-reports", "tools", "activity", "critical-check", "schedule",
 ] as const;
@@ -75,10 +75,10 @@ function context(overrides: Partial<ToolbarContext> = {}): ToolbarContext {
   };
 }
 
-test("the right rail registers the eighteen Version 26 toolbar families", () => {
+test("the right rail registers the seventeen Version 26 toolbar families", () => {
   const right = TOOLBAR_FAMILIES.filter((family) => family.rail === "right");
   assert.deepEqual(right.map((family) => family.id), RIGHT_FAMILIES);
-  assert.equal(right.length, 18);
+  assert.equal(right.length, 17);
   for (const family of right) {
     assert.ok(family.label.en.trim(), `${family.id} needs an English label`);
     assert.ok(family.label.fa.trim(), `${family.id} needs a Persian label`);
@@ -107,7 +107,7 @@ test("defaults include every registry family and every command", () => {
   assert.equal(config.locked, false);
   assert.deepEqual(config.families.map((family) => family.id), [...TOOLBAR_FAMILY_IDS]);
   assert.equal(familiesForRail(config, "left").length, 6);
-  assert.equal(familiesForRail(config, "right").length, 18);
+  assert.equal(familiesForRail(config, "right").length, 17);
   for (const family of config.families) {
     assert.equal(family.visible, true);
     assert.equal(family.style, "icon");
@@ -198,16 +198,16 @@ test("configuration is persisted per user and per project and never mixes worksp
   assert.notEqual(projectA, projectB);
 
   let config = defaultToolbarConfig();
-  config = setFamilyVisible(config, "enterprise", false);
+  config = setFamilyVisible(config, "print", false);
   writeToolbarConfig("user@example.com", projectA, config, storage);
 
   const readA = readToolbarConfig("user@example.com", projectA, storage);
-  assert.equal(findToolbarFamily(readA, "enterprise")?.visible, false);
+  assert.equal(findToolbarFamily(readA, "print")?.visible, false);
   const readB = readToolbarConfig("user@example.com", projectB, storage);
-  assert.equal(findToolbarFamily(readB, "enterprise")?.visible, true, "another project keeps the default");
+  assert.equal(findToolbarFamily(readB, "print")?.visible, true, "another project keeps the default");
 
   const otherUser = readToolbarConfig("other@example.com", projectA, storage);
-  assert.equal(findToolbarFamily(otherUser, "enterprise")?.visible, true, "another user keeps the default");
+  assert.equal(findToolbarFamily(otherUser, "print")?.visible, true, "another user keeps the default");
 
   const key = toolbarConfigStorageKey("user@example.com");
   const document = JSON.parse(storage.values.get(key) ?? "{}");
@@ -367,21 +367,19 @@ test("rendering exposes both rails, every family and its Add or Remove control",
   };
   const markup = renderToolbarRails(container as HTMLElement, session);
   assert.equal((markup.left.match(/data-tool-family="/g) ?? []).length, 6);
-  assert.equal((markup.right.match(/data-tool-family="/g) ?? []).length, 18);
+  assert.equal((markup.right.match(/data-tool-family="/g) ?? []).length, 17);
   assert.match(markup.right, /data-tool-family="critical-check"/);
   assert.match(markup.right, /data-tool-family="schedule"/);
+  assert.doesNotMatch(markup.right, /data-tool-family="enterprise"/, "the Engineering rail has no Enterprise environment family");
+  assert.doesNotMatch(markup.right, /aria-label="Enterprise"/, "no rail family is labelled Enterprise");
   assert.match(markup.left, /data-tool-add-remove/);
   assert.match(markup.right, /data-tool-add-remove/);
   assert.match(markup.left, /cp-tool-rail-menu/);
   assert.match(markup.right, /cp-tool-rail-menu/);
 
   // Disabled commands keep their label but carry no target attribute, so a
-  // click cannot fire a command that is not available.
-  const enterprise = markup.right.slice(
-    markup.right.indexOf('data-tool-family="enterprise"'),
-    markup.right.indexOf('data-tool-family="print"'),
-  );
-  assert.match(enterprise, /data-tool-command-id="enterprise.users"/);
-  assert.doesNotMatch(enterprise, /data-desktop-command=/);
-  assert.match(enterprise, /data-tool-disabled="true"/);
+  // click cannot fire a command that is not available. The former Enterprise
+  // placeholders now live under the role-gated Administrator family.
+  assert.match(markup.right, /<button[^>]*data-tool-command-id="enterprise\.users"[^>]*data-tool-disabled="true"[^>]*>/);
+  assert.doesNotMatch(markup.right, /<button[^>]*data-tool-command-id="enterprise\.users"[^>]*data-desktop-command=/);
 });

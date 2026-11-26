@@ -36,7 +36,6 @@ export const TOOLBAR_FAMILIES: readonly ToolbarFamilyDefinition[] = [
   { id: "assign", rail: "right", label: { en: "Assign", fa: "تخصیص" }, description: { en: "Assign resources and roles", fa: "تخصیص منابع و نقش‌ها" } },
   { id: "edit", rail: "right", label: { en: "Edit", fa: "ویرایش" }, description: { en: "Selection, linking and layout history", fa: "انتخاب، پیوند و تاریخچهٔ چیدمان" } },
   { id: "layout", rail: "right", label: { en: "Layout", fa: "چیدمان" }, description: { en: "Layout, columns, bars and preferences", fa: "چیدمان، ستون‌ها، میله‌ها و ترجیحات" } },
-  { id: "enterprise", rail: "right", label: { en: "Enterprise", fa: "سازمان" }, description: { en: "Enterprise-wide administration", fa: "مدیریت در سطح سازمان" } },
   { id: "print", rail: "right", label: { en: "Print", fa: "چاپ" }, description: { en: "Print the current view", fa: "چاپ نمای جاری" } },
   { id: "action", rail: "right", label: { en: "Action", fa: "اقدام" }, description: { en: "Contextual workspace actions", fa: "اقدامات زمینه‌ای محیط کار" } },
   { id: "administrator", rail: "right", label: { en: "Administrator", fa: "مدیر" }, description: { en: "User and workspace administration", fa: "مدیریت کاربر و محیط کار" } },
@@ -260,12 +259,15 @@ export const TOOLBAR_COMMANDS: readonly ToolbarCommandDefinition[] = [
   cmd("layout.font-row", { en: "Table Font", fa: "قلم جدول" }, "font", ["layout"], run("dialog.font-row"), { windows: scheduleOnly, disabledReason: whenWindow(scheduleOnly) }),
   cmd("prefs.user", { en: "User Preferences", fa: "ترجیحات کاربر" }, "settings", ["layout", "administrator", "administration"], run("dialog.user-preferences")),
 
-  // Right rail — Enterprise (all honest disabled entries).
-  cmd("enterprise.users", { en: "Users", fa: "کاربران" }, "roles", ["enterprise"], run("admin.language"), { disabledReason: always(R.users), adminOnly: true }),
-  cmd("enterprise.security", { en: "Security Profiles", fa: "پروفایل‌های امنیتی" }, "lock", ["enterprise"], run("admin.language"), { disabledReason: always(R.security), adminOnly: true }),
-  cmd("enterprise.currencies", { en: "Currencies", fa: "ارزها" }, "money", ["enterprise"], run("admin.language"), { disabledReason: always(R.currencies), adminOnly: true }),
-  cmd("enterprise.audit", { en: "Audit History", fa: "تاریخچهٔ ممیزی" }, "book", ["enterprise"], run("admin.language"), { disabledReason: always(R.audit), adminOnly: true }),
-  cmd("enterprise.udfs", { en: "User-Defined Fields", fa: "فیلدهای سفارشی" }, "columns", ["enterprise", "dictionaries"], run("admin.language"), { disabledReason: always(R.udfs), adminOnly: true }),
+  // Right rail — Administrator. These commands remain placeholders without a
+  // server contract, but they belong to the role-gated Administrator group:
+  // the Engineering workspace never presents an Environment-wide "Enterprise"
+  // toolbar, because environment selection happens in the Personal Workbench.
+  cmd("enterprise.users", { en: "Users", fa: "کاربران" }, "roles", ["administrator"], run("admin.language"), { disabledReason: always(R.users), adminOnly: true }),
+  cmd("enterprise.security", { en: "Security Profiles", fa: "پروفایل‌های امنیتی" }, "lock", ["administrator"], run("admin.language"), { disabledReason: always(R.security), adminOnly: true }),
+  cmd("enterprise.currencies", { en: "Currencies", fa: "ارزها" }, "money", ["administrator"], run("admin.language"), { disabledReason: always(R.currencies), adminOnly: true }),
+  cmd("enterprise.audit", { en: "Audit History", fa: "تاریخچهٔ ممیزی" }, "book", ["administrator"], run("admin.language"), { disabledReason: always(R.audit), adminOnly: true }),
+  cmd("enterprise.udfs", { en: "User-Defined Fields", fa: "فیلدهای سفارشی" }, "columns", ["dictionaries"], run("admin.language"), { disabledReason: always(R.udfs), adminOnly: true }),
 
   // Right rail — Print.
   cmd("print.print", { en: "Print", fa: "چاپ" }, "print", ["print", "standard-reports"], run("file.print")),

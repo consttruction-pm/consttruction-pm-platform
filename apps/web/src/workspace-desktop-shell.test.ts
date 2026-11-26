@@ -247,15 +247,32 @@ test("the canonical workspace exposes no alternate visual-demo menu entry", () =
   assert.ok(help?.items.some((item) => item.id === "help.about"));
 });
 
-test("the menu bar mirrors the eight professional workspace menus in order", () => {
+test("the Engineering workspace never presents an Enterprise environment entry", () => {
+  const menus = getDesktopMenus(shellState());
+  for (const menu of menus) {
+    assert.doesNotMatch(menu.label.en, /^enterprise$/i, `${menu.id} must not be labelled Enterprise`);
+    assert.doesNotMatch(menu.label.fa, /^سازمان$/, `${menu.id} must not be labelled سازمان`);
+  }
+  const itemIds = menus.flatMap((menu) => flattenMenuItems(menu.items)).map((item) => item.id);
+  assert.ok(
+    !itemIds.some((id) => id.startsWith("enterprise.")),
+    "no Engineering menu item may belong to the Enterprise environment",
+  );
+  // Removing that menu must not orphan project data windows.
+  for (const id of ["window.resources", "window.assignments"]) {
+    assert.ok(itemIds.includes(id), `${id} stays reachable from View → Windows`);
+  }
+});
+
+test("the menu bar mirrors the seven professional workspace menus in order", () => {
   const menus = getDesktopMenus(shellState());
   assert.deepEqual(
     menus.map((menu) => menu.id),
-    ["workspace", "edit", "view", "project", "organization", "tools", "administration", "help"],
+    ["workspace", "edit", "view", "project", "tools", "administration", "help"],
   );
   assert.deepEqual(
     menus.map((menu) => menu.accessKey),
-    ["f", "e", "v", "p", "n", "t", "a", "h"],
+    ["f", "e", "v", "p", "t", "a", "h"],
   );
   for (const menu of menus) {
     assert.ok(menu.items.length > 0, `${menu.id} must not be empty`);
@@ -337,8 +354,8 @@ test("the consolidated menus keep every scheduling, resource and report command"
     "project.formula",
     "project.assign-resources",
     "project.predecessors",
-    "enterprise.resources",
-    "enterprise.calendars",
+    "project.relationships",
+    "tools.import-export",
     "tools.reports",
     "tools.print-preview",
     "tools.generate-report",
@@ -495,8 +512,8 @@ test("Persian labels are provided for menus, items and window titles", () => {
   const menus = getDesktopMenus(shellState({}, "fa"));
   assert.equal(menus[0]?.label.fa, "فایل");
   assert.equal(menus[0]?.label.en, "File");
-  assert.equal(menus[4]?.label.en, "Enterprise");
-  assert.equal(menus[6]?.label.en, "Admin");
+  assert.equal(menus[4]?.label.en, "Tools");
+  assert.equal(menus[5]?.label.en, "Admin");
   assert.ok(menus.every((menu) => menu.items.every((item) => item.label.fa.trim().length > 0)));
   assert.equal(WINDOW_TITLES.schedule.fa, "فعالیت‌ها");
 });
@@ -702,7 +719,7 @@ test("menu triggers expose their Alt access key and separators render as separat
     onCommand: () => {},
   });
   const html = recorded.html();
-  for (const key of ["f", "e", "v", "p", "n", "t", "a", "h"]) {
+  for (const key of ["f", "e", "v", "p", "t", "a", "h"]) {
     assert.match(html, new RegExp(`data-desktop-access="${key}"`));
     assert.match(html, new RegExp(`aria-keyshortcuts="Alt\\+${key.toUpperCase()}"`));
   }

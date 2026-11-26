@@ -2244,8 +2244,9 @@ test("the right rail leads with one Add command menu and never repeats left navi
   assert.match(rail, /data-rail-action="details"/);
   assert.match(rail, /data-rail-action="notebook"/);
   assert.match(rail, /data-rail-action="comments"/);
-  // All eighteen Version 26 families are registered on the right rail.
-  assert.equal((rail.match(/data-tool-family="/g) ?? []).length, 18);
+  // All seventeen Version 26 families are registered on the right rail; the
+  // Enterprise environment is reached from the Personal Workbench, not here.
+  assert.equal((rail.match(/data-tool-family="/g) ?? []).length, 17);
   assert.match(rail, /data-tool-family="project-tools"/);
   assert.match(rail, /data-tool-family="schedule"/);
   // No write capability means every command stays visible but disabled with a
