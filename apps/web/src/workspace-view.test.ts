@@ -1901,6 +1901,38 @@ test("Gantt applies persisted exception overrides over the snapshot shading", ()
   assert.doesNotMatch(container.innerHTML, /data-nonworking-from="2026-09-05"/);
 });
 
+test("Bars dialog can hide calendar non-working shading without touching bars or links", () => {
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  const base = scheduledGanttState();
+  const state = {
+    ...base,
+    activities: base.activities.map((activity) => activity.id === "M-1"
+      ? { ...activity, gantt: { ...activity.gantt!, start: "2026-09-08T00:00:00Z", finish: "2026-09-08T00:00:00Z" } }
+      : activity),
+    projectCalendar: {
+      status: "loaded" as const,
+      calendarId: "CAL-1",
+      calendarVersion: "1",
+      workingWeekdays: [0, 1, 2, 3, 4],
+      holidays: ["2026-09-03"],
+      workingDates: [],
+      nonWorkingDates: [],
+      errorCode: null,
+      dayFactsErrorCode: null,
+    },
+  };
+  const presentation = normalizePresentation({ gantt: { showCalendarNonWorkingTime: false } });
+  renderMainWorkspace(container as unknown as HTMLElement, state, { presentation });
+  assert.doesNotMatch(container.innerHTML, /class="cp-gantt-nonworking"/);
+  assert.doesNotMatch(container.innerHTML, /data-gantt-nonworking=/);
+  // Bars, dependency links, axis and three activity rows still render from the
+  // same persisted facts; only the background layer is absent.
+  assert.equal((container.innerHTML.match(/class="cp-gantt-row/g) ?? []).length, 3);
+  assert.match(container.innerHTML, /data-gantt-bar-kind="critical"/);
+  assert.match(container.innerHTML, /data-gantt-link="R-FS"/);
+  assert.match(container.innerHTML, /class="cp-gantt-axis"/);
+});
+
 test("Gantt does not shade any day without loaded calendar facts", () => {
   const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
   renderMainWorkspace(container as unknown as HTMLElement, scheduledGanttState());

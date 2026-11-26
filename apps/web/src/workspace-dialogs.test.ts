@@ -231,6 +231,10 @@ test("Bar Styles exposes an independent editor for every bar kind", () => {
   // unavailable instead of pretending to draw a bar without data.
   assert.match(html, /No baseline dates are loaded/);
   assert.match(html, /data-bar-style="baseline"[^>]*>\s*<summary[\s\S]*?disabled/);
+  // The shading switch defaults on and belongs to the shared Gantt options,
+  // not to an individual bar's Bar Settings.
+  assert.match(html, /name="gantt\.showCalendarNonWorkingTime" checked/);
+  assert.match(html, /Show calendar non-working time/);
 });
 
 test("bar styles are read independently and keep unrelated styles untouched", () => {
@@ -268,6 +272,7 @@ test("Gantt chart options persist labels, legend, sight lines and lines", () => 
     "gantt.showBarLabels": "on",
     "gantt.labelFontSize": "13",
     "gantt.labelColor": "#223344",
+    "gantt.showCalendarNonWorkingTime": "on",
     "gantt.legend.visible": "on",
     "gantt.legend.position": "top",
     "gantt.sightLines.beforeSummaries": "on",
@@ -285,10 +290,29 @@ test("Gantt chart options persist labels, legend, sight lines and lines", () => 
   assert.equal(gantt?.showBarLabels, true);
   assert.equal(gantt?.labelFontSize, 13);
   assert.equal(gantt?.labelColor, "#223344");
+  assert.equal(gantt?.showCalendarNonWorkingTime, true);
   assert.deepEqual(gantt?.legend, { visible: true, position: "top" });
   assert.deepEqual(gantt?.sightLines, { beforeSummaries: true, rowInterval: 4, minorVertical: true });
   assert.deepEqual(gantt?.dataDateLine, { visible: true, style: "dashed", thickness: 3, color: "#00aa55" });
   assert.deepEqual(gantt?.progressLine, { visible: true, thickness: 2, color: "#ff8800" });
+});
+
+test("calendar non-working shading is an independent Bars display switch", () => {
+  // Hiding the shading layer must not touch bar styles or other Gantt options.
+  const off = readLayoutPatch(form({
+    "gantt.showBarLabels": "on",
+    "gantt.labelFontSize": "10",
+    "gantt.labelColor": "#000000",
+  }), DEFAULT_PRESENTATION);
+  assert.equal(off.presentation?.gantt.showCalendarNonWorkingTime, false);
+  assert.equal(off.presentation?.gantt.labelFontSize, 10);
+  // Every bar style keeps its saved values; the switch only added one flag.
+  assert.deepEqual(off.presentation?.bars.task, DEFAULT_PRESENTATION.bars.task);
+  const on = readLayoutPatch(form({
+    "gantt.showCalendarNonWorkingTime": "on",
+    "gantt.labelFontSize": "10",
+  }), DEFAULT_PRESENTATION);
+  assert.equal(on.presentation?.gantt.showCalendarNonWorkingTime, true);
 });
 
 test("a disabled Data Date fieldset keeps the saved line settings", () => {

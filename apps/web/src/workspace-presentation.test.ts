@@ -127,6 +127,16 @@ test("WBS band ink uses the level contrast colour unless a custom ink is chosen"
   assert.equal(wbsBandInk(custom.wbs, 2), "#102030");
 });
 
+test("calendar non-working shading defaults on and survives a saved layout", () => {
+  // The band layer predates this switch, so an existing layout without the key
+  // keeps shading instead of silently losing a visual capability.
+  assert.equal(DEFAULT_PRESENTATION.gantt.showCalendarNonWorkingTime, true);
+  assert.equal(normalizePresentation({}).gantt.showCalendarNonWorkingTime, true);
+  assert.equal(normalizePresentation({ gantt: {} }).gantt.showCalendarNonWorkingTime, true);
+  assert.equal(normalizePresentation({ gantt: { showCalendarNonWorkingTime: false } }).gantt.showCalendarNonWorkingTime, false);
+  assert.equal(normalizePresentation({ gantt: { showCalendarNonWorkingTime: "no" } }).gantt.showCalendarNonWorkingTime, true);
+});
+
 test("each bar style is independent and does not share mutable defaults", () => {
   const normalized = normalizePresentation({ bars: { task: { bodyColor: "#010203" } } });
   assert.equal(normalized.bars.task.bodyColor, "#010203");
