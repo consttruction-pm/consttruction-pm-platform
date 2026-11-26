@@ -273,3 +273,47 @@ is unrelated to this code, and is not used by the CUBI workspace path.
 Until the environment above is provided and a real login succeeds **on the
 Vercel domain**, LIF-06 stays `BLOCKED_EXTERNAL`, not `VERIFIED`. Render is not
 used, is not a fallback, and is not referenced by the Vercel build.
+
+## 2026-11-26 — read-only root-cause re-check of the canonical aliases
+
+Captured anonymously with `curl` from the sandbox against main
+`58ff62f98611f2ef4d7eb92066e779092646a3e7`; no session, credential, Vercel token,
+domain, environment variable or deployment setting was touched. Raw record:
+`docs/workspace/evidence/preview-alias-root-cause-2026-11-26/probe-results.json`.
+
+| Origin | `/` | `/login` | `/api/health/live` | `/api/health/ready` | `/api/projects` |
+| --- | --- | --- | --- | --- | --- |
+| `cubi-web-preview.vercel.app` | 200, 3,847 B static marketing page (`landing-entry.bundle.js`) | **404** | **404** | **404** | **404** |
+| `cubi-web-preview-foroughichamshir-7811.vercel.app` (serves `…-2y8d6xaco-…`) | 200 | 200, 22,076 B, `CUBI Workspace — Sign in` | 200 `{"status":"ok"}` | 200 ready, DB healthy, schema **13 / 59 tables**, drift `null` | 401 `SESSION_REQUIRED` |
+| `cubi-web-preview-5dfo52ssm-…` / `…-git-main-…` | 200 | 200, 22,054 B | 200 | 200 ready, DB healthy, schema **22 / 109 tables**, structural drift `[]` | 401 `SESSION_REQUIRED` |
+
+Root cause, in two layers and with no code defect:
+
+1. The short domain `cubi-web-preview.vercel.app` is still assigned to an older
+   **static** public-site deployment. It has no application, API or health
+   route, so every probe except `/` returns 404. This is the origin that reads
+   as "unhealthy".
+2. The project's production domain is assigned to deployment
+   `cubi-web-preview-2y8d6xaco-…`, an old build whose registry is 13 / 59
+   tables. The current main build `…-5dfo52ssm-…` is deployed and healthy at
+   22 / 109 tables with only the known step-5 registry checksum drift
+   (`fd930754ba53` vs `31e9fec9fa71`, structural fingerprint empty). Production
+   therefore does not follow main because the alias was never promoted past
+   deployment `2y8d6xaco`; the application and database themselves are healthy.
+
+Remediation is a dashboard action, not a code change, and was **not executed**:
+
+1. Promote the current main deployment (`5dfo52ssm` or newer) to Production so
+   the production domain follows main.
+2. Reassign `cubi-web-preview.vercel.app` to that same production deployment,
+   or retire the short domain and declare exactly one canonical origin.
+3. Set `CONSTRUCTION_PM_PUBLIC_ORIGIN` to that exact origin; login, logout and
+   mutations reject any other host by design.
+4. Re-verify: `/login` 200, `/api/health/live` 200, `/api/health/ready` 200 at
+   version 22 / 109 tables with structural drift empty, anonymous `/app`
+   `302 /login`, `/api/projects` 401 `SESSION_REQUIRED`. The current code's
+   health payload also carries `{"status":"alive","service":"construction-pm"}`
+   on `/api/health/live` and `requirement`/`generated_at` fields on
+   `/api/health/ready`; the old build's `{"status":"ok"}` response is itself
+   evidence of the stale deployment.
+
