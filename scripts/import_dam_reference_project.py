@@ -12,6 +12,7 @@ import argparse
 import json
 import os
 import sys
+from collections.abc import Mapping
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -23,10 +24,16 @@ from construction_pm.importing.dam_reference_project import (
     PROJECT_NAME,
     build_dam_reference_bundle,
 )
+from construction_pm.importing.reference_journal import IMPORT_STATUS_COMPLETE
 from construction_pm.importing.reference_postgres import (
     ensure_reference_projects_postgres,
     read_import_manifests,
 )
+
+def _import_is_complete(manifest: object) -> bool:
+    """A recorded import is complete only at the journal's canonical status."""
+
+    return isinstance(manifest, Mapping) and manifest.get("status") == IMPORT_STATUS_COMPLETE
 
 def _dsn(value: str | None) -> str:
     dsn = (value or os.environ.get("CONSTRUCTION_PM_DATABASE_URL")
@@ -136,7 +143,7 @@ def main(argv: list[str] | None = None) -> int:
         if audit["project_already_exists"]:
             manifests = read_import_manifests(connection, args.tenant)
             existing = next((item for item in manifests if item["project_id"] == PROJECT_ID), None)
-            if not existing or existing["status"] != "SUCCESS":
+            if not _import_is_complete(existing):
                 raise RuntimeError("PROJECT_ID_COLLISION_OR_PARTIAL_IMPORT_REQUIRES_MANUAL_REVIEW")
             # Re-run the canonical idempotent importer even when Engineering
             # already exists: this also verifies/repairs any incomplete
@@ -151,7 +158,10 @@ def main(argv: list[str] | None = None) -> int:
             initialize_schema=False,
         )
         imported = next((item for item in outcome.projects if item.project_id == PROJECT_ID), None)
-        if imported is None:
+        if imported is None and not already_registered:
+            # The importer skips an existing project without rebuilding its
+            # in-memory result, so an absent entry is only a failure when this
+            # command was not already told the project is registered.
             raise RuntimeError("DAM_PROJECT_IMPORT_NOT_CONFIRMED")
         enterprise = next(
             (item for item in outcome.enterprise if item.project_id == PROJECT_ID), None
@@ -161,15 +171,35 @@ def main(argv: list[str] | None = None) -> int:
         # Canonical importer commits only after schedule snapshot and engine
         # success; verify the project is registered and its run is successful.
         manifest = next((item for item in outcome.manifests if item["project_id"] == PROJECT_ID), None)
-        if manifest is None or manifest["status"] != "SUCCESS":
+        if not _import_is_complete(manifest):
             raise RuntimeError("DAM_PROJECT_IMPORT_MANIFEST_NOT_SUCCESSFUL")
+        if imported is not None:
+            revision = imported.project_revision
+            snapshot_id = imported.snapshot.snapshot_id
+            counts = dict(imported.counts)
+        else:
+            revision_row = connection.execute(
+                "SELECT project_revision FROM cubi_reference_project "
+                "WHERE tenant_id=%s AND project_id=%s",
+                (args.tenant, PROJECT_ID),
+            ).fetchone()
+            if revision_row is None:
+                raise RuntimeError("DAM_PROJECT_REGISTRY_ROW_MISSING")
+            revision = int(revision_row[0])
+            snapshot_row = connection.execute(
+                "SELECT snapshot_id FROM schedule_input_snapshot "
+                "WHERE tenant_id=%s AND project_id=%s ORDER BY created_at DESC, snapshot_id DESC LIMIT 1",
+                (args.tenant, PROJECT_ID),
+            ).fetchone()
+            snapshot_id = None if snapshot_row is None else str(snapshot_row[0])
+            counts = dict(manifest["counts"])
         print(json.dumps({
-            "project_id": imported.project_id,
+            "project_id": PROJECT_ID,
             "status": "ALREADY_IMPORTED_AND_VERIFIED" if already_registered else "IMPORTED",
-            "project_revision": imported.project_revision,
-            "snapshot_id": imported.snapshot.snapshot_id,
-            "schedule_status": imported.manifest.status,
-            "engineering_counts": dict(imported.counts),
+            "project_revision": revision,
+            "snapshot_id": snapshot_id,
+            "schedule_status": manifest["status"],
+            "engineering_counts": counts,
             "enterprise_counts": dict(enterprise.present),
             "enterprise_status": enterprise.status,
             "manifest": manifest,

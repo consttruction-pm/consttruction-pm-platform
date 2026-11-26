@@ -26,6 +26,12 @@ RUN_TABLE = "cubi_reference_schedule_run"
 IMPORT_TABLE = "cubi_reference_import"
 REGISTRY_TABLE = "cubi_reference_project"
 
+# Status written to ``cubi_reference_import`` once every project row, the
+# canonical schedule run and the Enterprise register are committed. Operator
+# commands compare against this value instead of repeating the literal, so a
+# renamed status cannot break the guarded re-run path again.
+IMPORT_STATUS_COMPLETE = "COMPLETE"
+
 
 class ReferenceJournal(Protocol):
     def prepare(self) -> None: ...
@@ -184,7 +190,7 @@ class SQLiteReferenceJournal:
                 project_id,
                 BUNDLE_CONTRACT,
                 source_sha256,
-                "COMPLETE",
+                IMPORT_STATUS_COMPLETE,
                 clock.isoformat(),
                 json.dumps(dict(sorted(counts.items())), separators=(",", ":")),
             ),
@@ -334,7 +340,7 @@ class PostgresReferenceJournal:
                 project_id,
                 BUNDLE_CONTRACT,
                 source_sha256,
-                "COMPLETE",
+                IMPORT_STATUS_COMPLETE,
                 clock.isoformat(),
                 json.dumps(dict(sorted(counts.items())), separators=(",", ":")),
             ),
