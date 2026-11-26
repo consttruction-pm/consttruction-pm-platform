@@ -168,8 +168,8 @@ import {
   type ToolbarWorkspaceConfig,
 } from "./workspace-toolbar-config.js";
 import {
-  readWorkspaceDetailsVisible,
   rememberWorkspaceDetailsVisible,
+  resolveWorkspaceDetailsVisible,
 } from "./workspace-details-preference.js";
 import {
   applyWorkspaceTheme,
@@ -1696,9 +1696,11 @@ function renderApp(
   // The bottom Details pane keeps its own per-user, per-window visibility
   // preference. Applying it before the first paint keeps the layout from
   // flashing a pane the user previously hid (and the reverse on restore).
+  // A window that was never toggled uses the documented default instead of the
+  // value carried over from the window that was open before it.
   if (activeWorkspaceUserId) {
-    const storedDetailsVisible = readWorkspaceDetailsVisible(state, activeWorkspaceUserId);
-    if (storedDetailsVisible !== null && storedDetailsVisible !== state.visiblePanels.details) {
+    const storedDetailsVisible = resolveWorkspaceDetailsVisible(state, activeWorkspaceUserId);
+    if (storedDetailsVisible !== state.visiblePanels.details) {
       state = { ...state, visiblePanels: { ...state.visiblePanels, details: storedDetailsVisible } };
     }
   }

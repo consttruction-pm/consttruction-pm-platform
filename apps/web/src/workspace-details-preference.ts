@@ -53,6 +53,20 @@ export function rememberWorkspaceDetailsVisible(
   );
 }
 
+/**
+ * The value to paint for the current window. An explicit preference wins; a
+ * window that was never toggled uses the documented default, Details visible.
+ * Callers must not fall back to the value of the window that was open before,
+ * or hiding Details in one window would hide it in every other one.
+ */
+export function resolveWorkspaceDetailsVisible(
+  state: Pick<WorkspaceState, "context" | "activeMenu">,
+  userId: string,
+  storage: PreferenceStorage | null = browserStorage(),
+): boolean {
+  return readWorkspaceDetailsVisible(state, userId, storage) ?? true;
+}
+
 function browserStorage(): PreferenceStorage | null {
   try {
     return typeof window === "undefined" ? null : window.localStorage;
