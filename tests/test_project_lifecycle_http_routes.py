@@ -91,7 +91,7 @@ class Projects:
         }
         self.shared_items = {
             "CUBI-DAM-001": ProjectSummary(
-                "CUBI-DAM-001", "t1", "Large Reservoir Dam and Hydropower Development", 1
+                "CUBI-DAM-001", "t1", "Dam & Hydropower EPC Development Project", 1
             )
         }
 
