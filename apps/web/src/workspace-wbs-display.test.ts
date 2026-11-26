@@ -215,6 +215,42 @@ test("a WBS plan nests a second field level inside the deepest band", () => {
     [3, 1, "W-A1>activity_status:s:In Progress"]);
 });
 
+test("a three-level plan nests WBS, status and criticality with per-level directions", () => {
+  const rows = buildWorkspaceDisplayRows(statusActivities, nodes, "wbs", new Set(), [
+    { fieldId: "wbs", direction: "asc" },
+    { fieldId: "activity_status", direction: "desc" },
+    { fieldId: "is_critical", direction: "asc" },
+  ]);
+  assert.deepEqual(rows.map(rowKey), [
+    "wbs:W-ROOT",
+    "wbs:W-A",
+    "wbs:W-A1",
+    "band:W-A1>activity_status:s:In Progress",
+    "band:W-A1>activity_status:s:In Progress>is_critical:b:true",
+    "act:A-1",
+    "band:W-A1>activity_status:s:Completed",
+    "band:W-A1>activity_status:s:Completed>is_critical:b:false",
+    "act:A-2",
+    "wbs:W-B",
+    "band:W-B>activity_status:e:",
+    "band:W-B>activity_status:e:>is_critical:b:false",
+    "act:B-1",
+  ]);
+  const deepest = rows.find(
+    (row) => row.kind === "fieldGroup" && row.bandKey === "W-A1>activity_status:s:In Progress>is_critical:b:true",
+  );
+  assert.deepEqual(
+    deepest?.kind === "fieldGroup" ? [deepest.depth, deepest.level, deepest.label] : [],
+    [4, 2, "Critical"],
+  );
+  // The status direction reversed the siblings while "No value" stayed last
+  // under W-B, and the criticality level stayed ascending inside each band.
+  const statusValues = rows
+    .filter((row) => row.kind === "fieldGroup" && row.fieldId === "activity_status")
+    .map((row) => (row.kind === "fieldGroup" ? row.valueKey : ""));
+  assert.deepEqual(statusValues, ["s:In Progress", "s:Completed", "e:"]);
+});
+
 test("field bands collapse independently and never share a WBS band key", () => {
   const collapsed = new Set(["W-A1>activity_status:s:In Progress"]);
   const rows = buildWorkspaceDisplayRows(statusActivities, nodes, "wbs", collapsed, [
