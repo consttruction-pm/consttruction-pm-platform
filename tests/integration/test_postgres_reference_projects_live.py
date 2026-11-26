@@ -594,3 +594,116 @@ def test_production_boot_seeds_the_reference_tenant_from_environment(monkeypatch
             teardown.execute(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE')
         finally:
             teardown.close()
+
+
+def test_shared_dam_project_imports_with_full_engineering_scope(live):
+    """CUBI-DAM-001 must exist as real project data, not a workbook or HTML page.
+
+    The shared dam workspace is imported into its own tenant inside the same
+    throw-away schema, so the three frozen reference projects and their counts
+    are untouched. Every assertion reads PostgreSQL through the canonical
+    repositories, and the calculated dates come from the recorded schedule run.
+    """
+
+    from construction_pm.importing.dam_reference_project import (
+        PROJECT_ID as DAM_ID,
+        PROJECT_NAME as DAM_NAME,
+        build_dam_reference_bundle,
+    )
+    from construction_pm.importing.reference_journal import IMPORT_STATUS_COMPLETE
+    from construction_pm.importing.reference_postgres import read_import_manifests
+    from construction_pm.postgres_project_lifecycle import PostgresProjectRepository
+
+    tenant = f"tenant-dam-{live.test_ids['suffix']}"
+    connection = live.pool.acquire()
+    try:
+        outcome = ensure_reference_projects_postgres(
+            connection,
+            tenant_id=tenant,
+            bundle=build_dam_reference_bundle(),
+            initialize_schema=False,
+        )
+        connection.commit()
+
+        imported = next(item for item in outcome.projects if item.project_id == DAM_ID)
+        assert imported.counts["activities"] == 720
+        assert imported.counts["wbs"] == 192
+        assert imported.counts["activity_relationships"] == 730
+        assert imported.counts["resource_assignments"] == 1440
+        assert imported.counts["baselines"] == 1
+        assert imported.counts["baseline_activities"] == 720
+        assert imported.counts["activity_progress"] == 720
+        assert imported.counts["schedule_options"] == 1
+        assert imported.counts["activity_constraints"] == 0
+
+        enterprise = next(item for item in outcome.enterprise if item.project_id == DAM_ID)
+        assert enterprise.status == "COMPLETE"
+        assert not enterprise.missing
+
+        manifests = read_import_manifests(connection, tenant)
+        assert [(row["project_id"], row["status"]) for row in manifests] == [
+            (DAM_ID, IMPORT_STATUS_COMPLETE)
+        ]
+
+        def scalar(sql: str, params: tuple[object, ...] = ()) -> object:
+            row = connection.execute(sql, params).fetchone()
+            assert row is not None
+            return row[0]
+
+        assert scalar(
+            "SELECT count(*) FROM activity_master WHERE tenant_id=%s AND project_id=%s",
+            (tenant, DAM_ID),
+        ) == 720
+        assert scalar(
+            "SELECT count(*) FROM wbs_master WHERE tenant_id=%s AND project_id=%s",
+            (tenant, DAM_ID),
+        ) >= 192
+        assert scalar(
+            "WITH RECURSIVE tree AS ("
+            " SELECT wbs_id, parent_wbs_id, 1 AS depth FROM wbs_master"
+            " WHERE tenant_id=%s AND project_id=%s AND parent_wbs_id IS NULL"
+            " UNION ALL"
+            " SELECT child.wbs_id, child.parent_wbs_id, tree.depth + 1"
+            " FROM wbs_master child JOIN tree ON child.parent_wbs_id = tree.wbs_id"
+            " WHERE child.tenant_id=%s AND child.project_id=%s)"
+            " SELECT max(depth) FROM tree",
+            (tenant, DAM_ID, tenant, DAM_ID),
+        ) == 6
+        assert scalar(
+            "SELECT string_agg(DISTINCT relationship_type, ',' ORDER BY relationship_type)"
+            " FROM relationship_master WHERE tenant_id=%s AND project_id=%s",
+            (tenant, DAM_ID),
+        ) == "FF,FS,SF,SS"
+        assert scalar(
+            "SELECT count(*) FROM relationship_master"
+            " WHERE tenant_id=%s AND project_id=%s AND lag_unit='working-day'",
+            (tenant, DAM_ID),
+        ) == 730
+        assert scalar(
+            "SELECT count(*) FROM p6_resource_assignment WHERE tenant_id=%s AND project_id=%s",
+            (tenant, DAM_ID),
+        ) == 1440
+        assert scalar(
+            "SELECT count(*) FROM p6_baseline_activity"
+            " WHERE tenant_id=%s AND project_id=%s"
+            " AND planned_start IS NOT NULL AND planned_finish IS NOT NULL",
+            (tenant, DAM_ID),
+        ) == 720
+        assert scalar(
+            "SELECT count(*) FROM activity_master"
+            " WHERE tenant_id=%s AND project_id=%s AND actual_start IS NOT NULL",
+            (tenant, DAM_ID),
+        ) == 90
+        assert scalar(
+            "SELECT status FROM cubi_reference_schedule_run"
+            " WHERE tenant_id=%s AND project_id=%s",
+            (tenant, DAM_ID),
+        ) == "SUCCESS"
+
+        repository = PostgresProjectRepository(connection)
+        shared = repository.list_shared_reference_for_user(tenant)
+        assert [(item.project_id, item.name) for item in shared] == [(DAM_ID, DAM_NAME)]
+        ordinary = repository.list_for_user(tenant, "user-without-membership")
+        assert DAM_ID not in [item.project_id for item in ordinary]
+    finally:
+        live.pool.release(connection, healthy=True)
