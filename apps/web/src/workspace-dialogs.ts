@@ -735,7 +735,9 @@ function ganttChartEditor(optionsInput: DialogOptions): string {
         <label class="cp-dialog-row"><span>${esc(t(locale, "Label colour", "رنگ برچسب"))}</span>
           <input type="color" name="gantt.labelColor" value="${esc(gantt.labelColor)}" aria-label="${esc(t(locale, "Bar label colour", "رنگ برچسب میله"))}">
         </label>
+        <label class="cp-dialog-check"><input type="checkbox" name="gantt.showCalendarNonWorkingTime"${gantt.showCalendarNonWorkingTime ? " checked" : ""}> ${esc(t(locale, "Show calendar non-working time", "نمایش زمان غیرکاری تقویم"))}</label>
       </div>
+      <p class="cp-dialog-note">${esc(t(locale, "Calendar non-working time shades the calendar's non-working days behind the bars, including stored exceptions and inherited calendar days. It is a display option only; the per-bar Calendar nonwork time setting separately controls whether a bar is necked at non-working time.", "زمان غیرکاری تقویم، روزهای غیرکاری — شامل استثناهای ذخیره‌شده و روزهای تقویم پایه — را پشت میله‌ها سایه می‌زند. این فقط یک گزینهٔ نمایشی است؛ تنظیم جداگانهٔ «زمان غیرکاری تقویم» در هر میله کنترل می‌کند که میله در زمان غیرکاری باریک شود یا نه."))}</p>
       <fieldset class="cp-dialog-group">
         <legend>${esc(t(locale, "Legend", "راهنما"))}</legend>
         <div class="cp-dialog-grid">
@@ -1185,6 +1187,7 @@ export function readLayoutPatch(form: HTMLFormElement | FormData, previous?: Wor
       showBarLabels: data.get("gantt.showBarLabels") === "on",
       labelFontSize: data.get("gantt.labelFontSize"),
       labelColor: data.get("gantt.labelColor"),
+      showCalendarNonWorkingTime: data.get("gantt.showCalendarNonWorkingTime") === "on",
       legend: {
         visible: data.get("gantt.legend.visible") === "on",
         position: data.get("gantt.legend.position"),

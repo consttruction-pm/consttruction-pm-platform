@@ -1,0 +1,223 @@
+{
+  "contract": "cubi-gantt-calendar-nonworking-toggle-v26.v1",
+  "baseUrl": "http://127.0.0.1:4212",
+  "gitHead": "854c6f4eb9fa919a890937479326b6fa4be1ebf1",
+  "testedCodeSha": "dad9948d0a8492049e123da88c648fd4c5cff08e",
+  "capturedAt": "2026-11-26T06:06:46.362Z",
+  "project": "preview-rps-01",
+  "calendar": {
+    "id": "CUBI-RPS-CAL",
+    "version": "1"
+  },
+  "help": {
+    "product": "Oracle Primavera P6 Professional 26",
+    "topic": "Change a Gantt Chart bar's settings",
+    "topicFile": "change_a_gantt_chart_bar_s_settings.htm",
+    "path": "Customizing Activity Layouts > Gantt Chart",
+    "url": "https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm",
+    "perBarSetting": "Calendar nonwork time",
+    "note": "P6 v26 Help documents Calendar nonwork time as a per-bar Bar Settings option that necks the selected bar. The CUBI band-visibility switch is a documented CUBI display-layer extension; the per-bar necking control remains separately available in each bar style."
+  },
+  "scenarios": [
+    {
+      "layoutRevision": 37,
+      "bands": 11,
+      "bandKinds": [
+        "weekend",
+        "holiday"
+      ],
+      "label": "Show calendar non-working time",
+      "id": "01",
+      "name": "کنترل در دیالوگ Bars قرار دارد و برای چیدمان بدون کلید، پیش‌فرض روشن است",
+      "status": "pass",
+      "at": "2026-11-26T06:06:49.834Z"
+    },
+    {
+      "bands": {
+        "on": 11,
+        "off": 0
+      },
+      "bars": 17,
+      "links": 15,
+      "projectRevision": 7,
+      "dayFacts": 0,
+      "id": "hide-1280x800-en",
+      "name": "1280x800-en: خاموش‌کردن سایه، فقط لایهٔ باند را حذف می‌کند",
+      "status": "pass",
+      "at": "2026-11-26T06:06:54.359Z"
+    },
+    {
+      "reloadedBands": 0,
+      "layoutRevision": 38,
+      "id": "persist-off-1280x800-en",
+      "name": "1280x800-en: وضعیت خاموش در چیدمان ذخیره‌شده می‌ماند و پس از بازخوانی بازمی‌گردد",
+      "status": "pass",
+      "at": "2026-11-26T06:06:57.687Z"
+    },
+    {
+      "reloadedBands": 11,
+      "layoutRevision": 39,
+      "id": "persist-on-1280x800-en",
+      "name": "1280x800-en: وضعیت روشن نیز پس از بازخوانی بازمی‌گردد",
+      "status": "pass",
+      "at": "2026-11-26T06:07:02.567Z"
+    },
+    {
+      "bands": {
+        "on": 11,
+        "off": 0
+      },
+      "bars": 17,
+      "links": 15,
+      "projectRevision": 7,
+      "dayFacts": 0,
+      "id": "hide-1280x800-fa",
+      "name": "1280x800-fa: خاموش‌کردن سایه، فقط لایهٔ باند را حذف می‌کند",
+      "status": "pass",
+      "at": "2026-11-26T06:07:06.717Z"
+    },
+    {
+      "bands": {
+        "on": 11,
+        "off": 0
+      },
+      "bars": 17,
+      "links": 15,
+      "projectRevision": 7,
+      "dayFacts": 0,
+      "id": "hide-1440x900-en",
+      "name": "1440x900-en: خاموش‌کردن سایه، فقط لایهٔ باند را حذف می‌کند",
+      "status": "pass",
+      "at": "2026-11-26T06:07:12.772Z"
+    },
+    {
+      "reloadedBands": 0,
+      "layoutRevision": 42,
+      "id": "persist-off-1440x900-en",
+      "name": "1440x900-en: وضعیت خاموش در چیدمان ذخیره‌شده می‌ماند و پس از بازخوانی بازمی‌گردد",
+      "status": "pass",
+      "at": "2026-11-26T06:07:16.157Z"
+    },
+    {
+      "reloadedBands": 11,
+      "layoutRevision": 43,
+      "id": "persist-on-1440x900-en",
+      "name": "1440x900-en: وضعیت روشن نیز پس از بازخوانی بازمی‌گردد",
+      "status": "pass",
+      "at": "2026-11-26T06:07:20.913Z"
+    },
+    {
+      "bands": {
+        "on": 11,
+        "off": 0
+      },
+      "bars": 17,
+      "links": 15,
+      "projectRevision": 7,
+      "dayFacts": 0,
+      "id": "hide-1440x900-fa",
+      "name": "1440x900-fa: خاموش‌کردن سایه، فقط لایهٔ باند را حذف می‌کند",
+      "status": "pass",
+      "at": "2026-11-26T06:07:25.104Z"
+    },
+    {
+      "bands": {
+        "on": 11,
+        "off": 0
+      },
+      "bars": 17,
+      "links": 15,
+      "projectRevision": 7,
+      "dayFacts": 0,
+      "id": "hide-1920x1080-en",
+      "name": "1920x1080-en: خاموش‌کردن سایه، فقط لایهٔ باند را حذف می‌کند",
+      "status": "pass",
+      "at": "2026-11-26T06:07:31.239Z"
+    },
+    {
+      "reloadedBands": 0,
+      "layoutRevision": 46,
+      "id": "persist-off-1920x1080-en",
+      "name": "1920x1080-en: وضعیت خاموش در چیدمان ذخیره‌شده می‌ماند و پس از بازخوانی بازمی‌گردد",
+      "status": "pass",
+      "at": "2026-11-26T06:07:34.780Z"
+    },
+    {
+      "reloadedBands": 11,
+      "layoutRevision": 47,
+      "id": "persist-on-1920x1080-en",
+      "name": "1920x1080-en: وضعیت روشن نیز پس از بازخوانی بازمی‌گردد",
+      "status": "pass",
+      "at": "2026-11-26T06:07:39.819Z"
+    },
+    {
+      "bands": {
+        "on": 11,
+        "off": 0
+      },
+      "bars": 17,
+      "links": 15,
+      "projectRevision": 7,
+      "dayFacts": 0,
+      "id": "hide-1920x1080-fa",
+      "name": "1920x1080-fa: خاموش‌کردن سایه، فقط لایهٔ باند را حذف می‌کند",
+      "status": "pass",
+      "at": "2026-11-26T06:07:44.335Z"
+    },
+    {
+      "exceptions": 0,
+      "consoleErrors": 0,
+      "apiFailures": 0,
+      "projectRevision": 7,
+      "finalBands": 11,
+      "layoutRevision": 49,
+      "id": "02",
+      "name": "یکپارچگی: بدون استثنا، خطای کنسول، پاسخ 5xx یا تغییر دادهٔ زمان‌بندی",
+      "status": "pass",
+      "at": "2026-11-26T06:07:45.748Z"
+    }
+  ],
+  "screenshots": [
+    "dialog-default-on-1280x800-en.png",
+    "chart-on-1280x800-en.png",
+    "dialog-on-1280x800-en.png",
+    "dialog-off-1280x800-en.png",
+    "chart-off-1280x800-en.png",
+    "dialog-reload-off-1280x800-en.png",
+    "chart-on-restored-1280x800-en.png",
+    "dialog-reload-on-1280x800-en.png",
+    "chart-on-1280x800-fa.png",
+    "dialog-on-1280x800-fa.png",
+    "dialog-off-1280x800-fa.png",
+    "chart-off-1280x800-fa.png",
+    "chart-on-restored-1280x800-fa.png",
+    "chart-on-1440x900-en.png",
+    "dialog-on-1440x900-en.png",
+    "dialog-off-1440x900-en.png",
+    "chart-off-1440x900-en.png",
+    "dialog-reload-off-1440x900-en.png",
+    "chart-on-restored-1440x900-en.png",
+    "dialog-reload-on-1440x900-en.png",
+    "chart-on-1440x900-fa.png",
+    "dialog-on-1440x900-fa.png",
+    "dialog-off-1440x900-fa.png",
+    "chart-off-1440x900-fa.png",
+    "chart-on-restored-1440x900-fa.png",
+    "chart-on-1920x1080-en.png",
+    "dialog-on-1920x1080-en.png",
+    "dialog-off-1920x1080-en.png",
+    "chart-off-1920x1080-en.png",
+    "dialog-reload-off-1920x1080-en.png",
+    "chart-on-restored-1920x1080-en.png",
+    "dialog-reload-on-1920x1080-en.png",
+    "chart-on-1920x1080-fa.png",
+    "dialog-on-1920x1080-fa.png",
+    "dialog-off-1920x1080-fa.png",
+    "chart-off-1920x1080-fa.png",
+    "chart-on-restored-1920x1080-fa.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-26T06:07:45.748Z"
+}
