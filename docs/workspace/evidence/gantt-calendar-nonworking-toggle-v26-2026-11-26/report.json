@@ -1,9 +1,9 @@
 {
   "contract": "cubi-gantt-calendar-nonworking-toggle-v26.v1",
   "baseUrl": "http://127.0.0.1:4212",
-  "gitHead": "dad9948d0a8492049e123da88c648fd4c5cff08e",
+  "gitHead": "854c6f4eb9fa919a890937479326b6fa4be1ebf1",
   "testedCodeSha": "dad9948d0a8492049e123da88c648fd4c5cff08e",
-  "capturedAt": "2026-11-26T06:04:58.139Z",
+  "capturedAt": "2026-11-26T06:06:46.362Z",
   "project": "preview-rps-01",
   "calendar": {
     "id": "CUBI-RPS-CAL",
@@ -20,7 +20,7 @@
   },
   "scenarios": [
     {
-      "layoutRevision": 25,
+      "layoutRevision": 37,
       "bands": 11,
       "bandKinds": [
         "weekend",
@@ -30,7 +30,7 @@
       "id": "01",
       "name": "کنترل در دیالوگ Bars قرار دارد و برای چیدمان بدون کلید، پیش‌فرض روشن است",
       "status": "pass",
-      "at": "2026-11-26T06:05:01.511Z"
+      "at": "2026-11-26T06:06:49.834Z"
     },
     {
       "bands": {
@@ -44,23 +44,23 @@
       "id": "hide-1280x800-en",
       "name": "1280x800-en: خاموش‌کردن سایه، فقط لایهٔ باند را حذف می‌کند",
       "status": "pass",
-      "at": "2026-11-26T06:05:06.012Z"
+      "at": "2026-11-26T06:06:54.359Z"
     },
     {
       "reloadedBands": 0,
-      "layoutRevision": 26,
+      "layoutRevision": 38,
       "id": "persist-off-1280x800-en",
       "name": "1280x800-en: وضعیت خاموش در چیدمان ذخیره‌شده می‌ماند و پس از بازخوانی بازمی‌گردد",
       "status": "pass",
-      "at": "2026-11-26T06:05:09.433Z"
+      "at": "2026-11-26T06:06:57.687Z"
     },
     {
       "reloadedBands": 11,
-      "layoutRevision": 27,
+      "layoutRevision": 39,
       "id": "persist-on-1280x800-en",
       "name": "1280x800-en: وضعیت روشن نیز پس از بازخوانی بازمی‌گردد",
       "status": "pass",
-      "at": "2026-11-26T06:05:14.168Z"
+      "at": "2026-11-26T06:07:02.567Z"
     },
     {
       "bands": {
@@ -74,7 +74,7 @@
       "id": "hide-1280x800-fa",
       "name": "1280x800-fa: خاموش‌کردن سایه، فقط لایهٔ باند را حذف می‌کند",
       "status": "pass",
-      "at": "2026-11-26T06:05:18.264Z"
+      "at": "2026-11-26T06:07:06.717Z"
     },
     {
       "bands": {
@@ -88,23 +88,23 @@
       "id": "hide-1440x900-en",
       "name": "1440x900-en: خاموش‌کردن سایه، فقط لایهٔ باند را حذف می‌کند",
       "status": "pass",
-      "at": "2026-11-26T06:05:24.278Z"
+      "at": "2026-11-26T06:07:12.772Z"
     },
     {
       "reloadedBands": 0,
-      "layoutRevision": 30,
+      "layoutRevision": 42,
       "id": "persist-off-1440x900-en",
       "name": "1440x900-en: وضعیت خاموش در چیدمان ذخیره‌شده می‌ماند و پس از بازخوانی بازمی‌گردد",
       "status": "pass",
-      "at": "2026-11-26T06:05:27.683Z"
+      "at": "2026-11-26T06:07:16.157Z"
     },
     {
       "reloadedBands": 11,
-      "layoutRevision": 31,
+      "layoutRevision": 43,
       "id": "persist-on-1440x900-en",
       "name": "1440x900-en: وضعیت روشن نیز پس از بازخوانی بازمی‌گردد",
       "status": "pass",
-      "at": "2026-11-26T06:05:32.416Z"
+      "at": "2026-11-26T06:07:20.913Z"
     },
     {
       "bands": {
@@ -118,7 +118,7 @@
       "id": "hide-1440x900-fa",
       "name": "1440x900-fa: خاموش‌کردن سایه، فقط لایهٔ باند را حذف می‌کند",
       "status": "pass",
-      "at": "2026-11-26T06:05:36.575Z"
+      "at": "2026-11-26T06:07:25.104Z"
     },
     {
       "bands": {
@@ -132,23 +132,23 @@
       "id": "hide-1920x1080-en",
       "name": "1920x1080-en: خاموش‌کردن سایه، فقط لایهٔ باند را حذف می‌کند",
       "status": "pass",
-      "at": "2026-11-26T06:05:42.674Z"
+      "at": "2026-11-26T06:07:31.239Z"
     },
     {
       "reloadedBands": 0,
-      "layoutRevision": 34,
+      "layoutRevision": 46,
       "id": "persist-off-1920x1080-en",
       "name": "1920x1080-en: وضعیت خاموش در چیدمان ذخیره‌شده می‌ماند و پس از بازخوانی بازمی‌گردد",
       "status": "pass",
-      "at": "2026-11-26T06:05:46.047Z"
+      "at": "2026-11-26T06:07:34.780Z"
     },
     {
       "reloadedBands": 11,
-      "layoutRevision": 35,
+      "layoutRevision": 47,
       "id": "persist-on-1920x1080-en",
       "name": "1920x1080-en: وضعیت روشن نیز پس از بازخوانی بازمی‌گردد",
       "status": "pass",
-      "at": "2026-11-26T06:05:50.882Z"
+      "at": "2026-11-26T06:07:39.819Z"
     },
     {
       "bands": {
@@ -162,7 +162,7 @@
       "id": "hide-1920x1080-fa",
       "name": "1920x1080-fa: خاموش‌کردن سایه، فقط لایهٔ باند را حذف می‌کند",
       "status": "pass",
-      "at": "2026-11-26T06:05:55.178Z"
+      "at": "2026-11-26T06:07:44.335Z"
     },
     {
       "exceptions": 0,
@@ -170,11 +170,11 @@
       "apiFailures": 0,
       "projectRevision": 7,
       "finalBands": 11,
-      "layoutRevision": 37,
+      "layoutRevision": 49,
       "id": "02",
       "name": "یکپارچگی: بدون استثنا، خطای کنسول، پاسخ 5xx یا تغییر دادهٔ زمان‌بندی",
       "status": "pass",
-      "at": "2026-11-26T06:05:56.625Z"
+      "at": "2026-11-26T06:07:45.748Z"
     }
   ],
   "screenshots": [
@@ -219,5 +219,5 @@
   "exceptions": [],
   "consoleErrors": [],
   "apiFailures": [],
-  "finishedAt": "2026-11-26T06:05:56.625Z"
+  "finishedAt": "2026-11-26T06:07:45.748Z"
 }

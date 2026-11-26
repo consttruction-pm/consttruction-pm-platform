@@ -2,7 +2,7 @@
 
 - Contract: cubi-gantt-calendar-nonworking-toggle-v26.v1
 - Preview: http://127.0.0.1:4212
-- Git HEAD: dad9948d0a8492049e123da88c648fd4c5cff08e
+- Git HEAD: 854c6f4eb9fa919a890937479326b6fa4be1ebf1
 
 - PASS — 01. کنترل در دیالوگ Bars قرار دارد و برای چیدمان بدون کلید، پیش‌فرض روشن است
 - PASS — hide-1280x800-en. 1280x800-en: خاموش‌کردن سایه، فقط لایهٔ باند را حذف می‌کند
