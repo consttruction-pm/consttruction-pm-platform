@@ -1,0 +1,66 @@
+{
+  "contract_version": "cubi-preview-alias-diagnosis.v1",
+  "recorded_at_utc": "2026-11-26T02:28:00Z/2026-11-26T02:36:00Z",
+  "method": "anonymous read-only HTTPS probes with curl from the sandbox; no cookies, no session, no credentials, no Vercel token, no settings changed",
+  "base_main": "58ff62f98611f2ef4d7eb92066e779092646a3e7",
+  "origins": {
+    "short_domain": {
+      "host": "cubi-web-preview.vercel.app",
+      "observations": {
+        "/": {"status": 200, "bytes": 3847, "kind": "static marketing landing page", "markers": ["styles.css", "./dist/web/src/landing-entry.bundle.js", "./dist/web/src/global-assistant-launcher.bundle.js"], "canonical": "https://cubi-web-preview.vercel.app/"},
+        "/login": {"status": 404, "body": "The page could not be found / NOT_FOUND"},
+        "/app": {"status": 200, "bytes": 1723, "kind": "static shell document, not the session-gated application"},
+        "/api/health/live": {"status": 404, "body": "The page could not be found / NOT_FOUND"},
+        "/api/health/ready": {"status": 404, "body": "The page could not be found / NOT_FOUND"},
+        "/api/projects": {"status": 404, "body": "The page could not be found / NOT_FOUND"},
+        "/api/shared-projects": {"status": 404, "body": "The page could not be found / NOT_FOUND"}
+      },
+      "diagnosis": "The name is assigned to an older static deployment of the public site, not to the Python production deployment. No application route, no API route and no health probe exists behind it."
+    },
+    "production_domain": {
+      "host": "cubi-web-preview-foroughichamshir-7811.vercel.app",
+      "serves_deployment": "cubi-web-preview-2y8d6xaco-foroughichamshir-7811.vercel.app",
+      "observations": {
+        "/": {"status": 200, "canonical": "https://cubi-web-preview-2y8d6xaco-foroughichamshir-7811.vercel.app/"},
+        "/login": {"status": 200, "bytes": 22076, "title": "CUBI Workspace — Sign in"},
+        "/api/health/live": {"status": 200, "body": {"status": "ok"}},
+        "/api/health/ready": {"status": 200, "body": {"status": "ready", "components": [{"name": "database", "healthy": true}], "schema": {"version": 13, "tables": 59, "drift": null}}},
+        "/api/projects": {"status": 401, "body_code": "SESSION_REQUIRED"},
+        "/api/shared-projects": {"status": 401, "body_code": "SESSION_REQUIRED"}
+      },
+      "diagnosis": "Healthy at the HTTP level but pinned to an old production build: its readiness contract and schema registry are version 13 / 59 tables, while main is version 22 / 109 tables."
+    },
+    "old_deployment": {
+      "host": "cubi-web-preview-2y8d6xaco-foroughichamshir-7811.vercel.app",
+      "observations": {
+        "/api/health/ready": {"status": 200, "body": {"status": "ready", "components": [{"name": "database", "healthy": true}], "schema": {"version": 13, "tables": 59, "drift": null}}}
+      },
+      "diagnosis": "This is the immutable deployment currently behind the production domain; it predates migrations 14-22."
+    },
+    "current_main_deployment": {
+      "host": "cubi-web-preview-5dfo52ssm-foroughichamshir-7811.vercel.app",
+      "also_served_by": "cubi-web-preview-git-main-foroughichamshir-7811.vercel.app",
+      "observations": {
+        "/login": {"status": 200, "bytes": 22054, "title": "CUBI Workspace — Sign in"},
+        "/api/health/ready": {"status": 200, "body": {"status": "ready", "components": [{"name": "database", "healthy": true}], "schema": {"version": 22, "tables": 109, "drift": {"policy": "report", "structural": [], "checksum": [{"version": 5, "recorded_name": "project-lifecycle", "recorded_checksum": "fd930754ba53", "registry_name": "project-lifecycle", "registry_checksum": "31e9fec9fa71"}], "recorded_hash": "f6e2d5840d17254f", "current_hash": "f6e2d5840d17254f"}}}}
+      },
+      "diagnosis": "The current main code is deployed and healthy, and the live database has migrations 22 / 109 tables applied. The only drift is the known step-5 registry checksum raised to revision 2 after the live ledger recorded it; the structural fingerprint is empty, so no migration is pending."
+    }
+  },
+  "root_cause": [
+    "The short domain cubi-web-preview.vercel.app is still assigned to an older static public-site deployment: /login, /api/* and both health probes return 404. That is the origin that presents as 'unhealthy'.",
+    "The project's production domain cubi-web-preview-foroughichamshir-7811.vercel.app is assigned to deployment 2y8d6xaco (schema registry 13 / 59 tables), not to the current production build 5dfo52ssm (22 / 109 tables). The application behind it is running and its database is healthy; it is simply an old build.",
+    "This is a deployment/domain assignment problem, not application code, routing or database health. No Production setting, domain, environment variable or infrastructure was changed by this audit."
+  ],
+  "remediation_documented_not_executed": [
+    "In the Vercel dashboard for project cubi-web-preview, promote the current production deployment (5dfo52ssm or a newer main build) to Production so the production domain follows main.",
+    "Reassign cubi-web-preview.vercel.app to that same production deployment (Project -> Settings -> Domains, or move the alias), or stop using the short domain and declare one canonical origin.",
+    "Set CONSTRUCTION_PM_PUBLIC_ORIGIN to exactly the chosen canonical origin; the login/logout/mutation origin check rejects any other host.",
+    "Verify after the change: /login 200, /api/health/live 200, /api/health/ready 200 with version 22 / tables 109 and structural drift empty, /app 302 /login without a session, /api/projects 401 SESSION_REQUIRED."
+  ],
+  "honest_limits": [
+    "No Vercel token exists in this environment, so the deployment list was not queried through the Vercel API; deployment identities were derived from the canonical hostnames served in each origin's HTML and from the readiness payload each origin returns.",
+    "No Production, Supabase or Showcase data was written, and no Auth/RLS or permission was changed.",
+    "The production domain and the short domain were not modified; the remediation above is a dashboard action for the owner."
+  ]
+}
