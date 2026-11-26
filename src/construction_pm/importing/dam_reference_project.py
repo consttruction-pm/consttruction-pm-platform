@@ -14,7 +14,7 @@ from decimal import Decimal
 from .reference_persistence import BUNDLE_CONTRACT
 
 PROJECT_ID = "CUBI-DAM-001"
-PROJECT_NAME = "Large Reservoir Dam and Hydropower Development"
+PROJECT_NAME = "Dam & Hydropower EPC Development Project"
 STATUS_DATE = date(2026, 11, 22)
 PROJECT_START = date(2026, 1, 5)
 
@@ -505,7 +505,7 @@ def build_dam_reference_bundle() -> dict[str, object]:
         "contract_type": "EPC",
         "planned_start": PROJECT_START.isoformat(),
         "status_date": STATUS_DATE.isoformat(),
-        "description": "Shared in-progress project workspace for CUBI Engineering and Enterprise build-out.",
+        "description": "Shared Engineering Demo / QA Reference Project — in-progress dam and hydropower EPC build workspace for CUBI Engineering and Enterprise.",
     }
     settings = {
         "default_calendar_id": "DAM-CAL-5D",

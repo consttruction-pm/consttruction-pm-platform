@@ -303,7 +303,7 @@ def test_shared_build_project_is_separate_from_personal_register_and_read_only_w
     now, session = make_session(roles=frozenset())
     projects = Projects()
     projects.shared_items[("tenant-a", "CUBI-DAM-001")] = ProjectSummary(
-        "CUBI-DAM-001", "tenant-a", "Large Reservoir Dam and Hydropower Development", 1
+        "CUBI-DAM-001", "tenant-a", "Dam & Hydropower EPC Development Project", 1
     )
     service = make_service(session, projects=projects)
 
