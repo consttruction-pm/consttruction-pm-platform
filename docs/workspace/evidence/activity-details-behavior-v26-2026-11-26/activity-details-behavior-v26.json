@@ -1,0 +1,150 @@
+{
+  "contract": "cubi-activity-details-behavior-v26.v1",
+  "baseUrl": "http://127.0.0.1:4228",
+  "gitHead": "4b5fadd34f7ab24b5e43a6c9dffaddf222084336",
+  "testedCodeSha": "4b5fadd34",
+  "capturedAt": "2026-11-26T07:54:44.015Z",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "the pane exposes seventeen tabs in the canonical order with one materialized panel",
+      "status": "pass",
+      "at": "2026-11-26T07:54:46.798Z",
+      "tabs": 17,
+      "active": "general",
+      "materialized": [
+        "general"
+      ]
+    },
+    {
+      "id": "02",
+      "name": "the pane follows the selected activity and shows its authoritative values",
+      "status": "pass",
+      "at": "2026-11-26T07:54:50.642Z",
+      "first": "A100",
+      "second": "A110"
+    },
+    {
+      "id": "03",
+      "name": "previous and next navigation moves the selection and keeps the pane content in sync",
+      "status": "pass",
+      "at": "2026-11-26T07:54:55.483Z",
+      "next": "A110",
+      "afterNext": "A110",
+      "afterPrev": "A100"
+    },
+    {
+      "id": "04",
+      "name": "every data tab settles into rows or an explicit notice, never an empty claim",
+      "status": "pass",
+      "at": "2026-11-26T07:54:59.345Z",
+      "tabs": [
+        "resources",
+        "expenses",
+        "issues",
+        "risks",
+        "steps",
+        "udfs",
+        "update-history"
+      ]
+    },
+    {
+      "id": "05",
+      "name": "switching tabs keeps the grid scroll position and the active tab survives a reload",
+      "status": "pass",
+      "at": "2026-11-26T07:55:02.098Z",
+      "active": "summary"
+    },
+    {
+      "id": "06",
+      "name": "Customize Tabs moves, removes, guards the last tab, applies and cancels",
+      "status": "pass",
+      "at": "2026-11-26T07:55:05.293Z",
+      "moved": [
+        "status",
+        "general",
+        "resources"
+      ],
+      "removed": 16,
+      "restored": 17
+    },
+    {
+      "id": "07",
+      "name": "Details visibility is scoped per window and never leaks into another window",
+      "status": "pass",
+      "at": "2026-11-26T07:55:14.734Z",
+      "hidden": true,
+      "projectVisible": true,
+      "reloadedHidden": true
+    },
+    {
+      "id": "08",
+      "name": "the tab strip is roving-focus accessible and arrow keys are recorded as a known gap",
+      "status": "pass",
+      "at": "2026-11-26T07:55:15.228Z",
+      "focused": "summary",
+      "afterArrow": {
+        "focused": "summary",
+        "active": "summary"
+      }
+    },
+    {
+      "id": "09",
+      "name": "fa/RTL at 1280x720 localizes the tabs and Customize dialog without overflow",
+      "status": "pass",
+      "at": "2026-11-26T07:55:17.752Z",
+      "dir": "rtl",
+      "labels": [
+        "عمومی",
+        "وضعیت",
+        "منابع"
+      ]
+    },
+    {
+      "id": "10",
+      "name": "en/LTR at 1920x1080 keeps one tab row and a readable Details pane",
+      "status": "pass",
+      "at": "2026-11-26T07:55:19.943Z",
+      "strip": {
+        "height": 23,
+        "sw": 1832,
+        "cw": 1832,
+        "rows": 1
+      },
+      "pane": {
+        "width": 1832,
+        "height": 258.3125,
+        "visible": true
+      }
+    }
+  ],
+  "screenshots": [
+    "01-tabs-en-1440.png",
+    "02-selection-a100-en-1440.png",
+    "03-navigation-en-1440.png",
+    "04-data-tabs-en-1440.png",
+    "05-active-tab-reload-en-1440.png",
+    "06-customize-en-1440.png",
+    "07-visibility-project-visible-en-1440.png",
+    "07-visibility-activities-hidden-en-1440.png",
+    "08-keyboard-en-1440.png",
+    "09-details-fa-rtl-1280.png",
+    "10-details-en-1920.png"
+  ],
+  "knownGaps": [
+    {
+      "id": "details-tab-arrow-keys",
+      "detail": "ArrowLeft/ArrowRight/Home/End do not move between Activity Details tabs on this baseline; the open V30 branch (#2048) implements the WAI-ARIA roving navigation.",
+      "owner": "#2048"
+    }
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-26T07:55:19.943Z",
+  "summary": {
+    "passed": 10,
+    "failed": 0,
+    "screenshots": 11
+  }
+}
