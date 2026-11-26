@@ -46,6 +46,8 @@ persistence outcome.
 | ENG-WS-LAYOUTS | Create a layout | Create a new activity layout · Customizing Activity Layouts > Overview | https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_new_activity_layout.htm | Create a new activity layout · https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/createanewactivitylayout-19653a.html | A new layout is an existing layout saved under a new name, then modified and saved. | A layout name is required and unique within its scope. | ENG-WS-ACT-02 | `HELP_VERIFIED`, `TEST_SPECIFIED` | `IMPLEMENTED` · `apps/web/src/p6-layout-persistence-adapter.test.ts` |
 | ENG-WS-LAYOUTS | Save a layout | Save a layout in the Activities window · Customizing Activity Layouts > Overview | https://docs.oracle.com/cd/G48902_01/client_help/en_US/save_a_layout_in_the_activities_or_rsrc_assignments_window.htm | Save a layout as a project layout · https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/savealayoutasaprojectlayout-19659a.html | Saving persists the layout; saving as a project layout requires the project-layout right. | Saving needs the layout privilege; a stale base revision is rejected. | ENG-WS-ACT-02 | `HELP_VERIFIED`, `TEST_SPECIFIED` | `IMPLEMENTED` · `apps/web/src/p6-layout-persistence-adapter.test.ts` |
 | ENG-WS-LAYOUTS | Open a layout | Open a layout · Customizing Activity Layouts > Overview | https://docs.oracle.com/cd/G48902_01/client_help/en_US/open_a_layout.htm | Open a layout · https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/openalayout-19651a.html | Opening a layout prompts to save the current one; the list contains stored layouts only. | An unknown or deleted layout is not offered and never fabricated. | ENG-WS-ACT-02 | `HELP_VERIFIED`, `TEST_SPECIFIED` | `IMPLEMENTED` · `apps/web/src/workspace-layout-selector.test.ts` |
+| ENG-WS-LAYOUTS | Undo or redo a layout change | NO DIRECT P6 HELP TOPIC — CUBI EXTENSION (nearest: Using Undo, which covers data edits in the Activity Details tabs only and says layout changes do not clear that history) | https://docs.oracle.com/cd/G48902_01/client_help/en_US/using_undo.htm | — | Help's Edit → Undo restores modified data values in General, Status, Resources and Relationships; scheduling, leveling, layout changes and opening a layout do not clear it. It does not define layout undo. | CUBI keeps an append-only revision history per layout scope/view. Undo saves the previous revision as a new head revision, Redo saves the undone one, and both run from the history bar, Edit → Undo/Redo and Ctrl+Z/Ctrl+Y; a new edit clears the redo stack. | ENG-WS-ACT-12 | `HELP_VERIFIED` (nearest), divergence documented | `IMPLEMENTED` · `apps/web/e2e/layout-undo-redo-v26.mjs` (2026-11-26: 9 scenarios) |
+| ENG-WS-LAYOUTS | Restore an earlier layout revision | NO DIRECT P6 HELP TOPIC — CUBI EXTENSION (nearest: Open a layout) | https://docs.oracle.com/cd/G48902_01/client_help/en_US/open_a_layout.htm | Open a layout · https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/openalayout-19651a.html | Opening a stored layout restores its definition. | Older revisions of the current scope/view are listed newest-first with their column count; Restore writes the chosen revision as a new head, never deletes history, and clears redo. A revision with no group/sort metadata renders the canonical WBS plan it predates. | ENG-WS-ACT-12 | `HELP_VERIFIED` (nearest), divergence documented | `IMPLEMENTED` · `apps/web/e2e/layout-undo-redo-v26.mjs`, `apps/web/src/main.ts` (`hydrateGroupSortFromLayout`) |
 | ENG-WS-SELECTION | Multi-selection | Select multiple items · Getting Started > Workspace Basics | https://docs.oracle.com/cd/G48902_01/client_help/en_US/select_multiple_items.htm | Select multiple items · https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/selectmultipleitems-21036a.html | Shift-click selects a contiguous group; Ctrl-click adds or removes individual rows. | A selection refers to read-model ids; a deleted activity is dropped from the selection. | ENG-WS-ACT-06 | `HELP_VERIFIED`, `TEST_SPECIFIED` | `IMPLEMENTED` · `apps/web/src/workspace-activity-scope.test.ts` |
 | ENG-WS-SELECTION | Select All scope | NO DIRECT P6 HELP EQUIVALENT — CUBI-SPECIFIC REQUIREMENT (nearest: Select multiple items) | https://docs.oracle.com/cd/G48902_01/client_help/en_US/select_multiple_items.htm | Select multiple items · https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/selectmultipleitems-21036a.html | CUBI defines Select All as the whole current filter + quick-search scope, including collapsed and grouped rows; it is never a DOM-only selection. | Disabled when the scope has zero rows. | ENG-WS-ACT-06 | `HELP_VERIFIED` (nearest), `TEST_SPECIFIED` | `IMPLEMENTED` · `apps/web/src/workspace-activity-scope.test.ts`, `apps/web/src/main.ts` |
 | ENG-WS-ACTIVITY-TABLE | Scope counts (Total / Filter / Search / Visible / Selected / In scope) | NO DIRECT P6 HELP EQUIVALENT — CUBI-SPECIFIC REQUIREMENT (nearest: Using the Status Bar and Layout Options bar, which does not list activity counts) | https://docs.oracle.com/cd/G48902_01/client_help/en_US/using_the_status_bar_and_display_layout_options_bar.htm | Using the Status Bar and Layout Options bar · https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/usingthestatusbarandlayoutoptionsbar-21127a.html | CUBI shows six counts derived from the authoritative read model: total, filter match, search match, painted rows, selected, selected-in-scope. | Counts are read-only; each is recomputed after filter, search, grouping, collapse or selection. | ENG-WS-ACT-05 | `HELP_VERIFIED` (nearest), `TEST_SPECIFIED` | `IMPLEMENTED` · `apps/web/src/workspace-activity-scope.test.ts`, `apps/web/src/workspace-view.ts` |
@@ -94,7 +96,7 @@ persistence outcome.
 - **Error scenarios** — stale edit conflict, denied role, missing CSRF,
   cross-tenant project, empty required field, unknown column.
 - **Help references** — rows above.
-- **Acceptance criteria** — `ENG-WS-ACT-01` … `ENG-WS-ACT-11`.
+- **Acceptance criteria** — `ENG-WS-ACT-01` … `ENG-WS-ACT-12`.
 
 ## 4. Acceptance scenarios
 
@@ -274,6 +276,22 @@ persistence outcome.
 | Persistence | Logout, new login, read `A-400` |
 | Related Help | Add activities in the Activity Table — https://docs.oracle.com/cd/G48902_01/client_help/en_US/add_activities_in_the_activity_table.htm |
 
+### ENG-WS-ACT-12 — Layout revision history: undo, redo and restore
+
+| Field | Content |
+| --- | --- |
+| Environment | Engineering |
+| Page | `/app/activities/` |
+| Feature | Layout history bar (Settings), Edit → Undo/Redo, Ctrl+Z/Ctrl+Y |
+| Preconditions | Fresh project layout at R1 with no earlier revision; planner |
+| Test data | Widen Activity ID 20px, then undo; redo; reload; restore R1; save a Group & Sort plan (Activity Status) and undo it |
+| User action | Use the history bar, the keyboard chords and the revision list |
+| Expected result | Undo with no history reports `No earlier layout revision is available.` and changes nothing; each undo/redo/restore appends exactly one revision and leaves older revisions recoverable; the rendered column width and Group & Sort bands match the revision that becomes head, including a pre-group-sort revision that renders the canonical WBS plan; a new edit clears redo; after reload undo still works from the server list while redo is honestly empty |
+| Negative | Undo never deletes a revision or overwrites a newer head; a revision outside the offered list is rejected |
+| Permission | Viewer sees the history bar read-only; saving an undo/redo/restore needs the layout write right (`403` without it) |
+| Persistence | The new head revision survives logout; a fresh login reads the same columns, presentation and group/sort plan |
+| Related Help | Using Undo (data edits only; layout changes do not clear it) — https://docs.oracle.com/cd/G48902_01/client_help/en_US/using_undo.htm · Open a layout (nearest for restore) — https://docs.oracle.com/cd/G48902_01/client_help/en_US/open_a_layout.htm |
+
 ## 5. Documented divergences
 
 | Divergence | Official Help | CUBI behavior | Reason |
@@ -282,6 +300,7 @@ persistence outcome.
 | Scope counts | Status bar lists portfolio, data date, baseline, user, database; no activity counts | Six live counts from the read model | Needed to make filtered/selected scope explicit before export |
 | Export scopes | P6 exports layouts and project files | CSV of all/filtered/selected activities with the layout columns | Server-neutral exchange without a P6 file format |
 | Select All | Help documents Shift/Ctrl multi-select only | Select All selects the whole filter+search scope, including collapsed rows | Prevents a hidden row from escaping a bulk action |
+| Layout undo/redo and restore | Help's only Undo (Edit → Undo) restores data values in Activity Details tabs and explicitly says layout changes do not clear that history; no layout undo/redo or revision restore topic exists | The history bar, Edit → Undo/Redo and Ctrl+Z/Ctrl+Y undo/redo/restore persisted layout revisions; data-value undo is not provided | Layout history is a CUBI extension built on the append-only layout revision contract; it is recorded as an extension, never as a P6 command |
 
 No product defect was found while writing this section. The four divergences
 are deliberate CUBI requirements and are recorded, not treated as defects.
@@ -290,8 +309,8 @@ are deliberate CUBI requirements and are recorded, not treated as defects.
 
 | Item | Result |
 | --- | --- |
-| Help URLs opened, HTTP 200 and listed in the official TOC | 18/18 unique topics cited above (13 are new topics beyond the 84-row canonical index; 5 were already covered there) |
+| Help URLs opened, HTTP 200 and listed in the official TOC | 19/19 unique topics cited above (14 are new topics beyond the 84-row canonical index; 5 were already covered there) |
 | User Guide URLs opened and title-matched | 16/16 unique URLs cited above |
 | Link report | `evidence/section-02-activity-help-links.json` (this section); canonical index report `evidence/help-link-verification-2026-11-21.json` |
-| Existing product tests cited | `workspace-activity-scope.test.ts`, `workspace-activity-filters.test.ts`, `workspace-desktop-shell.test.ts`, `p6-columns-dialog.test.ts`, `p6-layout-persistence-adapter.test.ts`, `workspace-layout-selector.test.ts`, `workspace-view.test.ts` |
+| Existing product tests cited | `workspace-activity-scope.test.ts`, `workspace-activity-filters.test.ts`, `workspace-desktop-shell.test.ts`, `p6-columns-dialog.test.ts`, `p6-layout-persistence-adapter.test.ts`, `workspace-layout-selector.test.ts`, `workspace-view.test.ts`, `apps/web/e2e/layout-undo-redo-v26.mjs` |
 | Executed acceptance | Not run by this workstream; scenarios are `TEST_SPECIFIED` |
