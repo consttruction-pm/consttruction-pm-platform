@@ -1,0 +1,152 @@
+{
+  "contract": "cubi-activity-shortcuts-v26.v1",
+  "baseUrl": "http://127.0.0.1:4236",
+  "gitHead": "92590e15fdf81023abab8a138985b521782c7ea0",
+  "testedCodeSha": "e734b0b85",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-27T07:43:59.012Z",
+  "helpTopics": [
+    "https://docs.oracle.com/cd/G48902_01/client_help/en_US/63783.htm"
+  ],
+  "scenarios": [
+    {
+      "rows": 27,
+      "unavailable": [
+        "shortcut.redo",
+        "shortcut.cut",
+        "shortcut.copy",
+        "shortcut.paste",
+        "shortcut.delete",
+        "shortcut.find-next",
+        "shortcut.refresh-ctrl-r",
+        "shortcut.leveling",
+        "shortcut.commit"
+      ],
+      "withHelp": 14,
+      "withHelpIds": [
+        "shortcut.new",
+        "shortcut.open",
+        "shortcut.print",
+        "shortcut.save-layout",
+        "shortcut.window.schedule",
+        "shortcut.window.project",
+        "shortcut.undo",
+        "shortcut.redo",
+        "shortcut.insert",
+        "shortcut.select-all",
+        "shortcut.schedule",
+        "shortcut.schedule-options",
+        "shortcut.expand-all",
+        "shortcut.collapse-all"
+      ],
+      "withoutHelpIds": [
+        "shortcut.close-window",
+        "shortcut.refresh",
+        "shortcut.help",
+        "shortcut.about",
+        "shortcut.cut",
+        "shortcut.copy",
+        "shortcut.paste",
+        "shortcut.delete",
+        "shortcut.find",
+        "shortcut.find-next",
+        "shortcut.refresh-ctrl-r",
+        "shortcut.leveling",
+        "shortcut.commit"
+      ],
+      "id": "01",
+      "name": "F1 lists the whole catalogue with a key for every row and a reason for every unavailable command",
+      "status": "pass",
+      "at": "2026-11-27T07:44:03.173Z"
+    },
+    {
+      "filtered": 1,
+      "restored": 27,
+      "id": "02",
+      "name": "the dialog search narrows the catalogue and clearing it restores every row",
+      "status": "pass",
+      "at": "2026-11-27T07:44:03.871Z"
+    },
+    {
+      "selected": 14,
+      "revision": "2→3",
+      "id": "03",
+      "name": "Ctrl+A selects the whole scope and Ctrl+S appends a saved layout revision",
+      "status": "pass",
+      "at": "2026-11-27T07:44:06.920Z"
+    },
+    {
+      "total": 14,
+      "focused": "activity_id",
+      "id": "04",
+      "name": "F5 re-reads the project and Insert opens the Add Activity drawer without writing",
+      "status": "pass",
+      "at": "2026-11-27T07:44:09.813Z"
+    },
+    {
+      "bound": "Ctrl+Alt+K",
+      "restored": "Shift+F12",
+      "id": "05",
+      "name": "Change captures a new chord, persists it across reload and runs the new binding; Reset restores the default",
+      "status": "pass",
+      "at": "2026-11-27T07:44:16.799Z"
+    },
+    {
+      "duplicate": true,
+      "unusable": true,
+      "id": "06",
+      "name": "a duplicate chord and an unusable chord are refused and never stored",
+      "status": "pass",
+      "at": "2026-11-27T07:44:19.830Z"
+    },
+    {
+      "fa": 27,
+      "en": 27,
+      "id": "07",
+      "name": "the dialog localises in fa/RTL at 1280×720 and fits en/LTR at 1920×1080",
+      "status": "pass",
+      "at": "2026-11-27T07:44:25.801Z"
+    },
+    {
+      "exceptions": 0,
+      "consoleErrors": 0,
+      "apiFailures": 0,
+      "id": "08",
+      "name": "the whole run issued no exception, console error or 5xx",
+      "status": "pass",
+      "at": "2026-11-27T07:44:25.801Z"
+    }
+  ],
+  "screenshots": [
+    "01-shortcuts-catalog-en-1440.png",
+    "02-shortcuts-search-en-1440.png",
+    "03-insert-add-activity-en-1440.png",
+    "04-shortcut-rebound-en-1440.png",
+    "05-shortcut-refused-en-1440.png",
+    "06-shortcuts-fa-rtl-1280.png",
+    "07-shortcuts-en-1920.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "interactionWrites": [
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4236/api/projects/preview-rps-01/open"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4236/api/projects/preview-rps-01/p6/layouts/project/activity"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4236/api/projects/preview-rps-01/open"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4236/api/projects/preview-rps-01/open"
+    }
+  ],
+  "passed": 8,
+  "failed": 0
+}
