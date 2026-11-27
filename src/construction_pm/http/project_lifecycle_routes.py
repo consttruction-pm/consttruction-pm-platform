@@ -191,6 +191,11 @@ from ..p6_activity_period_actual_api import P6ActivityPeriodActualAPI, P6_ACTIVI
 from ..p6_relationship_api import P6RelationshipAPI, P6_RELATIONSHIP_API_VERSION
 from ..p6_constraint_api import P6ConstraintAPI, P6_CONSTRAINT_API_VERSION
 from ..p6_activity_master_api import P6ActivityMasterAPI, P6_ACTIVITY_MASTER_API_VERSION
+from ..p6_activity_operations import (
+    ActivityOperationError,
+    P6ActivityOperationAPI,
+    P6_ACTIVITY_OPERATIONS_API_VERSION,
+)
 from ..p6_activity_progress_api import P6ActivityProgressAPI
 from ..p6_wbs_master_api import P6WBSMasterAPI, P6_WBS_MASTER_API_VERSION
 from ..project_checkout import ProjectCheckoutConflict
@@ -373,6 +378,7 @@ class ProjectLifecycleHttpRoutes:
         backup_api: BackupAPI | None = None,
         p6_activity_period_actual_api: P6ActivityPeriodActualAPI | None = None,
         p6_activity_master_api: P6ActivityMasterAPI | None = None,
+        p6_activity_operation_api: P6ActivityOperationAPI | None = None,
         p6_activity_progress_api: P6ActivityProgressAPI | None = None,
         p6_wbs_master_api: P6WBSMasterAPI | None = None,
         p6_schedule_snapshot_api: P6ScheduleSnapshotPublicationAPI | None = None,
@@ -439,6 +445,7 @@ class ProjectLifecycleHttpRoutes:
         self._backup_api = backup_api
         self._p6_activity_period_actual_api = p6_activity_period_actual_api
         self._p6_activity_master_api = p6_activity_master_api
+        self._p6_activity_operation_api = p6_activity_operation_api
         self._p6_activity_progress_api = p6_activity_progress_api
         self._p6_wbs_master_api = p6_wbs_master_api
         self._p6_schedule_snapshot_api = p6_schedule_snapshot_api
@@ -2283,6 +2290,126 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(
                         400,
                         _stable_error_code(exc, "P6_ACTIVITY_MASTER_REQUEST_INVALID"),
+                        "error.request.invalid",
+                    )
+            if (
+                path.startswith("/api/projects/")
+                and "/p6/activity-operations" in path
+                and self._p6_activity_operation_api is not None
+            ):
+                prefix = "/p6/activity-operations"
+                project_id = path[len("/api/projects/"):].split(prefix, 1)[0].rstrip("/")
+                suffix = path[len("/api/projects/") + len(project_id) + len(prefix):]
+                if not project_id:
+                    return self._error(
+                        400,
+                        "P6_ACTIVITY_OPERATION_REQUEST_INVALID",
+                        "error.request.invalid",
+                    )
+                if method != "POST" or suffix.strip("/"):
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                try:
+                    context = self._api.open_project(
+                        session_id, project_id, now=now
+                    ).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(
+                            403,
+                            _stable_error_code(exc, "AUTHORIZATION_DENIED"),
+                            "error.authorization.denied",
+                        )
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                scope = BackendScope(
+                    context.tenant_id, context.project_id, context.revision
+                )
+                try:
+                    payload = (
+                        json.loads(body.decode("utf-8") or "{}") if body else {}
+                    )
+                    if not isinstance(payload, dict):
+                        raise ValueError("INVALID_PAYLOAD")
+                    contract = payload.get(
+                        "contract_version", P6_ACTIVITY_OPERATIONS_API_VERSION
+                    )
+                    if contract != P6_ACTIVITY_OPERATIONS_API_VERSION:
+                        raise ValueError("INVALID_CONTRACT_VERSION")
+                    activity_ids = payload.get("activity_ids")
+                    if activity_ids is None:
+                        activity_ids = []
+                    result = self._p6_activity_operation_api.execute(
+                        scope,
+                        payload.get("operation"),
+                        activity_ids,
+                        auth_context=auth,
+                        idempotency_key=request_headers.get("Idempotency-Key", ""),
+                        target_wbs_id=payload.get("target_wbs_id"),
+                        confirm_dependencies=bool(
+                            payload.get("confirm_dependencies", False)
+                        ),
+                        expected_revisions=payload.get("expected_revisions"),
+                        now=now,
+                    )
+                    return self._json(200, result)
+                except AuthorizationError as exc:
+                    return self._error(
+                        403,
+                        _stable_error_code(exc, "AUTHORIZATION_DENIED"),
+                        "error.authorization.denied",
+                    )
+                except ProjectCheckoutConflict as exc:
+                    return self._error(
+                        409, exc.code, "error.project.checkout_conflict"
+                    )
+                except ActivityOperationError as exc:
+                    text = str(exc)
+                    code, _, detail = text.partition(":")
+                    if code in {
+                        "REVISION_CONFLICT",
+                        "IDEMPOTENCY_KEY_REUSED",
+                        "IDEMPOTENCY_KEY_IN_PROGRESS",
+                        "P6_ACTIVITY_DELETE_BLOCKED_DEPENDENCIES",
+                        "P6_ACTIVITY_DELETE_CONFIRMATION_REQUIRED",
+                    }:
+                        status = 409
+                    elif code in {
+                        "P6_ACTIVITY_NOT_FOUND",
+                        "P6_ACTIVITY_TARGET_WBS_NOT_FOUND",
+                    }:
+                        status = 404
+                    else:
+                        status = 400
+                    message_key = {
+                        "P6_ACTIVITY_NOT_FOUND": "error.resource.not_found",
+                        "P6_ACTIVITY_TARGET_WBS_NOT_FOUND": "error.resource.not_found",
+                        "REVISION_CONFLICT": "error.revision.conflict",
+                        "IDEMPOTENCY_KEY_REUSED": "error.idempotency.reused",
+                        "IDEMPOTENCY_KEY_IN_PROGRESS": "error.idempotency.in_progress",
+                        "P6_ACTIVITY_DELETE_BLOCKED_DEPENDENCIES": "error.activity.delete.blocked",
+                        "P6_ACTIVITY_DELETE_CONFIRMATION_REQUIRED": "error.activity.delete.confirmation_required",
+                    }.get(code, "error.request.invalid")
+                    response: dict[str, object] = {
+                        "code": code,
+                        "retryable": False,
+                        "message_key": message_key,
+                        "available_actions": [],
+                    }
+                    if detail:
+                        try:
+                            response["details"] = json.loads(detail)
+                        except ValueError:
+                            response["detail"] = detail
+                    return self._json(status, response)
+                except (TypeError, KeyError):
+                    return self._error(500, "INTERNAL_ERROR", "error.internal")
+                except (ValueError, ArithmeticError) as exc:
+                    return self._error(
+                        400,
+                        _stable_error_code(
+                            exc, "P6_ACTIVITY_OPERATION_REQUEST_INVALID"
+                        ),
                         "error.request.invalid",
                     )
             if path.startswith("/api/projects/") and "/p6/wbs" in path and self._p6_wbs_master_api is not None:

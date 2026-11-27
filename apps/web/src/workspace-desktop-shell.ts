@@ -44,6 +44,10 @@ export type DesktopCommand =
   | "edit.group-wbs"
   | "edit.sort-toggle"
   | "edit.select-all"
+  | "edit.cut"
+  | "edit.copy"
+  | "edit.paste"
+  | "edit.delete"
   | "edit.link"
   | "edit.unlink"
   | "project.add-wbs"
@@ -99,6 +103,7 @@ export type DesktopCommand =
   | "tools.reference"
   | "admin.language"
   | "admin.calendar"
+  | "admin.dictionaries"
   | "workspace.refresh"
   | "dialog.group-sort"
   | "dialog.filters"
@@ -127,6 +132,10 @@ export type DesktopShellCapabilities = {
   canOpenFieldChooser: boolean;
   hasLayout: boolean;
   groupByWbs: boolean;
+  /** The session holds a server-issued write role; the server re-authorizes. */
+  canWrite: boolean;
+  /** Activity ids are held by the shell's in-memory clipboard and can be pasted. */
+  hasClipboard: boolean;
   /** Derived from the authenticated session's roles, never from a client guess. */
   canAdminister: boolean;
 };
@@ -157,6 +166,7 @@ export type DesktopMenuId =
   | "edit"
   | "view"
   | "project"
+  | "organization"
   | "tools"
   | "administration"
   | "help";
@@ -303,8 +313,10 @@ const REASONS = {
   activitiesWindow: { en: "Switch to the Activities window to change its layout", fa: "برای تغییر چیدمان، به پنجرهٔ فعالیت‌ها بروید" },
   noFields: { en: "No saved field layout is available for this project", fa: "چیدمان فیلد ذخیره‌شده‌ای برای این پروژه در دسترس نیست" },
   noLayout: { en: "This project has no saved layout to write", fa: "این پروژه چیدمان ذخیره‌شده‌ای برای نوشتن ندارد" },
-  clipboard: { en: "The activity clipboard is not connected to this workspace yet", fa: "کلیپ‌بورد فعالیت هنوز به این محیط کار متصل نشده است" },
-  deleteActivity: { en: "Deleting activities is not available in this workspace yet", fa: "حذف فعالیت هنوز در این محیط کار در دسترس نیست" },
+  clipboard: { en: "Copy or cut an activity first; the clipboard is empty", fa: "ابتدا فعالیتی را کپی یا برش کنید؛ کلیپ‌بورد خالی است" },
+  noWrite: { en: "Your session does not hold a project write role (planner or project administrator)", fa: "نشست شما نقش نوشتن پروژه (برنامه‌ریز یا مدیر پروژه) ندارد" },
+  obs: { en: "CUBI stores the project breakdown as WBS; a separate OBS hierarchy has no server contract", fa: "CUBI ساختار شکست پروژه را به‌صورت WBS ذخیره می‌کند؛ سلسله‌مراتب OBS جداگانه قرارداد سمت سرور ندارد" },
+  admin: { en: "Requires the project administrator role", fa: "به نقش مدیر پروژه نیاز دارد" },
   findNext: { en: "Find Next needs a result set from the current filter", fa: "یافتن مورد بعدی به نتیجهٔ فیلتر جاری نیاز دارد" },
   browserReload: { en: "Ctrl+R is reserved by the browser for reload; use F5 or the Refresh command", fa: "Ctrl+R در مرورگر برای بارگذاری دوباره رزرو شده است؛ از F5 یا فرمان به‌روزرسانی استفاده کنید" },
   commit: { en: "There is no staged edit to commit", fa: "ویرایش آماده‌ای برای ثبت وجود ندارد" },
@@ -352,6 +364,13 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
     if (!windowSwitcher.includes(key)) windowSwitcher.push(key);
   }
   const layoutReason = caps.hasLayout ? undefined : unavailable(REASONS.noLayout, locale);
+  // Edit commands need a server-issued write role first, then a row to act on.
+  // The server re-checks PROJECT_WRITE; these reasons only explain the button.
+  const writeReason = caps.canWrite ? undefined : unavailable(REASONS.noWrite, locale);
+  const editSelectionReason = writeReason
+    ?? (caps.hasSelectedActivity ? undefined : unavailable(REASONS.noSelection, locale));
+  const pasteReason = writeReason
+    ?? (caps.hasClipboard ? undefined : unavailable(REASONS.clipboard, locale));
   const hidden = new Set(state.hiddenToolbarGroups ?? []);
   const separator = (id: string): DesktopMenuItem => ({ id, label: { en: "—", fa: "—" }, separator: true });
   const toolbarLabel = (group: WorkspaceToolbarGroup): string => {
@@ -406,10 +425,10 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
           disabledReason: caps.canRedoLayout ? undefined : unavailable(REASONS.redo, locale),
         },
         separator("edit.sep1"),
-        { id: "edit.cut", label: { en: "Cut", fa: "برش" }, shortcut: "Ctrl+X", disabledReason: unavailable(REASONS.clipboard, locale) },
-        { id: "edit.copy", label: { en: "Copy", fa: "کپی" }, shortcut: "Ctrl+C", disabledReason: unavailable(REASONS.clipboard, locale) },
-        { id: "edit.paste", label: { en: "Paste", fa: "چسباندن" }, shortcut: "Ctrl+V", disabledReason: unavailable(REASONS.clipboard, locale) },
-        { id: "edit.delete", label: { en: "Delete", fa: "حذف" }, shortcut: "Del", disabledReason: unavailable(REASONS.deleteActivity, locale) },
+        { id: "edit.cut", label: { en: "Cut", fa: "برش" }, command: "edit.cut", shortcut: "Ctrl+X", disabledReason: editSelectionReason },
+        { id: "edit.copy", label: { en: "Copy", fa: "کپی" }, command: "edit.copy", shortcut: "Ctrl+C", disabledReason: editSelectionReason },
+        { id: "edit.paste", label: { en: "Paste", fa: "چسباندن" }, command: "edit.paste", shortcut: "Ctrl+V", disabledReason: pasteReason },
+        { id: "edit.delete", label: { en: "Delete Activity", fa: "حذف فعالیت" }, command: "edit.delete", shortcut: "Del", disabledReason: editSelectionReason },
         separator("edit.sep2"),
         { id: "edit.find", label: { en: "Find activities…", fa: "یافتن فعالیت‌ها…" }, command: "edit.find", shortcut: "Ctrl+F" },
         { id: "edit.group-wbs", label: { en: "Group by WBS", fa: "گروه‌بندی بر اساس WBS" }, command: "edit.group-wbs", checked: caps.groupByWbs },
@@ -636,6 +655,22 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
       ],
     },
     {
+      id: "organization",
+      accessKey: "o",
+      label: { en: "Organization", fa: "سازمان" },
+      items: [
+        // Project-scoped organizational data. This is not an Enterprise
+        // environment selector: every entry opens a project window backed by
+        // the project's own persisted facts.
+        { id: "org.resources", label: WINDOW_TITLES.resources, window: "resources" },
+        { id: "org.roles", label: WINDOW_TITLES.roles, window: "roles" },
+        { id: "org.calendars", label: WINDOW_TITLES.calendars, window: "calendars" },
+        { id: "org.dictionaries", label: { en: "Dictionaries…", fa: "فهرست‌ها…" }, command: "admin.dictionaries", disabledReason: caps.canAdminister ? undefined : unavailable(REASONS.admin, locale) },
+        separator("org.sep1"),
+        { id: "org.obs", label: { en: "OBS…", fa: "OBS…" }, disabledReason: unavailable(REASONS.obs, locale) },
+      ],
+    },
+    {
       id: "tools",
       accessKey: "t",
       label: { en: "Tools", fa: "ابزارها" },
@@ -654,8 +689,9 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
     },
   ];
   // Administration is a first-class, role-gated menu. Non-administrators keep
-  // the same workspace; they simply do not see administration commands.
-  if (caps.canAdminister !== false) {
+  // the same workspace; they simply do not see administration commands. The
+  // flag comes from the session's server-issued roles, never from the client.
+  if (caps.canAdminister === true) {
     menus.push({
       id: "administration",
       accessKey: "a",
@@ -704,6 +740,12 @@ export function getDesktopToolbar(state: DesktopShellState): DesktopToolbarItem[
   const { capabilities: caps, locale } = state;
   const presentation = state.presentation ?? DEFAULT_PRESENTATION;
   const why = (label: LocalizedLabel): LocalizedLabel => unavailable(label, locale);
+  // The toolbar mirrors the Edit menu's preconditions exactly.
+  const writeReason = caps.canWrite ? undefined : why(REASONS.noWrite);
+  const editSelectionReason = writeReason
+    ?? (caps.hasSelectedActivity ? undefined : why(REASONS.noSelection));
+  const pasteReason = writeReason
+    ?? (caps.hasClipboard ? undefined : why(REASONS.clipboard));
   const items: DesktopToolbarItem[] = [
     // Standard: file and session commands that apply to the whole workspace.
     { id: "toolbar.new", label: { en: "New", fa: "جدید" }, title: { en: "New project", fa: "پروژهٔ جدید" }, window: "project", shortcut: "Ctrl+N", icon: "plus", group: "workspace" },
@@ -714,10 +756,10 @@ export function getDesktopToolbar(state: DesktopShellState): DesktopToolbarItem[
     // Edit: direct manipulation of the selected activity rows.
     { id: "toolbar.undo", label: { en: "Undo", fa: "بازگردانی" }, title: { en: "Undo layout change", fa: "بازگردانی تغییر چیدمان" }, command: "edit.undo", shortcut: "Ctrl+Z", disabledReason: caps.canUndoLayout ? undefined : why(REASONS.undo), icon: "undo", group: "edit" },
     { id: "toolbar.redo", label: { en: "Redo", fa: "تکرار" }, title: { en: "Redo layout change", fa: "اعمال دوبارهٔ تغییر چیدمان" }, command: "edit.redo", shortcut: "Ctrl+Y", disabledReason: caps.canRedoLayout ? undefined : why(REASONS.redo), icon: "redo", group: "edit" },
-    { id: "toolbar.cut", label: { en: "Cut", fa: "برش" }, title: { en: "Cut", fa: "برش" }, shortcut: "Ctrl+X", disabledReason: why(REASONS.clipboard), icon: "cut", group: "edit" },
-    { id: "toolbar.copy", label: { en: "Copy", fa: "کپی" }, title: { en: "Copy", fa: "کپی" }, shortcut: "Ctrl+C", disabledReason: why(REASONS.clipboard), icon: "copy", group: "edit" },
-    { id: "toolbar.paste", label: { en: "Paste", fa: "چسباندن" }, title: { en: "Paste", fa: "چسباندن" }, shortcut: "Ctrl+V", disabledReason: why(REASONS.clipboard), icon: "paste", group: "edit" },
-    { id: "toolbar.delete", label: { en: "Delete", fa: "حذف" }, title: { en: "Delete the selected activity", fa: "حذف فعالیت انتخاب‌شده" }, shortcut: "Del", disabledReason: why(REASONS.deleteActivity), icon: "delete", group: "edit" },
+    { id: "toolbar.cut", label: { en: "Cut", fa: "برش" }, title: { en: "Cut the selected activities", fa: "برش فعالیت‌های انتخاب‌شده" }, command: "edit.cut", shortcut: "Ctrl+X", disabledReason: editSelectionReason, icon: "cut", group: "edit", windows: ["schedule"] },
+    { id: "toolbar.copy", label: { en: "Copy", fa: "کپی" }, title: { en: "Copy the selected activities", fa: "کپی فعالیت‌های انتخاب‌شده" }, command: "edit.copy", shortcut: "Ctrl+C", disabledReason: editSelectionReason, icon: "copy", group: "edit", windows: ["schedule"] },
+    { id: "toolbar.paste", label: { en: "Paste", fa: "چسباندن" }, title: { en: "Paste the clipboard into the selected WBS", fa: "چسباندن کلیپ‌بورد در WBS انتخاب‌شده" }, command: "edit.paste", shortcut: "Ctrl+V", disabledReason: pasteReason, icon: "paste", group: "edit", windows: ["schedule"] },
+    { id: "toolbar.delete", label: { en: "Delete", fa: "حذف" }, title: { en: "Delete the selected activities", fa: "حذف فعالیت‌های انتخاب‌شده" }, command: "edit.delete", shortcut: "Del", disabledReason: editSelectionReason, icon: "delete", group: "edit", windows: ["schedule"] },
     { id: "toolbar.find", label: { en: "Find", fa: "یافتن" }, title: { en: "Find activities", fa: "یافتن فعالیت‌ها" }, command: "edit.find", shortcut: "Ctrl+F", icon: "find", group: "edit" },
     { id: "toolbar.select-all", label: { en: "Select All", fa: "انتخاب همه" }, title: { en: "Select every visible activity row", fa: "انتخاب همهٔ ردیف‌های نمایان فعالیت" }, command: "edit.select-all", shortcut: "Ctrl+A", disabledReason: caps.hasActivities ? undefined : why(REASONS.noActivities), icon: "check", group: "edit", windows: ["schedule"] },
     { id: "toolbar.link", label: { en: "Link", fa: "پیوند" }, title: { en: "Link the selected activities", fa: "پیوند فعالیت‌های انتخاب‌شده" }, command: "edit.link", disabledReason: caps.hasSelectedActivity ? undefined : why(REASONS.noSelection), icon: "link", group: "edit", windows: ["schedule"] },
@@ -965,10 +1007,10 @@ const DESKTOP_SHORTCUTS: readonly DesktopShortcut[] = [
   { id: "shortcut.save-layout", label: { en: "Save layout", fa: "ذخیرهٔ چیدمان" }, keys: "Ctrl+S", chord: { key: "s", ctrlOrMeta: true }, command: "layout.save", requires: { test: (caps) => caps.hasLayout, reason: REASONS.noLayout } },
   { id: "shortcut.undo", label: { en: "Undo layout change", fa: "بازگردانی تغییر چیدمان" }, keys: "Ctrl+Z", chord: { key: "z", ctrlOrMeta: true }, command: "edit.undo", requires: { test: (caps) => caps.canUndoLayout, reason: REASONS.undo } },
   { id: "shortcut.redo", label: { en: "Redo layout change", fa: "اعمال دوبارهٔ تغییر چیدمان" }, keys: "Ctrl+Y", chord: { key: "y", ctrlOrMeta: true }, command: "edit.redo", requires: { test: (caps) => caps.canRedoLayout, reason: REASONS.redo } },
-  { id: "shortcut.cut", label: { en: "Cut", fa: "برش" }, keys: "Ctrl+X", chord: { key: "x", ctrlOrMeta: true }, unavailable: REASONS.clipboard },
-  { id: "shortcut.copy", label: { en: "Copy", fa: "کپی" }, keys: "Ctrl+C", chord: { key: "c", ctrlOrMeta: true }, unavailable: REASONS.clipboard },
-  { id: "shortcut.paste", label: { en: "Paste", fa: "چسباندن" }, keys: "Ctrl+V", chord: { key: "v", ctrlOrMeta: true }, unavailable: REASONS.clipboard },
-  { id: "shortcut.delete", label: { en: "Delete activity", fa: "حذف فعالیت" }, keys: "Del", chord: { key: "Delete" }, unavailable: REASONS.deleteActivity },
+  { id: "shortcut.cut", label: { en: "Cut", fa: "برش" }, keys: "Ctrl+X", chord: { key: "x", ctrlOrMeta: true }, command: "edit.cut", requires: { test: (caps) => caps.canWrite && caps.hasSelectedActivity, reason: REASONS.noSelection } },
+  { id: "shortcut.copy", label: { en: "Copy", fa: "کپی" }, keys: "Ctrl+C", chord: { key: "c", ctrlOrMeta: true }, command: "edit.copy", requires: { test: (caps) => caps.canWrite && caps.hasSelectedActivity, reason: REASONS.noSelection } },
+  { id: "shortcut.paste", label: { en: "Paste", fa: "چسباندن" }, keys: "Ctrl+V", chord: { key: "v", ctrlOrMeta: true }, command: "edit.paste", requires: { test: (caps) => caps.canWrite && caps.hasClipboard, reason: REASONS.clipboard } },
+  { id: "shortcut.delete", label: { en: "Delete activity", fa: "حذف فعالیت" }, keys: "Del", chord: { key: "Delete" }, command: "edit.delete", requires: { test: (caps) => caps.canWrite && caps.hasSelectedActivity, reason: REASONS.noSelection } },
   { id: "shortcut.insert", label: { en: "Insert activity", fa: "درج فعالیت" }, keys: "Ins", chord: { key: "Insert" }, command: "project.add-activity", requires: { test: (caps) => caps.hasWbs, reason: REASONS.noWbs } },
   { id: "shortcut.find", label: { en: "Find activities", fa: "یافتن فعالیت‌ها" }, keys: "Ctrl+F", chord: { key: "f", ctrlOrMeta: true }, command: "edit.find" },
   { id: "shortcut.select-all", label: { en: "Select all visible activities", fa: "انتخاب همهٔ فعالیت‌های نمایان" }, keys: "Ctrl+A", chord: { key: "a", ctrlOrMeta: true }, command: "edit.select-all", requires: { test: (caps) => caps.hasActivities, reason: REASONS.noActivities } },

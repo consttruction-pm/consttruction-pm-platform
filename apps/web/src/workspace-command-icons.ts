@@ -117,6 +117,12 @@ const MENU_ITEM_ICONS: Readonly<Record<string, WorkspaceIconName>> = {
   "project.baseline": "baseline",
   "project.compare": "compare",
   "project.progress": "progress",
+  // Organization — project-scoped organizational data
+  "org.resources": "resource",
+  "org.roles": "roles",
+  "org.calendars": "calendar",
+  "org.dictionaries": "book",
+  "org.obs": "group",
   // Enterprise
   "enterprise.projects": "project",
   "enterprise.resources": "resource",

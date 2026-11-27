@@ -123,8 +123,6 @@ const always = (label: LocalizedLabel) => () => label;
 const R = {
   selection: reason("Select an activity in the grid first", "ابتدا یک فعالیت را در جدول انتخاب کنید"),
   activities: reason("Load activities in the Activities window first", "ابتدا فعالیت‌ها را در پنجرهٔ فعالیت‌ها بارگذاری کنید"),
-  clipboard: reason("The activity clipboard is not connected to this workspace yet", "کلیپ‌بورد فعالیت هنوز به این محیط کار متصل نشده است"),
-  deleteActivity: reason("Deleting activities is not available in this workspace yet", "حذف فعالیت هنوز در این محیط کار در دسترس نیست"),
   fillDown: reason("Fill Down needs editable table cells; edit each activity in Activity Details", "پرکردن به پایین به سلول‌های ویرایش‌پذیر نیاز دارد؛ هر فعالیت را در جزئیات فعالیت ویرایش کنید"),
   dissolve: reason("Dissolving a WBS band has no server contract; move its activities and delete the band instead", "انحلال باند WBS قرارداد سمت سرور ندارد؛ فعالیت‌ها را منتقل و باند را حذف کنید"),
   baseline: reason("Baseline management is not available in this workspace yet", "مدیریت خط مبنا هنوز در این محیط کار در دسترس نیست"),

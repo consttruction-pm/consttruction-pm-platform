@@ -68,6 +68,7 @@ from ..global_administration_http import GlobalAdministrationHttpMiddleware
 from ..knowledge.postgres_store import PostgresKnowledgeStore
 from ..knowledge.runtime import build_knowledge_runtime
 from ..p6_activity_master_api import P6ActivityMasterAPI
+from ..p6_activity_operations import ActivityOperationStore, P6ActivityOperationAPI
 from ..p6_baseline_activity_api import P6BaselineActivityAPI
 from ..p6_baseline_activity_repository import PostgresP6BaselineActivityRepository
 from ..p6_baseline_api import P6BaselineAPI
@@ -731,6 +732,17 @@ class ProductionRuntime:
         activity_api = P6ActivityMasterAPI(
             activity_repository, policy, checkout_lease=checkout_lease
         )
+        # Cut/Copy/Paste/Delete is one transactional boundary over the same
+        # activity and WBS repositories. The journal tables come from migration
+        # step 23, so the store is built without re-running DDL here.
+        activity_operation_api = P6ActivityOperationAPI(
+            activity_repository=activity_repository,
+            wbs_repository=wbs_repository,
+            store=ActivityOperationStore(connection, placeholder="%s"),
+            authorization_policy=policy,
+            checkout_lease=checkout_lease,
+            transaction_manager=transaction_manager,
+        )
 
         # Workbench decision studio: the canonical proposal runtime over the
         # durable store. Tables come from the migration registry, so the store
@@ -896,6 +908,7 @@ class ProductionRuntime:
             calculation_context_repository=calculation_context_repository,
             authorization_policy=policy,
             activity_master_repository=activity_repository,
+            activity_operation_api=activity_operation_api,
             activity_progress_history_repository=progress_history_repository,
             activity_progress_transaction_manager=transaction_manager,
             wbs_master_repository=wbs_repository,

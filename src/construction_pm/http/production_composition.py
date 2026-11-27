@@ -18,6 +18,7 @@ from construction_pm.activity_master_repository import ActivityMasterRepository
 from construction_pm.activity_progress_history import ActivityProgressHistoryRepository
 from construction_pm.backend_p0.transactions import TransactionManager
 from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
+from construction_pm.p6_activity_operations import P6ActivityOperationAPI
 from construction_pm.p6_activity_progress_api import P6ActivityProgressAPI
 from construction_pm.p6_wbs_master_api import P6WBSMasterAPI
 from construction_pm.p6_calendar_api import P6CalendarAPI
@@ -125,6 +126,7 @@ def build_project_lifecycle_wsgi_app(
     calculation_context_repository: CalculationContextRepository,
     authorization_policy: AuthorizationPolicy,
     activity_master_repository: ActivityMasterRepository | None = None,
+    activity_operation_api: P6ActivityOperationAPI | None = None,
     activity_progress_history_repository: ActivityProgressHistoryRepository | None = None,
     activity_progress_transaction_manager: TransactionManager | None = None,
     wbs_master_repository: WBSMasterRepository | None = None,
@@ -418,6 +420,7 @@ def build_project_lifecycle_wsgi_app(
         lifecycle_api,
         clock=clock,
         p6_activity_master_api=activity_master_api,
+        p6_activity_operation_api=activity_operation_api,
         p6_activity_progress_api=activity_progress_api,
         p6_wbs_master_api=wbs_master_api,
         workspace_read_v2_service=workspace_read_v2_service,

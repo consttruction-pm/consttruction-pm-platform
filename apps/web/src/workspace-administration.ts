@@ -93,6 +93,8 @@ export type AdministrationPageOptions = {
   context: ProjectContext;
   locale: string;
   canAdmin: boolean;
+  /** Tab requested by an Organization menu command; defaults to Preferences. */
+  initialTab?: AdminTab;
 };
 
 function text(locale: string, en: string, fa: string): string {
@@ -514,7 +516,7 @@ export function mountWorkspaceAdministrationPage(
   const { transport, context, locale, canAdmin } = options;
   const say = (en: string, fa: string): string => text(locale, en, fa);
   const state: PageState = {
-    tab: "preferences",
+    tab: options.initialTab ?? "preferences",
     status: "loading",
     errorCode: null,
     preferences: null,

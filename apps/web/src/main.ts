@@ -125,6 +125,7 @@ import { mountFormulaEditorPanel } from "./p6-formula-panel.js";
 import { mountInterchangePanel } from "./p6-interchange-panel.js";
 import { mountCapacityPanel } from "./p6-capacity-panel.js";
 import { openDesktopDialog, renderDesktopShell, WINDOW_TITLES, type DesktopCommand } from "./workspace-desktop-shell.js";
+import { canAdministerProject, canWriteProject } from "./workspace-permissions.js";
 import { renderStatusBar, type ChromeLayoutState } from "./workspace-chrome.js";
 import { enhanceActivityDetails } from "./workspace-activity-details.js";
 import { enhanceWorkspaceComments, openWorkspaceComments } from "./workspace-comments.js";
@@ -243,6 +244,15 @@ let activeWorkspaceRoles: readonly string[] = [];
 let activeWorkspaceTheme: WorkspaceTheme = readWorkspaceTheme();
 let pendingDesktopFocusSelector: string | null = null;
 let pendingDesktopAction: (() => void) | null = null;
+/** Administration window tab requested by an Organization command. */
+let pendingAdminTab: "preferences" | "dictionaries" | "matrix" | "periods" | null = null;
+/**
+ * Activity clipboard. It holds ids only, never project rows: Paste re-reads and
+ * copies the authoritative records on the server under PROJECT_WRITE. It lives
+ * in memory so a reload cannot paste stale data from browser storage.
+ */
+type ActivityClipboard = { mode: "copy" | "cut"; projectId: string; activityIds: readonly string[] };
+let activityClipboard: ActivityClipboard | null = null;
 /** Progress edits re-render the workspace; keep the edited activity selected. */
 let progressSelection: string | null = null;
 
@@ -1863,7 +1873,8 @@ function renderApp(
     const currentStatus = container.querySelector<HTMLElement>(".cp-app-status");
     if (currentStatus) currentStatus.dataset.relationshipError = message;
   };
-  const refreshWorkspaceAfterWbsMutation = async (selectedWbsId: string | null): Promise<void> => {    const refreshed = await new WorkspaceReadClient(aiTransport).load(state.context, {
+  const refreshWorkspaceAfterWbsMutation = async (selectedWbsId: string | null): Promise<void> => {
+    const refreshed = await new WorkspaceReadClient(aiTransport).load(state.context, {
       locale: state.locale,
       calendarMode: state.calendarMode,
       primaryCalendarId: activeProjectSummary?.project_id === state.context.project_id ? activeProjectSummary.primary_calendar_id ?? null : null,
@@ -1878,6 +1889,118 @@ function renderApp(
       nextState = selectWbs(nextState, selectedWbsId);
     }
     renderApp(container, nextState, persistence);
+  };
+  const activityOperationNotice = (message: string, kind: "ok" | "error"): void => {
+    // The notice sits above the activity table so the result of Cut, Copy,
+    // Paste or Delete is visible in the window the command belongs to.
+    const host = container.querySelector<HTMLElement>("#cp-activity-grid")?.parentElement ?? container;
+    let notice = container.querySelector<HTMLElement>("[data-activity-operation-notice]");
+    if (!notice) {
+      notice = document.createElement("p");
+      notice.dataset.activityOperationNotice = "true";
+    }
+    notice.dataset.state = kind;
+    notice.setAttribute("role", kind === "error" ? "alert" : "status");
+    notice.textContent = message;
+    if (!notice.isConnected) host.prepend(notice);
+  };
+  const activityOperationMessage = (en: string, fa: string): string =>
+    translateWorkspaceUiText(state.locale, en, fa);
+  const newIdempotencyKey = (): string => {
+    const cryptoApi = globalThis.crypto;
+    if (cryptoApi && typeof cryptoApi.randomUUID === "function") return cryptoApi.randomUUID();
+    return `activity-op-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  };
+  /**
+   * Read the current record revision of each selected activity from the
+   * authoritative Activity Master before a write. The grid is a projection and
+   * does not carry revisions, so the operation sends them explicitly and the
+   * server rejects a stale edit instead of overwriting a newer one.
+   */
+  const loadActivityRevisions = async (activityIds: readonly string[]): Promise<Record<string, number>> => {
+    const response = await aiTransport.get<{
+      activities: Array<{ activity: { activity_id: string; record_revision: number } }>;
+    }>(`/api/projects/${encodeURIComponent(state.context.project_id)}/p6/activities`, state.context);
+    if (!response.ok) throw new Error(response.error.code);
+    const wanted = new Set(activityIds);
+    const revisions: Record<string, number> = {};
+    for (const item of response.data.activities ?? []) {
+      const id = item?.activity?.activity_id;
+      const revision = item?.activity?.record_revision;
+      if (typeof id === "string" && wanted.has(id) && Number.isSafeInteger(revision) && revision >= 1) {
+        revisions[id] = revision;
+      }
+    }
+    const missing = activityIds.filter((id) => revisions[id] === undefined);
+    if (missing.length) throw new Error(`P6_ACTIVITY_NOT_FOUND:${missing.join(",")}`);
+    return revisions;
+  };
+  type ActivityOperationResult = {
+    operation: string;
+    created?: Array<{ source_activity_id: string; activity_id: string }>;
+    moved?: string[];
+    deleted?: string[];
+    relationships_created?: string[];
+    relationships_skipped?: Array<{ relationship_id: string; reason: string }>;
+    assignments_created?: number;
+    period_values_created?: number;
+  };
+  const postActivityOperation = async (
+    operation: "copy" | "move" | "delete",
+    activityIds: readonly string[],
+    options: { targetWbsId?: string | null; confirmDependencies?: boolean } = {},
+  ) => {
+    const expected = await loadActivityRevisions(activityIds);
+    const response = await aiTransport.post<
+      Record<string, unknown>,
+      ActivityOperationResult
+    >(
+      `/api/projects/${encodeURIComponent(state.context.project_id)}/p6/activity-operations`,
+      {
+        contract_version: "p6-activity-operations.v1",
+        operation,
+        activity_ids: [...activityIds],
+        target_wbs_id: options.targetWbsId ?? null,
+        confirm_dependencies: Boolean(options.confirmDependencies),
+        expected_revisions: expected,
+      },
+      state.context,
+      newIdempotencyKey(),
+    );
+    return response;
+  };
+  const reportActivityOperationError = (error: { code: string; details?: unknown }): void => {
+    const details = (error.details ?? {}) as Record<string, unknown>;
+    const count = (key: string): number => {
+      const value = details[key];
+      return typeof value === "number" && Number.isFinite(value) ? value : 0;
+    };
+    let en = `The activity operation failed (${error.code}).`;
+    let fa = `عملیات فعالیت ناموفق بود (${error.code}).`;
+    if (error.code === "REVISION_CONFLICT") {
+      en = "An activity changed on the server after it was loaded. Refresh and try again.";
+      fa = "یکی از فعالیت‌ها پس از بارگذاری در سرور تغییر کرده است. به‌روزرسانی کنید و دوباره تلاش کنید.";
+    } else if (error.code === "P6_ACTIVITY_DELETE_BLOCKED_DEPENDENCIES") {
+      const parts = [
+        ["baseline", "خط مبنا"], ["issue", "مسئله"], ["expense", "هزینه"],
+      ] as const;
+      const found = parts
+        .map(([key, label]) => [count(`blocking_${key}`), label] as const)
+        .filter(([value]) => value > 0)
+        .map(([value, label]) => `${value} ${label}`);
+      en = `Delete is blocked: ${found.join(", ") || "dependent records"} still reference these activities. Remove those references first.`;
+      fa = `حذف مسدود است: ${found.join("، ") || "رکوردهای وابسته"} همچنان به این فعالیت‌ها ارجاع می‌دهند. ابتدا آن ارجاع‌ها را بردارید.`;
+    } else if (error.code.startsWith("AUTHORIZATION")) {
+      en = "Your session is not allowed to change this project.";
+      fa = "نشست شما مجاز به تغییر این پروژه نیست.";
+    } else if (error.code.startsWith("IDEMPOTENCY")) {
+      en = "This operation was already submitted. Refresh before trying again.";
+      fa = "این عملیات پیش‌تر ارسال شده است. پیش از تلاش دوباره به‌روزرسانی کنید.";
+    } else if (error.code === "P6_ACTIVITY_TARGET_WBS_REQUIRED" || error.code === "P6_ACTIVITY_TARGET_WBS_NOT_FOUND") {
+      en = "Select a valid WBS element before pasting a cut activity.";
+      fa = "پیش از چسباندن فعالیت برش‌خورده، یک عنصر WBS معتبر انتخاب کنید.";
+    }
+    activityOperationNotice(activityOperationMessage(en, fa), "error");
   };
   const projectWbsPath = (wbsId?: string): string =>
     `/api/projects/${encodeURIComponent(state.context.project_id)}/p6/wbs${wbsId ? `/${encodeURIComponent(wbsId)}` : ""}`;
@@ -2093,6 +2216,12 @@ function renderApp(
         pendingDesktopFocusSelector = "[data-activity-filter]";
         activateWindow("schedule");
         return;
+      case "admin.dictionaries":
+        // Organization opens the project's dictionary tab directly instead of
+        // dropping the user on an unrelated administration page.
+        pendingAdminTab = "dictionaries";
+        activateWindow("administration");
+        return;
       case "edit.export-excel": {
         // The workbook is rendered by the authoritative exchange service from
         // persisted activity facts and verified against the response digest
@@ -2161,6 +2290,188 @@ function renderApp(
           selectedActivityIds: visible,
           selectionAnchorId: visible[0] ?? null,
         }, persistence);
+        return;
+      }
+      case "edit.cut":
+      case "edit.copy": {
+        // The clipboard stores activity ids, not rows. Cutting marks the ids
+        // for a server-side move; copying marks them for a server-side copy
+        // that re-reads the authoritative records under PROJECT_WRITE.
+        const ids = selectedActivityIdList(state);
+        if (!ids.length) return;
+        const mode = command === "edit.cut" ? "cut" : "copy";
+        activityClipboard = { mode, projectId: state.context.project_id, activityIds: [...ids] };
+        renderApp(container, state, persistence);
+        const count = ids.length;
+        activityOperationNotice(
+          activityOperationMessage(
+            mode === "cut"
+              ? `${count} activit${count === 1 ? "y" : "ies"} cut. Select a WBS element, then Paste to move them.`
+              : `${count} activit${count === 1 ? "y" : "ies"} copied. Select a WBS element, then Paste to create copies there.`,
+            mode === "cut"
+              ? `${count} فعالیت برش خورد. یک عنصر WBS انتخاب کنید و سپس بچسبانید تا منتقل شوند.`
+              : `${count} فعالیت کپی شد. یک عنصر WBS انتخاب کنید و سپس بچسبانید تا کپی‌ها آنجا ساخته شوند.`,
+          ),
+          "ok",
+        );
+        return;
+      }
+      case "edit.paste": {
+        const clip = activityClipboard;
+        if (!clip || clip.projectId !== state.context.project_id || !clip.activityIds.length) return;
+        const targetWbsId = state.selectedWbsId;
+        if (clip.mode === "cut" && !targetWbsId) {
+          activityOperationNotice(
+            activityOperationMessage(
+              "Select a WBS element before pasting cut activities; the move needs a target breakdown element.",
+              "پیش از چسباندن فعالیت‌های برش‌خورده یک عنصر WBS انتخاب کنید؛ انتقال به عنصر مقصد نیاز دارد.",
+            ),
+            "error",
+          );
+          return;
+        }
+        void (async () => {
+          try {
+            const response = await postActivityOperation(
+              clip.mode === "copy" ? "copy" : "move",
+              clip.activityIds,
+              { targetWbsId },
+            );
+            if (!response.ok) {
+              reportActivityOperationError(response.error);
+              return;
+            }
+            const result = response.data;
+            if (clip.mode === "cut") activityClipboard = null;
+            await refreshWorkspaceAfterWbsMutation(targetWbsId ?? null);
+            const affected = clip.mode === "copy"
+              ? (result.created ?? []).map((item) => item.activity_id)
+              : (result.moved ?? []);
+            if (affected.length && currentWorkspaceState) {
+              // Re-select the rows the server actually created or moved so the
+              // grid shows the persisted result instead of the old selection.
+              const fresh = currentWorkspaceState;
+              const present = affected.filter((id) => fresh.activities.some((activity) => activity.id === id));
+              if (present.length) {
+                renderApp(container, {
+                  ...fresh,
+                  selectedActivityId: present[0],
+                  selectedActivityIds: present,
+                  selectionAnchorId: present[0],
+                }, persistence);
+              }
+            }
+            const skipped = result.relationships_skipped?.length ?? 0;
+            if (clip.mode === "copy") {
+              const created = result.created?.length ?? 0;
+              activityOperationNotice(
+                activityOperationMessage(
+                  `${created} activit${created === 1 ? "y" : "ies"} copied${skipped ? `; ${skipped} cross-selection relationship${skipped === 1 ? "" : "s"} skipped` : ""}${result.assignments_created ? `; ${result.assignments_created} assignment${result.assignments_created === 1 ? "" : "s"} copied` : ""}.`,
+                  `${created} فعالیت کپی شد${skipped ? `؛ ${skipped} رابطهٔ بیرون از انتخاب نادیده گرفته شد` : ""}${result.assignments_created ? `؛ ${result.assignments_created} تخصیص کپی شد` : ""}.`,
+                ),
+                "ok",
+              );
+            } else {
+              const moved = result.moved?.length ?? 0;
+              const target = state.wbsNodes.find((node) => node.id === targetWbsId);
+              const label = target ? `${target.localCode} ${target.name}` : String(targetWbsId ?? "");
+              activityOperationNotice(
+                activityOperationMessage(
+                  `${moved} activit${moved === 1 ? "y" : "ies"} moved to ${label}.`,
+                  `${moved} فعالیت به ${label} منتقل شد.`,
+                ),
+                "ok",
+              );
+            }
+          } catch (error) {
+            reportActivityOperationError({
+              code: error instanceof Error ? error.message : "ACTIVITY_OPERATION_FAILED",
+            });
+          }
+        })();
+        return;
+      }
+      case "edit.delete": {
+        const ids = selectedActivityIdList(state);
+        if (!ids.length) return;
+        const count = ids.length;
+        const firstMessage = activityOperationMessage(
+          `Delete ${count} activit${count === 1 ? "y" : "ies"}? Their relationships, assignments and steps are removed with them.`,
+          `${count} فعالیت حذف شود؟ روابط، تخصیص‌ها و گام‌های آن‌ها نیز حذف می‌شوند.`,
+        );
+        if (typeof window.confirm === "function" && !window.confirm(firstMessage)) return;
+        void (async () => {
+          try {
+            const response = await postActivityOperation("delete", ids);
+            if (!response.ok) {
+              if (response.error.code === "P6_ACTIVITY_DELETE_CONFIRMATION_REQUIRED") {
+                // The server lists what cascades; the second confirmation is
+                // explicit and the retry carries confirm_dependencies.
+                const details = (response.error.details ?? {}) as Record<string, unknown>;
+                const named = (key: string): number => {
+                  const value = details[key];
+                  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+                };
+                const parts = [
+                  [named("relationships"), "relationship", "رابطه"],
+                  [named("assignments"), "assignment", "تخصیص"],
+                  [named("steps"), "step", "گام"],
+                  [named("constraints"), "constraint", "محدودیت"],
+                  [named("calendar_assignments"), "calendar assignment", "تخصیص تقویم"],
+                  [named("period_actuals"), "period actual", "مقدار دوره"],
+                  [named("progress_events"), "progress event", "رویداد پیشرفت"],
+                ].filter(([value]) => Number(value) > 0);
+                const summary = parts
+                  .map(([value, en]) => `${value} ${en}`)
+                  .join(", ");
+                const summaryFa = parts
+                  .map(([value, , fa]) => `${value} ${fa}`)
+                  .join("، ");
+                const cascadeMessage = activityOperationMessage(
+                  `These activities still own ${summary || "dependent records"}. Delete the activities and those records?`,
+                  `این فعالیت‌ها همچنان ${summaryFa || "رکوردهای وابسته"} دارند. فعالیت‌ها و آن رکوردها حذف شوند؟`,
+                );
+                if (typeof window.confirm === "function" && !window.confirm(cascadeMessage)) {
+                  activityOperationNotice(
+                    activityOperationMessage("Deletion cancelled; nothing was changed.", "حذف لغو شد؛ چیزی تغییر نکرد."),
+                    "ok",
+                  );
+                  return;
+                }
+                const confirmed = await postActivityOperation("delete", ids, { confirmDependencies: true });
+                if (!confirmed.ok) {
+                  reportActivityOperationError(confirmed.error);
+                  return;
+                }
+                await refreshWorkspaceAfterWbsMutation(state.selectedWbsId);
+                const deleted = confirmed.data.deleted?.length ?? count;
+                activityOperationNotice(
+                  activityOperationMessage(
+                    `${deleted} activit${deleted === 1 ? "y" : "ies"} deleted with their dependent records.`,
+                    `${deleted} فعالیت همراه با رکوردهای وابسته حذف شد.`,
+                  ),
+                  "ok",
+                );
+                return;
+              }
+              reportActivityOperationError(response.error);
+              return;
+            }
+            await refreshWorkspaceAfterWbsMutation(state.selectedWbsId);
+            const deleted = response.data.deleted?.length ?? count;
+            activityOperationNotice(
+              activityOperationMessage(
+                `${deleted} activit${deleted === 1 ? "y" : "ies"} deleted.`,
+                `${deleted} فعالیت حذف شد.`,
+              ),
+              "ok",
+            );
+          } catch (error) {
+            reportActivityOperationError({
+              code: error instanceof Error ? error.message : "ACTIVITY_OPERATION_FAILED",
+            });
+          }
+        })();
         return;
       }
       case "edit.link": {
@@ -2658,7 +2969,13 @@ function renderApp(
         canOpenFieldChooser: Boolean(state.p6Layout && state.p6FieldRegistry),
         hasLayout: Boolean(state.p6Layout),
         groupByWbs: state.activityGroupBy === "wbs",
-        canAdminister: activeWorkspaceRoles.includes("project_admin"),
+        canWrite: canWriteProject(activeWorkspaceRoles),
+        hasClipboard: Boolean(
+          activityClipboard
+          && activityClipboard.projectId === state.context.project_id
+          && activityClipboard.activityIds.length > 0,
+        ),
+        canAdminister: canAdministerProject(activeWorkspaceRoles),
       },
       hiddenToolbarGroups: activeWorkspaceUserId ? readHiddenToolbarGroups(activeWorkspaceUserId) : [],
       ganttVisible: state.visiblePanels.gantt,
@@ -3069,7 +3386,7 @@ function renderApp(
       registry: state.p6FieldRegistry,
       layout: initial,
       locale: state.locale,
-      canWrite: activeWorkspaceRoles.includes("planner") || activeWorkspaceRoles.includes("project_admin"),
+      canWrite: canWriteProject(activeWorkspaceRoles),
       loadDefaults: () => loadP6DefaultLayout(aiTransport, state.context, initial.scope, initial.view_id),
       loadCopySources: async () => {
         const catalog = await loadLayoutCatalog(aiTransport, state.context, "activity");
@@ -3200,10 +3517,10 @@ function renderApp(
     dataDate: projectDataDate,
     toolbarConfig: toolbarWorkspace,
     onToolbarConfigChange: saveToolbarConfig,
-    canAdminister: activeWorkspaceRoles.includes("project_admin"),
+    canAdminister: canAdministerProject(activeWorkspaceRoles),
     // The contextual rail derives its Add commands from the same session roles
     // and dispatches the same desktop commands as the toolbar and menus.
-    canWrite: activeWorkspaceRoles.includes("planner") || activeWorkspaceRoles.includes("project_admin"),
+    canWrite: canWriteProject(activeWorkspaceRoles),
     onDesktopCommand: (command) => runDesktopCommand(command),
     // The Projects window renders the session's own project list and the
     // authoritative metadata row; both come from the server, never from a guess.
@@ -3242,7 +3559,7 @@ function renderApp(
           calendarMode: detailsState.calendarMode,
           transport: getDetailsTransport(),
           state: detailsState,
-          canWrite: activeWorkspaceRoles.includes("planner") || activeWorkspaceRoles.includes("project_admin"),
+          canWrite: canWriteProject(activeWorkspaceRoles),
         },
         (activityId) => renderApp(container, selectActivity(detailsState, activityId), persistence),
       );
@@ -3967,7 +4284,7 @@ function renderApp(
       previewScope: layoutPreviewScope,
       // The default policy grants layout writes (PROJECT_WRITE) to these roles
       // and to none else, so the control mirrors the server gate.
-      canSave: activeWorkspaceRoles.includes("planner") || activeWorkspaceRoles.includes("project_admin"),
+      canSave: canWriteProject(activeWorkspaceRoles),
       dirty: layoutDirty,
       // Delete needs a layout-service route that does not exist yet; the button
       // states that truthfully instead of pretending a removal happened.
@@ -4038,7 +4355,7 @@ function renderApp(
       transport: aiTransport,
       context: state.context,
       locale: state.locale,
-      canWrite: activeWorkspaceRoles.includes("planner") || activeWorkspaceRoles.includes("project_admin"),
+      canWrite: canWriteProject(activeWorkspaceRoles),
       activities: state.activities.map((activity) => ({
         id: activity.id,
         code: activity.code,
@@ -4062,7 +4379,7 @@ function renderApp(
       transport: aiTransport,
       context: state.context,
       locale: state.locale,
-      canWrite: activeWorkspaceRoles.includes("planner") || activeWorkspaceRoles.includes("project_admin"),
+      canWrite: canWriteProject(activeWorkspaceRoles),
       activities: state.activities.map((activity) => ({
         id: activity.id,
         code: activity.code,
@@ -4082,7 +4399,7 @@ function renderApp(
       transport: aiTransport,
       context: state.context,
       locale: state.locale,
-      canWrite: activeWorkspaceRoles.includes("planner") || activeWorkspaceRoles.includes("project_admin"),
+      canWrite: canWriteProject(activeWorkspaceRoles),
     });
   }
 
@@ -4092,7 +4409,7 @@ function renderApp(
       transport: aiTransport,
       context: state.context,
       locale: state.locale,
-      canWrite: activeWorkspaceRoles.includes("planner") || activeWorkspaceRoles.includes("project_admin"),
+      canWrite: canWriteProject(activeWorkspaceRoles),
     });
   }
 
@@ -4102,7 +4419,7 @@ function renderApp(
       transport: aiTransport,
       context: state.context,
       locale: state.locale,
-      canWrite: activeWorkspaceRoles.includes("planner") || activeWorkspaceRoles.includes("project_admin"),
+      canWrite: canWriteProject(activeWorkspaceRoles),
     });
   }
 
@@ -4121,8 +4438,10 @@ function renderApp(
       transport: aiTransport,
       context: state.context,
       locale: state.locale,
-      canAdmin: activeWorkspaceRoles.includes("project_admin"),
+      canAdmin: canAdministerProject(activeWorkspaceRoles),
+      initialTab: pendingAdminTab ?? undefined,
     });
+    pendingAdminTab = null;
   }
 
   const exchangePage = workspace.querySelector<HTMLElement>("[data-exchange-page]");
@@ -4132,8 +4451,7 @@ function renderApp(
       context: state.context,
       locale: state.locale,
       canWrite:
-        activeWorkspaceRoles.includes("planner") ||
-        activeWorkspaceRoles.includes("project_admin"),
+        canWriteProject(activeWorkspaceRoles),
     });
   }
 
@@ -4144,8 +4462,7 @@ function renderApp(
       context: state.context,
       locale: state.locale,
       canWrite:
-        activeWorkspaceRoles.includes("planner") ||
-        activeWorkspaceRoles.includes("project_admin"),
+        canWriteProject(activeWorkspaceRoles),
       canRestore: activeWorkspaceRoles.includes("project_admin"),
     });
   }
@@ -4177,7 +4494,7 @@ function renderApp(
       locale: state.locale,
       // PROJECT_WRITE is granted to planner and project_admin by the default
       // policy, so the register mirrors that server gate exactly.
-      canWrite: activeWorkspaceRoles.includes("planner") || activeWorkspaceRoles.includes("project_admin"),
+      canWrite: canWriteProject(activeWorkspaceRoles),
       canApprove: activeWorkspaceRoles.includes("project_admin"),
     });
   }
@@ -4189,7 +4506,7 @@ function renderApp(
       context: state.context,
       locale: state.locale,
       onNavigate: (menu) => activateWindow(menu),
-      canWrite: activeWorkspaceRoles.includes("planner") || activeWorkspaceRoles.includes("project_admin"),
+      canWrite: canWriteProject(activeWorkspaceRoles),
       canApprove: activeWorkspaceRoles.includes("project_admin"),
     });
   }
@@ -4275,8 +4592,7 @@ function renderApp(
     state.p6FieldRegistry?.fields ?? [],
     {
       canWrite:
-        activeWorkspaceRoles.includes("planner") ||
-        activeWorkspaceRoles.includes("project_admin"),
+        canWriteProject(activeWorkspaceRoles),
       layoutFieldIds: formulaColumnFieldIds,
       onCreated: async () => {
         await refreshFormulaProjection();
