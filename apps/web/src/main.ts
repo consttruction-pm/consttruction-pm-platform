@@ -40,6 +40,8 @@ import {
   setCalendarMode,
   setGanttScale,
   setGanttRelationshipsVisible,
+  type WorkspaceActivityGroupLevel,
+  type WorkspaceActivitySortLevel,
   type WorkspaceLocale,
   type WorkspaceMenuKey,
   type WorkspaceState,
@@ -171,8 +173,8 @@ import {
   type ToolbarWorkspaceConfig,
 } from "./workspace-toolbar-config.js";
 import {
-  readWorkspaceDetailsVisible,
   rememberWorkspaceDetailsVisible,
+  resolveWorkspaceDetailsVisible,
 } from "./workspace-details-preference.js";
 import {
   applyWorkspaceTheme,
@@ -371,19 +373,29 @@ function presentationMetadata(layout: LayoutDefinition): LayoutDefinition {
  * metadata wins once per layout revision, so a reload or a layout switch
  * returns the table the user saved. A newer in-session edit is never rewritten
  * because the revision key does not change while the user is editing.
+ *
+ * A revision that predates group/sort persistence carries no plan. Undo,
+ * redo, restore and Open Layout must still return that revision's table, so
+ * an absent plan resolves to the canonical default instead of leaving the
+ * previous revision's bands on screen under the older revision number.
  */
+const DEFAULT_GROUP_SORT_LEVELS: readonly WorkspaceActivityGroupLevel[] = Object.freeze([
+  Object.freeze({ fieldId: "wbs" as const, direction: "asc" as const }),
+]);
+const DEFAULT_GROUP_SORT_SORT_LEVELS: readonly WorkspaceActivitySortLevel[] = Object.freeze([
+  Object.freeze({ columnId: "wbs", direction: "asc" as const }),
+]);
 let hydratedGroupSortKey: string | null = null;
 function hydrateGroupSortFromLayout(state: WorkspaceState): WorkspaceState {
   const layout = state.p6Layout;
   if (!layout) return state;
-  const saved = readGroupSortMetadata(layout.metadata);
-  if (!saved) return state;
   const key = `${state.context.tenant_id}:${state.context.project_id}:${layout.scope}:${layout.revision}`;
   if (key === hydratedGroupSortKey) return state;
   hydratedGroupSortKey = key;
+  const saved = readGroupSortMetadata(layout.metadata);
   let next = state;
-  next = setActivityGroupLevels(next, saved.groupLevels);
-  next = setActivitySortLevels(next, saved.sortLevels);
+  next = setActivityGroupLevels(next, saved ? saved.groupLevels : DEFAULT_GROUP_SORT_LEVELS);
+  next = setActivitySortLevels(next, saved ? saved.sortLevels : DEFAULT_GROUP_SORT_SORT_LEVELS);
   return next;
 }
 
@@ -1704,9 +1716,11 @@ function renderApp(
   // The bottom Details pane keeps its own per-user, per-window visibility
   // preference. Applying it before the first paint keeps the layout from
   // flashing a pane the user previously hid (and the reverse on restore).
+  // A window that was never toggled uses the documented default instead of the
+  // value carried over from the window that was open before it.
   if (activeWorkspaceUserId) {
-    const storedDetailsVisible = readWorkspaceDetailsVisible(state, activeWorkspaceUserId);
-    if (storedDetailsVisible !== null && storedDetailsVisible !== state.visiblePanels.details) {
+    const storedDetailsVisible = resolveWorkspaceDetailsVisible(state, activeWorkspaceUserId);
+    if (storedDetailsVisible !== state.visiblePanels.details) {
       state = { ...state, visiblePanels: { ...state.visiblePanels, details: storedDetailsVisible } };
     }
   }

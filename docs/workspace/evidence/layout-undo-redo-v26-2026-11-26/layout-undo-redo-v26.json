@@ -1,0 +1,111 @@
+{
+  "contract": "cubi-layout-undo-redo-v26.v1",
+  "baseUrl": "http://127.0.0.1:4227",
+  "gitHead": "c5c92c4302235717e865931ffe30cb583b88ce01",
+  "testedCodeSha": "c5c92c430",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-26T07:03:33.546Z",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "a fresh layout exposes an honest empty undo history",
+      "status": "pass",
+      "at": "2026-11-26T07:03:38.903Z",
+      "revision": 1,
+      "width": 56,
+      "notice": "No earlier layout revision is available."
+    },
+    {
+      "id": "02",
+      "name": "a column resize saves one revision and undo restores the grid width",
+      "status": "pass",
+      "at": "2026-11-26T07:03:41.519Z",
+      "before": 76,
+      "after": 56,
+      "revision": 3
+    },
+    {
+      "id": "03",
+      "name": "redo reapplies the change and a fresh edit clears the redo stack",
+      "status": "pass",
+      "at": "2026-11-26T07:03:43.668Z",
+      "width": 96,
+      "revision": 5
+    },
+    {
+      "id": "04",
+      "name": "Ctrl+Z and Ctrl+Y run the same layout history",
+      "status": "pass",
+      "at": "2026-11-26T07:03:47.378Z",
+      "afterUndo": 76,
+      "afterRedo": 96,
+      "revision": 7
+    },
+    {
+      "id": "05",
+      "name": "undo after a reload uses the persisted revision history",
+      "status": "pass",
+      "at": "2026-11-26T07:03:51.338Z",
+      "revision": 8,
+      "width": 76
+    },
+    {
+      "id": "06",
+      "name": "restore a specific earlier revision from the history list",
+      "status": "pass",
+      "at": "2026-11-26T07:03:51.686Z",
+      "from": 8,
+      "restored": 1,
+      "revision": 9,
+      "width": 56
+    },
+    {
+      "id": "07",
+      "name": "undo restores the Group and Sort plan saved in the layout",
+      "status": "pass",
+      "at": "2026-11-26T07:03:59.067Z",
+      "beforeWbs": 7,
+      "savedRevision": 10,
+      "undoneRevision": 11,
+      "redoneRevision": 12
+    },
+    {
+      "id": "08",
+      "name": "the history bar and notices are readable in a fa/RTL cell at 1280",
+      "status": "pass",
+      "at": "2026-11-26T07:04:02.819Z",
+      "notice": "آخرین تغییر چیدمان بازگردانی شد.",
+      "direction": "rtl",
+      "labels": [
+        "↶ بازگردانی",
+        "↷ تکرار"
+      ]
+    },
+    {
+      "id": "09",
+      "name": "the history bar fits an en/LTR 1920×1080 cell",
+      "status": "pass",
+      "at": "2026-11-26T07:04:05.038Z",
+      "revision": "Field Registry · project · R13",
+      "options": 12
+    }
+  ],
+  "screenshots": [
+    "01-empty-history-en-1440.png",
+    "02-resized-before-undo-en-1440.png",
+    "03-undone-en-1440.png",
+    "04-redo-and-new-edit-en-1440.png",
+    "05-keyboard-history-en-1440.png",
+    "06-reload-undo-en-1440.png",
+    "07-restore-oldest-en-1440.png",
+    "08-group-plan-saved-en-1440.png",
+    "09-group-plan-undone-en-1440.png",
+    "10-group-plan-redone-en-1440.png",
+    "11-history-fa-rtl-1280.png",
+    "12-history-en-1920.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "finishedAt": "2026-11-26T07:04:05.038Z"
+}

@@ -5370,9 +5370,10 @@ function renderGantt(
       .map((tick) => `<span class="cp-gantt-grid-line is-minor" data-gantt-grid-minor="${escapeAttribute(tick.date)}" style="left:${tick.leftPercent}%"></span>`)
       .join("")
     : "";
-  // Non-working shading comes from the primary calendar's persisted snapshot.
-  // It paints behind grid lines and rows and never changes a schedule date.
-  const nonWorkingBands = hasTimeline && projectCalendar?.status === "loaded"
+  // Non-working shading comes from the primary calendar's persisted snapshot
+  // and the Shared Core day-facts projection. The Bars dialog can hide the
+  // layer without touching the calendar, the snapshot or any bar geometry.
+  const nonWorkingBands = hasTimeline && gantt.showCalendarNonWorkingTime && projectCalendar?.status === "loaded"
     ? createGanttNonWorkingBands(viewScale, {
       workingWeekdays: projectCalendar.workingWeekdays,
       holidays: projectCalendar.holidays,

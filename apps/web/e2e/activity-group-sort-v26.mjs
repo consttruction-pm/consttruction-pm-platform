@@ -246,6 +246,7 @@ async function dialogState(page) {
         labels: [...select.options].map((option) => option.textContent.trim()),
       })),
       groupDirections: [...dialog.querySelectorAll('select[name^="group.direction."]')].map((select) => select.value),
+      groupWidths: [...dialog.querySelectorAll('select[name^="group.field."]')].map((select) => Math.round(select.getBoundingClientRect().width)),
       groups: [...dialog.querySelectorAll("fieldset legend")].map((legend) => legend.textContent.trim()),
       sortRows: dialog.querySelectorAll(".cp-sort-row").length,
       fields: [...dialog.querySelectorAll('select[name^="sort.field."]')].map((select) => ({
@@ -391,6 +392,94 @@ async function saveLayout(page) {
   }
   throw new Error(`layout save did not persist group/sort metadata (status ${latest?.status ?? "none"})`);
 }
+
+/** Depth-first WBS order exactly as the renderer walks the persisted tree. */
+function wbsDfsOrder(facts) {
+  const children = new Map();
+  for (const node of facts.wbsNodes) {
+    const parentId = node.parentKind === "project" ? null : node.parentWbsId;
+    const siblings = children.get(parentId) ?? [];
+    siblings.push(node);
+    children.set(parentId, siblings);
+  }
+  for (const siblings of children.values()) {
+    siblings.sort((left, right) =>
+      left.sequenceNumber - right.sequenceNumber
+      || collator.compare(left.localCode, right.localCode)
+      || collator.compare(left.id, right.id));
+  }
+  const ordered = [];
+  const visited = new Set();
+  const visit = (parentId, depth) => {
+    for (const node of children.get(parentId) ?? []) {
+      if (visited.has(node.id)) continue;
+      visited.add(node.id);
+      ordered.push({ id: node.id, depth });
+      visit(node.id, depth + 1);
+    }
+  };
+  visit(null, 0);
+  for (const node of facts.wbsNodes) {
+    if (visited.has(node.id)) continue;
+    visited.add(node.id);
+    ordered.push({ id: node.id, depth: 0 });
+    visit(node.id, 1);
+  }
+  return ordered;
+}
+
+/** Activities whose own WBS node is exactly ``wbsId`` (not a descendant). */
+function directMembers(facts, wbsId) {
+  return facts.activities.filter((activity) => activity.wbsId === wbsId);
+}
+
+/** Activity rows directly inside one band, up to the next shallower band. */
+function bandMembers(sequence, band) {
+  const index = sequence.findIndex((row) => row.bandKey === band.bandKey);
+  assert(index !== -1, `band ${band.bandKey} is missing from the table`);
+  const members = [];
+  for (let next = index + 1; next < sequence.length; next += 1) {
+    const candidate = sequence[next];
+    if (candidate.kind !== "activity" && candidate.depth <= band.depth) break;
+    if (candidate.kind === "activity") members.push(candidate.id);
+  }
+  return members;
+}
+
+function sortCell(activity, columnId) {
+  if (columnId === "activity_id") return activity.id;
+  if (columnId === "activity_code") return activity.code;
+  if (columnId === "activity_name") return activity.name;
+  if (columnId === "wbs") return activity.wbsId;
+  return activity.cells?.[columnId] ?? null;
+}
+
+/** Applies a multi-level sort plan the way the runtime does, including the id tie-break. */
+function expectedByLevels(facts, ids, levels) {
+  const byId = new Map(facts.activities.map((activity) => [activity.id, activity]));
+  return [...ids]
+    .sort((leftId, rightId) => {
+      const left = byId.get(leftId);
+      const right = byId.get(rightId);
+      for (const level of levels) {
+        const a = sortCell(left, level.columnId);
+        const b = sortCell(right, level.columnId);
+        const aMissing = a === null || a === undefined || a === "";
+        const bMissing = b === null || b === undefined || b === "";
+        if (aMissing || bMissing) {
+          if (aMissing && bMissing) continue;
+          return aMissing ? 1 : -1;
+        }
+        const direction = level.direction === "desc" ? -1 : 1;
+        const comparison = typeof a === "number" && typeof b === "number"
+          ? (a === b ? 0 : a < b ? -1 : 1)
+          : collator.compare(String(a), String(b));
+        if (comparison !== 0) return direction * comparison;
+      }
+      return collator.compare(leftId, rightId);
+    });
+}
+
 
 async function main() {
   const health = await waitForHttp(`${baseUrl}/preview/health`, 30000);
@@ -861,6 +950,252 @@ async function main() {
       assert(state.ganttIds.join(",") === state.ids.join(","), "Gantt order differs in the RTL cell");
       await capture(page, "09-wbs-status-fa-rtl-1280");
       return { bands: state.wbsBands.length + state.fieldBands.length, rows: state.ids.length, overflow: state.overflow };
+    });
+
+    await scenario("10", "three group levels nest WBS, status and criticality and restore", async () => {
+      await setViewport(page, 1440, 900);
+      await setLanguage(page, "en");
+      const facts = await readWorkspace(page);
+      assert(facts.activities.length === 14, `workspace read returned ${facts.activities.length} activities`);
+      await openGroupSort(page);
+      await setSelect(page, "group.field.0", "wbs");
+      await setSelect(page, "group.direction.0", "asc");
+      await setSelect(page, "group.field.1", "activity_status");
+      await setSelect(page, "group.direction.1", "desc");
+      await setSelect(page, "group.field.2", "is_critical");
+      await setSelect(page, "group.direction.2", "asc");
+      await setSelect(page, "sort.field.0", "activity.name");
+      await setSelect(page, "sort.direction.0", "asc");
+      await setSelect(page, "sort.field.1", "");
+      await setSelect(page, "sort.field.2", "");
+      const dialog = await dialogState(page);
+      assert(dialog.groupRows === 3 && dialog.sortRows === 3, "the dialog does not expose three group and three sort rows");
+      assert(
+        dialog.groupFields.map((field) => field.value).join(",") === "wbs,activity_status,is_critical",
+        `dialog group fields are ${dialog.groupFields.map((field) => field.value).join(",")}`,
+      );
+      assert(dialog.groupDirections.join(",") === "asc,desc,asc", `dialog group directions are ${dialog.groupDirections.join(",")}`);
+      assert(
+        dialog.groupWidths.every((width) => width >= 110),
+        `group field selects are clipped to ${dialog.groupWidths.join(",")}px`,
+      );
+      await capture(page, "10-dialog-three-levels-en-1440");
+      await submitOk(page);
+      const grouped = await tableState(page);
+      const statusBands = grouped.fieldBands.filter((band) => band.level === 1 && band.field === "activity_status");
+      const criticalBands = grouped.fieldBands.filter((band) => band.level === 2 && band.field === "is_critical");
+      assert(statusBands.length > 0, "the second group level rendered no status bands");
+      assert(criticalBands.length > 0, "the third group level rendered no criticality bands");
+      assert(
+        grouped.fieldBands.every((band) => (band.level === 1 && band.field === "activity_status") || (band.level === 2 && band.field === "is_critical")),
+        "a band appears outside the three configured levels",
+      );
+      const wbsByKey = new Map(grouped.wbsBands.map((band) => [band.bandKey, band.wbsId]));
+      const statusPrefix = ">activity_status:";
+      for (const band of statusBands) {
+        const splitAt = band.bandKey.lastIndexOf(statusPrefix);
+        assert(splitAt > 0, `status band key ${band.bandKey} has no WBS parent`);
+        const parentKey = band.bandKey.slice(0, splitAt);
+        const wbsId = wbsByKey.get(parentKey);
+        assert(wbsId, `status band ${band.bandKey} has no rendered WBS parent ${parentKey}`);
+        const subset = directMembers(facts, wbsId)
+          .filter((activity) => groupKeyOf(readGroupValue(activity, "activity_status")) === band.valueKey);
+        assert(subset.length === band.count, `status band ${band.valueKey} shows ${band.count} rows, expected ${subset.length}`);
+        const expectedCritical = expectedFieldBands(subset, "is_critical", "asc");
+        const actualCritical = criticalBands.filter((child) => child.bandKey.startsWith(`${band.bandKey}>is_critical:`));
+        assert(
+          actualCritical.map((child) => `${child.label}:${child.count}`).join("|")
+            === expectedCritical.map((child) => `${child.label}:${child.count}`).join("|"),
+          `criticality bands under ${band.valueKey} are ${actualCritical.map((child) => `${child.label}:${child.count}`).join("|")}`,
+        );
+        assert(
+          actualCritical.reduce((total, child) => total + child.count, 0) === subset.length,
+          `criticality bands under ${band.valueKey} do not cover its ${subset.length} activities`,
+        );
+      }
+      assert(
+        criticalBands.reduce((total, band) => total + band.count, 0) === 14,
+        "the innermost criticality bands do not cover every activity",
+      );
+      assert(grouped.ids.length === 14, `the three-level table shows ${grouped.ids.length} activities`);
+      assert(grouped.toolbarGroup === "wbs", `toolbar group is ${grouped.toolbarGroup}`);
+      assert(grouped.ganttIds.join(",") === grouped.ids.join(","), "the Gantt order differs from the three-level table");
+      const saved = await saveLayout(page);
+      const metadata = saved.body?.metadata?.groupSort;
+      assert(
+        groupLevelsEqual(metadata?.groupLevels, [
+          { fieldId: "wbs", direction: "asc" },
+          { fieldId: "activity_status", direction: "desc" },
+          { fieldId: "is_critical", direction: "asc" },
+        ]),
+        `stored group levels ${describeGroupLevels(metadata?.groupLevels)}`,
+      );
+      assert(metadata?.groupBy === "wbs", `stored group mode is ${metadata?.groupBy}`);
+      await page.reload("#cp-activity-grid tbody tr[data-activity-id]", "reload after three-level save");
+      await sleep(1300);
+      const reloaded = await tableState(page);
+      assert(
+        reloaded.fieldBands.filter((band) => band.level === 1).length === statusBands.length,
+        `reload shows ${reloaded.fieldBands.filter((band) => band.level === 1).length} status bands, expected ${statusBands.length}`,
+      );
+      assert(
+        reloaded.fieldBands.filter((band) => band.level === 2).length === criticalBands.length,
+        `reload shows ${reloaded.fieldBands.filter((band) => band.level === 2).length} criticality bands, expected ${criticalBands.length}`,
+      );
+      assert(reloaded.ids.length === 14, `reload shows ${reloaded.ids.length} activities`);
+      assert(reloaded.toolbarGroup === "wbs", `reload toolbar group is ${reloaded.toolbarGroup}`);
+      await capture(page, "10b-three-level-after-reload-en-1440");
+      return {
+        statusBands: statusBands.length,
+        criticalBands: criticalBands.length,
+        rows: reloaded.ids.length,
+      };
+    });
+
+    await scenario("11", "three sort levels order every band without re-grouping it", async () => {
+      await setViewport(page, 1280, 800);
+      await setLanguage(page, "en");
+      const facts = await readWorkspace(page);
+      const levels = [
+        { columnId: "activity.total_float", direction: "asc" },
+        { columnId: "activity.name", direction: "desc" },
+        { columnId: "activity.early_finish", direction: "asc" },
+      ];
+      await openGroupSort(page);
+      await setSelect(page, "group.field.0", "wbs");
+      await setSelect(page, "group.direction.0", "asc");
+      await setSelect(page, "group.field.1", "activity_status");
+      await setSelect(page, "group.direction.1", "asc");
+      await setSelect(page, "group.field.2", "");
+      await setSelect(page, "sort.field.0", levels[0].columnId);
+      await setSelect(page, "sort.direction.0", levels[0].direction);
+      await setSelect(page, "sort.field.1", levels[1].columnId);
+      await setSelect(page, "sort.direction.1", levels[1].direction);
+      await setSelect(page, "sort.field.2", levels[2].columnId);
+      await setSelect(page, "sort.direction.2", levels[2].direction);
+      await submitOk(page);
+      const grouped = await tableState(page);
+      const statusBands = grouped.fieldBands.filter((band) => band.level === 1 && band.field === "activity_status");
+      assert(statusBands.length > 0, "the status level rendered no bands");
+      let checkedBands = 0;
+      for (const band of statusBands) {
+        const ids = bandMembers(grouped.sequence, band);
+        const expected = expectedByLevels(facts, ids, levels);
+        assert(
+          ids.join(",") === expected.join(","),
+          `band ${band.bandKey} order is ${ids.join(",")} vs ${expected.join(",")}`,
+        );
+        if (ids.length >= 2) checkedBands += 1;
+      }
+      assert(checkedBands > 0, "no multi-activity band exercised the per-level sort");
+      assert(grouped.ids.length === 14, `the sorted table shows ${grouped.ids.length} activities`);
+      assert(grouped.ganttIds.join(",") === grouped.ids.join(","), "the Gantt order differs from the per-level sort");
+      const saved = await saveLayout(page);
+      const metadata = saved.body?.metadata?.groupSort;
+      assert(metadata?.sortLevels?.length === 3, `stored sort levels ${JSON.stringify(metadata?.sortLevels)}`);
+      assert(
+        metadata.sortLevels.map((level) => `${level.columnId}:${level.direction}`).join(",")
+          === levels.map((level) => `${level.columnId}:${level.direction}`).join(","),
+        `stored sort plan ${JSON.stringify(metadata.sortLevels)}`,
+      );
+      await capture(page, "11-three-level-sort-en-1280");
+      await page.reload("#cp-activity-grid tbody tr[data-activity-id]", "reload after three-level sort save");
+      await sleep(1300);
+      const reloaded = await tableState(page);
+      assert(reloaded.ids.join(",") === grouped.ids.join(","), `reload changed the per-level sort: ${reloaded.ids.join(",")}`);
+      assert(reloaded.fieldBands.length === grouped.fieldBands.length, "reload changed the band count");
+      return { bands: statusBands.length, checkedBands, rows: reloaded.ids.length };
+    });
+
+    await scenario("12", "WBS bands follow the persisted hierarchy across a refresh", async () => {
+      await setViewport(page, 1920, 1080);
+      await setLanguage(page, "en");
+      const facts = await readWorkspace(page);
+      await openGroupSort(page);
+      await setSelect(page, "group.field.0", "wbs");
+      await setSelect(page, "group.direction.0", "asc");
+      await setSelect(page, "group.field.1", "");
+      await setSelect(page, "group.field.2", "");
+      await setSelect(page, "sort.field.0", "activity.name");
+      await setSelect(page, "sort.direction.0", "asc");
+      await setSelect(page, "sort.field.1", "");
+      await setSelect(page, "sort.field.2", "");
+      await submitOk(page);
+      const grouped = await tableState(page);
+      const dfs = wbsDfsOrder(facts);
+      const parentById = new Map(facts.wbsNodes.map((node) => [
+        node.id,
+        node.parentKind === "project" ? null : node.parentWbsId,
+      ]));
+      const withActivities = new Set();
+      for (const activity of facts.activities) {
+        let nodeId = activity.wbsId;
+        const guard = new Set();
+        while (nodeId && !guard.has(nodeId)) {
+          guard.add(nodeId);
+          withActivities.add(nodeId);
+          nodeId = parentById.get(nodeId) ?? null;
+        }
+      }
+      const expectedBandIds = dfs.filter((node) => withActivities.has(node.id)).map((node) => node.id);
+      assert(grouped.wbsBands.length > 0, "WBS grouping rendered no bands");
+      assert(
+        grouped.wbsBands.map((band) => band.wbsId).join(",") === expectedBandIds.join(","),
+        `WBS order is ${grouped.wbsBands.map((band) => band.wbsId).join(",")} vs hierarchy ${expectedBandIds.join(",")}`,
+      );
+      assert(
+        grouped.wbsBands.map((band) => band.depth).join(",") === dfs.filter((node) => withActivities.has(node.id)).map((node) => node.depth).join(","),
+        "WBS band depths do not match the persisted hierarchy",
+      );
+      assert(grouped.ids.length === 14, `the WBS table shows ${grouped.ids.length} activities`);
+      assert(grouped.ganttIds.join(",") === grouped.ids.join(","), "the Gantt order differs from the WBS hierarchy");
+      const saved = await saveLayout(page);
+      assert(saved.body?.metadata?.groupSort?.groupBy === "wbs", "the WBS plan was not stored");
+      await capture(page, "12-wbs-order-en-1920");
+      await page.reload("#cp-activity-grid tbody tr[data-activity-id]", "reload after WBS order save");
+      await sleep(1300);
+      const reloaded = await tableState(page);
+      assert(
+        reloaded.wbsBands.map((band) => band.wbsId).join(",") === expectedBandIds.join(","),
+        `refresh changed the WBS order: ${reloaded.wbsBands.map((band) => band.wbsId).join(",")}`,
+      );
+      assert(reloaded.ids.length === 14, `refresh shows ${reloaded.ids.length} activities`);
+      await capture(page, "12b-wbs-order-after-refresh-en-1920");
+      return { bands: grouped.wbsBands.length, topLevel: grouped.wbsBands.filter((band) => band.depth === 0).length };
+    });
+
+    await scenario("13", "a three-level plan stays readable in a Persian RTL cell at 1440", async () => {
+      await setViewport(page, 1440, 900);
+      await setLanguage(page, "fa");
+      await openGroupSort(page);
+      const dialog = await dialogState(page);
+      assert(dialog.groupRows === 3 && dialog.sortRows === 3, "the Persian dialog lost a group or sort row");
+      assert(dialog.groupFields[1].labels.includes("وضعیت فعالیت"), `Persian status option is missing: ${dialog.groupFields[1].labels.join("|")}`);
+      assert(dialog.groupFields[2].labels.includes("بحرانی"), `Persian critical option is missing: ${dialog.groupFields[2].labels.join("|")}`);
+      assert(dialog.groupWidths.every((width) => width >= 110), `Persian group selects are clipped to ${dialog.groupWidths.join(",")}px`);
+      await setSelect(page, "group.field.0", "wbs");
+      await setSelect(page, "group.direction.0", "asc");
+      await setSelect(page, "group.field.1", "activity_status");
+      await setSelect(page, "group.direction.1", "desc");
+      await setSelect(page, "group.field.2", "is_critical");
+      await setSelect(page, "group.direction.2", "asc");
+      await setSelect(page, "sort.field.0", "activity.name");
+      await setSelect(page, "sort.direction.0", "asc");
+      await setSelect(page, "sort.field.1", "");
+      await setSelect(page, "sort.field.2", "");
+      await capture(page, "13-dialog-three-level-fa-1440");
+      await submitOk(page);
+      const state = await tableState(page);
+      assert(state.dir === "rtl", `document direction is ${state.dir}`);
+      assert(state.overflow <= 1, `the RTL three-level table overflows by ${state.overflow}px`);
+      assert(
+        state.fieldBands.some((band) => band.level === 1) && state.fieldBands.some((band) => band.level === 2),
+        "the Persian cell lost a nested group level",
+      );
+      assert(state.ids.length === 14, `the RTL cell shows ${state.ids.length} activities`);
+      assert(state.ganttIds.join(",") === state.ids.join(","), "the Gantt order differs in the RTL cell");
+      await capture(page, "13-three-level-fa-rtl-1440");
+      return { bands: state.fieldBands.length, rows: state.ids.length, overflow: state.overflow };
     });
 
     log(`\nAll ${scenarios.length} group and sort scenarios passed`);

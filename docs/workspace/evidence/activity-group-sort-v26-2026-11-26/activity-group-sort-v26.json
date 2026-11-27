@@ -1,0 +1,167 @@
+{
+  "contract": "cubi-activity-group-sort-v26.v2",
+  "baseUrl": "http://127.0.0.1:4219",
+  "gitHead": "49255018c97ff138514d585f0a6c4ebf5b3b2725",
+  "testCodeSha": "49255018c",
+  "testedCodeSha": "49255018c",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-26T06:29:50.154Z",
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "the dialog applies an ordered sort plan and the Gantt follows it",
+      "status": "pass",
+      "at": "2026-11-26T06:29:54.274Z",
+      "rows": 14,
+      "bands": 0,
+      "order": "A210,A200,A190,A180,A160,A170,A155,A140,A145,A150,A130,A120,A110,A100"
+    },
+    {
+      "id": "02",
+      "name": "the saved layout stores the plan and a reload restores it",
+      "status": "pass",
+      "at": "2026-11-26T06:29:56.089Z",
+      "revision": 2,
+      "sortLevels": [
+        {
+          "columnId": "activity.early_start",
+          "direction": "desc"
+        },
+        {
+          "columnId": "activity.name",
+          "direction": "asc"
+        }
+      ],
+      "rows": 14
+    },
+    {
+      "id": "03",
+      "name": "WBS grouping orders activities inside each band and persists",
+      "status": "pass",
+      "at": "2026-11-26T06:29:59.526Z",
+      "bands": 7,
+      "rows": 14
+    },
+    {
+      "id": "04",
+      "name": "the dialog and a sort plan render in a Persian RTL cell",
+      "status": "pass",
+      "at": "2026-11-26T06:30:02.468Z",
+      "dialog": {
+        "title": "گروه‌بندی و ترتیب",
+        "rows": 3,
+        "overflow": 0
+      },
+      "rows": 14
+    },
+    {
+      "id": "05",
+      "name": "the grouped layout fits a 1920x1080 cell",
+      "status": "pass",
+      "at": "2026-11-26T06:30:03.509Z",
+      "rows": 14,
+      "overflow": 0
+    },
+    {
+      "id": "06",
+      "name": "Activity Status forms ordered bands that collapse independently and persist",
+      "status": "pass",
+      "at": "2026-11-26T06:30:09.513Z",
+      "bands": 3,
+      "counts": [
+        3,
+        1,
+        10
+      ],
+      "rows": 14
+    },
+    {
+      "id": "07",
+      "name": "WBS and Activity Status nest two levels with independent collapse",
+      "status": "pass",
+      "at": "2026-11-26T06:30:16.285Z",
+      "wbsBands": 7,
+      "statusBands": 9,
+      "rows": 14
+    },
+    {
+      "id": "08",
+      "name": "a field-first plan puts WBS bands inside the first field band",
+      "status": "pass",
+      "at": "2026-11-26T06:30:18.553Z",
+      "criticalBands": [
+        "Critical",
+        "Non-critical"
+      ],
+      "wbsBands": 12,
+      "rows": 14
+    },
+    {
+      "id": "09",
+      "name": "a nested plan stays readable in a Persian RTL cell at 1280",
+      "status": "pass",
+      "at": "2026-11-26T06:30:21.761Z",
+      "bands": 16,
+      "rows": 14,
+      "overflow": 0
+    },
+    {
+      "id": "10",
+      "name": "three group levels nest WBS, status and criticality and restore",
+      "status": "pass",
+      "at": "2026-11-26T06:30:27.501Z",
+      "statusBands": 9,
+      "criticalBands": 12,
+      "rows": 14
+    },
+    {
+      "id": "11",
+      "name": "three sort levels order every band without re-grouping it",
+      "status": "pass",
+      "at": "2026-11-26T06:30:33.180Z",
+      "bands": 9,
+      "checkedBands": 4,
+      "rows": 14
+    },
+    {
+      "id": "12",
+      "name": "WBS bands follow the persisted hierarchy across a refresh",
+      "status": "pass",
+      "at": "2026-11-26T06:30:38.598Z",
+      "bands": 7,
+      "topLevel": 1
+    },
+    {
+      "id": "13",
+      "name": "a three-level plan stays readable in a Persian RTL cell at 1440",
+      "status": "pass",
+      "at": "2026-11-26T06:30:42.398Z",
+      "bands": 21,
+      "rows": 14,
+      "overflow": 0
+    }
+  ],
+  "screenshots": [
+    "01-group-sort-start-desc-name-asc-en-1366.png",
+    "02-sorted-layout-after-reload-en-1366.png",
+    "03-wbs-group-name-asc-after-reload-en-1366.png",
+    "04-group-sort-fa-rtl-1280.png",
+    "05-group-sort-en-1920.png",
+    "06-activity-status-bands-after-reload-en-1366.png",
+    "07-wbs-status-nested-after-reload-en-1366.png",
+    "08-critical-then-wbs-en-1366.png",
+    "09-wbs-status-fa-rtl-1280.png",
+    "10-dialog-three-levels-en-1440.png",
+    "10b-three-level-after-reload-en-1440.png",
+    "11-three-level-sort-en-1280.png",
+    "12-wbs-order-en-1920.png",
+    "12b-wbs-order-after-refresh-en-1920.png",
+    "13-dialog-three-level-fa-1440.png",
+    "13-three-level-fa-rtl-1440.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "passed": 13,
+  "failed": 0
+}

@@ -94,6 +94,13 @@ export type GanttChartSettings = {
   showBarLabels: boolean;
   labelFontSize: number;
   labelColor: string;
+  /**
+   * Shade calendar non-working days behind the bars. This is a display switch:
+   * it never changes the calendar, the snapshot or any schedule date. The
+   * per-bar "Calendar nonwork time" setting remains the separate necking
+   * option documented for a bar's Bar Settings.
+   */
+  showCalendarNonWorkingTime: boolean;
   sightLines: GanttSightLines;
   legend: GanttLegend;
   dataDateLine: GanttDataDateLine;
@@ -291,6 +298,7 @@ const DEFAULT_GANTT: GanttChartSettings = {
   showBarLabels: true,
   labelFontSize: 10,
   labelColor: "#000000",
+  showCalendarNonWorkingTime: true,
   sightLines: { beforeSummaries: false, rowInterval: 0, minorVertical: false },
   legend: { visible: false, position: "bottom" },
   dataDateLine: { visible: true, style: "solid", thickness: 1, color: "#c00000" },
@@ -391,6 +399,7 @@ export function normalizeGanttSettings(
     showBarLabels: boolean(input.showBarLabels, fallback.showBarLabels),
     labelFontSize: clampInteger(input.labelFontSize, 8, 16, fallback.labelFontSize),
     labelColor: color(input.labelColor, fallback.labelColor),
+    showCalendarNonWorkingTime: boolean(input.showCalendarNonWorkingTime, fallback.showCalendarNonWorkingTime),
     sightLines: {
       beforeSummaries: boolean(sight.beforeSummaries, fallback.sightLines.beforeSummaries),
       rowInterval: clampInteger(sight.rowInterval, 0, 10, fallback.sightLines.rowInterval),
