@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 from decimal import Decimal
+import json
 import sqlite3
 
 import pytest
@@ -58,7 +59,11 @@ from construction_pm.relationship_master_repository import (
     RelationshipMaster,
     SQLiteRelationshipMasterRepository,
 )
-from construction_pm.scheduling.activity import ActivityStatus, ActivityStatusCode
+from construction_pm.scheduling.activity import (
+    ActivityStatus,
+    ActivityStatusCode,
+    ActivityType,
+)
 from construction_pm.scheduling.constraints import ConstraintType
 from construction_pm.scheduling.relationships import RelationshipType
 from construction_pm.scheduling.time_duration import DurationUnit
@@ -278,6 +283,9 @@ def test_copy_copies_assignments_constraints_steps_and_periods(fx: Fixture):
     assert copied_assignment.actual_units is None
     assert copied_assignment.actual_cost is None
     assert copied_assignment.remaining_units == Decimal("40")
+    # Remaining cost is also an unconsumed remainder, so a fresh copy owns the
+    # full planned cost rather than the source's residual 3000.
+    assert copied_assignment.remaining_cost == Decimal("4000")
 
     copied_periods = fx.period_values.list(SCOPE, assignment_id="AS-1-COPY")
     assert [row.activity_id for row in copied_periods] == ["A-1-COPY"]
@@ -434,3 +442,133 @@ def test_missing_activity_and_empty_selection_are_rejected(fx: Fixture):
     with pytest.raises(ActivityOperationError) as key:
         fx.run("copy", ["A-1"], key="   ")
     assert str(key.value) == "IDEMPOTENCY_KEY_REQUIRED"
+
+
+def test_copy_clears_remaining_duration_for_completed_and_in_progress_sources(fx: Fixture):
+    completed = fx.activity(
+        "A-DONE",
+        status=ActivityStatus.COMPLETED,
+        status_code=ActivityStatusCode.ACTIVE,
+        actual_start=date(2026, 1, 1),
+        actual_finish=date(2026, 1, 5),
+        percent_complete=100.0,
+        remaining_duration=0,
+    )
+    in_progress = fx.activity(
+        "A-WIP",
+        status=ActivityStatus.IN_PROGRESS,
+        actual_start=date(2026, 1, 3),
+        percent_complete=40.0,
+        remaining_duration=2,
+    )
+
+    fx.run("copy", ["A-DONE", "A-WIP"])
+
+    for new_id in ("A-DONE-COPY", "A-WIP-COPY"):
+        copied = fx.activities.get(SCOPE, new_id)
+        assert copied is not None
+        # A not-started activity has no persisted remaining work; the scheduler
+        # derives it from the preserved duration and assignment contract.
+        assert copied.remaining_duration is None
+        assert copied.actual_start is None
+        assert copied.actual_finish is None
+        assert copied.status is ActivityStatus.NOT_STARTED
+        assert copied.duration_value == Decimal("5")
+
+    # The sources keep their progress facts: a copy never rewrites them.
+    assert fx.activities.get(SCOPE, "A-DONE").remaining_duration == 0
+    assert fx.activities.get(SCOPE, "A-WIP").remaining_duration == 2
+    assert fx.activities.get(SCOPE, "A-WIP").percent_complete == 40.0
+    assert completed.remaining_duration == 0
+    assert in_progress.remaining_duration == 2
+
+
+def test_copy_clears_remaining_duration_on_a_resource_dependent_activity(fx: Fixture):
+    fx.activity(
+        "A-RD",
+        activity_type=ActivityType.RESOURCE_DEPENDENT,
+        status=ActivityStatus.COMPLETED,
+        actual_start=date(2026, 1, 1),
+        actual_finish=date(2026, 1, 5),
+        percent_complete=100.0,
+        remaining_duration=0,
+    )
+
+    fx.run("copy", ["A-RD"])
+
+    copied = fx.activities.get(SCOPE, "A-RD-COPY")
+    assert copied is not None
+    assert copied.activity_type is ActivityType.RESOURCE_DEPENDENT
+    # The persisted stale Remaining Duration (0 for completed work) is cleared;
+    # a not-started Resource Dependent activity derives its remaining duration.
+    assert copied.remaining_duration is None
+
+
+def test_delete_counts_each_relationship_row_once_when_both_endpoints_are_selected(fx: Fixture):
+    for activity_id in ("A-1", "A-2", "A-3"):
+        fx.activity(activity_id)
+    # Two parallel relationships between the selected pair, one outgoing and
+    # one incoming external relationship. All four rows touch the selection,
+    # but only four rows exist: the confirmation must not count R-1 and R-2
+    # twice for matching both endpoints.
+    for relationship_id, predecessor, successor in (
+        ("R-1", "A-1", "A-2"),
+        ("R-2", "A-1", "A-2"),
+        ("R-3", "A-2", "A-3"),
+        ("R-4", "A-3", "A-1"),
+    ):
+        fx.relationships.save(
+            RelationshipMaster(
+                scope=SCOPE,
+                relationship_id=relationship_id,
+                predecessor_id=predecessor,
+                successor_id=successor,
+            )
+        )
+
+    with pytest.raises(ActivityOperationError) as confirmation:
+        fx.run("delete", ["A-1", "A-2"])
+
+    code, _, detail = str(confirmation.value).partition(":")
+    assert code == "P6_ACTIVITY_DELETE_CONFIRMATION_REQUIRED"
+    counts = json.loads(detail)
+    assert counts["relationships"] == 4
+    # Nothing was removed while confirmation was pending.
+    assert fx.relationships.get(SCOPE, "R-1") is not None
+
+    result = fx.run(
+        "delete",
+        ["A-1", "A-2"],
+        key="delete-both",
+        confirm_dependencies=True,
+    )
+
+    assert result["deleted"] == ["A-1", "A-2"]
+    assert result["deleted_count"] == 2
+    # The returned cascade count is the number of rows actually removed, not
+    # the last endpoint pass.
+    assert result["removed_rows"]["relationship_master"] == 4
+    assert fx.relationships.get(SCOPE, "R-1") is None
+    assert fx.relationships.get(SCOPE, "R-4") is None
+    # The external activity survives untouched.
+    assert fx.activities.get(SCOPE, "A-3") is not None
+
+    audit = fx.api.audit_trail(SCOPE)
+    assert audit[0]["operation"] == "delete"
+    assert audit[0]["detail"]["removed_rows"]["relationship_master"] == 4
+
+
+def test_confirmation_flag_must_be_a_real_boolean(fx: Fixture):
+    fx.activity("A-1")
+    for value in ("false", "true", 0, 1, None):
+        with pytest.raises(ActivityOperationError) as rejected:
+            fx.api.execute(
+                SCOPE,
+                "delete",
+                ["A-1"],
+                auth_context=fx.context("planner"),
+                idempotency_key=f"bool-{value}",
+                confirm_dependencies=value,  # type: ignore[arg-type]
+            )
+        assert str(rejected.value) == "P6_ACTIVITY_CONFIRM_DEPENDENCIES_INVALID"
+    assert fx.activities.get(SCOPE, "A-1") is not None

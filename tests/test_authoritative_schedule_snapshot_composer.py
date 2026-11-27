@@ -10,7 +10,10 @@ import sqlite3
 import pytest
 
 from construction_pm.activity_master_repository import SQLiteActivityMasterRepository
-from construction_pm.application.authorization import default_project_policy
+from construction_pm.application.authorization import (
+    AuthorizationContext,
+    default_project_policy,
+)
 from construction_pm.application.project_lifecycle import AuthenticatedSession, ProjectDefaultsApplicationEvent, ProjectLifecycleService, ProjectSummary
 from construction_pm.application.project_lifecycle_api import ProjectLifecycleAPI
 from construction_pm.authoritative_schedule_input_composer import (
@@ -32,6 +35,10 @@ from construction_pm.calendar_work_hours_repository import SQLiteCalendarWorkHou
 from construction_pm.constraint_master_repository import ConstraintMaster, SQLiteConstraintMasterRepository
 from construction_pm.scheduling.constraints import ConstraintType
 from construction_pm.http.production_composition import build_project_lifecycle_wsgi_app
+from construction_pm.p6_activity_operations import (
+    ActivityOperationStore,
+    P6ActivityOperationAPI,
+)
 from construction_pm.p6_resource_assignment_repository import (
     P6ResourceAssignment,
     P6ResourceAssignmentApplicationService,
@@ -2836,3 +2843,125 @@ def test_deleted_project_calendar_blocks_publication_instead_of_rebinding(tmp_pa
     assert status.startswith("400")
     assert str(error["code"]).startswith("CALENDAR_VERSION_NOT_FOUND")
     fixture["connection"].close()
+
+
+def test_copied_resource_dependent_activity_publishes_without_remaining_duration_conflict(tmp_path):
+    """A copied progressed-origin activity schedules from its cleared progress.
+
+    The persisted Remaining Duration of the source must never survive a copy:
+    a not-started Resource Dependent activity is validated against the duration
+    derived from its assignment contract, so a stale partial/zero value would
+    make the copied activity unschedulable.
+    """
+
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    connection = fixture["connection"]
+    scope = fixture["scope"]
+
+    status, _ = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activities",
+        {
+            "contract_version": "p6-activity-master-api.v1",
+            "activity_id": "RD-NS",
+            "name": "Resource dependent work",
+            "duration_value": "5",
+            "duration_unit": DurationUnit.WORKING_DAY.value,
+            "percent_complete_type": "DURATION",
+            "activity_type": ActivityType.RESOURCE_DEPENDENT.value,
+            "status": ActivityStatus.NOT_STARTED.value,
+            "status_code": ActivityStatusCode.PLANNED.value,
+            "original_duration": 5,
+            "wbs_id": "W-ROOT",
+        },
+    )
+    assert status == "201 Created"
+
+    fixture["resource_assignments"].upsert(
+        P6ResourceAssignment(
+            scope=scope,
+            assignment_id="RD-NS-AS",
+            activity_id="RD-NS",
+            resource_id="RD-NS-RES",
+            units=Decimal("20"),
+            unit="labor-unit",
+            calendar_id="RC-1",
+            calendar_version="v1",
+            is_driving=True,
+            units_per_time=Decimal("4"),
+            units_per_time_period="day",
+            hours_per_units_time_period=Decimal("8"),
+        )
+    )
+    for day in ("19", "20", "21", "22", "23"):
+        fixture["resource_periods"].upsert(
+            P6ResourceAssignmentPeriodValue(
+                scope=scope,
+                assignment_id="RD-NS-AS",
+                activity_id="RD-NS",
+                resource_id="RD-NS-RES",
+                period_start=f"2026-10-{day}",
+                units=Decimal("4"),
+                cost=Decimal("0"),
+            )
+        )
+    connection.commit()
+
+    settings_status, _ = _save_settings(app, project_start=date(2026, 10, 19))
+    assert settings_status == "201 Created"
+
+    store = ActivityOperationStore(connection, placeholder="?")
+    store.initialize()
+    operations = P6ActivityOperationAPI(
+        activity_repository=fixture["activity_repo"],
+        wbs_repository=fixture["wbs_repo"],
+        store=store,
+        authorization_policy=default_project_policy(),
+        transaction_manager=SQLiteTransactionManager(connection),
+    )
+    copied = operations.execute(
+        scope,
+        "copy",
+        ["RD-NS"],
+        auth_context=AuthorizationContext(
+            tenant_id=scope.tenant_id,
+            project_id=scope.project_id,
+            user_id="u1",
+            roles=frozenset({"project_admin"}),
+        ),
+        idempotency_key="copy-rd-1",
+    )
+    assert copied["created"] == [
+        {"source_activity_id": "RD-NS", "activity_id": "RD-NS-COPY"}
+    ]
+    stored_copy = fixture["activity_repo"].get(scope, "RD-NS-COPY")
+    assert stored_copy is not None
+    assert stored_copy.remaining_duration is None
+    copied_assignment = fixture["resource_assignments"].get(scope, "RD-NS-AS-COPY")
+    assert copied_assignment is not None
+    assert copied_assignment.actual_units is None
+    assert copied_assignment.remaining_units == Decimal("20")
+
+    publication_status, published = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/schedule/snapshots",
+        {
+            "contract_version": "p6-schedule-snapshot-api.v1",
+            "timezone": "UTC",
+        },
+    )
+    assert publication_status == "201 Created", published
+
+    snapshot = fixture["snapshot_repo"].get(scope, published["snapshot_id"])
+    assert snapshot is not None
+    materialized = materialize_schedule_snapshot(snapshot, fixture["registry"])
+    copy_input = next(
+        item for item in materialized.schedule_input.activities if item.id == "RD-NS-COPY"
+    )
+    assert copy_input.duration == 5
+    assert copy_input.remaining_duration is None
+    assert copy_input.actual_start is None
+    assert copy_input.percent_complete == 0.0

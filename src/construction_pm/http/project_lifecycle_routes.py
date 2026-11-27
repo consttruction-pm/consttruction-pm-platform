@@ -2339,6 +2339,17 @@ class ProjectLifecycleHttpRoutes:
                     activity_ids = payload.get("activity_ids")
                     if activity_ids is None:
                         activity_ids = []
+                    # A delete cascade may only be confirmed by a real JSON
+                    # boolean. Truthiness would accept "false", "0" or 1 and
+                    # bypass the required second confirmation.
+                    if "confirm_dependencies" in payload:
+                        confirm_dependencies = payload["confirm_dependencies"]
+                        if not isinstance(confirm_dependencies, bool):
+                            raise ValueError(
+                                "P6_ACTIVITY_CONFIRM_DEPENDENCIES_INVALID"
+                            )
+                    else:
+                        confirm_dependencies = False
                     result = self._p6_activity_operation_api.execute(
                         scope,
                         payload.get("operation"),
@@ -2346,9 +2357,7 @@ class ProjectLifecycleHttpRoutes:
                         auth_context=auth,
                         idempotency_key=request_headers.get("Idempotency-Key", ""),
                         target_wbs_id=payload.get("target_wbs_id"),
-                        confirm_dependencies=bool(
-                            payload.get("confirm_dependencies", False)
-                        ),
+                        confirm_dependencies=confirm_dependencies,
                         expected_revisions=payload.get("expected_revisions"),
                         now=now,
                     )

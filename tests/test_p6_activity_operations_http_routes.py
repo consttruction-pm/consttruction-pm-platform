@@ -220,6 +220,42 @@ def test_viewer_receives_forbidden():
     assert activities.get(SCOPE, "A-1-COPY") is None
 
 
+def test_project_admin_session_is_allowed_to_copy():
+    # The project_admin grant comes from the server-issued session roles, not
+    # from anything the browser sends.
+    app, activities, _, _ = _app(role="project_admin")
+    status, body = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activity-operations",
+        _payload("copy", ["A-1"]),
+    )
+    assert status == "200 OK"
+    assert body["created"][0]["activity_id"] == "A-1-COPY"
+    assert activities.get(SCOPE, "A-1-COPY") is not None
+
+
+def test_request_body_claims_cannot_elevate_a_viewer():
+    # Hiding a button in the frontend is not a permission, and neither is a
+    # claim inside the payload: only the authenticated session roles count.
+    app, activities, _, _ = _app(role="viewer")
+    status, body = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activity-operations",
+        _payload(
+            "copy",
+            ["A-1"],
+            roles=["global_admin", "project_admin"],
+            is_admin=True,
+            user_id="u-admin",
+        ),
+    )
+    assert status == "403 Forbidden"
+    assert body["code"].startswith("AUTHORIZATION")
+    assert activities.get(SCOPE, "A-1-COPY") is None
+
+
 def test_delete_blocked_and_confirmation_details_are_returned():
     app, activities, connection, relationships = _app()
     connection.execute(
@@ -288,3 +324,54 @@ def test_unknown_operation_and_method_are_rejected():
     status, body = _request(app, "GET", path)
     assert status == "404 Not Found"
     assert body["code"] == "ROUTE_NOT_FOUND"
+
+
+def test_confirm_dependencies_rejects_non_boolean_json_values():
+    app, activities, connection, relationships = _app()
+    activities.save(
+        ActivityMaster(
+            scope=SCOPE,
+            activity_id="A-2",
+            duration_value=Decimal("3"),
+            duration_unit=DurationUnit.WORKING_DAY,
+            name="A-2",
+            wbs_id="W-ROOT",
+        )
+    )
+    relationships.save(
+        RelationshipMaster(
+            scope=SCOPE,
+            relationship_id="R-1",
+            predecessor_id="A-1",
+            successor_id="A-2",
+        )
+    )
+    path = "/api/projects/p1/p6/activity-operations"
+
+    for index, value in enumerate(("false", "true", 0, 1, None)):
+        status, body = _request(
+            app,
+            "POST",
+            path,
+            _payload("delete", ["A-1"], confirm_dependencies=value),
+            idempotency_key=f"invalid-bool-{index}",
+        )
+        assert status == "400 Bad Request", (value, status, body)
+        assert body["code"] == "P6_ACTIVITY_CONFIRM_DEPENDENCIES_INVALID"
+        # Malformed input must never reach the cascade.
+        assert activities.get(SCOPE, "A-1") is not None
+        assert relationships.get(SCOPE, "R-1") is not None
+
+    # An explicit JSON false is accepted and still requires the second step.
+    status, pending = _request(
+        app,
+        "POST",
+        path,
+        _payload("delete", ["A-1"], confirm_dependencies=False),
+        idempotency_key="explicit-false",
+    )
+    assert status == "409 Conflict"
+    assert pending["code"] == "P6_ACTIVITY_DELETE_CONFIRMATION_REQUIRED"
+    assert pending["details"]["relationships"] == 1
+    assert activities.get(SCOPE, "A-1") is not None
+    assert relationships.get(SCOPE, "R-1") is not None

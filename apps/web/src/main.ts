@@ -1,5 +1,9 @@
 import { FetchApiTransport, type ProjectContext } from "./client.js";
 import {
+  ActivityOperationJournal,
+  runActivityOperation,
+} from "./activity-operation-idempotency.js";
+import {
   createP6FieldRegistryProvider,
   createP6LayoutPersistence,
   loadP6DefaultLayout,
@@ -253,6 +257,12 @@ let pendingAdminTab: "preferences" | "dictionaries" | "matrix" | "periods" | nul
  */
 type ActivityClipboard = { mode: "copy" | "cut"; projectId: string; activityIds: readonly string[] };
 let activityClipboard: ActivityClipboard | null = null;
+/**
+ * The key of a paste/delete whose server outcome may still be unknown. A retry
+ * of the same clipboard operation reuses it so a lost response cannot create a
+ * second set of activities.
+ */
+const activityOperationJournal = new ActivityOperationJournal();
 /** Progress edits re-render the workspace; keep the edited activity selected. */
 let progressSelection: string | null = null;
 
@@ -1906,11 +1916,6 @@ function renderApp(
   };
   const activityOperationMessage = (en: string, fa: string): string =>
     translateWorkspaceUiText(state.locale, en, fa);
-  const newIdempotencyKey = (): string => {
-    const cryptoApi = globalThis.crypto;
-    if (cryptoApi && typeof cryptoApi.randomUUID === "function") return cryptoApi.randomUUID();
-    return `activity-op-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  };
   /**
    * Read the current record revision of each selected activity from the
    * authoritative Activity Master before a write. The grid is a projection and
@@ -1937,6 +1942,7 @@ function renderApp(
   };
   type ActivityOperationResult = {
     operation: string;
+    replayed?: boolean;
     created?: Array<{ source_activity_id: string; activity_id: string }>;
     moved?: string[];
     deleted?: string[];
@@ -1950,24 +1956,30 @@ function renderApp(
     activityIds: readonly string[],
     options: { targetWbsId?: string | null; confirmDependencies?: boolean } = {},
   ) => {
-    const expected = await loadActivityRevisions(activityIds);
-    const response = await aiTransport.post<
-      Record<string, unknown>,
-      ActivityOperationResult
-    >(
-      `/api/projects/${encodeURIComponent(state.context.project_id)}/p6/activity-operations`,
-      {
-        contract_version: "p6-activity-operations.v1",
+    // The journal owns the Idempotency-Key and the revisions armed with it. A
+    // retry after a lost response replays the committed result instead of
+    // copying the same activities a second time.
+    const run = await runActivityOperation<ActivityOperationResult>({
+      journal: activityOperationJournal,
+      input: {
+        projectId: state.context.project_id,
         operation,
-        activity_ids: [...activityIds],
-        target_wbs_id: options.targetWbsId ?? null,
-        confirm_dependencies: Boolean(options.confirmDependencies),
-        expected_revisions: expected,
+        activityIds,
+        targetWbsId: options.targetWbsId ?? null,
+        confirmDependencies: options.confirmDependencies === true,
       },
-      state.context,
-      newIdempotencyKey(),
-    );
-    return response;
+      loadExpectedRevisions: (ids) => loadActivityRevisions(ids),
+      send: (pending, request) => aiTransport.post<
+        Record<string, unknown>,
+        ActivityOperationResult
+      >(
+        `/api/projects/${encodeURIComponent(state.context.project_id)}/p6/activity-operations`,
+        request,
+        state.context,
+        pending.key,
+      ),
+    });
+    return run.response;
   };
   const reportActivityOperationError = (error: { code: string; details?: unknown }): void => {
     const details = (error.details ?? {}) as Record<string, unknown>;
@@ -2300,6 +2312,10 @@ function renderApp(
         const ids = selectedActivityIdList(state);
         if (!ids.length) return;
         const mode = command === "edit.cut" ? "cut" : "copy";
+        // A new clipboard operation explicitly abandons any earlier paste whose
+        // outcome was still uncertain; the old key must not be reused for a
+        // different selection.
+        activityOperationJournal.cancel();
         activityClipboard = { mode, projectId: state.context.project_id, activityIds: [...ids] };
         renderApp(container, state, persistence);
         const count = ids.length;

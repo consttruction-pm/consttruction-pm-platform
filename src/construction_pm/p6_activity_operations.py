@@ -229,10 +229,29 @@ class ActivityOperationStore:
         ).fetchone()
         return int(row[0]) if row is not None else 0
 
+    def _count_relationship_rows(self, scope: BackendScope, ids: tuple[str, ...]) -> int:
+        """Count relationship rows once even when both endpoints are selected.
+
+        A relationship between two selected activities matches both the
+        predecessor and the successor test. Counting the two endpoint queries
+        separately would report two cascaded rows for a single relationship,
+        so the distinct row identity is counted in one scope-bound query.
+        """
+
+        if not ids or not self._table_exists("relationship_master"):
+            return 0
+        marks = ",".join(self.p for _ in ids)
+        row = self.connection.execute(
+            "SELECT count(DISTINCT relationship_id) FROM relationship_master "
+            f"WHERE tenant_id={self.p} AND project_id={self.p} "
+            f"AND (predecessor_id IN ({marks}) OR successor_id IN ({marks}))",
+            (scope.tenant_id, scope.project_id, *ids, *ids),
+        ).fetchone()
+        return int(row[0]) if row is not None else 0
+
     def dependency_counts(self, scope: BackendScope, activity_ids: tuple[str, ...]) -> dict[str, int]:
         counts = {
-            "relationships": self._count(scope, "relationship_master", "predecessor_id", activity_ids)
-            + self._count(scope, "relationship_master", "successor_id", activity_ids),
+            "relationships": self._count_relationship_rows(scope, activity_ids),
             "assignments": self._count(scope, "p6_resource_assignment", "activity_id", activity_ids),
             "constraints": self._count(scope, "constraint_master", "activity_id", activity_ids),
             "calendar_assignments": self._count(scope, "activity_calendar_assignment", "activity_id", activity_ids),
@@ -345,6 +364,15 @@ class ActivityOperationStore:
                     # A copy has consumed nothing yet, so the remaining demand
                     # returns to the planned units.
                     values.append(row[shift["units"]] if "units" in shift else None)
+                elif column == "remaining_cost" and reset_actuals:
+                    # Remaining cost is the unconsumed part of the planned
+                    # contract; a copy has consumed nothing, so it equals the
+                    # planned cost instead of the source's residual value.
+                    values.append(
+                        row[shift["planned_cost"]]
+                        if "planned_cost" in shift
+                        else row[shift["remaining_cost"]]
+                    )
                 elif column == "record_revision" and id_column is not None:
                     # A freshly inserted related row starts at revision 1.
                     values.append(1)
@@ -410,7 +438,12 @@ class ActivityOperationStore:
                 f"AND {column} IN ({marks})",
                 (scope.tenant_id, scope.project_id, *activity_ids),
             )
-            removed[table] = int(getattr(cursor, "rowcount", 0) or 0)
+            # relationship_master is cascaded from both endpoints; when the
+            # selection contains both, the second pass removes nothing. The
+            # per-table total is the sum of the passes, never the last one.
+            removed[table] = removed.get(table, 0) + int(
+                getattr(cursor, "rowcount", 0) or 0
+            )
         return removed
 
     def delete_activity_rows(self, scope: BackendScope, activity_ids: tuple[str, ...],
@@ -529,6 +562,13 @@ class P6ActivityOperationAPI:
         key = idempotency_key.strip()
         selection = _validate_selection(activity_ids)
         revisions = _validate_expected_revisions(expected_revisions)
+        # The cascade confirmation is a security boundary, not a truthy flag.
+        # Reject 0/1 and string values so a caller cannot implicitly confirm a
+        # dependent delete through coarse coercion.
+        if not isinstance(confirm_dependencies, bool):
+            raise ActivityOperationError(
+                "P6_ACTIVITY_CONFIRM_DEPENDENCIES_INVALID"
+            )
         if operation == "move":
             if not isinstance(target_wbs_id, str) or not target_wbs_id.strip():
                 raise ActivityOperationError("P6_ACTIVITY_TARGET_WBS_REQUIRED")
@@ -647,12 +687,23 @@ class P6ActivityOperationAPI:
         created: list[dict[str, str]] = []
         for source in sources:
             new_id = _allocate_suffixed(source.activity_id, taken_activities)
+            # A copy is a new, not-started activity. Progress facts (actual
+            # dates, percent complete, status and the persisted Remaining
+            # Duration) describe the source and must not survive the copy: the
+            # schedule input composer validates a not-started Resource
+            # Dependent activity's persisted Remaining Duration against its
+            # derived full duration, so carrying the source's partial or zero
+            # value would make the copied activity unschedulable. The canonical
+            # not-started representation leaves Remaining Duration unset and
+            # lets the scheduler derive it from the preserved planned duration
+            # and assignment contract.
             candidate = replace(
                 source,
                 activity_id=new_id,
                 record_revision=0,
                 actual_start=None,
                 actual_finish=None,
+                remaining_duration=None,
                 remaining_start=None,
                 percent_complete=0.0,
                 status=type(source.status).NOT_STARTED,

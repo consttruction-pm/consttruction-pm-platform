@@ -18,6 +18,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from datetime import date, datetime, timezone
 from decimal import Decimal
+import json
 import os
 import uuid
 
@@ -315,3 +316,37 @@ def test_delete_requires_confirmation_and_cascades_with_audit(live):
     assert assignment_reader.get(SCOPE, "AS-1") is None
     # A-2 survives; only the selected activity was removed.
     assert activities.get(SCOPE, "A-2") is not None
+
+
+def test_delete_both_relationship_endpoints_counts_the_row_once(live):
+    connection, _ = live
+    api, activities, relationships = _seed(connection)
+
+    with pytest.raises(ActivityOperationError) as unconfirmed:
+        api.execute(
+            SCOPE,
+            "delete",
+            ["A-1", "A-2"],
+            auth_context=_context("planner"),
+            idempotency_key="live-del-both-0",
+        )
+    code, _, detail = str(unconfirmed.value).partition(":")
+    assert code == "P6_ACTIVITY_DELETE_CONFIRMATION_REQUIRED"
+    # R-1 connects the two selected activities, so it matches both endpoint
+    # tests but is still one row to cascade.
+    assert json.loads(detail)["relationships"] == 1
+
+    result = api.execute(
+        SCOPE,
+        "delete",
+        ["A-1", "A-2"],
+        auth_context=_context("planner"),
+        idempotency_key="live-del-both-1",
+        confirm_dependencies=True,
+        now=datetime(2026, 11, 26, 14, 0, tzinfo=timezone.utc),
+    )
+    assert result["deleted"] == ["A-1", "A-2"]
+    assert result["removed_rows"]["relationship_master"] == 1
+    assert relationships.get(SCOPE, "R-1") is None
+    audit = api.audit_trail(SCOPE)
+    assert audit[0]["detail"]["removed_rows"]["relationship_master"] == 1
