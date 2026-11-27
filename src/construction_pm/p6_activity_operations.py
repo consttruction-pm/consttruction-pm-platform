@@ -28,7 +28,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from contextlib import AbstractContextManager, nullcontext
 from dataclasses import dataclass, replace
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 import hashlib
 import json
@@ -45,6 +45,13 @@ from .application.authorization import (
 from .backend_p0.models import BackendScope
 from .backend_p0.transactions import TransactionManager
 from .project_checkout import ProjectCheckoutLease, require_project_write_ownership
+from .scheduling.activity import ActivityType
+from .scheduling.resource_dependent import (
+    ResourceDependentCalculationError,
+    ResourceDependentDemandPeriod,
+    ResourceDependentDriverFact,
+    validate_resource_dependent_demand_distribution,
+)
 from .wbs_master_repository import WBSMasterRepository
 
 P6_ACTIVITY_OPERATIONS_API_VERSION = "p6-activity-operations.v1"
@@ -88,6 +95,23 @@ class ActivityOperationError(ValueError):
 
 def _iso(value: datetime) -> str:
     return value.astimezone(timezone.utc).isoformat()
+
+
+def _as_decimal(value: Any) -> Decimal | None:
+    """Read a stored numeric column without inventing a value.
+
+    Persisted unit/rate columns are text in SQLite and text/Decimal in
+    PostgreSQL; anything that is not a finite number stays unknown so callers
+    can fail closed instead of guessing.
+    """
+
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        result = Decimal(str(value))
+    except (ArithmeticError, ValueError):
+        return None
+    return result if result.is_finite() else None
 
 
 def _json_safe(value: Any) -> Any:
@@ -387,8 +411,99 @@ class ActivityOperationStore:
             )
         return copied
 
-    def copy_period_values(self, scope: BackendScope, mapping: Mapping[str, str],
-                           assignment_mapping: Mapping[str, str]) -> int:
+    def _assignment_contracts(
+        self, scope: BackendScope, assignment_ids: tuple[str, ...]
+    ) -> dict[str, dict[str, Any]]:
+        if not assignment_ids or not self._table_exists("p6_resource_assignment"):
+            return {}
+        marks = ",".join(self.p for _ in assignment_ids)
+        cursor = self.connection.execute(
+            "SELECT assignment_id,activity_id,resource_id,unit,units,units_per_time,"
+            "units_per_time_period,hours_per_units_time_period,is_driving,"
+            "actual_units,remaining_units,calendar_id,calendar_version "
+            "FROM p6_resource_assignment "
+            f"WHERE tenant_id={self.p} AND project_id={self.p} "
+            f"AND assignment_id IN ({marks})",
+            (scope.tenant_id, scope.project_id, *assignment_ids),
+        )
+        columns = [item[0] for item in (cursor.description or ())]
+        return {str(row[0]): dict(zip(columns, row)) for row in cursor.fetchall()}
+
+    def _ensure_copied_demand_reconciles(
+        self,
+        scope: BackendScope,
+        progressed_demand_activity_ids: frozenset[str],
+        periods_by_assignment: Mapping[str, tuple[ResourceDependentDemandPeriod, ...]],
+    ) -> None:
+        """Refuse to publish a progressed Resource Dependent demand profile as-is.
+
+        A progressed assignment's persisted rows are *remaining* demand, while
+        a copy owns the full planned contract (Actual units cleared, Remaining
+        units reset to Planned). Copying those rows unchanged would create an
+        activity that the schedule input composer rejects with a
+        count/units mismatch. CUBI has no canonical calendar-aware planned
+        demand spreader, and inventing one here would be a parallel engine, so
+        the operation fails closed with a stable code instead of silently
+        producing an unschedulable copy. The same shared validator the
+        composer uses decides whether the rows already reconcile.
+        """
+
+        if not progressed_demand_activity_ids or not periods_by_assignment:
+            return
+        contracts = self._assignment_contracts(scope, tuple(periods_by_assignment))
+        for assignment_id, periods in periods_by_assignment.items():
+            contract = contracts.get(assignment_id)
+            if contract is None:
+                continue
+            activity_id = str(contract["activity_id"])
+            if activity_id not in progressed_demand_activity_ids:
+                continue
+            planned = _as_decimal(contract.get("units"))
+            rate = _as_decimal(contract.get("units_per_time"))
+            actual_units = _as_decimal(contract.get("actual_units"))
+            remaining_units = _as_decimal(contract.get("remaining_units"))
+            progressed = actual_units is not None or (
+                remaining_units is not None and remaining_units != planned
+            )
+            if not progressed:
+                continue
+            if planned is None or rate is None or rate <= 0:
+                raise ActivityOperationError(
+                    "P6_ACTIVITY_COPY_PROGRESS_DEMAND_UNSUPPORTED:"
+                    f"{activity_id}:{assignment_id}:RATE_OR_PLANNED_UNITS_MISSING"
+                )
+            fact = ResourceDependentDriverFact(
+                assignment_id=assignment_id,
+                activity_id=activity_id,
+                resource_id=str(contract.get("resource_id") or ""),
+                calendar_id=contract.get("calendar_id"),
+                calendar_version=contract.get("calendar_version"),
+                unit_of_measure=contract.get("unit"),
+                planned_units=planned,
+                is_driving=bool(contract.get("is_driving")),
+                units_per_time=rate,
+                units_per_time_period=contract.get("units_per_time_period"),
+                hours_per_units_time_period=_as_decimal(
+                    contract.get("hours_per_units_time_period")
+                ),
+                demand_periods=periods,
+            )
+            try:
+                validate_resource_dependent_demand_distribution(fact)
+            except ResourceDependentCalculationError as exc:
+                raise ActivityOperationError(
+                    "P6_ACTIVITY_COPY_PROGRESS_DEMAND_UNSUPPORTED:"
+                    f"{activity_id}:{assignment_id}:{exc}"
+                ) from exc
+
+    def copy_period_values(
+        self,
+        scope: BackendScope,
+        mapping: Mapping[str, str],
+        assignment_mapping: Mapping[str, str],
+        *,
+        progressed_demand_activity_ids: frozenset[str] = frozenset(),
+    ) -> int:
         if not assignment_mapping or not self._table_exists("p6_resource_assignment_period_value"):
             return 0
         old_ids = tuple(assignment_mapping)
@@ -403,6 +518,30 @@ class ActivityOperationStore:
         if not rows or not columns:
             return 0
         shift = {column: index for index, column in enumerate(columns)}
+        periods_by_assignment: dict[str, list[ResourceDependentDemandPeriod]] = {}
+        for row in rows:
+            source_assignment = str(row[shift["assignment_id"]])
+            try:
+                period_start = date.fromisoformat(str(row[shift["period_start"]]))
+                units = Decimal(str(row[shift["units"]]))
+            except (TypeError, ValueError, ArithmeticError) as exc:
+                raise ActivityOperationError(
+                    "P6_ACTIVITY_COPY_PERIOD_VALUE_INVALID:"
+                    f"{row[shift['activity_id']]}:{source_assignment}"
+                ) from exc
+            periods_by_assignment.setdefault(source_assignment, []).append(
+                ResourceDependentDemandPeriod(period_start, units)
+            )
+        self._ensure_copied_demand_reconciles(
+            scope,
+            progressed_demand_activity_ids,
+            {
+                assignment_id: tuple(
+                    sorted(periods, key=lambda item: item.period_start)
+                )
+                for assignment_id, periods in periods_by_assignment.items()
+            },
+        )
         created = 0
         for row in rows:
             source_activity = str(row[shift["activity_id"]])
@@ -753,7 +892,16 @@ class P6ActivityOperationAPI:
             ),
             reset_actuals=True,
         )
-        period_values = self.store.copy_period_values(scope, mapping, assignments)
+        period_values = self.store.copy_period_values(
+            scope,
+            mapping,
+            assignments,
+            progressed_demand_activity_ids=frozenset(
+                source.activity_id
+                for source in sources
+                if source.activity_type is ActivityType.RESOURCE_DEPENDENT
+            ),
+        )
 
         related: dict[str, int] = {}
         for table, id_column, activity_column in _COPY_TABLES:

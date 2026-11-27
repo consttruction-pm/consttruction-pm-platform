@@ -56,6 +56,7 @@ from construction_pm.p6_activity_step_repository import (  # noqa: E402
 )
 from construction_pm.p6_resource_assignment_repository import (  # noqa: E402
     P6ResourceAssignment,
+    P6ResourceAssignmentPeriodValue,
     PostgresP6ResourceAssignmentPeriodRepository,
     PostgresP6ResourceAssignmentRepository,
 )
@@ -66,6 +67,7 @@ from construction_pm.relationship_master_repository import (  # noqa: E402
 from construction_pm.scheduling.activity import (  # noqa: E402
     ActivityStatus,
     ActivityStatusCode,
+    ActivityType,
 )
 from construction_pm.scheduling.relationships import RelationshipType  # noqa: E402
 from construction_pm.scheduling.time_duration import DurationUnit  # noqa: E402
@@ -350,3 +352,77 @@ def test_delete_both_relationship_endpoints_counts_the_row_once(live):
     assert relationships.get(SCOPE, "R-1") is None
     audit = api.audit_trail(SCOPE)
     assert audit[0]["detail"]["removed_rows"]["relationship_master"] == 1
+
+
+def test_progressed_resource_dependent_copy_is_refused_without_writing(live):
+    connection, _ = live
+    api, activities, _ = _seed(connection)
+    # A progressed Resource Dependent activity whose time-phased demand only
+    # describes the remaining contract. Copying it resets progress but the
+    # demand rows cannot be re-spread from a calendar, so the operation must
+    # fail closed instead of writing a copy the composer would reject.
+    activities.save(
+        ActivityMaster(
+            scope=SCOPE,
+            activity_id="A-RD",
+            duration_value=Decimal("5"),
+            duration_unit=DurationUnit.WORKING_DAY,
+            name="A-RD",
+            wbs_id="W-ROOT",
+            activity_type=ActivityType.RESOURCE_DEPENDENT,
+            status=ActivityStatus.IN_PROGRESS,
+            status_code=ActivityStatusCode.ACTIVE,
+            percent_complete=40.0,
+            actual_start=date(2026, 1, 2),
+        )
+    )
+    assignments = PostgresP6ResourceAssignmentRepository(connection)
+    assignments.upsert(
+        P6ResourceAssignment(
+            scope=SCOPE,
+            assignment_id="AS-RD",
+            activity_id="A-RD",
+            resource_id="RES-RD",
+            units=Decimal("20"),
+            actual_units=Decimal("8"),
+            remaining_units=Decimal("12"),
+            units_per_time=Decimal("4"),
+            units_per_time_period="day",
+            hours_per_units_time_period=Decimal("8"),
+        )
+    )
+    periods = PostgresP6ResourceAssignmentPeriodRepository(connection)
+    for period_start in ("2026-01-05", "2026-01-06", "2026-01-07"):
+        periods.upsert(
+            P6ResourceAssignmentPeriodValue(
+                scope=SCOPE,
+                assignment_id="AS-RD",
+                activity_id="A-RD",
+                resource_id="RES-RD",
+                period_start=period_start,
+                units=Decimal("4"),
+                cost=Decimal("0"),
+            )
+        )
+    connection.commit()
+
+    with pytest.raises(ActivityOperationError) as refused:
+        api.execute(
+            SCOPE,
+            "copy",
+            ["A-RD"],
+            auth_context=_context("planner"),
+            idempotency_key="live-rd-copy",
+            now=datetime(2026, 11, 26, 15, 0, tzinfo=timezone.utc),
+        )
+    assert str(refused.value).startswith(
+        "P6_ACTIVITY_COPY_PROGRESS_DEMAND_UNSUPPORTED:"
+    )
+
+    # The atomic transaction left no partial copy behind.
+    assert activities.get(SCOPE, "A-RD-COPY") is None
+    assignment_reader = PostgresP6ResourceAssignmentRepository(connection)
+    assert assignment_reader.get(SCOPE, "AS-RD-COPY") is None
+    assert periods.list(SCOPE, assignment_id="AS-RD-COPY") == ()
+    # The source demand is untouched.
+    assert len(periods.list(SCOPE, assignment_id="AS-RD")) == 3

@@ -2025,6 +2025,9 @@ function renderApp(
     } else if (error.code === "P6_ACTIVITY_TARGET_WBS_REQUIRED" || error.code === "P6_ACTIVITY_TARGET_WBS_NOT_FOUND") {
       en = "Select a valid WBS element before pasting a cut activity.";
       fa = "پیش از چسباندن فعالیت برش‌خورده، یک عنصر WBS معتبر انتخاب کنید.";
+    } else if (error.code.startsWith("P6_ACTIVITY_COPY_PROGRESS_DEMAND_UNSUPPORTED")) {
+      en = "This copied activity carries progressed resource demand that cannot be re-spread without re-planning it. Copy is refused so the new activity is not left unschedulable.";
+      fa = "فعالیت کپی‌شده تقاضای منبع دارای پیشرفت دارد که بدون بازبرنامه‌ریزی قابل بازتوزیع نیست. برای اینکه فعالیت جدید غیرقابل‌زمان‌بندی نماند، کپی رد شد.";
     }
     activityOperationNotice(activityOperationMessage(en, fa), "error");
   };

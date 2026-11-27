@@ -35,11 +35,17 @@ from construction_pm.p6_activity_operations import (
     P6_ACTIVITY_OPERATIONS_API_VERSION,
 )
 from construction_pm.p6_wbs_master_api import P6WBSMasterAPI
+from construction_pm.p6_resource_assignment_repository import (
+    P6ResourceAssignment,
+    P6ResourceAssignmentPeriodValue,
+    SQLiteP6ResourceAssignmentPeriodRepository,
+    SQLiteP6ResourceAssignmentRepository,
+)
 from construction_pm.relationship_master_repository import (
     RelationshipMaster,
     SQLiteRelationshipMasterRepository,
 )
-from construction_pm.scheduling.activity import ActivityStatus, ActivityStatusCode
+from construction_pm.scheduling.activity import ActivityStatus, ActivityStatusCode, ActivityType
 from construction_pm.scheduling.time_duration import DurationUnit
 from construction_pm.wbs_master_repository import (
     SQLiteWBSMasterRepository,
@@ -375,3 +381,68 @@ def test_confirm_dependencies_rejects_non_boolean_json_values():
     assert pending["details"]["relationships"] == 1
     assert activities.get(SCOPE, "A-1") is not None
     assert relationships.get(SCOPE, "R-1") is not None
+
+
+def test_progressed_resource_dependent_copy_is_refused_without_writing():
+    app, activities, connection, _ = _app()
+    activities.save(
+        ActivityMaster(
+            scope=SCOPE,
+            activity_id="A-RD",
+            duration_value=Decimal("5"),
+            duration_unit=DurationUnit.WORKING_DAY,
+            name="A-RD",
+            wbs_id="W-ROOT",
+            activity_type=ActivityType.RESOURCE_DEPENDENT,
+            status=ActivityStatus.IN_PROGRESS,
+            status_code=ActivityStatusCode.ACTIVE,
+            percent_complete=40.0,
+            actual_start=date(2026, 1, 1),
+            remaining_duration=2,
+        )
+    )
+    assignments = SQLiteP6ResourceAssignmentRepository(connection)
+    periods = SQLiteP6ResourceAssignmentPeriodRepository(connection)
+    assignments.upsert(
+        P6ResourceAssignment(
+            scope=SCOPE,
+            assignment_id="AS-RD",
+            activity_id="A-RD",
+            resource_id="RES-RD",
+            units=Decimal("20"),
+            actual_units=Decimal("8"),
+            remaining_units=Decimal("12"),
+            units_per_time=Decimal("4"),
+            units_per_time_period="day",
+            hours_per_units_time_period=Decimal("8"),
+            is_driving=True,
+        )
+    )
+    for day in ("01", "02", "03"):
+        periods.upsert(
+            P6ResourceAssignmentPeriodValue(
+                scope=SCOPE,
+                assignment_id="AS-RD",
+                activity_id="A-RD",
+                resource_id="RES-RD",
+                period_start=f"2026-01-{day}",
+                units=Decimal("4"),
+                cost=Decimal("0"),
+            )
+        )
+
+    status, body = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activity-operations",
+        _payload("copy", ["A-RD"]),
+    )
+
+    assert status == "400 Bad Request"
+    assert body["code"] == "P6_ACTIVITY_COPY_PROGRESS_DEMAND_UNSUPPORTED"
+    assert activities.get(SCOPE, "A-RD-COPY") is None
+    assert assignments.get(SCOPE, "AS-RD-COPY") is None
+    assert periods.list(SCOPE, assignment_id="AS-RD-COPY") == ()
+    # The source row and its demand profile are untouched.
+    assert activities.get(SCOPE, "A-RD") is not None
+    assert len(periods.list(SCOPE, assignment_id="AS-RD")) == 3

@@ -2845,13 +2845,20 @@ def test_deleted_project_calendar_blocks_publication_instead_of_rebinding(tmp_pa
     fixture["connection"].close()
 
 
-def test_copied_resource_dependent_activity_publishes_without_remaining_duration_conflict(tmp_path):
-    """A copied progressed-origin activity schedules from its cleared progress.
+def test_copied_not_started_resource_dependent_activity_publishes_without_remaining_duration_conflict(tmp_path):
+    """A copied not-started Resource Dependent activity schedules from cleared progress.
 
     The persisted Remaining Duration of the source must never survive a copy:
     a not-started Resource Dependent activity is validated against the duration
     derived from its assignment contract, so a stale partial/zero value would
-    make the copied activity unschedulable.
+    make the copied activity unschedulable. This test guards the publish
+    invariant end to end for a source whose demand already describes the full
+    planned contract. A progressed source whose persisted rows are remaining
+    demand is refused by the operations layer instead of being copied into an
+    unschedulable activity (see
+    `test_copy_refuses_a_progressed_resource_dependent_demand_profile_it_cannot_respread`);
+    calendar-aware re-spreading is the documented next step, not an implemented
+    behavior.
     """
 
     fixture = _fixture(tmp_path)

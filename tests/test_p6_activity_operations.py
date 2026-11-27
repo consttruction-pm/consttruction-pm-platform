@@ -572,3 +572,105 @@ def test_confirmation_flag_must_be_a_real_boolean(fx: Fixture):
             )
         assert str(rejected.value) == "P6_ACTIVITY_CONFIRM_DEPENDENCIES_INVALID"
     assert fx.activities.get(SCOPE, "A-1") is not None
+
+
+def test_copy_refuses_a_progressed_resource_dependent_demand_profile_it_cannot_respread(fx: Fixture):
+    fx.activity(
+        "A-RD",
+        activity_type=ActivityType.RESOURCE_DEPENDENT,
+        status=ActivityStatus.IN_PROGRESS,
+        actual_start=date(2026, 1, 1),
+        percent_complete=40.0,
+        remaining_duration=2,
+    )
+    fx.assignments.upsert(
+        P6ResourceAssignment(
+            scope=SCOPE,
+            assignment_id="AS-RD",
+            activity_id="A-RD",
+            resource_id="RES-RD",
+            units=Decimal("20"),
+            actual_units=Decimal("8"),
+            remaining_units=Decimal("12"),
+            units_per_time=Decimal("4"),
+            units_per_time_period="day",
+            hours_per_units_time_period=Decimal("8"),
+            is_driving=True,
+        )
+    )
+    # Persisted rows describe the remaining demand (12 units over 3 days),
+    # not the planned 20 units a copy must own.
+    for day in ("01", "02", "03"):
+        fx.period_values.upsert(
+            P6ResourceAssignmentPeriodValue(
+                scope=SCOPE,
+                assignment_id="AS-RD",
+                activity_id="A-RD",
+                resource_id="RES-RD",
+                period_start=f"2026-01-{day}",
+                units=Decimal("4"),
+                cost=Decimal("0"),
+            )
+        )
+
+    with pytest.raises(ActivityOperationError) as rejected:
+        fx.run("copy", ["A-RD"])
+
+    assert rejected.value.args[0].startswith(
+        "P6_ACTIVITY_COPY_PROGRESS_DEMAND_UNSUPPORTED:A-RD:AS-RD"
+    )
+    # The operation is transactional: no activity, assignment or period row
+    # survives the refusal.
+    assert fx.activities.get(SCOPE, "A-RD-COPY") is None
+    assert fx.assignments.get(SCOPE, "AS-RD-COPY") is None
+    assert fx.period_values.list(SCOPE, assignment_id="AS-RD-COPY") == ()
+    assert fx.activities.get(SCOPE, "A-RD") is not None
+
+
+def test_copy_allows_a_progressed_resource_dependent_profile_that_reconciles_with_planned(fx: Fixture):
+    fx.activity(
+        "A-RD",
+        activity_type=ActivityType.RESOURCE_DEPENDENT,
+        status=ActivityStatus.IN_PROGRESS,
+        actual_start=date(2026, 1, 1),
+        percent_complete=0.0,
+        remaining_duration=5,
+    )
+    fx.assignments.upsert(
+        P6ResourceAssignment(
+            scope=SCOPE,
+            assignment_id="AS-RD",
+            activity_id="A-RD",
+            resource_id="RES-RD",
+            units=Decimal("20"),
+            actual_units=Decimal("0"),
+            remaining_units=Decimal("20"),
+            units_per_time=Decimal("4"),
+            units_per_time_period="day",
+            hours_per_units_time_period=Decimal("8"),
+            is_driving=True,
+        )
+    )
+    for day in ("01", "02", "03", "04", "05"):
+        fx.period_values.upsert(
+            P6ResourceAssignmentPeriodValue(
+                scope=SCOPE,
+                assignment_id="AS-RD",
+                activity_id="A-RD",
+                resource_id="RES-RD",
+                period_start=f"2026-01-{day}",
+                units=Decimal("4"),
+                cost=Decimal("0"),
+            )
+        )
+
+    result = fx.run("copy", ["A-RD"])
+
+    assert result["created"] == [
+        {"source_activity_id": "A-RD", "activity_id": "A-RD-COPY"}
+    ]
+    assert result["period_values_created"] == 5
+    copied_assignment = fx.assignments.get(SCOPE, "AS-RD-COPY")
+    assert copied_assignment is not None
+    assert copied_assignment.remaining_units == Decimal("20")
+    assert copied_assignment.actual_units is None
