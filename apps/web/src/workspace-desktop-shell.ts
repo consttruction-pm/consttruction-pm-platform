@@ -1,7 +1,7 @@
 import type { WorkspaceActivityRow, WorkspaceMenuKey, WorkspaceWbsNode } from "./workspace-model.js";
 import type { WorkspaceTheme } from "./workspace-theme.js";
 import { renderTitleBar, type ChromeLayoutState, type ChromeProjectContext } from "./workspace-chrome.js";
-import { addFilterCriterion, defaultLayoutPatch, filterCriterionRows, formatFilterPreview, loadFilterEditor, moveFilterCriterion, readLayoutPatch, removeFilterCriterion, renderLayoutDialogs, renumberFilterRows, resetFilterEditor, setFilterCriterionRows, setFilterListEnabled, sortFilterList, syncFilterField, syncFilterOperator, type DesktopLayoutPatch, type DesktopSortColumn } from "./workspace-dialogs.js";
+import { addFilterCriterion, defaultLayoutPatch, filterCriterionRows, formatFilterPreview, loadFilterEditor, moveFilterCriterion, readLayoutPatch, removeFilterCriterion, renderLayoutDialogs, renumberFilterRows, resetFilterEditor, setFilterCriterionRows, setFilterListEnabled, sortFilterList, syncFilterField, syncFilterOperator, syncRowHeightInput, type DesktopLayoutPatch, type DesktopSortColumn } from "./workspace-dialogs.js";
 import { createActivityFilterDateContext, findActivityFilter, normalizeActivityFilter, optimizeActivityFilterCriteria, previewActivityFilter, type ActivityFilterCriterion, type ActivityFilterDefinition } from "./workspace-activity-filters.js";
 import { DEFAULT_PRESENTATION, type WorkspacePresentation } from "./workspace-presentation.js";
 import { workspaceIcon, type WorkspaceIconName } from "./workspace-icons.js";
@@ -1870,6 +1870,14 @@ function bindHost(host: HTMLElement): void {
   host.addEventListener("change", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLSelectElement) && !(target instanceof HTMLInputElement)) return;
+    // Table Font and Row / User Preferences: the height field follows the
+    // "Fixed height for all rows" radio instead of accepting a value the
+    // dialog would then ignore.
+    if (target instanceof HTMLInputElement && target.name === "rowHeightMode") {
+      const optionDialog = target.closest<HTMLElement>("dialog[data-desktop-dialog]");
+      if (optionDialog) syncRowHeightInput(optionDialog);
+      return;
+    }
     const dialog = target.closest<HTMLDialogElement>('dialog[data-desktop-dialog="filters"]');
     if (dialog) {
       if (target instanceof HTMLInputElement && target.name === "filterAllActivities") {

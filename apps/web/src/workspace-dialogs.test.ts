@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { defaultLayoutPatch, filterCriterionRowMarkup, filterValueControlMarkup, readLayoutPatch, renderLayoutDialogs, type DialogOptions } from "./workspace-dialogs.js";
+import { defaultLayoutPatch, filterCriterionRowMarkup, filterValueControlMarkup, readLayoutPatch, renderLayoutDialogs, syncRowHeightInput, type DialogOptions } from "./workspace-dialogs.js";
 import { DEFAULT_PRESENTATION, normalizePresentation } from "./workspace-presentation.js";
 
 function form(entries: Record<string, string | string[]>): FormData {
@@ -74,6 +74,82 @@ test("invalid colours are ignored instead of replacing the saved appearance", ()
   assert.equal(patch.textColor, undefined);
   assert.equal(patch.backgroundColor, undefined);
   assert.equal(patch.presentation, undefined);
+});
+
+test("Keep Current and Optimize by content never apply the height field", () => {
+  const previous = normalizePresentation({
+    ...DEFAULT_PRESENTATION,
+    table: { ...DEFAULT_PRESENTATION.table, rowHeight: 24, rowHeightMode: "fixed" },
+  });
+
+  const keep = readLayoutPatch(form({ rowHeightMode: "keep", rowHeight: "40", tableFields: "1" }), previous);
+  assert.equal(keep.rowHeight, undefined);
+  assert.equal(keep.presentation?.table.rowHeight, 24, "Keep Current must keep the saved height");
+  assert.equal(keep.presentation?.table.rowHeightMode, "keep");
+
+  const content = readLayoutPatch(form({ rowHeightMode: "content", rowHeight: "40", tableFields: "1" }), previous);
+  assert.equal(content.rowHeight, undefined);
+  assert.equal(content.presentation?.table.rowHeight, 24, "content sizing must keep the saved minimum height");
+
+  const fixed = readLayoutPatch(form({ rowHeightMode: "fixed", rowHeight: "32", tableFields: "1" }), previous);
+  assert.equal(fixed.rowHeight, 32);
+  assert.equal(fixed.presentation?.table.rowHeight, 32);
+});
+
+test("the height field is locked unless Fixed height for all rows is chosen", () => {
+  const keepPresentation = normalizePresentation({
+    ...DEFAULT_PRESENTATION,
+    table: { ...DEFAULT_PRESENTATION.table, rowHeightMode: "keep" },
+  });
+  const html = renderLayoutDialogs(dialogOptions({ presentation: keepPresentation }));
+  assert.match(html, /name="rowHeight"[^>]*disabled aria-disabled="true"/);
+  assert.match(html, /data-row-height-note/);
+  assert.match(html, /only to Fixed height for all rows/);
+
+  const fixed = renderLayoutDialogs(dialogOptions());
+  assert.match(fixed, /name="rowHeight"[^>]*value="18"/);
+  assert.doesNotMatch(fixed, /name="rowHeight"[^>]*disabled/);
+
+  const input = {
+    disabled: false,
+    attributes: {} as Record<string, string>,
+    setAttribute(name: string, value: string) { this.attributes[name] = value; },
+  };
+  const dialog = {
+    querySelector(selector: string) {
+      return selector.includes(":checked") ? { value: "content" } : input;
+    },
+  };
+  syncRowHeightInput(dialog as unknown as HTMLElement);
+  assert.equal(input.disabled, true);
+  assert.equal(input.attributes["aria-disabled"], "true");
+  dialog.querySelector = ((selector: string) => (selector.includes(":checked") ? { value: "fixed" } : input)) as typeof dialog.querySelector;
+  syncRowHeightInput(dialog as unknown as HTMLElement);
+  assert.equal(input.disabled, false);
+  assert.equal(input.attributes["aria-disabled"], "false");
+});
+
+test("Reset band format resets the band only, never the table fieldset in the same form", () => {
+  const previous = normalizePresentation({
+    ...DEFAULT_PRESENTATION,
+    table: { ...DEFAULT_PRESENTATION.table, fontSize: 12, rowHeight: 24 },
+  });
+  const patch = readLayoutPatch(form({
+    tableFields: "1",
+    tableLineNumbers: "1",
+    fontSize: "16",
+    rowHeight: "40",
+    rowHeightMode: "fixed",
+    wbsFields: "1",
+    "wbs.fontSize": "14",
+    "wbs.rowHeight": "30",
+    wbsReset: "1",
+  }), previous);
+  assert.equal(patch.fontSize, undefined);
+  assert.equal(patch.rowHeight, undefined);
+  assert.equal(patch.presentation?.table.fontSize, 12);
+  assert.equal(patch.presentation?.table.rowHeight, 24);
+  assert.equal(patch.presentation?.wbs.fontSize, DEFAULT_PRESENTATION.wbs.fontSize);
 });
 
 test("Table Font and Row dialog exposes the real controls and persisted values", () => {
