@@ -504,3 +504,121 @@ def test_copy_preserves_the_relationship_lag_override(live):
     assert relationships.get(SCOPE, "R-1") is not None
     source = calendar_assignments.get_relationship_lag(SCOPE, "R-1")
     assert source is not None and source.option is RelationshipLagCalendar.SUCCESSOR
+
+
+def test_lag_cascade_scope_is_selection_and_project_not_revision_live(live):
+    """Live PostgreSQL proof of the multi-revision scoping of the lag cascade.
+
+    ``relationship_master`` and ``relationship_lag_calendar_assignment`` both
+    key on ``(tenant_id, project_id, relationship_id)``; ``project_revision`` is
+    a write-time stamp, so one relationship never has two lag rows across
+    revisions. Count/delete must therefore bound by selection + project, not by
+    revision, and must mirror the revisionless relationship cascade.
+    """
+
+    connection, _ = live
+    api, _, relationships = _seed(connection)
+    calendar_assignments = _lag_repository(connection)
+    store = api.store
+
+    scope_rev1 = BackendScope("tenant-live", "project-live", 1)
+    scope_rev2 = BackendScope("tenant-live", "project-live", 2)
+    other_project = BackendScope("tenant-live", "project-other", 2)
+
+    for scope, rel_id, pred, succ in (
+        (scope_rev2, "PR-SEL-REV2", "P-1", "P-2"),
+        (scope_rev1, "PR-SEL-REV1", "P-1", "P-3"),
+        (scope_rev2, "PR-OTH-REV2", "P-9", "P-8"),
+        (scope_rev1, "PR-OTH-REV1", "P-7", "P-6"),
+    ):
+        relationships.save(
+            RelationshipMaster(
+                scope=scope,
+                relationship_id=rel_id,
+                predecessor_id=pred,
+                successor_id=succ,
+            )
+        )
+    calendar_assignments.save_relationship_lag(
+        RelationshipLagCalendarAssignmentMaster(
+            scope=scope_rev2,
+            relationship_id="PR-SEL-REV2",
+            option=RelationshipLagCalendar.SUCCESSOR,
+            calendar_id="CAL-1",
+            calendar_version="V1",
+        )
+    )
+    calendar_assignments.save_relationship_lag(
+        RelationshipLagCalendarAssignmentMaster(
+            scope=scope_rev1,
+            relationship_id="PR-SEL-REV1",
+            option=RelationshipLagCalendar.PREDECESSOR,
+        )
+    )
+    calendar_assignments.save_relationship_lag(
+        RelationshipLagCalendarAssignmentMaster(
+            scope=scope_rev2,
+            relationship_id="PR-OTH-REV2",
+            option=RelationshipLagCalendar.TWENTY_FOUR_HOUR,
+        )
+    )
+    calendar_assignments.save_relationship_lag(
+        RelationshipLagCalendarAssignmentMaster(
+            scope=scope_rev1,
+            relationship_id="PR-OTH-REV1",
+            option=RelationshipLagCalendar.PROJECT_DEFAULT,
+        )
+    )
+    calendar_assignments.save_relationship_lag(
+        RelationshipLagCalendarAssignmentMaster(
+            scope=other_project,
+            relationship_id="PR-SEL-REV2",
+            option=RelationshipLagCalendar.SUCCESSOR,
+            calendar_id="CAL-1",
+            calendar_version="V1",
+        )
+    )
+    connection.commit()
+
+    assert store.relationship_ids_for_activities(scope_rev2, ("P-1",)) == (
+        "PR-SEL-REV1",
+        "PR-SEL-REV2",
+    )
+    assert store.dependency_counts(scope_rev1, ("P-1",))[
+        "lag_calendar_assignments"
+    ] == 2
+    assert store.dependency_counts(scope_rev2, ("P-1",))[
+        "lag_calendar_assignments"
+    ] == 2
+
+    removed = store.delete_dependents(scope_rev2, ("P-1",))
+    connection.commit()
+
+    assert removed["relationship_lag_calendar_assignment"] == 2
+    assert removed["relationship_master"] == 2
+    assert relationships.get(scope_rev2, "PR-SEL-REV2") is None
+    assert relationships.get(scope_rev2, "PR-SEL-REV1") is None
+    assert calendar_assignments.get_relationship_lag(scope_rev2, "PR-SEL-REV2") is None
+    assert calendar_assignments.get_relationship_lag(scope_rev2, "PR-SEL-REV1") is None
+    # Unrelated rows survive at their own stamps; the other project is untouched.
+    assert relationships.get(scope_rev2, "PR-OTH-REV2") is not None
+    assert relationships.get(scope_rev1, "PR-OTH-REV1") is not None
+    assert (
+        calendar_assignments.get_relationship_lag(scope_rev2, "PR-OTH-REV2") is not None
+    )
+    assert (
+        calendar_assignments.get_relationship_lag(scope_rev1, "PR-OTH-REV1") is not None
+    )
+    assert (
+        calendar_assignments.get_relationship_lag(other_project, "PR-SEL-REV2")
+        is not None
+    )
+    remaining = sorted(
+        row[0]
+        for row in connection.execute(
+            "SELECT relationship_id FROM relationship_lag_calendar_assignment "
+            "WHERE tenant_id=%s AND project_id=%s",
+            ("tenant-live", "project-live"),
+        ).fetchall()
+    )
+    assert remaining == ["PR-OTH-REV1", "PR-OTH-REV2"]

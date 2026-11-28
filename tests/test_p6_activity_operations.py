@@ -769,6 +769,138 @@ def test_delete_cascades_each_lag_override_once_when_both_endpoints_are_selected
     assert _lag_ids(fx) == ()
 
 
+def test_lag_cascade_scope_is_the_selection_and_project_not_the_revision(
+    fx: Fixture,
+):
+    """Prove the lag cascade is bounded by selection + tenant/project, not revision.
+
+    ``relationship_master`` and ``relationship_lag_calendar_assignment`` both key
+    on ``(tenant_id, project_id, relationship_id)``; ``project_revision`` is only
+    a write-time stamp, never part of the key. There is therefore exactly one
+    relationship row and one lag row per relationship, so "another revision's
+    copy" cannot exist. A revision filter here would instead MISS a relationship
+    that the revisionless relationship cascade deletes, recreating the orphan.
+    This test seeds rows stamped at the target and at an older revision and
+    asserts:
+      * count/delete act only on the selected activity's relationships;
+      * unrelated relationships survive at any stamp;
+      * a selected relationship stamped off-revision is still cascaded with its
+        lag row (no orphan);
+      * a same-id lag row under another project is untouched.
+    """
+
+    scope_rev1 = BackendScope("tenant-1", "project-1", 1)
+    scope_rev2 = BackendScope("tenant-1", "project-1", 2)
+    other_project = BackendScope("tenant-1", "project-2", 2)
+
+    def add_relationship(scope: BackendScope, rel_id: str, pred: str, succ: str) -> None:
+        fx.relationships.save(
+            RelationshipMaster(
+                scope=scope,
+                relationship_id=rel_id,
+                predecessor_id=pred,
+                successor_id=succ,
+            )
+        )
+
+    # Two relationships touch the selection (A-1): one stamped at the target
+    # revision, one left stamped at an older revision. Two do not touch it.
+    add_relationship(scope_rev2, "R-SEL-REV2", "A-1", "A-2")
+    add_relationship(scope_rev1, "R-SEL-REV1", "A-1", "A-3")
+    add_relationship(scope_rev2, "R-OTH-REV2", "A-9", "A-8")
+    add_relationship(scope_rev1, "R-OTH-REV1", "A-7", "A-6")
+
+    fx.calendar_assignments.save_relationship_lag(
+        RelationshipLagCalendarAssignmentMaster(
+            scope=scope_rev2,
+            relationship_id="R-SEL-REV2",
+            option=RelationshipLagCalendar.SUCCESSOR,
+            calendar_id="CAL-1",
+            calendar_version="V1",
+        )
+    )
+    fx.calendar_assignments.save_relationship_lag(
+        RelationshipLagCalendarAssignmentMaster(
+            scope=scope_rev1,
+            relationship_id="R-SEL-REV1",
+            option=RelationshipLagCalendar.PREDECESSOR,
+        )
+    )
+    fx.calendar_assignments.save_relationship_lag(
+        RelationshipLagCalendarAssignmentMaster(
+            scope=scope_rev2,
+            relationship_id="R-OTH-REV2",
+            option=RelationshipLagCalendar.TWENTY_FOUR_HOUR,
+        )
+    )
+    fx.calendar_assignments.save_relationship_lag(
+        RelationshipLagCalendarAssignmentMaster(
+            scope=scope_rev1,
+            relationship_id="R-OTH-REV1",
+            option=RelationshipLagCalendar.PROJECT_DEFAULT,
+        )
+    )
+    # A same-id override under a different project must never be touched.
+    fx.calendar_assignments.save_relationship_lag(
+        RelationshipLagCalendarAssignmentMaster(
+            scope=other_project,
+            relationship_id="R-SEL-REV2",
+            option=RelationshipLagCalendar.SUCCESSOR,
+            calendar_id="CAL-1",
+            calendar_version="V1",
+        )
+    )
+
+    # The affected ids are revision-independent: the selection and the project
+    # bound them, not the revision.
+    assert fx.store.relationship_ids_for_activities(scope_rev2, ("A-1",)) == (
+        "R-SEL-REV1",
+        "R-SEL-REV2",
+    )
+    assert fx.store.relationship_ids_for_activities(scope_rev1, ("A-1",)) == (
+        "R-SEL-REV1",
+        "R-SEL-REV2",
+    )
+
+    counts_rev2 = fx.store.dependency_counts(scope_rev2, ("A-1",))
+    counts_rev1 = fx.store.dependency_counts(scope_rev1, ("A-1",))
+    for counts in (counts_rev1, counts_rev2):
+        assert counts["relationships"] == 2
+        # Only the two selected relationships count; the off-revision selected
+        # one is included, the off-revision unrelated one is not.
+        assert counts["lag_calendar_assignments"] == 2
+
+    removed = fx.store.delete_dependents(scope_rev2, ("A-1",))
+
+    assert removed["relationship_lag_calendar_assignment"] == 2
+    assert removed["relationship_master"] == 2
+    # Selected relationships (any stamp) and their overrides are gone.
+    assert fx.relationships.get(scope_rev2, "R-SEL-REV2") is None
+    assert fx.relationships.get(scope_rev2, "R-SEL-REV1") is None
+    assert fx.calendar_assignments.get_relationship_lag(scope_rev2, "R-SEL-REV2") is None
+    assert fx.calendar_assignments.get_relationship_lag(scope_rev2, "R-SEL-REV1") is None
+    # Unrelated relationships and overrides survive at their own stamps.
+    assert fx.relationships.get(scope_rev2, "R-OTH-REV2") is not None
+    assert fx.relationships.get(scope_rev1, "R-OTH-REV1") is not None
+    assert (
+        fx.calendar_assignments.get_relationship_lag(scope_rev2, "R-OTH-REV2") is not None
+    )
+    assert (
+        fx.calendar_assignments.get_relationship_lag(scope_rev1, "R-OTH-REV1") is not None
+    )
+    # The other project's same-id override is untouched.
+    assert (
+        fx.calendar_assignments.get_relationship_lag(other_project, "R-SEL-REV2")
+        is not None
+    )
+
+    remaining = sorted(
+        item.relationship_id
+        for item in fx.calendar_assignments.list_relationship_lag(scope_rev2)
+    )
+    assert remaining == ["R-OTH-REV2"]
+
+
 def test_copy_carries_the_relationship_lag_override_to_the_new_relationship(fx: Fixture):
     fx.activity("A-1")
     fx.activity("A-2")

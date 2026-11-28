@@ -338,6 +338,15 @@ class ActivityOperationStore:
 
         Both endpoint columns are tested in one query so a relationship whose
         predecessor and successor are both selected is returned a single time.
+
+        Deliberately not filtered by ``project_revision``: on
+        ``relationship_master`` the primary key is
+        ``(tenant_id, project_id, relationship_id)`` and ``project_revision`` is
+        only a write-time stamp, so a relationship never has a second row for
+        another revision. The delete cascade in ``delete_dependents``
+        (``_CASCADE_TABLES``) is also revisionless, so this must return the same
+        set the cascade removes; adding a revision filter here would leave an
+        override behind for a relationship the cascade just deleted.
         """
 
         if not activity_ids or not self._table_exists("relationship_master"):
@@ -355,6 +364,10 @@ class ActivityOperationStore:
     def count_relationship_lag_assignments(
         self, scope: BackendScope, relationship_ids: tuple[str, ...]
     ) -> int:
+        # ``relationship_lag_calendar_assignment`` shares the same per-
+        # relationship primary key as ``relationship_master``, so this counts
+        # exactly the affected relationships' overrides, bounded by tenant and
+        # project rather than by revision.
         return self._count(
             scope,
             "relationship_lag_calendar_assignment",
@@ -370,7 +383,11 @@ class ActivityOperationStore:
         A lag-calendar row whose relationship no longer exists makes the next
         schedule composition fail with
         ``RELATIONSHIP_LAG_ASSIGNMENT_UNKNOWN_RELATIONSHIP``, so it is removed
-        in the same transaction as the relationship row.
+        in the same transaction as the relationship row. The delete matches the
+        relationship cascade's predicate exactly (tenant, project and the
+        relationship ids, no revision filter): the override table keys on
+        ``(tenant_id, project_id, relationship_id)``, so this targets one row
+        per relationship and nothing outside the cascaded set.
         """
 
         if not relationship_ids or not self._table_exists(
@@ -394,6 +411,11 @@ class ActivityOperationStore:
         Only relationships the caller actually copied are present in
         ``mapping``, so an external endpoint cannot be re-bound. A relationship
         without an override stays without one: this never invents a setting.
+
+        Reads at the current ``project_revision`` on purpose: copy takes its
+        relationship set from ``list_relationships`` (also current-revision),
+        matching the composer's active read, so a stale-stamped override that
+        the composer would ignore is not resurrected onto a new relationship.
         """
 
         if not mapping or not self._table_exists(
