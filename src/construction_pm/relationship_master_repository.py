@@ -236,8 +236,35 @@ class SQLiteRelationshipMasterRepository:
         if cursor.rowcount != 1:
             self.connection.rollback()
             raise RelationshipPersistenceError("REVISION_CONFLICT")
+        try:
+            self._delete_lag_override(scope, relationship_id)
+        except Exception:
+            self.connection.rollback()
+            raise
         self.connection.commit()
         return True
+
+    def _delete_lag_override(self, scope: BackendScope, relationship_id: str) -> None:
+        """Remove the relationship's lag-calendar override in the same transaction.
+
+        The override is a dependent of the link. Leaving it behind when the
+        link is deleted makes the next schedule composition fail closed with
+        ``RELATIONSHIP_LAG_ASSIGNMENT_UNKNOWN_RELATIONSHIP``. The table is
+        created lazily by the calendar-assignment repository, so skip cleanly
+        when it does not exist (minimal stores and unit fixtures).
+        """
+
+        exists = self.connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' "
+            "AND name='relationship_lag_calendar_assignment'"
+        ).fetchone()
+        if exists is None:
+            return
+        self.connection.execute(
+            "DELETE FROM relationship_lag_calendar_assignment "
+            "WHERE tenant_id=? AND project_id=? AND relationship_id=?",
+            (scope.tenant_id, scope.project_id, relationship_id),
+        )
 
 
 class PostgresRelationshipMasterRepository:
@@ -360,4 +387,29 @@ class PostgresRelationshipMasterRepository:
         )
         if getattr(cursor, "rowcount", 1) != 1:
             raise RelationshipPersistenceError("REVISION_CONFLICT")
+        self._delete_lag_override(scope, relationship_id)
         return True
+
+    def _delete_lag_override(self, scope: BackendScope, relationship_id: str) -> None:
+        """Remove the relationship's lag-calendar override in the same transaction.
+
+        Mirrors the relationship delete so no override outlives its link and
+        fails the next schedule composition with
+        ``RELATIONSHIP_LAG_ASSIGNMENT_UNKNOWN_RELATIONSHIP``. The table is
+        created lazily by the calendar-assignment repository, so skip cleanly
+        when it is absent.
+        """
+
+        exists = self.connection.execute(
+            "SELECT 1 FROM information_schema.tables "
+            "WHERE table_schema=current_schema() "
+            "AND table_name=%s",
+            ("relationship_lag_calendar_assignment",),
+        ).fetchone()
+        if exists is None:
+            return
+        self.connection.execute(
+            "DELETE FROM relationship_lag_calendar_assignment "
+            "WHERE tenant_id=%s AND project_id=%s AND relationship_id=%s",
+            (scope.tenant_id, scope.project_id, relationship_id),
+        )

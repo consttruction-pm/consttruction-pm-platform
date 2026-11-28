@@ -3107,6 +3107,35 @@ def test_delete_cascades_the_lag_override_and_schedule_still_composes(tmp_path):
     fixture["connection"].close()
 
 
+def test_relationship_unlink_cascades_the_lag_override_and_schedule_still_composes(tmp_path):
+    # Regression: the P6 Unlink path (DELETE /p6/relationships/{id}) used to
+    # leave the link's lag override behind, so the next composition failed with
+    # RELATIONSHIP_LAG_ASSIGNMENT_UNKNOWN_RELATIONSHIP.
+    fixture = _fixture(tmp_path)
+    scope = fixture["scope"]
+    _seed_relationship_with_lag(fixture, option=RelationshipLagCalendar.PREDECESSOR)
+
+    before = fixture["composer"].compose(scope, snapshot_id="SNAP-BEFORE-UNLINK")
+    assert [item.relationship_id for item in before.relationship_lag_calendar_assignments] == [
+        "REL-1"
+    ]
+
+    status, body = _request(
+        fixture["app"],
+        "DELETE",
+        "/api/projects/p1/p6/relationships/REL-1",
+        {"expected_revision": 1},
+    )
+    assert status == "200 OK"
+    assert body["deleted"] is True
+    assert fixture["calendar_assignments"].list_relationship_lag(scope) == ()
+
+    after = fixture["composer"].compose(scope, snapshot_id="SNAP-AFTER-UNLINK")
+    assert after.relationships == ()
+    assert after.relationship_lag_calendar_assignments == ()
+    fixture["connection"].close()
+
+
 def test_copy_preserves_the_lag_override_in_the_next_schedule_composition(tmp_path):
     fixture = _fixture(tmp_path)
     scope = fixture["scope"]

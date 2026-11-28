@@ -56,3 +56,42 @@ def test_postgres_relationship_delete_is_revision_checked_and_scope_bound():
         with pytest.raises(RelationshipPersistenceError, match="RELATIONSHIP_NOT_FOUND"):
             with PostgresTransactionManager(connection).transaction():
                 repository.delete(current_scope, "R-1", expected_revision=1)
+
+
+def test_postgres_relationship_delete_removes_only_its_lag_calendar_override():
+    # Regression: the Unlink path used to orphan the relationship's
+    # lag-calendar override, which failed the next schedule composition with
+    # RELATIONSHIP_LAG_ASSIGNMENT_UNKNOWN_RELATIONSHIP.
+    from construction_pm.calendar_master_repository import (
+        PostgresCalendarAssignmentRepository,
+        PostgresCalendarMasterRepository,
+        RelationshipLagCalendarAssignmentMaster,
+    )
+    from construction_pm.scheduling.calendar_context import RelationshipLagCalendar
+
+    current_scope = scope()
+    with psycopg.connect(DSN) as connection:
+        repository = PostgresRelationshipMasterRepository(connection)
+        repository.initialize()
+        PostgresCalendarMasterRepository(connection).initialize()
+        connection.commit()
+        lags = PostgresCalendarAssignmentRepository(connection)
+
+        with PostgresTransactionManager(connection).transaction():
+            repository.save(relationship(current_scope))
+            repository.save(RelationshipMaster(
+                scope=current_scope, relationship_id="R-2", predecessor_id="A-2",
+                successor_id="A-3", relationship_type=RelationshipType.FS,
+            ))
+            for relationship_id in ("R-1", "R-2"):
+                lags.save_relationship_lag(RelationshipLagCalendarAssignmentMaster(
+                    current_scope, relationship_id, RelationshipLagCalendar.SUCCESSOR
+                ))
+        assert lags.get_relationship_lag(current_scope, "R-1") is not None
+        assert lags.get_relationship_lag(current_scope, "R-2") is not None
+
+        with PostgresTransactionManager(connection).transaction():
+            assert repository.delete(current_scope, "R-1", expected_revision=1) is True
+
+        assert lags.get_relationship_lag(current_scope, "R-1") is None
+        assert lags.get_relationship_lag(current_scope, "R-2") is not None
