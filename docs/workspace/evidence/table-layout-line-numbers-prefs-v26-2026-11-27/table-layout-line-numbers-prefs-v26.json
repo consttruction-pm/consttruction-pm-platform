@@ -1,0 +1,114 @@
+{
+  "contract": "cubi-table-layout-line-numbers-prefs-v26.v1",
+  "baseUrl": "http://127.0.0.1:4234",
+  "gitHead": "aed07405d789f2f8daedda9ee39317666f35539f",
+  "testedCodeSha": "aed07405d",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-27T07:03:58.292Z",
+  "helpTopics": [
+    "https://docs.oracle.com/cd/G48902_01/client_help/en_US/51388.htm",
+    "https://docs.oracle.com/cd/G48902_01/client_help/en_US/change_activity_table_font_color_and_row_height.htm",
+    "https://docs.oracle.com/cd/G48902_01/client_help/en_US/define_user_preferences.htm"
+  ],
+  "scenarios": [
+    {
+      "id": "01",
+      "name": "View > Line Numbers adds a fixed # column that numbers visible activity rows",
+      "status": "pass",
+      "at": "2026-11-27T07:04:02.602Z",
+      "activityRows": 14,
+      "bands": 7,
+      "width": 37
+    },
+    {
+      "id": "02",
+      "name": "collapsing and expanding a grouping band renumbers the visible rows",
+      "status": "pass",
+      "at": "2026-11-27T07:04:04.557Z",
+      "collapsed": 0,
+      "restored": 14
+    },
+    {
+      "id": "03",
+      "name": "the context menu and toolbar toggle the same saved line-number state",
+      "status": "pass",
+      "at": "2026-11-27T07:04:09.057Z",
+      "revision": 4,
+      "rows": 14
+    },
+    {
+      "id": "04",
+      "name": "Table Font and Row applies a height only in Fixed mode and locks the field otherwise",
+      "status": "pass",
+      "at": "2026-11-27T07:04:14.843Z",
+      "baselineHeight": "18px",
+      "fixedHeight": "30px",
+      "renderedRow": 31
+    },
+    {
+      "id": "05",
+      "name": "User Preferences shares the table block, toggles line numbers and resets the band only",
+      "status": "pass",
+      "at": "2026-11-27T07:04:19.162Z",
+      "fontSize": "13px",
+      "legends": [
+        "Table font and colour",
+        "Row height",
+        "WBS band format",
+        "Display"
+      ]
+    },
+    {
+      "id": "06",
+      "name": "both dialogs localise in fa/RTL 1280x720 and fit en/LTR 1920x1080",
+      "status": "pass",
+      "at": "2026-11-27T07:04:26.655Z",
+      "faDirection": "rtl",
+      "wideRows": 14,
+      "menuState": "unknown"
+    },
+    {
+      "id": "07",
+      "name": "the run stays clean: no exception, console error or 5xx",
+      "status": "pass",
+      "at": "2026-11-27T07:04:27.456Z",
+      "exceptions": 0,
+      "consoleErrors": 0,
+      "apiFailures": 0
+    }
+  ],
+  "screenshots": [
+    "01-line-numbers-en-1440.png",
+    "02-line-numbers-renumber-en-1440.png",
+    "03-line-numbers-context-toolbar-reload-en-1440.png",
+    "04-row-height-keep-locked-en-1440.png",
+    "04-row-height-modes-en-1440.png",
+    "05-user-preferences-dialog-en-1440.png",
+    "05-line-numbers-off-via-preferences-en-1440.png",
+    "06-row-height-modes-fa-rtl-1280.png",
+    "06-user-preferences-fa-rtl-1280.png",
+    "06-user-preferences-en-1920.png"
+  ],
+  "knownGaps": [
+    {
+      "id": "row-line-limit",
+      "detail": "Version 26 documents an optional 'Do not exceed X lines per row' limit in Optimize by content. CUBI optimises by content without a line cap; recorded in the compliance matrix as a remaining gap.",
+      "owner": "backlog"
+    },
+    {
+      "id": "group-band-numbering",
+      "detail": "Line numbers count activity rows; grouping band rows show an empty number cell. Version 26 Help says numbering applies to visible rows and does not state how bands are numbered, so this is recorded as a CUBI presentation choice.",
+      "owner": "documented"
+    },
+    {
+      "id": "preferences-scope",
+      "detail": "Version 26 User Preferences also carries Time Units, Dates, Currency, Email, Assistance, Application, Password, Resource Analysis, Calculations, Startup Filters and Personal Information. CUBI User Preferences is the layout preference set (table and WBS band) for this web runtime; account-level formats live outside the Activities window.",
+      "owner": "documented"
+    }
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "apiFailures": [],
+  "passed": 7,
+  "failed": 0
+}

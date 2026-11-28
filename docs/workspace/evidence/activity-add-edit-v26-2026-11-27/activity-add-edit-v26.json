@@ -1,0 +1,143 @@
+{
+  "contract": "cubi-activity-add-edit-v26.v1",
+  "baseUrl": "http://127.0.0.1:4249",
+  "gitHead": "bad3f32907c645d74b6b58307bf00749f88128de",
+  "testedCodeSha": "bad3f32907c645d74b6b58307bf00749f88128de",
+  "evidenceCommitSha": null,
+  "capturedAt": "2026-11-27T09:21:41.319Z",
+  "helpTopics": [
+    "https://docs.oracle.com/cd/G48902_01/client_help/en_US/add_activities_in_the_activity_table.htm",
+    "https://docs.oracle.com/cd/G48902_01/client_help/en_US/change_activity_information_in_the_activity_table.htm",
+    "https://docs.oracle.com/cd/G48902_01/client_help/en_US/define_general_activity_information.htm"
+  ],
+  "activityId": "E2E-AE-MWYRV7WJ",
+  "scenarios": [
+    {
+      "suggestion": "A220",
+      "suggestionHint": "Suggested from the project defaults; edit it before saving.",
+      "wbsOptions": 7,
+      "id": "01",
+      "name": "Add activity opens the create drawer with a suggested ID and the WBS options, and writes nothing",
+      "status": "pass",
+      "at": "2026-11-27T09:21:45.111Z"
+    },
+    {
+      "activityId": "E2E-AE-MWYRV7WJ",
+      "wbsId": "WBS-RPS-ROOT",
+      "revision": 1,
+      "total": 15,
+      "id": "02",
+      "name": "Submitting the form creates the activity through the real POST and the grid and read API agree",
+      "status": "pass",
+      "at": "2026-11-27T09:21:46.216Z"
+    },
+    {
+      "notice": "REVISION_CONFLICT",
+      "rows": 1,
+      "designedConsoleErrors": 1,
+      "id": "03",
+      "name": "A duplicate activity ID is refused with a visible error and no second row",
+      "status": "pass",
+      "at": "2026-11-27T09:21:47.333Z"
+    },
+    {
+      "name": "The row Edit command loads the stored record into an inline form",
+      "duration": "5",
+      "wbs": "WBS-RPS-ROOT",
+      "id": "04",
+      "status": "pass",
+      "at": "2026-11-27T09:21:48.480Z"
+    },
+    {
+      "name": "Saving the edit form PATCHes with the stored revision and the grid and read API agree",
+      "duration": "7",
+      "revision": 2,
+      "id": "05",
+      "status": "pass",
+      "at": "2026-11-27T09:21:49.548Z"
+    },
+    {
+      "notice": "REVISION_CONFLICT",
+      "storedName": "E2E server value MWYRV7WJ",
+      "revision": 3,
+      "id": "06",
+      "name": "A form opened before a concurrent write is refused and never overwrites the newer value",
+      "status": "pass",
+      "at": "2026-11-27T09:21:51.359Z"
+    },
+    {
+      "from": "WBS-RPS-ROOT",
+      "to": "WBS-RPS-PM",
+      "revision": 4,
+      "id": "07",
+      "name": "Changing the WBS in the edit form moves the activity to the new element",
+      "status": "pass",
+      "at": "2026-11-27T09:21:52.814Z"
+    },
+    {
+      "createHeading": "افزودن فعالیت",
+      "editHeading": "ویرایش فعالیت",
+      "id": "08",
+      "name": "Persian RTL at 1280x720 localizes the drawer and the inline editor without overflow",
+      "status": "pass",
+      "at": "2026-11-27T09:21:55.571Z"
+    },
+    {
+      "createHeading": "Add activity",
+      "editHeading": "Edit activity",
+      "id": "09",
+      "name": "English at 1920x1080 keeps the drawer and editor usable without overflow",
+      "status": "pass",
+      "at": "2026-11-27T09:21:58.276Z"
+    }
+  ],
+  "screenshots": [
+    "01-add-drawer-en-1440.png",
+    "02-created-en-1440.png",
+    "03-duplicate-refused-en-1440.png",
+    "04-edit-form-en-1440.png",
+    "05-edit-saved-en-1440.png",
+    "06-stale-refused-en-1440.png",
+    "07-wbs-move-en-1440.png",
+    "08-fa-rtl-1280.png",
+    "09-en-1920.png"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "designedConsoleErrors": [
+    "Activity creation failed Error: REVISION_CONFLICT\n    at Object.onActivityCreate (http://127.0.0.1:4249/dist/main.bundle.js:56022:33)"
+  ],
+  "apiFailures": [],
+  "writes": [
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4249/api/projects/preview-rps-01/open"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4249/api/projects/preview-rps-01/p6/activities"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:4249/api/projects/preview-rps-01/p6/activities"
+    },
+    {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:4249/api/projects/preview-rps-01/p6/activities/E2E-AE-MWYRV7WJ"
+    },
+    {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:4249/api/projects/preview-rps-01/p6/activities/E2E-AE-MWYRV7WJ"
+    },
+    {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:4249/api/projects/preview-rps-01/p6/activities/E2E-AE-MWYRV7WJ"
+    },
+    {
+      "method": "PATCH",
+      "url": "http://127.0.0.1:4249/api/projects/preview-rps-01/p6/activities/E2E-AE-MWYRV7WJ"
+    }
+  ],
+  "passed": 9,
+  "failed": 0
+}

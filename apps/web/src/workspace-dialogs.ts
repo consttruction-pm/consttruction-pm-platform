@@ -246,8 +246,9 @@ function tableEditor(optionsInput: DialogOptions, includeDisplayOptions: boolean
         <label><input type="radio" name="rowHeightMode" value="fixed"${table.rowHeightMode === "fixed" ? " checked" : ""}> ${esc(t(locale, "Fixed height for all rows", "ارتفاع ثابت برای همهٔ ردیف‌ها"))}</label>
       </div>
       <label class="cp-dialog-row"><span>${esc(t(locale, "Fixed height", "ارتفاع ثابت"))}</span>
-        <input type="number" name="rowHeight" min="18" max="40" step="1" value="${table.rowHeight}">
+        <input type="number" name="rowHeight" min="18" max="40" step="1" value="${table.rowHeight}" data-row-height-input${table.rowHeightMode === "fixed" ? "" : ' disabled aria-disabled="true"'}>
       </label>
+      <p class="cp-dialog-note" data-row-height-note>${esc(t(locale, "The height applies only to Fixed height for all rows; Keep Current keeps the saved heights and Optimize by content sizes each row to its text.", "ارتفاع فقط در حالت «ارتفاع ثابت برای همهٔ ردیف‌ها» اعمال می‌شود؛ «حفظ وضعیت فعلی» ارتفاع ذخیره‌شده را نگه می‌دارد و «تنظیم بر اساس محتوا» هر ردیف را به اندازهٔ متن خود می‌کند."))}</p>
       <label class="cp-dialog-check"><input type="checkbox" name="showIcons"${table.showIcons ? " checked" : ""}> ${esc(t(locale, "Show activity type icons", "نمایش نماد نوع فعالیت"))}</label>
       ${includeDisplayOptions ? `<label class="cp-dialog-check"><input type="checkbox" name="lineNumbers"${table.lineNumbers ? " checked" : ""}> ${esc(t(locale, "Show line numbers", "نمایش شمارهٔ ردیف"))}</label>` : ""}
     </fieldset>
@@ -1065,45 +1066,62 @@ export function readLayoutPatch(form: HTMLFormElement | FormData, previous?: Wor
   const presentation = normalizePresentation(previous ?? DEFAULT_PRESENTATION);
   let presentationChanged = false;
 
+  // "Reset band format" carries the shared table fieldset in the same form.
+  // It must reset the band only, so the table block is skipped for that submit
+  // instead of silently committing whatever table edits were on screen.
+  const readsTableFields = data.get("wbsReset") !== "1";
+
+  // Version 26 applies the height field only with "Select height for all
+  // rows"; Keep Current and Optimize by content ignore it. Read the mode first
+  // so a height typed while another mode is selected never reaches the table.
+  const rowHeightMode = data.get("rowHeightMode");
+  const knownRowHeightMode = rowHeightMode === "keep" || rowHeightMode === "fixed" || rowHeightMode === "content"
+    ? rowHeightMode
+    : presentation.table.rowHeightMode;
   const rowHeightValue = data.get("rowHeight");
   const rowHeight = Number(rowHeightValue);
-  if (typeof rowHeightValue === "string" && rowHeightValue.trim() !== "" && Number.isFinite(rowHeight)) {
+  if (
+    readsTableFields
+    && knownRowHeightMode === "fixed"
+    && typeof rowHeightValue === "string"
+    && rowHeightValue.trim() !== ""
+    && Number.isFinite(rowHeight)
+  ) {
     patch.rowHeight = Math.min(40, Math.max(18, Math.round(rowHeight)));
     presentation.table.rowHeight = patch.rowHeight;
     presentationChanged = true;
   }
   const fontSizeValue = data.get("fontSize");
   const fontSize = Number(fontSizeValue);
-  if (typeof fontSizeValue === "string" && fontSizeValue.trim() !== "" && Number.isFinite(fontSize)) {
+  if (readsTableFields && typeof fontSizeValue === "string" && fontSizeValue.trim() !== "" && Number.isFinite(fontSize)) {
     patch.fontSize = Math.min(16, Math.max(9, Math.round(fontSize)));
     presentation.table.fontSize = patch.fontSize;
     presentationChanged = true;
   }
   const family = data.get("fontFamily");
-  if (typeof family === "string" && (TABLE_FONT_FAMILIES as readonly string[]).includes(family)) {
+  if (readsTableFields && typeof family === "string" && (TABLE_FONT_FAMILIES as readonly string[]).includes(family)) {
     patch.fontFamily = family as TableFontFamily;
     presentation.table.fontFamily = patch.fontFamily;
     presentationChanged = true;
   }
   const textColor = data.get("textColor");
-  if (isHexColor(textColor)) {
+  if (readsTableFields && isHexColor(textColor)) {
     patch.textColor = textColor.toLowerCase();
     presentation.table.textColor = patch.textColor;
     presentationChanged = true;
   }
   const backgroundColor = data.get("backgroundColor");
-  if (isHexColor(backgroundColor)) {
+  if (readsTableFields && isHexColor(backgroundColor)) {
     patch.backgroundColor = backgroundColor.toLowerCase();
     presentation.table.backgroundColor = patch.backgroundColor;
     presentationChanged = true;
   }
-  const rowHeightMode = data.get("rowHeightMode");
-  if (rowHeightMode === "keep" || rowHeightMode === "fixed" || rowHeightMode === "content") {
+  if (readsTableFields && (rowHeightMode === "keep" || rowHeightMode === "fixed" || rowHeightMode === "content")) {
     patch.rowHeightMode = rowHeightMode;
     presentation.table.rowHeightMode = rowHeightMode;
     presentationChanged = true;
   }
-  if (data.has("tableFields")) {
+  if (readsTableFields && data.has("tableFields")) {
     // An unchecked checkbox is absent from FormData, so the table fieldset
     // carries a marker input and both flags are read as booleans.
     patch.showIcons = data.get("showIcons") === "on";
@@ -1338,6 +1356,19 @@ export function readLayoutPatch(form: HTMLFormElement | FormData, previous?: Wor
 
   if (presentationChanged) patch.presentation = presentation;
   return patch;
+}
+
+/**
+ * The height field belongs to "Fixed height for all rows". Mirror that by
+ * enabling it only while that radio is chosen, so the dialog cannot invite a
+ * height that readLayoutPatch would then ignore.
+ */
+export function syncRowHeightInput(dialog: HTMLElement): void {
+  const mode = dialog.querySelector<HTMLInputElement>('input[name="rowHeightMode"]:checked')?.value ?? "fixed";
+  const input = dialog.querySelector<HTMLInputElement>('input[name="rowHeight"]');
+  if (!input) return;
+  input.disabled = mode !== "fixed";
+  input.setAttribute("aria-disabled", String(input.disabled));
 }
 
 export function defaultLayoutPatch(): DesktopLayoutPatch {

@@ -4,8 +4,10 @@
  *
  * Measures the real Activities window at 1280x720, 1366x768 and 1920x1080 in
  * English (LTR) and Persian (RTL). It asserts:
- *  - one application menu bar with the Version 26 order and a recognizable
- *    icon on every command, plus a reserved check column;
+ *  - one application menu bar in the approved Version 26 order (the eight-menu
+ *    reference shape, or the documented seven-menu transitional shape while
+ *    PR #2175 restores the project-scoped Organization menu), with a
+ *    recognizable icon on every command and a reserved check column;
  *  - one icon toolbar, grouped in the reference order, with no duplicate
  *    command family and no parallel text command band;
  *  - version 26-sized hit targets for the grid action strip, the chart board
@@ -39,9 +41,30 @@ const consoleErrors = [];
 const apiFailures = [];
 const commands = [];
 
-const EXPECTED_MENUS = {
-  en: ["File", "Edit", "View", "Project", "Enterprise", "Tools", "Admin", "Help"],
-  fa: ["فایل", "ویرایش", "نما", "پروژه", "سازمان", "ابزارها", "مدیریت", "راهنما"],
+// Version 26 Help (menu_bar.htm) documents eight menus. The merged #2168
+// decision removed the in-workspace Enterprise environment entry from the
+// Engineering workspace (the environment is chosen in the Personal Workbench),
+// and open PR #2175 restores that position as a project-scoped Organization
+// menu. The suite therefore accepts exactly one of two approved shapes, records
+// which one it measured, and fails every other combination.
+const V26_REFERENCE_MENUS = {
+  en: { ids: ["workspace", "edit", "view", "project", "organization", "tools", "administration", "help"], labels: ["File", "Edit", "View", "Project", "Enterprise", "Tools", "Admin", "Help"] },
+  fa: { ids: ["workspace", "edit", "view", "project", "organization", "tools", "administration", "help"], labels: ["فایل", "ویرایش", "نما", "پروژه", "سازمان", "ابزارها", "مدیریت", "راهنما"] },
+};
+const APPROVED_MENUS = {
+  en: {
+    full: { ids: ["workspace", "edit", "view", "project", "organization", "tools", "administration", "help"], labels: ["File", "Edit", "View", "Project", "Organization", "Tools", "Admin", "Help"] },
+    transitional: { ids: ["workspace", "edit", "view", "project", "tools", "administration", "help"], labels: ["File", "Edit", "View", "Project", "Tools", "Admin", "Help"] },
+  },
+  fa: {
+    full: { ids: ["workspace", "edit", "view", "project", "organization", "tools", "administration", "help"], labels: ["فایل", "ویرایش", "نما", "پروژه", "سازمان", "ابزارها", "مدیریت", "راهنما"] },
+    transitional: { ids: ["workspace", "edit", "view", "project", "tools", "administration", "help"], labels: ["فایل", "ویرایش", "نما", "پروژه", "ابزارها", "مدیریت", "راهنما"] },
+  },
+};
+// Only a menu that a named, open PR is actively restoring may be absent; any
+// other missing reference menu fails the run instead of being excused.
+const DEFERRED_MENU_OWNERS = {
+  organization: "PR #2175 — project-scoped Organization menu",
 };
 const EXPECTED_GROUPS = ["workspace", "edit", "layout", "view", "project", "activities", "wbs", "gantt", "resources", "tools"];
 
@@ -132,6 +155,11 @@ const measure = `(() => {
       height: rect(toolbar)?.height ?? 0,
       groups: [...document.querySelectorAll("[data-toolbar-group]")].map((group) => group.dataset.toolbarGroup),
       buttons: toolbarButtons.length,
+      buttonDetail: toolbarButtons.map((button) => ({
+        id: button.dataset.toolbarCommand,
+        disabled: button.disabled === true,
+        icon: Boolean(button.querySelector(".cp-icon")),
+      })),
       overflowMirrors: overflowMirrors.length,
       minButton: toolbarButtons.reduce((min, button) => { const r = button.getBoundingClientRect(); return { width: Math.min(min.width, r.width), height: Math.min(min.height, r.height) }; }, { width: 999, height: 999 }),
       withoutIcon: toolbarButtons.filter((button) => !button.querySelector(".cp-icon")).length,
@@ -198,8 +226,25 @@ async function runMenuItem(page, menuId, itemId) {
 function verifyCell(cell, locale) {
   const m = cell.measure;
   assert(!m.pageOverflow, "page overflows horizontally");
-  assert(m.menubar.triggerCount === 8, `menu bar has ${m.menubar.triggerCount} menus`);
-  assert(JSON.stringify(m.menubar.triggers.map((trigger) => trigger.text)) === JSON.stringify(EXPECTED_MENUS[locale]), `menu order is ${m.menubar.triggers.map((t) => t.text).join(", ")}`);
+  const ids = m.menubar.triggers.map((trigger) => trigger.id);
+  const labels = m.menubar.triggers.map((trigger) => trigger.text);
+  const approved = APPROVED_MENUS[locale];
+  const matches = (shape) => JSON.stringify(ids) === JSON.stringify(shape.ids) && JSON.stringify(labels) === JSON.stringify(shape.labels);
+  const isFull = matches(approved.full);
+  const isTransitional = matches(approved.transitional);
+  assert(isFull || isTransitional, `menu bar is ${ids.map((id, index) => `${id}:${labels[index]}`).join(", ")}`);
+  cell.menuSet = isFull ? "approved-eight" : "transitional-seven";
+  cell.menus = ids.map((id, index) => ({ id, label: labels[index] }));
+  cell.missingReferenceMenus = V26_REFERENCE_MENUS[locale].ids.filter((id) => !ids.includes(id));
+  cell.deferredMenuOwners = Object.fromEntries(cell.missingReferenceMenus.map((id) => [id, DEFERRED_MENU_OWNERS[id] ?? null]));
+  for (const id of cell.missingReferenceMenus) {
+    assert(DEFERRED_MENU_OWNERS[id], `reference menu ${id} is missing with no named owner`);
+  }
+  if (isFull) {
+    // V26 Help calls this menu Enterprise; the approved product names the same
+    // position Organization and scopes it to the project (#2175).
+    cell.menuNaming = { organization: "V26 reference label is Enterprise; the approved product label is Organization, project-scoped (#2175)" };
+  }
   for (const trigger of m.menubar.triggers) {
     assert(trigger.rect.height >= 22, `menu ${trigger.text} target is ${trigger.rect.height}px high`);
     assert(Number.parseFloat(trigger.font) >= 11, `menu ${trigger.text} font is ${trigger.font}`);
@@ -208,7 +253,14 @@ function verifyCell(cell, locale) {
   assert(m.toolbar.height >= 24, `toolbar is ${m.toolbar.height}px high`);
   assert(JSON.stringify(m.toolbar.groups) === JSON.stringify(EXPECTED_GROUPS), `toolbar groups are ${m.toolbar.groups.join(", ")}`);
   assert(m.toolbar.withoutIcon === 0, `${m.toolbar.withoutIcon} toolbar buttons have no icon`);
+  assert(m.toolbar.overflowMirrors === m.toolbar.buttons, `overflow mirror holds ${m.toolbar.overflowMirrors} of ${m.toolbar.buttons} commands`);
+  assert(m.toolbar.minButton.width >= 20 && m.toolbar.minButton.height >= 20, `toolbar button target is ${m.toolbar.minButton.width}x${m.toolbar.minButton.height}`);
   assert(m.toolbar.duplicateCommands.length === 0, `duplicate toolbar commands: ${m.toolbar.duplicateCommands.join(", ")}`);
+  cell.toolbarCommands = {
+    total: m.toolbar.buttonDetail.length,
+    enabled: m.toolbar.buttonDetail.filter((button) => !button.disabled).length,
+    disabled: m.toolbar.buttonDetail.filter((button) => button.disabled).map((button) => button.id),
+  };
   assert(m.parallelShells.cubiToolbar === 0 && m.parallelShells.commandShell === 0 && m.parallelShells.layoutbar === 0, "a parallel command shell is rendered");
   assert(m.parallelShells.ganttTextCommands === 0, "the chart board repeats layout commands as text");
   assert(m.gridActions.length >= 1, "grid action strip is missing");
@@ -274,15 +326,22 @@ async function main() {
     const menuDetail = await page.evaluate(`(() => {
       const popup = document.querySelector('[data-desktop-popup="view"]');
       const items = [...popup.querySelectorAll("[data-desktop-item]")];
-      const checked = items.find((item) => item.getAttribute("aria-checked") === "true");
-      const unchecked = items.find((item) => item.getAttribute("aria-checked") !== "true" && item.querySelector(".cp-menubar-item-icon .cp-icon"));
+      // View > Windows is a flyout since PR #2143: its seven child commands live
+      // inside a closed submenu, so target height is measured on the commands a
+      // user can see plus the flyout trigger row itself.
+      const visibleItems = items.filter((item) => item.getClientRects().length > 0);
+      const submenuTriggers = [...popup.querySelectorAll("[data-desktop-submenu-trigger]")];
+      const checked = visibleItems.find((item) => item.getAttribute("aria-checked") === "true");
+      const unchecked = visibleItems.find((item) => item.getAttribute("aria-checked") !== "true" && item.querySelector(".cp-menubar-item-icon .cp-icon"));
       const labelLeft = (item) => item?.querySelector(".cp-menubar-item-label")?.getBoundingClientRect().left ?? null;
       return {
         open: !popup.hidden,
         insideViewport: (() => { const r = popup.getBoundingClientRect(); return r.left >= -1 && r.right <= window.innerWidth + 1 && r.top >= -1 && r.bottom <= window.innerHeight + 1; })(),
         items: items.length,
+        visibleItems: visibleItems.length,
         withIcon: items.filter((item) => item.querySelector(".cp-menubar-item-icon .cp-icon")).length,
-        minHeight: Math.min(...items.map((item) => item.getBoundingClientRect().height)),
+        minHeight: Math.min(...visibleItems.map((item) => item.getBoundingClientRect().height)),
+        submenuTriggers: submenuTriggers.map((trigger) => ({ id: trigger.dataset.desktopSubmenuTrigger, height: +trigger.getBoundingClientRect().height.toFixed(1), icon: Boolean(trigger.querySelector(".cp-menubar-item-icon .cp-icon")), closed: document.querySelector('[data-desktop-submenu-popup="' + trigger.dataset.desktopSubmenuTrigger + '"]')?.hidden ?? null })),
         checkWidth: checked?.querySelector(".cp-menubar-item-check")?.getBoundingClientRect().width ?? null,
         checkedLabelLeft: labelLeft(checked),
         uncheckedLabelLeft: labelLeft(unchecked),
@@ -295,6 +354,12 @@ async function main() {
     assert(menuDetail.items > 8, "View menu is unexpectedly short");
     assert(menuDetail.withIcon === menuDetail.items, `${menuDetail.items - menuDetail.withIcon} View commands have no icon`);
     assert(menuDetail.minHeight >= 22, `menu item target is ${menuDetail.minHeight}px high`);
+    assert(menuDetail.submenuTriggers.length >= 1, "the View menu lost its Windows flyout trigger");
+    for (const trigger of menuDetail.submenuTriggers) {
+      assert(trigger.height >= 22, `flyout trigger ${trigger.id} is ${trigger.height}px high`);
+      assert(trigger.icon, `flyout trigger ${trigger.id} has no icon`);
+      assert(trigger.closed === true, `flyout ${trigger.id} did not start closed`);
+    }
     assert(menuDetail.checkWidth >= 10, "check column is not reserved");
     if (menuDetail.checkedId && menuDetail.uncheckedId) {
       assert(Math.abs(menuDetail.checkedLabelLeft - menuDetail.uncheckedLabelLeft) < 0.6, "check state shifts the menu label");
@@ -302,8 +367,13 @@ async function main() {
     await capture(page, "menu-view-1366x768-en");
     await closeMenus(page);
 
-    // Every menu opens inside the viewport and shows icons.
-    for (const id of ["workspace", "edit", "view", "project", "organization", "tools", "administration", "help"]) {
+    // Every rendered menu opens inside the viewport and shows icons. The set is
+    // the approved eight or the documented seven-menu transitional shape.
+    const presentMenuIds = await page.evaluate(`[...document.querySelectorAll("[data-desktop-menu]")].map((element) => element.dataset.desktopMenu)`);
+    const approvedEn = APPROVED_MENUS.en;
+    const menuShapeOk = JSON.stringify(presentMenuIds) === JSON.stringify(approvedEn.full.ids) || JSON.stringify(presentMenuIds) === JSON.stringify(approvedEn.transitional.ids);
+    assert(menuShapeOk, `menu bar is ${presentMenuIds.join(", ")}`);
+    for (const id of presentMenuIds) {
       await openMenu(page, id);
       const popup = await page.evaluate(`(() => {
         const element = document.querySelector('[data-desktop-popup="${id}"]');
@@ -436,7 +506,7 @@ async function main() {
         const file = await capture(page, `activities-${viewport.label}-${locale}`);
         cell.screenshot = file;
         cells.push(cell);
-        log(`  PASS ${viewport.label} ${locale}: toolbar ${measureResult.toolbar.groups.length} families, nav ${measureResult.navRail.rect?.width}px, context ${measureResult.contextRail.rect?.width}px`);
+        log(`  PASS ${viewport.label} ${locale}: ${measureResult.menubar.triggerCount} menus (${cell.menuSet}), toolbar ${measureResult.toolbar.groups.length} families, nav ${measureResult.navRail.rect?.width}px, context ${measureResult.contextRail.rect?.width}px`);
       }
     }
 
@@ -447,6 +517,16 @@ async function main() {
       testedCodeSha,
       evidenceCommitSha: process.env.CUBI_EVIDENCE_COMMIT_SHA || null,
       capturedAt: new Date().toISOString(),
+      menuSummary: {
+        measuredSets: [...new Set(cells.map((cell) => cell.menuSet))],
+        measuredMenus: cells[0]?.menus ?? [],
+        missingReferenceMenus: [...new Set(cells.flatMap((cell) => cell.missingReferenceMenus))],
+        deferredMenuOwners: DEFERRED_MENU_OWNERS,
+        v26ReferenceLabels: V26_REFERENCE_MENUS.en.labels,
+        approvedFullLabels: APPROVED_MENUS.en.full.labels,
+        approvedTransitionalLabels: APPROVED_MENUS.en.transitional.labels,
+      },
+      toolbarCommands: cells[0]?.toolbarCommands ?? null,
       cells,
       commands,
       screenshots,
