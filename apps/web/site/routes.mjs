@@ -43,6 +43,9 @@ export const NAV_KEYS = [
 
 // Routes that exist as hand-written long-form documents in English and Persian.
 // They are not regenerated; the generator only adds their hreflang alternates.
+// `help` is hand-written because the operational Help Center carries an in-page
+// topic search and category structure that the generic section renderer cannot
+// express; its other locales stay generated from their content modules.
 export const HANDWRITTEN_ROUTES = new Set([
   "home",
   "platform",
@@ -51,6 +54,7 @@ export const HANDWRITTEN_ROUTES = new Set([
   "resources",
   "contact",
   "about",
+  "help",
 ]);
 
 export const REQUIRED_INDEXABLE_ROUTE_COUNT = Object.keys(ROUTE_PATHS).length;

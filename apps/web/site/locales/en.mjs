@@ -1,7 +1,7 @@
 // English copy for the CUBI public site.
 // Only routes rendered by the generator live here; the long-form pages that
 // already ship as hand-written documents (home, platform, solutions, pricing,
-// resources, contact, about) keep their existing files.
+// resources, contact, about, help) keep their existing files.
 export default {
   code: "en",
   htmlLang: "en",
@@ -367,37 +367,6 @@ export default {
             { h3: "Data and API", p: "How project data is scoped, versioned and read through the API." },
             { h3: "Security and access", p: "How identity, sessions, roles and project membership fit together." },
             { h3: "Glossary", p: "The project-controls terms CUBI uses, with one definition each." },
-          ],
-        },
-      ],
-    },
-    {
-      id: "help",
-      path: "help/",
-      title: "CUBI Help Center | Answers for the Workspace",
-      description:
-        "Get help with signing in, choosing an environment, opening a project and using the CUBI workspace.",
-      eyebrow: "HELP CENTER",
-      h1: "Help when the work needs to continue",
-      lead:
-        "Most questions are about access: signing in, choosing the right environment and opening the right project. Start here, then use the in-product help for the window you are in.",
-      sections: [
-        {
-          h2: "Common questions",
-          p: "The quickest answers to the situations that stop work.",
-          cards: [
-            { h3: "I cannot sign in", p: "Check the account email and whether the account is active. Repeated failed attempts are throttled for safety." },
-            { h3: "Enterprise is disabled for me", p: "Enterprise requires an enterprise role on your account. Ask your administrator to grant it; the selector explains the reason." },
-            { h3: "I cannot see my project", p: "Projects are scoped by membership. Ask the project owner to add your account." },
-          ],
-        },
-        {
-          h2: "In-product help",
-          p: "Every workspace window carries its own help entry with the shortcuts and definitions for that window.",
-          cards: [
-            { h3: "Keyboard shortcuts", p: "Open Help inside the workspace to see the shortcuts available where you are." },
-            { h3: "Window guidance", p: "Each window explains what it shows and what it needs before it can show data." },
-            { h3: "Contact support", p: "If the answer is not there, contact us with the project and time of the problem." },
           ],
         },
       ],

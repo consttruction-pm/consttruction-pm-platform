@@ -2,8 +2,8 @@
 //
 // Two kinds of documents coexist:
 //   * hand-written long-form pages (home, platform, solutions, pricing, resources,
-//     contact, about) in English and Persian. They are never regenerated; this
-//     script only refreshes their hreflang alternates and language switcher.
+//     contact, about, help) in English and Persian. They are never regenerated;
+//     this script only refreshes their hreflang alternates and language switcher.
 //   * generated pages for every other route and locale, rendered from
 //     apps/web/site/locales/<code>.mjs.
 //
@@ -263,6 +263,8 @@ const HANDWRITTEN_FILES = [
   ["contact", "fa", "public/fa/contact/index.html", "/fa/contact"],
   ["about", "en", "public/about/index.html", "/about"],
   ["about", "fa", "public/fa/about/index.html", "/fa/about"],
+  ["help", "en", "public/help/index.html", "/help"],
+  ["help", "fa", "public/fa/help/index.html", "/fa/help"],
 ];
 
 function refreshHandwritten(pageId, code, relativeFile, fromDir) {
