@@ -726,6 +726,10 @@ class EnterpriseDashboardApplicationService:
         generated_at: datetime | None = None
         data: object = None
         drill_refs: list[dict[str, object]] = []
+        filter_options: dict[str, list[dict[str, str]]] = {
+            "portfolio_id": [],
+            "project_id": [],
+        }
         filtered_out = False
 
         if portlet.type_id == PORTFOLIO_CONTROL_SNAPSHOT:
@@ -756,6 +760,16 @@ class EnterpriseDashboardApplicationService:
             self._authorize_source_projects(
                 session_id, session, tuple(item.project_id for item in snapshot.projects)
             )
+            # Build selector options from the complete, freshly authorized source
+            # snapshot, not the row-limited/filtered display payload. This keeps
+            # the filter picker complete without disclosing unauthorized projects.
+            filter_options = {
+                "portfolio_id": [{"value": portfolio_id, "label": portfolio_id}],
+                "project_id": [
+                    {"value": item.project_id, "label": item.project_id}
+                    for item in sorted(snapshot.projects, key=lambda project: project.project_id)
+                ],
+            }
             project_rows = list(snapshot.projects)
             if "decision_status" in filters:
                 filtered_out = True
@@ -929,6 +943,7 @@ class EnterpriseDashboardApplicationService:
             "generated_at": generated_at.isoformat() if generated_at else None,
             "freshness_state": freshness_state,
             "data": data,
+            "filter_options": filter_options,
             "drill_through_refs": drill_refs,
             "saved_filters": [item.as_dict() for item in dashboard_filters],
             "applied_filters": [item.as_dict() for item in applied_filters],
@@ -992,6 +1007,7 @@ class EnterpriseDashboardApplicationService:
             "generated_at": None,
             "freshness_state": "missing",
             "data": None,
+            "filter_options": {"portfolio_id": [], "project_id": []},
             "drill_through_refs": [],
             "saved_filters": [item.as_dict() for item in dashboard_filters],
             "applied_filters": [item.as_dict() for item in applied_filters],
