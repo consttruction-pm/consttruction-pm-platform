@@ -2,8 +2,8 @@
 <html lang="en" dir="ltr">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CUBI Help Center | Answers for the Workspace</title>
-<meta name="description" content="Get help with signing in, choosing an environment, opening a project and using the CUBI workspace.">
+<title>CUBI Help Center | Sign-in, Projects and Workspace</title>
+<meta name="description" content="Practical help for signing in, choosing an environment, opening a project, using the workspace and reporting a problem to your administrator.">
 <link rel="canonical" href="__CUBI_BASE_URL__/help/">
 <link rel="alternate" hreflang="en" href="__CUBI_BASE_URL__/help/">
 <link rel="alternate" hreflang="fa" href="__CUBI_BASE_URL__/fa/help/">
@@ -28,13 +28,13 @@
 <meta property="og:locale:alternate" content="ko_KR">
 <meta property="og:locale:alternate" content="zh_CN">
 <meta property="og:locale:alternate" content="ar_SA">
-<meta property="og:title" content="CUBI Help Center | Answers for the Workspace">
-<meta property="og:description" content="Get help with signing in, choosing an environment, opening a project and using the CUBI workspace.">
+<meta property="og:title" content="CUBI Help Center | Sign-in, Projects and Workspace">
+<meta property="og:description" content="Practical help for signing in, choosing an environment, opening a project, using the workspace and reporting a problem to your administrator.">
 <meta property="og:url" content="__CUBI_BASE_URL__/help/">
 <meta property="og:image" content="__CUBI_BASE_URL__/cubi-platform-logo-primary.svg">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="CUBI Help Center | Answers for the Workspace">
-<meta name="twitter:description" content="Get help with signing in, choosing an environment, opening a project and using the CUBI workspace.">
+<meta name="twitter:title" content="CUBI Help Center | Sign-in, Projects and Workspace">
+<meta name="twitter:description" content="Practical help for signing in, choosing an environment, opening a project, using the workspace and reporting a problem to your administrator.">
 <meta name="twitter:image" content="__CUBI_BASE_URL__/cubi-platform-logo-primary.svg">
 <meta name="robots" content="index,follow">
 <meta name="theme-color" content="#081A2F">
@@ -44,8 +44,8 @@
 {
   "@context": "https://schema.org",
   "@type": "WebPage",
-  "name": "CUBI Help Center | Answers for the Workspace",
-  "description": "Get help with signing in, choosing an environment, opening a project and using the CUBI workspace.",
+  "name": "CUBI Help Center | Sign-in, Projects and Workspace",
+  "description": "Practical help for signing in, choosing an environment, opening a project, using the workspace and reporting a problem to your administrator.",
   "url": "__CUBI_BASE_URL__/help/",
   "inLanguage": "en",
   "isPartOf": {
@@ -59,11 +59,353 @@
 <body class="cubi-public-page">
 <header class="cubi-public-header"><a href="../index.html" aria-label="Home"><img src="../cubi-platform-logo-primary.svg" alt="CUBI Platform" width="132" height="48"></a><nav class="cubi-public-nav" aria-label="Primary navigation"><a href="../">Home</a><a href="../platform/">Platform</a><a href="../features/">Features</a><a href="../solutions/">Solutions</a><a href="../pricing/">Pricing</a><a href="../resources/">Resources</a><a href="../about/">About</a><a href="../contact/">Contact</a></nav><a class="cubi-public-language" hreflang="fa" href="../fa/help/" lang="fa">فارسی</a><details class="cubi-public-languages"><summary>All languages</summary><nav aria-label="All languages"><a hreflang="de" href="../de/help/" lang="de">Deutsch</a><a hreflang="fr" href="../fr/help/" lang="fr">Français</a><a hreflang="ru" href="../ru/help/" lang="ru">Русский</a><a hreflang="tr-TR" href="../tr/help/" lang="tr-TR">Türkçe</a><a hreflang="ja" href="../ja/help/" lang="ja">日本語</a><a hreflang="ko" href="../ko/help/" lang="ko">한국어</a><a hreflang="zh-CN" href="../zh/help/" lang="zh-CN">简体中文</a><a hreflang="ar" href="../ar/help/" lang="ar">العربية</a></nav></details></header>
 <main>
-<section class="cubi-public-hero"><p class="eyebrow">HELP CENTER</p><h1>Help when the work needs to continue</h1><p>Most questions are about access: signing in, choosing the right environment and opening the right project. Start here, then use the in-product help for the window you are in.</p></section>
-<section class="cubi-public-content"><h2>Common questions</h2><p>The quickest answers to the situations that stop work.</p><div class="cubi-public-grid"><article class="cubi-public-card"><h3>I cannot sign in</h3><p>Check the account email and whether the account is active. Repeated failed attempts are throttled for safety.</p></article><article class="cubi-public-card"><h3>Enterprise is disabled for me</h3><p>Enterprise requires an enterprise role on your account. Ask your administrator to grant it; the selector explains the reason.</p></article><article class="cubi-public-card"><h3>I cannot see my project</h3><p>Projects are scoped by membership. Ask the project owner to add your account.</p></article></div>
-<h2>In-product help</h2><p>Every workspace window carries its own help entry with the shortcuts and definitions for that window.</p><div class="cubi-public-grid"><article class="cubi-public-card"><h3>Keyboard shortcuts</h3><p>Open Help inside the workspace to see the shortcuts available where you are.</p></article><article class="cubi-public-card"><h3>Window guidance</h3><p>Each window explains what it shows and what it needs before it can show data.</p></article><article class="cubi-public-card"><h3>Contact support</h3><p>If the answer is not there, contact us with the project and time of the problem.</p></article></div>
-<div class="cubi-public-cta"><div><strong>See CUBI on your own project</strong><p>Open the workspace and continue from a connected project view.</p></div><a href="../app/">Open CUBI workspace →</a></div></section>
+<section class="cubi-public-hero"><p class="eyebrow">HELP CENTER</p><h1>Help Center for the CUBI workspace</h1><p>Work through the paths that stop work: signing in, choosing an environment, opening a project and getting started. Each topic names the real CUBI screen, the inputs it needs and the result you should expect.</p></section>
+<section class="cubi-public-content">
+<div class="cubi-help-search" role="search" aria-labelledby="help-search-label">
+<label id="help-search-label" for="help-search">Search help topics</label>
+<div class="cubi-help-search-field"><input id="help-search" type="search" placeholder="Search by task, error message, window or command" autocomplete="off" aria-describedby="help-search-hint help-search-status"><button type="button" id="help-search-clear" hidden>Clear</button></div>
+<p id="help-search-hint" class="cubi-help-hint">The search looks at topic titles, steps and keywords. Press <kbd class="cubi-help-kbd">/</kbd> to jump to the field and <kbd class="cubi-help-kbd">Esc</kbd> to clear it.</p>
+<p id="help-search-status" class="cubi-help-status" role="status" aria-live="polite"></p>
+</div>
+<nav class="cubi-help-cats" aria-label="Help categories"><a href="#sign-in">Sign-in</a><a href="#environments">Environments</a><a href="#projects">Projects</a><a href="#workbench">Workbench</a><a href="#workspace">Workspace</a><a href="#in-product-help">In-product help</a><a href="#errors">Errors</a><a href="#support">Support</a></nav>
+
+<section class="cubi-help-section" id="sign-in" aria-labelledby="sign-in-title" data-help-section>
+<h2 id="sign-in-title">Sign in and fix login problems</h2>
+<p>Sign-in uses the username and password issued by your organization. The username is not an email address. Never send your password to anyone; support does not need it.</p>
+<div class="cubi-help-topics">
+<article class="cubi-help-topic" data-help-topic data-help-keywords="login log in sign in username password session landing workbench">
+<h3>Sign in and land in the right place</h3>
+<ol class="cubi-help-steps">
+<li>Open the <a href="/app">CUBI workspace</a>; when no session is active it shows the sign-in screen at <code>/login</code>.</li>
+<li>Enter your username and password. Both fields are required, and the page focuses the username field when it opens.</li>
+<li>Choose Sign in. A successful sign-in opens the Personal Workbench, where you choose an environment.</li>
+</ol>
+<p>Sign-in always asks for the username and password; an existing session does not silently skip the screen.</p>
+</article>
+<article class="cubi-help-topic" data-help-topic data-help-keywords="incorrect wrong password throttled too many attempts empty fields unreachable network">
+<h3>Read the message when sign-in is rejected</h3>
+<p><strong>Username or password is incorrect.</strong> The pair did not match; the page does not say which field is wrong. Check Caps Lock and the keyboard layout, and type the username rather than the email address.</p>
+<p><strong>Enter your username and password.</strong> One of the two fields is empty.</p>
+<p><strong>Too many attempts. Wait a few minutes and try again.</strong> The server blocked sign-in for a short period after repeated failures, for up to about fifteen minutes. Waiting is part of the protection; repeated attempts extend it.</p>
+<p><strong>The workspace service is unreachable. Try again.</strong> The request did not reach CUBI. Check the connection and retry.</p>
+</article>
+<article class="cubi-help-topic" data-help-topic data-help-keywords="forgot password reset administrator sign up signup create account username rules">
+<h3>Reset a password or create an account</h3>
+<p>Choose <strong>Forgot password?</strong> on the sign-in page. The page then explains that your CUBI administrator performs a secure reset; there is no self-service reset link to send.</p>
+<p><strong>Sign up</strong> creates a new account in this installation. Use a username of 3 to 32 characters from letters, digits, dot, underscore or hyphen, starting with a letter or digit; the username is treated case-insensitively. Passwords must be at least 12 characters. The new account starts with least privilege and no project access until an administrator or project owner grants it.</p>
+<p>If the username already exists, sign up reports it: sign in instead, or choose another username.</p>
+</article>
+<article class="cubi-help-topic" data-help-topic data-help-keywords="session expire timeout idle sign out shared device">
+<h3>Sessions end, and that is normal</h3>
+<p>Sessions expire after a fixed lifetime and after a period without activity. The Personal Workbench shows the expiry time under your identity.</p>
+<p>When a session ends, sign in again: the Workbench reloads your roles and projects from the server. On a shared device, use <strong>Sign out</strong> in the Workbench instead of only closing the tab.</p>
+</article>
+</div>
+</section>
+
+<section class="cubi-help-section" id="environments" aria-labelledby="environments-title" data-help-section>
+<h2 id="environments-title">Choose the right environment</h2>
+<p>One account can reach more than one environment. The Personal Workbench shows only what your roles allow, and the server checks the same roles on every request.</p>
+<div class="cubi-help-topics">
+<article class="cubi-help-topic" data-help-topic data-help-keywords="engineering enterprise administration environment differences roles portfolio">
+<h3>Know what each environment is for</h3>
+<p><strong>CUBI Engineering</strong> is the project workspace: projects, WBS, activities, relationships, scheduling, resources and reports. <a href="/app?view=live">Open Engineering</a>.</p>
+<p><strong>CUBI Enterprise</strong> covers organization, teams, tasks, approvals, workflows and portfolio for accounts with an enterprise role. Choose Enterprise in the <a href="/environments/">environment selector</a>; it opens the dashboard at <code>/cubi/enterprise/dashboard</code>.</p>
+<p><strong>Global Administration</strong> is tenant-wide administration of identities, organizations and platform settings; it is reserved for accounts with the global administrator role.</p>
+</article>
+<article class="cubi-help-topic" data-help-topic data-help-keywords="not authorized restricted unverified entitlement enterprise access check retry">
+<h3>Read the access state, not just the label</h3>
+<p><strong>Open environment</strong> means the server authorized this environment for the current session. Choose it.</p>
+<p><strong>Not authorized for this account</strong> is a decision, not a temporary failure. Ask an administrator to grant the role the environment requires; retrying will not change it.</p>
+<p><strong>Enterprise access could not be verified</strong> is not a denial. The server did not answer the access check, so retry; if the message persists, report it with the time and the environment name.</p>
+</article>
+<article class="cubi-help-topic" data-help-topic data-help-keywords="environment selector page project count session authorized">
+<h3>Use the environment selector page</h3>
+<p>The <a href="/environments/">environment selector</a> lists Engineering and Enterprise availability for the signed-in session, shows how many projects are available, and links into each environment.</p>
+<p>It uses the same session as the rest of the product: if it sends you to sign-in, the session has expired. It never opens an environment that the account is not authorized for, and it explains a restricted environment in place.</p>
+</article>
+</div>
+</section>
+
+<section class="cubi-help-section" id="projects" aria-labelledby="projects-title" data-help-section>
+<h2 id="projects-title">Open a project and fix access</h2>
+<p>Projects are scoped to membership inside a tenant. A project that is not listed is not shared with your account, and CUBI does not show a partial or stale copy instead.</p>
+<div class="cubi-help-topics">
+<article class="cubi-help-topic" data-help-topic data-help-keywords="open project project list membership tenant last project ctrl o tabs">
+<h3>Open a project</h3>
+<ol class="cubi-help-steps">
+<li>Open <a href="/app?view=live">CUBI Engineering</a> or choose Engineering in the Personal Workbench.</li>
+<li>Pick a project from the project list. The list contains only projects your account is a member of.</li>
+<li>Use the project tabs to switch, or <strong>Open</strong> (Ctrl+O) in the workspace. The last project reopens in this browser after a refresh.</li>
+</ol>
+</article>
+<article class="cubi-help-topic" data-help-topic data-help-keywords="project missing not listed access removed membership owner administrator wrong tenant">
+<h3>Why a project is missing</h3>
+<p>The server scopes every project request to your account. A project that is not listed is either not shared with you or belongs to another tenant.</p>
+<p>Ask the project owner or your administrator to add your account to the project; signing up does not grant membership. If a project you used before no longer opens, your access may have been removed, and the workspace asks you to choose another project rather than showing stale data.</p>
+<p>Before reporting an access problem, confirm the tenant and roles shown in the Personal Workbench.</p>
+</article>
+<article class="cubi-help-topic" data-help-topic data-help-keywords="first project create name 2 120 characters empty project reference code">
+<h3>Start with a first project</h3>
+<p>When the account has no project, the workspace offers a first-project form instead of an empty grid. Enter a name of 2 to 120 characters and choose <strong>Create and open</strong>; the server stores the project before it opens.</p>
+<p>The project starts empty. Load or import WBS and activities next, as described in <a href="#workspace">Start work in the workspace</a>. If creation fails, the form keeps the name you entered and shows a reference code; keep that code for support.</p>
+</article>
+</div>
+</section>
+
+<section class="cubi-help-section" id="workbench" aria-labelledby="workbench-title" data-help-section>
+<h2 id="workbench-title">The Personal Workbench</h2>
+<p>The Workbench is the signed-in hub between the public site and the two environments. It is not a third workspace; every action leads into Engineering or Enterprise.</p>
+<div class="cubi-help-topics">
+<article class="cubi-help-topic" data-help-topic data-help-keywords="personal workbench identity tenant roles session expiry projects tasks language">
+<h3>What the Workbench shows</h3>
+<p>Your identity (Signed in as), tenant, roles and session expiry; the environments you may enter and the reason when one is restricted; your authorized projects and assigned tasks; and the language selector, Help, Account and Sign out controls.</p>
+<p>After signing in, the Personal Workbench at <code>/workbench</code> is your hub; you reach it through <a href="/app">the workspace entry</a>. It always reflects what the server confirms for the current session.</p>
+</article>
+<article class="cubi-help-topic" data-help-topic data-help-keywords="use workbench hub open project tasks help sign out">
+<h3>Use it as the hub</h3>
+<ol class="cubi-help-steps">
+<li>Check Tenant and Roles first when an access problem appears.</li>
+<li>Open a project from Authorized projects to go straight into its workspace.</li>
+<li>Use Assigned tasks to reach Enterprise task coordination when your role allows it.</li>
+<li>Use Help to return to this Help Center and Documentation for reference.</li>
+<li>Sign out when you finish on a shared device.</li>
+</ol>
+</article>
+<article class="cubi-help-topic" data-help-topic data-help-keywords="change password account current new confirm other sessions signed out mismatch">
+<h3>Change your password</h3>
+<p>Open <strong>Account</strong>, enter the current password and the new password twice, then submit. A successful change signs out your other sessions, so use the new password everywhere afterwards.</p>
+<p>If the two new passwords differ, the form reports the mismatch and changes nothing.</p>
+</article>
+<article class="cubi-help-topic" data-help-topic data-help-keywords="workbench could not load retry session expired sign in again">
+<h3>If the Workbench cannot load</h3>
+<p><strong>The workbench could not be loaded. Please try again.</strong> The session or project summary request failed, and nothing is shown as a result. Use Retry; if it fails again, sign out and sign in to renew the session.</p>
+<p><strong>Your session has expired. Sign in to continue.</strong> The session ended. Sign in again; the Workbench reloads your roles and projects.</p>
+</article>
+</div>
+</section>
+
+<section class="cubi-help-section" id="workspace" aria-labelledby="workspace-title" data-help-section>
+<h2 id="workspace-title">Start work in the Engineering workspace</h2>
+<p>The workspace is a desktop layout: a title bar, a menu bar, a command toolbar, window tabs and panes inside the open project. Nothing is calculated in the browser; dates and totals come from the project server.</p>
+<div class="cubi-help-topics">
+<article class="cubi-help-topic" data-help-topic data-help-keywords="shell title bar menu toolbar window tabs view windows flyout details pane">
+<h3>Read the shell from top to bottom</h3>
+<p><strong>Title bar</strong> shows the project and the active window. <strong>Menu bar</strong> groups commands by intent, such as workspace and file, edit, view, project, tools, administration and help. <strong>Command toolbar</strong> holds the most-used commands for the active window.</p>
+<p>A disabled toolbar button states what is needed first, for example selecting an activity or loading project data. <strong>Window tabs</strong> keep several windows, such as Activities and WBS, inside the same project, and <strong>View &#8594; Windows</strong> reopens a window you closed.</p>
+</article>
+<article class="cubi-help-topic" data-help-topic data-help-keywords="first steps activities wbs relationships calendars schedule data date float progress">
+<h3>First steps in a project</h3>
+<ol class="cubi-help-steps">
+<li>Open the Activities window and load or import WBS and activities.</li>
+<li>Select an activity and review its details; add predecessors and successors in the activity details.</li>
+<li>Open Calendars and verify working days, daily hours and dated exceptions.</li>
+<li>Run the schedule and check the data date, early and late dates and total float.</li>
+<li>Enter progress, then run the schedule again and confirm the stored result before reporting it.</li>
+</ol>
+</article>
+<article class="cubi-help-topic" data-help-topic data-help-keywords="import export interchange provider xml mapping loss warnings row count">
+<h3>Import and export project data</h3>
+<p><strong>Project &#8594; Import / Export</strong> opens the interchange panel. Export sends the loaded activities through the project's registered provider mapping and returns a provider XML document.</p>
+<p>Import is a read-only mapping: paste or choose provider XML, and the server maps rows to canonical fields with loss warnings. Import does not change activities, dates or the schedule. Check the mapped row count and the loss warnings before relying on the document.</p>
+</article>
+<article class="cubi-help-topic" data-help-topic data-help-keywords="empty grid no data costs assignments risk empty zero stale revision conflict reload">
+<h3>When a window shows nothing</h3>
+<p>An empty grid or chart is not a zero result. Each window states what it needs before it can show data; load project data first.</p>
+<p>A missing cost, assignment or risk record is shown as empty, never as zero. If a layout is stale or a revision conflict appears, reload so the current revision is used before you repeat the change.</p>
+</article>
+</div>
+</section>
+
+<section class="cubi-help-section" id="in-product-help" aria-labelledby="in-product-help-title" data-help-section>
+<h2 id="in-product-help-title">Help inside each window</h2>
+<p>Every workspace window shares one in-product help surface: the Keyboard shortcuts dialog. It follows the windows you have open, so the commands it lists belong to the work in front of you.</p>
+<div class="cubi-help-topics">
+<article class="cubi-help-topic" data-help-topic data-help-keywords="f1 keyboard shortcuts dialog help button help menu">
+<h3>Open the shortcuts dialog</h3>
+<ol class="cubi-help-steps">
+<li>Press <kbd class="cubi-help-kbd">F1</kbd> anywhere in the workspace.</li>
+<li>Or choose the <strong>Help</strong> button on the command toolbar, or <strong>Help &#8594; Keyboard shortcuts</strong> in the menu bar.</li>
+<li>The dialog lists commands for the open windows, their key bindings and their availability.</li>
+</ol>
+</article>
+<article class="cubi-help-topic" data-help-topic data-help-keywords="window context search commands keys unavailable reason filter">
+<h3>Find the command for the window you are in</h3>
+<p>Rows are grouped with workspace actions first, then editing, then view and schedule. Commands tied to a window appear only while that window is open, so the list follows your context.</p>
+<p>Use the dialog's own search box to filter by command name or key. An unavailable command states the reason, for example that an activity must be selected in the grid first.</p>
+</article>
+<article class="cubi-help-topic" data-help-topic data-help-keywords="change binding reset defaults conflict capture chord">
+<h3>Change or reset a binding</h3>
+<p>Choose <strong>Change</strong> next to a command, then press the new chord. A plain letter is rejected because it would interfere with typing; use Ctrl or Alt with a letter, or a function or navigation key.</p>
+<p>Conflicting bindings are listed at the top of the dialog. <strong>Reset</strong> restores one command and <strong>Reset all to defaults</strong> restores every binding.</p>
+</article>
+<article class="cubi-help-topic" data-help-topic data-help-keywords="documented topic help link about cubi workspace shift f12">
+<h3>Reach the documented topic</h3>
+<p>Where a command or window has a recorded topic, its row carries a <strong>Help</strong> link that opens the full topic in a new tab.</p>
+<p>The same menu opens <strong>About CUBI Workspace</strong> (Shift+F12), which describes the scope of the workspace and confirms that data is read from the session's project server. In-product help describes the current window; this Help Center covers access and cross-window workflows.</p>
+</article>
+</div>
+</section>
+
+<section class="cubi-help-section" id="errors" aria-labelledby="errors-title" data-help-section>
+<h2 id="errors-title">Common errors and what they mean</h2>
+<p>Each message below is a real CUBI state. Read the message first, then follow the action it names; no project data is changed by a failed request.</p>
+<div class="cubi-help-topics">
+<article class="cubi-help-topic" data-help-topic data-help-keywords="username password incorrect rejected check caps lock">
+<h3>Username or password is incorrect</h3>
+<p>The credentials did not match. Check the username spelling, Caps Lock and the keyboard layout, and confirm that you are typing the username rather than the email address. After several failures the server throttles sign-in and the page shows a wait message.</p>
+</article>
+<article class="cubi-help-topic" data-help-topic data-help-keywords="too many attempts throttled wait retry">
+<h3>Too many attempts</h3>
+<p>The server temporarily blocked sign-in after repeated failures. Wait for the period named in the message, then try once more. Repeating attempts while the block is active extends it.</p>
+</article>
+<article class="cubi-help-topic" data-help-topic data-help-keywords="workbench could not load retry reference code nothing loaded">
+<h3>The workspace could not be loaded</h3>
+<p>The session or project request failed and no project data was loaded, so nothing is shown as a result. Use Retry on the page. If it keeps failing, note the time and the reference code the page shows.</p>
+</article>
+<article class="cubi-help-topic" data-help-topic data-help-keywords="no projects authorized membership tenant roles">
+<h3>No projects are authorized for this account yet</h3>
+<p>The account is signed in but not a member of any project in this tenant. Ask your administrator or project owner to add your account, then reload the Workbench. A new sign-up never adds access by itself.</p>
+</article>
+<article class="cubi-help-topic" data-help-topic data-help-keywords="enterprise not authorized unverified entitlement retry grant role">
+<h3>Enterprise access is restricted or unverified</h3>
+<p><strong>Not authorized</strong> means the account has no Enterprise entitlement; ask an administrator to grant the enterprise role. <strong>Could not be verified</strong> means the server did not answer the access check; retry before assuming the environment is unavailable.</p>
+</article>
+<article class="cubi-help-topic" data-help-topic data-help-keywords="stale revision progress rejected reload current">
+<h3>Progress on a stale revision is rejected</h3>
+<p>The project changed after the page loaded the data you are editing. Reload so the current revision is used, then re-enter the change. CUBI does not merge the stale edit silently.</p>
+</article>
+<article class="cubi-help-topic" data-help-topic data-help-keywords="calendar change schedule recalculate dates run schedule">
+<h3>A calendar change did not move dates</h3>
+<p>A calendar change does not recalculate dates by itself. Run the schedule and verify the returned dates, durations and float together with the stored result.</p>
+</article>
+<article class="cubi-help-topic" data-help-topic data-help-keywords="import mapped rows loss warnings provider xml">
+<h3>An import mapped fewer rows than expected</h3>
+<p>Read the loss warnings returned with the mapping; import is read-only and does not fabricate rows. Correct the source document, then map it again and check the mapped row count.</p>
+</article>
+</div>
+</section>
+
+<section class="cubi-help-section" id="support" aria-labelledby="support-title" data-help-section>
+<h2 id="support-title">Contact support with the right details</h2>
+<p>A precise report resolves access problems faster. CUBI does not ask you to send passwords, session cookies or confidential project data.</p>
+<div class="cubi-help-topics">
+<article class="cubi-help-topic" data-help-topic data-help-keywords="collect details username tenant roles environment project id time reference code">
+<h3>Collect these details first</h3>
+<ol class="cubi-help-steps">
+<li>Your username, but never the password.</li>
+<li>The tenant and roles shown in the Personal Workbench.</li>
+<li>The environment (Engineering or Enterprise) and the window or page.</li>
+<li>The project name and project ID from the title bar.</li>
+<li>The local time of the problem with the timezone, and whether it repeats.</li>
+<li>The exact message or reference code, and what you already tried: Retry, reload, re-run the schedule.</li>
+</ol>
+</article>
+<article class="cubi-help-topic" data-help-topic data-help-keywords="channel administrator project owner contact page no ticket">
+<h3>Use the right channel</h3>
+<p>Start with your CUBI administrator or the owner of the project: they reset passwords securely, grant roles and add project membership.</p>
+<p>The <a href="../contact/">Contact page</a> lists the public destinations that exist today. It does not collect or transmit personal or project information, so it cannot open a ticket by itself. When your organization names a support channel, use the list below unchanged.</p>
+</article>
+<article class="cubi-help-topic" data-help-topic data-help-keywords="report template copy message">
+<h3>A report you can copy</h3>
+<p>Fill this in and send it through the channel your administrator provides.</p>
+<pre class="cubi-help-template">What happened:
+Page or window:
+Environment and tenant:
+Username (not the password):
+Project name and ID:
+Time with timezone:
+Exact message or reference code:
+Steps already tried:</pre>
+</article>
+<article class="cubi-help-topic" data-help-topic data-help-keywords="while you wait documentation f1 duplicate project">
+<h3>While you wait</h3>
+<p>Use the topics above and the <a href="../documentation/">Documentation</a> for reference. In the workspace, press <kbd class="cubi-help-kbd">F1</kbd> to check a command and its binding; an unavailable command states what is missing.</p>
+<p>If a project cannot be opened, ask for membership instead of creating a duplicate project to work around the problem.</p>
+</article>
+</div>
+</section>
+
+<div class="cubi-public-cta"><div><strong>Open your Personal Workbench</strong><p>Check your identity, roles and authorized projects, then enter the environment you need.</p></div><a href="/app">Sign in and open the workspace &#8594;</a></div>
+</section>
 </main>
 <footer class="cubi-public-footer"><span>© 2026 CUBI Platform · Plan. Control. Build Smarter.</span><nav aria-label="Primary navigation"><div><b>Product</b><a href="../features/">Features</a> · <a href="../platform/">Platform</a> · <a href="../integrations/">Integrations</a> · <a href="../pricing/">Pricing</a></div><div><b>Learn</b><a href="../documentation/">Documentation</a> · <a href="./">Help Center</a> · <a href="../faq/">FAQ</a> · <a href="../resources/">Resources</a></div><div><b>Company</b><a href="../about/">About</a> · <a href="../security/">Security</a> · <a href="../terms/">Terms</a> · <a href="../privacy/">Privacy</a></div></nav></footer>
+<script>
+(function () {
+  "use strict";
+  var input = document.getElementById("help-search");
+  var status = document.getElementById("help-search-status");
+  var clear = document.getElementById("help-search-clear");
+  var topics = Array.prototype.slice.call(document.querySelectorAll("[data-help-topic]"));
+  var sections = Array.prototype.slice.call(document.querySelectorAll("[data-help-section]"));
+  if (!input || !status || !clear || !topics.length) return;
+  function normalize(value) {
+    return String(value)
+      .toLowerCase()
+      .replace(/[\u064A\u0649]/g, "\u06CC")
+      .replace(/\u0643/g, "\u06A9")
+      .replace(/[\u064B-\u0652\u0670\u200B-\u200F]/g, " ")
+      .replace(/[\u06F0-\u06F9]/g, function (digit) { return String(digit.charCodeAt(0) - 0x06F0); })
+      .replace(/[\u0660-\u0669]/g, function (digit) { return String(digit.charCodeAt(0) - 0x0660); })
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+  var index = topics.map(function (topic) {
+    return {
+      node: topic,
+      section: topic.closest("[data-help-section]"),
+      text: normalize(topic.textContent + " " + (topic.getAttribute("data-help-keywords") || ""))
+    };
+  });
+  var total = topics.length;
+  var categories = sections.length;
+  function apply() {
+    var raw = input.value.trim();
+    var query = normalize(raw);
+    var visible = 0;
+    var shownCategories = 0;
+    index.forEach(function (entry) {
+      var match = !query || entry.text.indexOf(query) !== -1;
+      entry.node.hidden = !match;
+      if (match) visible += 1;
+    });
+    sections.forEach(function (section) {
+      var hasMatch = !query || section.querySelector("[data-help-topic]:not([hidden])") !== null;
+      section.hidden = !hasMatch;
+      if (hasMatch) shownCategories += 1;
+    });
+    clear.hidden = !raw;
+    if (!query) {
+      status.textContent = total + " topics across " + categories + " categories. Type to filter, or press slash to jump to the search field.";
+      return;
+    }
+    if (visible === 0) {
+      status.textContent = "No topic matches \u201C" + raw + "\u201D. Try a window name, a menu command, an error message or a keyword.";
+      return;
+    }
+    status.textContent = visible + " of " + total + " topics match \u201C" + raw + "\u201D in " + shownCategories + " of " + categories + " categories.";
+  }
+  input.addEventListener("input", apply);
+  input.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" && input.value) {
+      input.value = "";
+      apply();
+    }
+  });
+  clear.addEventListener("click", function () {
+    input.value = "";
+    apply();
+    input.focus();
+  });
+  document.addEventListener("keydown", function (event) {
+    if (event.key !== "/" || event.ctrlKey || event.metaKey || event.altKey) return;
+    var target = event.target;
+    if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable)) return;
+    event.preventDefault();
+    input.focus();
+  });
+  apply();
+})();
+</script>
 <script type="module" src="../dist/global-assistant-launcher.bundle.js"></script>
 </body></html>
