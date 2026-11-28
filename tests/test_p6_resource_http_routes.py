@@ -41,16 +41,16 @@ class Projects:
         return ProjectSummary(project_id, tenant_id, name, 0)
 
 
-def routes():
+def routes(connection=None, roles=("project_admin",)):
     now = datetime(2026, 10, 8, tzinfo=timezone.utc)
     session = AuthenticatedSession(
-        "s1", "u1", "t1", frozenset({"project_admin"}), now + timedelta(hours=1)
+        "s1", "u1", "t1", frozenset(roles), now + timedelta(hours=1)
     )
     service = __import__(
         "construction_pm.application.project_lifecycle",
         fromlist=["ProjectLifecycleService"],
     ).ProjectLifecycleService(Sessions(session), Projects(), default_project_policy())
-    connection = sqlite3.connect(":memory:")
+    connection = connection or sqlite3.connect(":memory:")
     calendars = SQLiteCalendarMasterRepository(connection)
     calendars.save(
         CalendarMaster(
@@ -67,11 +67,13 @@ def routes():
         default_project_policy(),
         calendars,
     )
-    return ProjectLifecycleHttpRoutes(
+    router = ProjectLifecycleHttpRoutes(
         ProjectLifecycleAPI(service),
         clock=type("Clock", (), {"now": lambda self: now})(),
         p6_resource_api=resource_api,
     )
+    router.connection = connection
+    return router
 
 
 def test_resource_http_create_read_list_and_update():
@@ -202,5 +204,141 @@ def test_resource_http_rejects_unknown_calendar_reference():
         "/api/projects/p1/p6/resources",
         cookies={"cp_session": "s1"},
         body=json.dumps(payload).encode(),
+    )
+    assert status == 200
+
+
+def _create_resource(router, resource_id="R-DEL", **overrides):
+    payload = {"resource_id": resource_id, "name": "Delete me"}
+    payload.update(overrides)
+    status, _, body = router.handle(
+        "POST",
+        "/api/projects/p1/p6/resources",
+        cookies={"cp_session": "s1"},
+        body=json.dumps(payload).encode(),
+    )
+    assert status == 200
+    return json.loads(body)
+
+
+def test_resource_http_delete_removes_an_unreferenced_resource():
+    r = routes()
+    _create_resource(r)
+
+    status, _, body = r.handle(
+        "DELETE",
+        "/api/projects/p1/p6/resources/R-DEL",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"expected_revision": 1}).encode(),
+    )
+
+    assert status == 200
+    deleted = json.loads(body)
+    assert deleted["kind"] == "p6_resource_deleted"
+    assert deleted["deleted"] is True
+    assert deleted["removed_rows"]["p6_resource_master"] == 1
+    status, _, _ = r.handle(
+        "GET", "/api/projects/p1/p6/resources/R-DEL", cookies={"cp_session": "s1"}
+    )
+    assert status == 404
+
+
+def test_resource_http_delete_rejects_missing_stale_and_malformed_requests():
+    r = routes()
+    status, _, body = r.handle(
+        "DELETE",
+        "/api/projects/p1/p6/resources/R-MISSING",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"expected_revision": 1}).encode(),
+    )
+    assert status == 404
+    assert json.loads(body)["code"] == "RESOURCE_NOT_FOUND"
+
+    _create_resource(r)
+    status, _, body = r.handle(
+        "DELETE",
+        "/api/projects/p1/p6/resources/R-DEL",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"expected_revision": 9}).encode(),
+    )
+    assert status == 409
+    assert json.loads(body)["code"] == "REVISION_CONFLICT"
+
+    for payload in ({}, {"expected_revision": 0}, {"expected_revision": True}, {"expected_revision": "1"}):
+        status, _, _ = r.handle(
+            "DELETE",
+            "/api/projects/p1/p6/resources/R-DEL",
+            cookies={"cp_session": "s1"},
+            body=json.dumps(payload).encode(),
+        )
+        assert status == 400
+    # None of the refused requests removed the row.
+    status, _, _ = r.handle(
+        "GET", "/api/projects/p1/p6/resources/R-DEL", cookies={"cp_session": "s1"}
+    )
+    assert status == 200
+
+
+def test_resource_http_delete_reports_references_and_keeps_the_row():
+    from construction_pm.p6_resource_assignment_repository import (
+        SQLiteP6ResourceAssignmentRepository,
+    )
+
+    connection = sqlite3.connect(":memory:")
+    SQLiteP6ResourceAssignmentRepository(connection)
+    connection.execute(
+        "INSERT INTO p6_resource_assignment "
+        "(tenant_id,project_id,project_revision,assignment_id,activity_id,resource_id) "
+        "VALUES ('t1','p1',2,'ASN-1','A-1','R-DEL')"
+    )
+    connection.commit()
+    r = routes(connection=connection)
+    _create_resource(r)
+
+    status, _, body = r.handle(
+        "DELETE",
+        "/api/projects/p1/p6/resources/R-DEL",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"expected_revision": 1}).encode(),
+    )
+
+    assert status == 409
+    error = json.loads(body)
+    assert error["code"] == "RESOURCE_IN_USE"
+    assert error["details"]["dependencies"]["assignments"] == 1
+    status, _, _ = r.handle(
+        "GET", "/api/projects/p1/p6/resources/R-DEL", cookies={"cp_session": "s1"}
+    )
+    assert status == 200
+
+
+def test_resource_http_delete_enforces_write_permission_and_project_scope():
+    viewer = routes(roles=("viewer",))
+    viewer.connection.execute(
+        "INSERT INTO p6_resource_master "
+        "(tenant_id,project_id,project_revision,resource_id,name,record_revision) "
+        "VALUES ('t1','p1',2,'R-DEL','Delete me',1)"
+    )
+    viewer.connection.commit()
+
+    status, _, body = viewer.handle(
+        "DELETE",
+        "/api/projects/p1/p6/resources/R-DEL",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"expected_revision": 1}).encode(),
+    )
+    assert status == 403
+    assert json.loads(body)["code"] == "AUTHORIZATION_PERMISSION_DENIED"
+
+    admin = routes()
+    status, _, _ = admin.handle(
+        "DELETE",
+        "/api/projects/other/p6/resources/R-DEL",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"expected_revision": 1}).encode(),
+    )
+    assert status == 403
+    status, _, _ = viewer.handle(
+        "GET", "/api/projects/p1/p6/resources/R-DEL", cookies={"cp_session": "s1"}
     )
     assert status == 200
