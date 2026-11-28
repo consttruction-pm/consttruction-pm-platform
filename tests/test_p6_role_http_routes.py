@@ -5,7 +5,12 @@ import sqlite3
 from construction_pm.application.authorization import default_project_policy
 from construction_pm.application.project_lifecycle import AuthenticatedSession, ProjectSummary
 from construction_pm.application.project_lifecycle_api import ProjectLifecycleAPI
+from construction_pm.backend_p0.models import BackendScope
 from construction_pm.http.project_lifecycle_routes import ProjectLifecycleHttpRoutes
+from construction_pm.p6_resource_assignment_repository import (
+    P6ResourceAssignment,
+    SQLiteP6ResourceAssignmentRepository,
+)
 from construction_pm.p6_resource_master_repository import (
     P6Resource,
     SQLiteP6ResourceRepository,
@@ -233,3 +238,87 @@ def test_role_http_limits_and_resource_proficiency_round_trip():
     )
     assert status == 404
     assert body["code"] == "ROLE_RESOURCE_NOT_FOUND"
+
+
+def role_routes_with_repos(connection=None, role_set=("project_admin",)):
+    connection = connection or sqlite3.connect(":memory:")
+    policy = default_project_policy()
+    roles = SQLiteP6RoleRepository(connection)
+    resources = SQLiteP6ResourceRepository(connection)
+    resources.save(P6Resource("t1", "p1", 2, "RES-A", "Crew A"))
+    dictionary = SQLiteP6RoleDictionaryRepository(connection)
+    assignments = SQLiteP6ResourceAssignmentRepository(connection)
+    now = datetime(2026, 10, 8, tzinfo=timezone.utc)
+    session = AuthenticatedSession("s1", "u1", "t1", frozenset(role_set), now + timedelta(hours=1))
+    service = __import__("construction_pm.application.project_lifecycle", fromlist=["ProjectLifecycleService"]).ProjectLifecycleService(
+        Sessions(session), Projects(), policy
+    )
+    routes = ProjectLifecycleHttpRoutes(
+        ProjectLifecycleAPI(service),
+        clock=type("Clock", (), {"now": lambda self: now})(),
+        p6_role_api=P6RoleAPI(roles, policy),
+        p6_role_details_api=P6RoleDetailsAPI(roles, resources, dictionary, policy),
+    )
+    return routes, roles, dictionary, assignments
+
+
+def test_role_delete_removes_unreferenced_role_and_owned_facts():
+    routes, _roles, dictionary, _assignments = role_routes_with_repos()
+    assert request(routes, "POST", "/api/projects/p1/p6/roles", {"role_id": "ROLE-1", "name": "Role"})[0] == 200
+    assert request(
+        routes, "POST", "/api/projects/p1/p6/roles/ROLE-1/rates",
+        {"effective_from": "2026-12-01", "rate_type": "standard", "rate": "100.00", "unit": "h", "currency": "USD"},
+    )[0] == 200
+
+    status, body = request(routes, "DELETE", "/api/projects/p1/p6/roles/ROLE-1", {"expected_revision": 1})
+    assert status == 200
+    assert body["kind"] == "p6_role_deleted"
+    assert body["deleted"] is True
+    assert body["removed_rows"]["p6_role"] == 1
+    assert body["removed_rows"]["rate_facts"] == 1
+    assert request(routes, "GET", "/api/projects/p1/p6/roles/ROLE-1")[0] == 404
+    assert dictionary.list_rates("t1", "p1", 2, "ROLE-1") == ()
+
+
+def test_role_delete_is_blocked_by_a_live_assignment():
+    routes, _roles, _dictionary, assignments = role_routes_with_repos()
+    assert request(routes, "POST", "/api/projects/p1/p6/roles", {"role_id": "ROLE-1", "name": "Role"})[0] == 200
+    assignments.upsert(P6ResourceAssignment(
+        BackendScope("t1", "p1", 2), "AS-1", "ACT-1", "RES-A", role_id="ROLE-1",
+    ))
+
+    status, body = request(routes, "DELETE", "/api/projects/p1/p6/roles/ROLE-1", {"expected_revision": 1})
+    assert status == 409
+    assert body["code"] == "ROLE_IN_USE"
+    assert body["details"]["dependencies"]["assignments"] == 1
+    assert request(routes, "GET", "/api/projects/p1/p6/roles/ROLE-1")[0] == 200
+
+
+def test_role_delete_rejects_bad_revision_missing_role_and_viewers():
+    routes, _roles, _dictionary, _assignments = role_routes_with_repos()
+    assert request(routes, "POST", "/api/projects/p1/p6/roles", {"role_id": "ROLE-1", "name": "Role"})[0] == 200
+
+    status, body = request(routes, "DELETE", "/api/projects/p1/p6/roles/ROLE-1", {"expected_revision": 9})
+    assert status == 409
+    assert body["code"] == "REVISION_CONFLICT"
+    assert request(routes, "DELETE", "/api/projects/p1/p6/roles/MISSING", {"expected_revision": 1})[0] == 404
+    assert request(routes, "DELETE", "/api/projects/p1/p6/roles/ROLE-1", {"expected_revision": 0})[0] == 400
+    assert request(routes, "DELETE", "/api/projects/p1/p6/roles/ROLE-1", {})[0] == 400
+
+    viewer, _vr, _vd, _va = role_routes_with_repos(role_set=("viewer",))
+    assert request(viewer, "POST", "/api/projects/p1/p6/roles", {"role_id": "ROLE-2", "name": "Role"})[0] == 403
+    assert request(viewer, "DELETE", "/api/projects/p1/p6/roles/ROLE-2", {"expected_revision": 1})[0] == 403
+
+
+def test_role_delete_removes_owned_resource_links():
+    routes, _roles, dictionary, _assignments = role_routes_with_repos()
+    assert request(routes, "POST", "/api/projects/p1/p6/roles", {"role_id": "ROLE-1", "name": "Role"})[0] == 200
+    assert request(
+        routes, "POST", "/api/projects/p1/p6/roles/ROLE-1/resources",
+        {"resource_id": "RES-A", "proficiency": "expert", "is_primary": True},
+    )[0] == 200
+
+    status, body = request(routes, "DELETE", "/api/projects/p1/p6/roles/ROLE-1", {"expected_revision": 1})
+    assert status == 200
+    assert body["removed_rows"]["role_resource_links"] == 1
+    assert dictionary.list_role_resources("t1", "p1", 2, "ROLE-1") == ()

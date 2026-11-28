@@ -46,6 +46,134 @@ class P6RoleRepository(Protocol):
     def save(self, role: P6Role, *, expected_revision: int | None = None) -> P6Role: ...
     def get(self, tenant_id: str, project_id: str, project_revision: int, role_id: str) -> P6Role | None: ...
     def list(self, tenant_id: str, project_id: str, project_revision: int) -> tuple[P6Role, ...]: ...
+    def delete(
+        self,
+        tenant_id: str,
+        project_id: str,
+        project_revision: int,
+        role_id: str,
+        *,
+        expected_revision: int,
+    ) -> dict[str, int]: ...
+
+
+class RoleInUseError(ValueError):
+    """Delete refused because stored facts still reference the role.
+
+    The counts describe every reference that blocks the delete so the caller can
+    explain what must be removed first. No row is deleted when this is raised.
+    """
+
+    def __init__(self, dependencies: dict[str, int]) -> None:
+        super().__init__("ROLE_IN_USE")
+        self.dependencies = dependencies
+
+
+# References owned by another aggregate: deleting the role would leave them
+# pointing at a role that no longer exists, so the delete is refused.
+_BLOCKING_REFERENCES = (
+    ("p6_resource_assignment", "assignments", "role_id"),
+)
+
+# Facts that describe this role itself (rates, limits, resource fulfilments).
+# They have no meaning without the role identity, so they are removed with it
+# and reported. Deleting the role therefore also releases the resource-side
+# reference that would otherwise block deleting those resources.
+_OWNED_FACTS = (
+    ("p6_role_resource", "role_resource_links"),
+    ("p6_role_rate", "rate_facts"),
+    ("p6_role_limit", "limits"),
+)
+
+
+def _sqlite_table_exists(connection: sqlite3.Connection, table: str) -> bool:
+    return (
+        connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)
+        ).fetchone()
+        is not None
+    )
+
+
+def _postgres_table_exists(connection: object, table: str) -> bool:
+    return (
+        connection.execute(
+            "SELECT 1 FROM information_schema.tables "
+            "WHERE table_schema=current_schema() AND table_name=%s",
+            (table,),
+        ).fetchone()
+        is not None
+    )
+
+
+def _blocking_dependencies(
+    connection: object,
+    placeholder: str,
+    table_exists,
+    tenant_id: str,
+    project_id: str,
+    role_id: str,
+) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for table, label, column in _BLOCKING_REFERENCES:
+        if not table_exists(connection, table):
+            counts[label] = 0
+            continue
+        counts[label] = int(
+            connection.execute(
+                f"SELECT COUNT(*) FROM {table} "
+                f"WHERE tenant_id={placeholder} AND project_id={placeholder} "
+                f"AND {column}={placeholder}",
+                (tenant_id, project_id, role_id),
+            ).fetchone()[0]
+        )
+    counts["child_roles"] = int(
+        connection.execute(
+            "SELECT COUNT(*) FROM p6_role "
+            f"WHERE tenant_id={placeholder} AND project_id={placeholder} "
+            f"AND parent_role_id={placeholder}",
+            (tenant_id, project_id, role_id),
+        ).fetchone()[0]
+    )
+    return counts
+
+
+def _delete_owned_facts(
+    connection: object,
+    placeholder: str,
+    table_exists,
+    tenant_id: str,
+    project_id: str,
+    role_id: str,
+) -> dict[str, int]:
+    removed: dict[str, int] = {}
+    for table, label in _OWNED_FACTS:
+        if not table_exists(connection, table):
+            continue
+        cursor = connection.execute(
+            f"DELETE FROM {table} "
+            f"WHERE tenant_id={placeholder} AND project_id={placeholder} "
+            f"AND role_id={placeholder}",
+            (tenant_id, project_id, role_id),
+        )
+        removed[label] = max(0, int(getattr(cursor, "rowcount", 0) or 0))
+    return removed
+
+
+def _assert_deletable(
+    connection: object,
+    placeholder: str,
+    table_exists,
+    tenant_id: str,
+    project_id: str,
+    role_id: str,
+) -> None:
+    dependencies = _blocking_dependencies(
+        connection, placeholder, table_exists, tenant_id, project_id, role_id
+    )
+    blocking = {label: count for label, count in dependencies.items() if count}
+    if blocking:
+        raise RoleInUseError(blocking)
 
 
 _COLUMNS = (
@@ -161,6 +289,46 @@ class SQLiteP6RoleRepository:
         ).fetchall()
         return tuple(_from_row(row) for row in rows)
 
+    def delete(
+        self,
+        tenant_id: str,
+        project_id: str,
+        project_revision: int,
+        role_id: str,
+        *,
+        expected_revision: int,
+    ) -> dict[str, int]:
+        row = self.connection.execute(
+            "SELECT project_revision,record_revision FROM p6_role "
+            "WHERE tenant_id=? AND project_id=? AND role_id=?",
+            (tenant_id, project_id, role_id),
+        ).fetchone()
+        if row is None:
+            raise ValueError("ROLE_NOT_FOUND")
+        if int(row[0]) != project_revision or int(row[1]) != expected_revision:
+            raise ValueError("REVISION_CONFLICT")
+        _assert_deletable(
+            self.connection, "?", _sqlite_table_exists, tenant_id, project_id, role_id
+        )
+        try:
+            removed = _delete_owned_facts(
+                self.connection, "?", _sqlite_table_exists, tenant_id, project_id, role_id
+            )
+            cursor = self.connection.execute(
+                "DELETE FROM p6_role "
+                "WHERE tenant_id=? AND project_id=? AND project_revision=? "
+                "AND role_id=? AND record_revision=?",
+                (tenant_id, project_id, project_revision, role_id, expected_revision),
+            )
+            if cursor.rowcount != 1:
+                raise ValueError("REVISION_CONFLICT")
+            self.connection.commit()
+        except Exception:
+            self.connection.rollback()
+            raise
+        removed["p6_role"] = 1
+        return removed
+
 
 class PostgresP6RoleRepository:
     def __init__(self, connection: object) -> None:
@@ -246,6 +414,41 @@ class PostgresP6RoleRepository:
         ).fetchall()
         return tuple(_from_row(row) for row in rows)
 
+    def delete(
+        self,
+        tenant_id: str,
+        project_id: str,
+        project_revision: int,
+        role_id: str,
+        *,
+        expected_revision: int,
+    ) -> dict[str, int]:
+        row = self.connection.execute(
+            "SELECT project_revision,record_revision FROM p6_role "
+            "WHERE tenant_id=%s AND project_id=%s AND role_id=%s",
+            (tenant_id, project_id, role_id),
+        ).fetchone()
+        if row is None:
+            raise ValueError("ROLE_NOT_FOUND")
+        if int(row[0]) != project_revision or int(row[1]) != expected_revision:
+            raise ValueError("REVISION_CONFLICT")
+        _assert_deletable(
+            self.connection, "%s", _postgres_table_exists, tenant_id, project_id, role_id
+        )
+        removed = _delete_owned_facts(
+            self.connection, "%s", _postgres_table_exists, tenant_id, project_id, role_id
+        )
+        cursor = self.connection.execute(
+            "DELETE FROM p6_role "
+            "WHERE tenant_id=%s AND project_id=%s AND project_revision=%s "
+            "AND role_id=%s AND record_revision=%s",
+            (tenant_id, project_id, project_revision, role_id, expected_revision),
+        )
+        if int(getattr(cursor, "rowcount", 0) or 0) != 1:
+            raise ValueError("REVISION_CONFLICT")
+        removed["p6_role"] = 1
+        return removed
+
 
 def role_tree_order(roles: tuple[P6Role, ...]) -> tuple[P6Role, ...]:
     """Parents before children; siblings in id order. Cycles fail closed."""
@@ -278,6 +481,7 @@ __all__ = [
     "P6Role",
     "P6RoleRepository",
     "PostgresP6RoleRepository",
+    "RoleInUseError",
     "SQLiteP6RoleRepository",
     "role_tree_order",
 ]

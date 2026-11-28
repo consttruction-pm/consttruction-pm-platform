@@ -1384,6 +1384,14 @@ class ProjectLifecycleHttpRoutes:
                             expected_revision, parent, calculate,
                         )
                         return self._json(200, self._p6_role_api.update(role, expected_revision=expected_revision, auth_context=auth))
+                    if method == "DELETE" and len(parts) == 1 and parts[0]:
+                        expected_revision = payload.get("expected_revision")
+                        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+                            raise ValueError("expected_revision required")
+                        return self._json(200, self._p6_role_api.delete(
+                            context.tenant_id, context.project_id, context.revision,
+                            parts[0], expected_revision=expected_revision, auth_context=auth,
+                        ))
                     if len(parts) >= 2 and parts[1] in {"rates", "limits", "resources"}:
                         if self._p6_role_details_api is None:
                             return self._error(503, "P6_ROLE_DETAILS_UNAVAILABLE", "error.request.invalid")
@@ -1486,6 +1494,14 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(500, "INTERNAL_ERROR", "error.internal")
                 except (ValueError, ArithmeticError) as exc:
                     code = _stable_error_code(exc, "P6_ROLE_REQUEST_INVALID")
+                    if code == "ROLE_IN_USE":
+                        dependencies = getattr(exc, "dependencies", None)
+                        return self._error(
+                            409,
+                            code,
+                            "error.p6.role.in_use",
+                            details={"dependencies": dependencies} if dependencies else None,
+                        )
                     if code in {
                         "REVISION_CONFLICT",
                         "ROLE_ALREADY_EXISTS",
