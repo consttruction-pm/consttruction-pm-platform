@@ -44,8 +44,10 @@ from .application.authorization import (
 )
 from .backend_p0.models import BackendScope
 from .backend_p0.transactions import TransactionManager
+from .calendar_master_repository import RelationshipLagCalendarAssignmentMaster
 from .project_checkout import ProjectCheckoutLease, require_project_write_ownership
 from .scheduling.activity import ActivityType
+from .scheduling.calendar_context import RelationshipLagCalendar
 from .scheduling.resource_dependent import (
     ResourceDependentCalculationError,
     ResourceDependentDemandPeriod,
@@ -274,8 +276,12 @@ class ActivityOperationStore:
         return int(row[0]) if row is not None else 0
 
     def dependency_counts(self, scope: BackendScope, activity_ids: tuple[str, ...]) -> dict[str, int]:
+        relationship_ids = self.relationship_ids_for_activities(scope, activity_ids)
         counts = {
             "relationships": self._count_relationship_rows(scope, activity_ids),
+            "lag_calendar_assignments": self.count_relationship_lag_assignments(
+                scope, relationship_ids
+            ),
             "assignments": self._count(scope, "p6_resource_assignment", "activity_id", activity_ids),
             "constraints": self._count(scope, "constraint_master", "activity_id", activity_ids),
             "calendar_assignments": self._count(scope, "activity_calendar_assignment", "activity_id", activity_ids),
@@ -324,6 +330,119 @@ class ActivityOperationStore:
             (scope.tenant_id, scope.project_id, scope.project_revision, relationship_id,
              predecessor_id, successor_id, relationship_type, lag_value, lag_unit),
         )
+
+    def relationship_ids_for_activities(
+        self, scope: BackendScope, activity_ids: tuple[str, ...]
+    ) -> tuple[str, ...]:
+        """Return every relationship touching the selected activities once.
+
+        Both endpoint columns are tested in one query so a relationship whose
+        predecessor and successor are both selected is returned a single time.
+        """
+
+        if not activity_ids or not self._table_exists("relationship_master"):
+            return ()
+        marks = ",".join(self.p for _ in activity_ids)
+        rows = self.connection.execute(
+            "SELECT DISTINCT relationship_id FROM relationship_master "
+            f"WHERE tenant_id={self.p} AND project_id={self.p} "
+            f"AND (predecessor_id IN ({marks}) OR successor_id IN ({marks})) "
+            "ORDER BY relationship_id",
+            (scope.tenant_id, scope.project_id, *activity_ids, *activity_ids),
+        ).fetchall()
+        return tuple(str(row[0]) for row in rows)
+
+    def count_relationship_lag_assignments(
+        self, scope: BackendScope, relationship_ids: tuple[str, ...]
+    ) -> int:
+        return self._count(
+            scope,
+            "relationship_lag_calendar_assignment",
+            "relationship_id",
+            relationship_ids,
+        )
+
+    def delete_relationship_lag_assignments(
+        self, scope: BackendScope, relationship_ids: tuple[str, ...]
+    ) -> int:
+        """Remove overrides owned by relationships that are being cascaded.
+
+        A lag-calendar row whose relationship no longer exists makes the next
+        schedule composition fail with
+        ``RELATIONSHIP_LAG_ASSIGNMENT_UNKNOWN_RELATIONSHIP``, so it is removed
+        in the same transaction as the relationship row.
+        """
+
+        if not relationship_ids or not self._table_exists(
+            "relationship_lag_calendar_assignment"
+        ):
+            return 0
+        marks = ",".join(self.p for _ in relationship_ids)
+        cursor = self.connection.execute(
+            "DELETE FROM relationship_lag_calendar_assignment "
+            f"WHERE tenant_id={self.p} AND project_id={self.p} "
+            f"AND relationship_id IN ({marks})",
+            (scope.tenant_id, scope.project_id, *relationship_ids),
+        )
+        return int(getattr(cursor, "rowcount", 0) or 0)
+
+    def copy_relationship_lag_assignments(
+        self, scope: BackendScope, mapping: Mapping[str, str]
+    ) -> dict[str, str]:
+        """Re-key the active per-relationship override onto the copied rows.
+
+        Only relationships the caller actually copied are present in
+        ``mapping``, so an external endpoint cannot be re-bound. A relationship
+        without an override stays without one: this never invents a setting.
+        """
+
+        if not mapping or not self._table_exists(
+            "relationship_lag_calendar_assignment"
+        ):
+            return {}
+        old_ids = tuple(mapping)
+        marks = ",".join(self.p for _ in old_ids)
+        rows = self.connection.execute(
+            "SELECT relationship_id, option, calendar_id, calendar_version "
+            "FROM relationship_lag_calendar_assignment "
+            f"WHERE tenant_id={self.p} AND project_id={self.p} "
+            f"AND project_revision={self.p} AND relationship_id IN ({marks})",
+            (scope.tenant_id, scope.project_id, scope.project_revision, *old_ids),
+        ).fetchall()
+        copied: dict[str, str] = {}
+        for row in rows:
+            source_id = str(row[0])
+            target_id = mapping.get(source_id)
+            if target_id is None:
+                continue
+            assignment = RelationshipLagCalendarAssignmentMaster(
+                scope=scope,
+                relationship_id=target_id,
+                option=RelationshipLagCalendar(str(row[1])),
+                calendar_id=row[2],
+                calendar_version=row[3],
+                record_revision=1,
+            )
+            assignment.validate()
+            self.connection.execute(
+                "INSERT INTO relationship_lag_calendar_assignment (tenant_id, "
+                "project_id, project_revision, relationship_id, option, calendar_id, "
+                "calendar_version, record_revision) VALUES "
+                f"({self.p},{self.p},{self.p},{self.p},{self.p},{self.p},{self.p},{self.p})",
+                (
+                    scope.tenant_id,
+                    scope.project_id,
+                    scope.project_revision,
+                    target_id,
+                    assignment.option.value,
+                    assignment.calendar_id,
+                    assignment.calendar_version,
+                    1,
+                ),
+            )
+            copied[source_id] = target_id
+        return copied
+
 
     # -- related rows ---------------------------------------------------
     def copy_table_rows(
@@ -569,6 +688,17 @@ class ActivityOperationStore:
     def delete_dependents(self, scope: BackendScope, activity_ids: tuple[str, ...]) -> dict[str, int]:
         marks = ",".join(self.p for _ in activity_ids)
         removed: dict[str, int] = {}
+        # Collect the relationships before deleting them so the per-relationship
+        # lag-calendar overrides can be removed by the same identifiers in this
+        # atomic operation; an orphaned override blocks schedule composition.
+        affected_relationships = self.relationship_ids_for_activities(
+            scope, activity_ids
+        )
+        lag_removed = self.delete_relationship_lag_assignments(
+            scope, affected_relationships
+        )
+        if lag_removed:
+            removed["relationship_lag_calendar_assignment"] = lag_removed
         for table, column in _CASCADE_TABLES:
             if not self._table_exists(table):
                 continue
@@ -855,6 +985,7 @@ class P6ActivityOperationAPI:
 
         relationships_created: list[str] = []
         relationships_skipped: list[dict[str, str]] = []
+        relationship_mapping: dict[str, str] = {}
         taken_relationships = self.store.relationship_ids(scope)
         for link in self.store.list_relationships(scope):
             inside = link["predecessor_id"] in mapping and link["successor_id"] in mapping
@@ -879,7 +1010,12 @@ class P6ActivityOperationAPI:
                 link["lag_value"],
                 link["lag_unit"],
             )
+            relationship_mapping[link["relationship_id"]] = new_relationship_id
             relationships_created.append(new_relationship_id)
+
+        lag_assignments_copied = self.store.copy_relationship_lag_assignments(
+            scope, relationship_mapping
+        )
 
         assignments = self.store.copy_table_rows(
             scope,
@@ -921,6 +1057,7 @@ class P6ActivityOperationAPI:
             "created": created,
             "relationships_created": relationships_created,
             "relationships_skipped": relationships_skipped,
+            "lag_calendar_assignments_created": len(lag_assignments_copied),
             "assignments_created": len(assignments),
             "period_values_created": period_values,
             "related_created": related,
@@ -954,6 +1091,7 @@ class P6ActivityOperationAPI:
             counts[key]
             for key in (
                 "relationships",
+                "lag_calendar_assignments",
                 "assignments",
                 "constraints",
                 "calendar_assignments",

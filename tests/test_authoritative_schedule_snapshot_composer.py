@@ -2972,3 +2972,180 @@ def test_copied_not_started_resource_dependent_activity_publishes_without_remain
     assert copy_input.remaining_duration is None
     assert copy_input.actual_start is None
     assert copy_input.percent_complete == 0.0
+
+
+def _create_activity(app, activity_id: str, *, duration: str = "2") -> None:
+    status, _ = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activities",
+        {
+            "contract_version": "p6-activity-master-api.v1",
+            "activity_id": activity_id,
+            "name": activity_id,
+            "duration_unit": "working-day",
+            "duration_value": duration,
+            "percent_complete_type": "DURATION",
+            "activity_type": "Task Dependent",
+            "status": "Not Started",
+            "status_code": "Planned",
+            "leveling_priority": "High",
+            "wbs_id": "W-ROOT",
+        },
+    )
+    assert status == "201 Created"
+
+
+def _create_relationship(app, relationship_id: str, predecessor: str, successor: str) -> None:
+    status, _ = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/relationships",
+        {
+            "relationship_id": relationship_id,
+            "predecessor_id": predecessor,
+            "successor_id": successor,
+            "relationship_type": "FS",
+            "lag_value": "0",
+            "lag_unit": DurationUnit.WORKING_DAY.value,
+        },
+    )
+    assert status == "200 OK"
+
+
+def _operations_api(fixture):
+    connection = fixture["connection"]
+    store = ActivityOperationStore(connection, placeholder="?")
+    store.initialize()
+    return P6ActivityOperationAPI(
+        activity_repository=fixture["activity_repo"],
+        wbs_repository=fixture["wbs_repo"],
+        store=store,
+        authorization_policy=default_project_policy(),
+        transaction_manager=SQLiteTransactionManager(connection),
+    )
+
+
+def _operations_context(scope: BackendScope) -> AuthorizationContext:
+    return AuthorizationContext(
+        tenant_id=scope.tenant_id,
+        project_id=scope.project_id,
+        user_id="u1",
+        roles=frozenset({"project_admin"}),
+    )
+
+
+def _seed_relationship_with_lag(
+    fixture, *, option: RelationshipLagCalendar, calendar_id=None, calendar_version=None
+) -> None:
+    app = fixture["app"]
+    scope = fixture["scope"]
+    _create_activity(app, "A-1", duration="2")
+    _create_activity(app, "B-1", duration="1")
+    _create_relationship(app, "REL-1", "A-1", "B-1")
+    fixture["calendar_assignments"].save_relationship_lag(
+        RelationshipLagCalendarAssignmentMaster(
+            scope=scope,
+            relationship_id="REL-1",
+            option=option,
+            calendar_id=calendar_id,
+            calendar_version=calendar_version,
+        )
+    )
+    status, _ = _save_settings(app)
+    assert status == "201 Created"
+
+
+def test_composition_fails_closed_on_a_lag_override_without_its_relationship(tmp_path):
+    fixture = _fixture(tmp_path)
+    connection = fixture["connection"]
+    scope = fixture["scope"]
+    _seed_relationship_with_lag(fixture, option=RelationshipLagCalendar.PREDECESSOR)
+
+    # The pre-fix cascade removed only relationship_master. Reproduce that
+    # state to prove the composer refuses to publish it.
+    connection.execute(
+        "DELETE FROM relationship_master WHERE tenant_id=? AND project_id=?",
+        (scope.tenant_id, scope.project_id),
+    )
+    connection.commit()
+
+    with pytest.raises(ScheduleInputCompositionError) as orphan:
+        fixture["composer"].compose(scope, snapshot_id="SNAP-ORPHAN")
+    assert str(orphan.value).startswith(
+        "RELATIONSHIP_LAG_ASSIGNMENT_UNKNOWN_RELATIONSHIP:REL-1"
+    )
+    connection.close()
+
+
+def test_delete_cascades_the_lag_override_and_schedule_still_composes(tmp_path):
+    fixture = _fixture(tmp_path)
+    scope = fixture["scope"]
+    _seed_relationship_with_lag(fixture, option=RelationshipLagCalendar.PREDECESSOR)
+
+    before = fixture["composer"].compose(scope, snapshot_id="SNAP-BEFORE-DELETE")
+    assert [item.relationship_id for item in before.relationship_lag_calendar_assignments] == [
+        "REL-1"
+    ]
+
+    api = _operations_api(fixture)
+    result = api.execute(
+        scope,
+        "delete",
+        ["A-1"],
+        auth_context=_operations_context(scope),
+        idempotency_key="delete-lag-compose",
+        confirm_dependencies=True,
+        now=datetime(2026, 11, 28, 9, 0, tzinfo=timezone.utc),
+    )
+
+    assert result["removed_rows"]["relationship_lag_calendar_assignment"] == 1
+    assert fixture["calendar_assignments"].list_relationship_lag(scope) == ()
+    after = fixture["composer"].compose(scope, snapshot_id="SNAP-AFTER-DELETE")
+    assert after.relationships == ()
+    assert after.relationship_lag_calendar_assignments == ()
+    fixture["connection"].close()
+
+
+def test_copy_preserves_the_lag_override_in_the_next_schedule_composition(tmp_path):
+    fixture = _fixture(tmp_path)
+    scope = fixture["scope"]
+    _seed_relationship_with_lag(
+        fixture,
+        option=RelationshipLagCalendar.SUCCESSOR,
+        calendar_id="CAL-1",
+        calendar_version="1",
+    )
+
+    before = fixture["composer"].compose(scope, snapshot_id="SNAP-BEFORE-COPY")
+    assert len(before.relationship_lag_calendar_assignments) == 1
+    assert before.relationship_lag_calendar_assignments[0].option is (
+        RelationshipLagCalendar.SUCCESSOR
+    )
+
+    api = _operations_api(fixture)
+    result = api.execute(
+        scope,
+        "copy",
+        ["A-1", "B-1"],
+        auth_context=_operations_context(scope),
+        idempotency_key="copy-lag-compose",
+        now=datetime(2026, 11, 28, 9, 30, tzinfo=timezone.utc),
+    )
+    assert result["lag_calendar_assignments_created"] == 1
+
+    after = fixture["composer"].compose(scope, snapshot_id="SNAP-AFTER-COPY")
+    by_id = {
+        item.relationship_id: item
+        for item in after.relationship_lag_calendar_assignments
+    }
+    assert sorted(by_id) == ["REL-1", "REL-1-COPY"]
+    for item in by_id.values():
+        assert item.option is RelationshipLagCalendar.SUCCESSOR
+        assert item.calendar is not None
+        assert (item.calendar.calendar_id, item.calendar.calendar_version) == (
+            "CAL-1",
+            "1",
+        )
+    assert len(after.relationships) == 2
+    fixture["connection"].close()

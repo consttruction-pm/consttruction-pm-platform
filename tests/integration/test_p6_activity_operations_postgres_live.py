@@ -42,6 +42,11 @@ from construction_pm.application.authorization import (  # noqa: E402
     default_project_policy,
 )
 from construction_pm.backend_p0.models import BackendScope  # noqa: E402
+from construction_pm.calendar_master_repository import (  # noqa: E402
+    PostgresCalendarAssignmentRepository,
+    PostgresCalendarMasterRepository,
+    RelationshipLagCalendarAssignmentMaster,
+)
 from construction_pm.constraint_master_repository import (  # noqa: E402
     PostgresConstraintMasterRepository,
 )
@@ -69,6 +74,7 @@ from construction_pm.scheduling.activity import (  # noqa: E402
     ActivityStatusCode,
     ActivityType,
 )
+from construction_pm.scheduling.calendar_context import RelationshipLagCalendar  # noqa: E402
 from construction_pm.scheduling.relationships import RelationshipType  # noqa: E402
 from construction_pm.scheduling.time_duration import DurationUnit  # noqa: E402
 from construction_pm.wbs_master_repository import (  # noqa: E402
@@ -426,3 +432,75 @@ def test_progressed_resource_dependent_copy_is_refused_without_writing(live):
     assert periods.list(SCOPE, assignment_id="AS-RD-COPY") == ()
     # The source demand is untouched.
     assert len(periods.list(SCOPE, assignment_id="AS-RD")) == 3
+
+
+def _lag_repository(connection):
+    PostgresCalendarMasterRepository(connection).initialize()
+    return PostgresCalendarAssignmentRepository(connection)
+
+
+def test_delete_removes_the_relationship_lag_override(live):
+    connection, _ = live
+    api, activities, relationships = _seed(connection)
+    calendar_assignments = _lag_repository(connection)
+    calendar_assignments.save_relationship_lag(
+        RelationshipLagCalendarAssignmentMaster(
+            scope=SCOPE,
+            relationship_id="R-1",
+            option=RelationshipLagCalendar.PREDECESSOR,
+        )
+    )
+    connection.commit()
+
+    result = api.execute(
+        SCOPE,
+        "delete",
+        ["A-1"],
+        auth_context=_context("planner"),
+        idempotency_key="live-del-lag",
+        confirm_dependencies=True,
+        now=datetime(2026, 11, 28, 8, 0, tzinfo=timezone.utc),
+    )
+
+    assert result["removed_rows"]["relationship_lag_calendar_assignment"] == 1
+    assert relationships.get(SCOPE, "R-1") is None
+    assert calendar_assignments.get_relationship_lag(SCOPE, "R-1") is None
+    remaining = connection.execute(
+        "SELECT relationship_id FROM relationship_lag_calendar_assignment"
+    ).fetchall()
+    assert remaining == []
+
+
+def test_copy_preserves_the_relationship_lag_override(live):
+    connection, _ = live
+    api, _, relationships = _seed(connection)
+    calendar_assignments = _lag_repository(connection)
+    calendar_assignments.save_relationship_lag(
+        RelationshipLagCalendarAssignmentMaster(
+            scope=SCOPE,
+            relationship_id="R-1",
+            option=RelationshipLagCalendar.SUCCESSOR,
+            calendar_id="CAL-LAG",
+            calendar_version="V1",
+        )
+    )
+    connection.commit()
+
+    result = api.execute(
+        SCOPE,
+        "copy",
+        ["A-1", "A-2"],
+        auth_context=_context("planner"),
+        idempotency_key="live-copy-lag",
+        now=datetime(2026, 11, 28, 8, 30, tzinfo=timezone.utc),
+    )
+
+    assert result["lag_calendar_assignments_created"] == 1
+    copied = calendar_assignments.get_relationship_lag(SCOPE, "R-1-COPY")
+    assert copied is not None
+    assert copied.option is RelationshipLagCalendar.SUCCESSOR
+    assert (copied.calendar_id, copied.calendar_version) == ("CAL-LAG", "V1")
+    # The source relationship and its override are unchanged.
+    assert relationships.get(SCOPE, "R-1") is not None
+    source = calendar_assignments.get_relationship_lag(SCOPE, "R-1")
+    assert source is not None and source.option is RelationshipLagCalendar.SUCCESSOR

@@ -33,6 +33,7 @@ from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.calendar_master_repository import (
     ActivityCalendarAssignmentMaster,
+    RelationshipLagCalendarAssignmentMaster,
     SQLiteCalendarAssignmentRepository,
     SQLiteCalendarMasterRepository,
 )
@@ -64,6 +65,7 @@ from construction_pm.scheduling.activity import (
     ActivityStatusCode,
     ActivityType,
 )
+from construction_pm.scheduling.calendar_context import RelationshipLagCalendar
 from construction_pm.scheduling.constraints import ConstraintType
 from construction_pm.scheduling.relationships import RelationshipType
 from construction_pm.scheduling.time_duration import DurationUnit
@@ -674,3 +676,247 @@ def test_copy_allows_a_progressed_resource_dependent_profile_that_reconciles_wit
     assert copied_assignment is not None
     assert copied_assignment.remaining_units == Decimal("20")
     assert copied_assignment.actual_units is None
+
+
+def _save_lag(
+    fx: Fixture,
+    relationship_id: str,
+    *,
+    option: RelationshipLagCalendar = RelationshipLagCalendar.PREDECESSOR,
+    calendar_id: str | None = None,
+    calendar_version: str | None = None,
+) -> None:
+    fx.calendar_assignments.save_relationship_lag(
+        RelationshipLagCalendarAssignmentMaster(
+            scope=SCOPE,
+            relationship_id=relationship_id,
+            option=option,
+            calendar_id=calendar_id,
+            calendar_version=calendar_version,
+        )
+    )
+
+
+def _lag_ids(fx: Fixture) -> tuple[str, ...]:
+    return tuple(
+        item.relationship_id
+        for item in fx.calendar_assignments.list_relationship_lag(SCOPE)
+    )
+
+
+def test_delete_cascades_the_relationship_lag_override_without_an_orphan(fx: Fixture):
+    fx.activity("A-1")
+    fx.activity("A-2")
+    fx.activity("A-3")
+    for relationship_id, predecessor, successor in (
+        ("R-1", "A-1", "A-2"),
+        ("R-2", "A-2", "A-3"),
+    ):
+        fx.relationships.save(
+            RelationshipMaster(
+                scope=SCOPE,
+                relationship_id=relationship_id,
+                predecessor_id=predecessor,
+                successor_id=successor,
+            )
+        )
+    _save_lag(fx, "R-1", option=RelationshipLagCalendar.SUCCESSOR)
+    _save_lag(fx, "R-2", option=RelationshipLagCalendar.TWENTY_FOUR_HOUR)
+
+    with pytest.raises(ActivityOperationError) as confirmation:
+        fx.run("delete", ["A-1"])
+    counts = json.loads(str(confirmation.value).partition(":")[2])
+    assert counts["relationships"] == 1
+    assert counts["lag_calendar_assignments"] == 1
+
+    result = fx.run("delete", ["A-1"], key="del-lag", confirm_dependencies=True)
+
+    assert result["deleted_count"] == 1
+    assert fx.relationships.get(SCOPE, "R-1") is None
+    assert result["removed_rows"]["relationship_lag_calendar_assignment"] == 1
+    assert "R-1" not in _lag_ids(fx)
+    # The cascade is scoped to the selected activity: the unrelated override
+    # on R-2 survives with its relationship.
+    assert "R-2" in _lag_ids(fx)
+    assert fx.calendar_assignments.get_relationship_lag(SCOPE, "R-2") is not None
+
+
+def test_delete_cascades_each_lag_override_once_when_both_endpoints_are_selected(fx: Fixture):
+    fx.activity("A-1")
+    fx.activity("A-2")
+    fx.relationships.save(
+        RelationshipMaster(
+            scope=SCOPE,
+            relationship_id="R-1",
+            predecessor_id="A-1",
+            successor_id="A-2",
+        )
+    )
+    _save_lag(fx, "R-1", option=RelationshipLagCalendar.PROJECT_DEFAULT)
+
+    with pytest.raises(ActivityOperationError) as confirmation:
+        fx.run("delete", ["A-1", "A-2"])
+    counts = json.loads(str(confirmation.value).partition(":")[2])
+    assert counts["relationships"] == 1
+    assert counts["lag_calendar_assignments"] == 1
+
+    result = fx.run(
+        "delete", ["A-1", "A-2"], key="del-both-lag", confirm_dependencies=True
+    )
+
+    assert result["removed_rows"]["relationship_master"] == 1
+    assert result["removed_rows"]["relationship_lag_calendar_assignment"] == 1
+    assert _lag_ids(fx) == ()
+
+
+def test_copy_carries_the_relationship_lag_override_to_the_new_relationship(fx: Fixture):
+    fx.activity("A-1")
+    fx.activity("A-2")
+    fx.relationships.save(
+        RelationshipMaster(
+            scope=SCOPE,
+            relationship_id="R-1",
+            predecessor_id="A-1",
+            successor_id="A-2",
+        )
+    )
+    _save_lag(
+        fx,
+        "R-1",
+        option=RelationshipLagCalendar.SUCCESSOR,
+        calendar_id="CAL-LAG",
+        calendar_version="V1",
+    )
+
+    result = fx.run("copy", ["A-1", "A-2"])
+
+    assert result["relationships_created"] == ["R-1-COPY"]
+    assert result["lag_calendar_assignments_created"] == 1
+    copied = fx.calendar_assignments.get_relationship_lag(SCOPE, "R-1-COPY")
+    assert copied is not None
+    assert copied.option is RelationshipLagCalendar.SUCCESSOR
+    assert (copied.calendar_id, copied.calendar_version) == ("CAL-LAG", "V1")
+    # The source override is never rewritten by a copy.
+    source = fx.calendar_assignments.get_relationship_lag(SCOPE, "R-1")
+    assert source is not None and source.relationship_id == "R-1"
+
+
+def test_copy_does_not_rebind_an_external_relationship_lag_override(fx: Fixture):
+    fx.activity("A-1")
+    fx.activity("A-2")
+    fx.activity("A-3")
+    fx.relationships.save(
+        RelationshipMaster(
+            scope=SCOPE,
+            relationship_id="R-1",
+            predecessor_id="A-1",
+            successor_id="A-2",
+        )
+    )
+    fx.relationships.save(
+        RelationshipMaster(
+            scope=SCOPE,
+            relationship_id="R-2",
+            predecessor_id="A-2",
+            successor_id="A-3",
+        )
+    )
+    _save_lag(fx, "R-2", option=RelationshipLagCalendar.PREDECESSOR)
+
+    result = fx.run("copy", ["A-1", "A-2"])
+
+    assert result["relationships_created"] == ["R-1-COPY"]
+    assert result["lag_calendar_assignments_created"] == 0
+    assert fx.calendar_assignments.get_relationship_lag(SCOPE, "R-1-COPY") is None
+    # The skipped external relationship keeps its own override.
+    assert fx.calendar_assignments.get_relationship_lag(SCOPE, "R-2") is not None
+
+
+def test_copy_does_not_invent_a_lag_override_for_a_relationship_without_one(fx: Fixture):
+    fx.activity("A-1")
+    fx.activity("A-2")
+    fx.relationships.save(
+        RelationshipMaster(
+            scope=SCOPE,
+            relationship_id="R-1",
+            predecessor_id="A-1",
+            successor_id="A-2",
+        )
+    )
+
+    result = fx.run("copy", ["A-1", "A-2"])
+
+    assert result["lag_calendar_assignments_created"] == 0
+    assert _lag_ids(fx) == ()
+
+
+def test_delete_rolls_back_the_lag_cascade_when_a_later_step_fails(
+    fx: Fixture, monkeypatch: pytest.MonkeyPatch
+):
+    fx.activity("A-1")
+    fx.activity("A-2")
+    fx.relationships.save(
+        RelationshipMaster(
+            scope=SCOPE,
+            relationship_id="R-1",
+            predecessor_id="A-1",
+            successor_id="A-2",
+        )
+    )
+    _save_lag(fx, "R-1", option=RelationshipLagCalendar.SUCCESSOR)
+
+    def _boom(*args, **kwargs):
+        raise RuntimeError("injected failure after the dependent cascade")
+
+    # delete_dependents removes R-1 and its override first; the injected failure
+    # in the following activity delete must roll the whole transaction back, so
+    # the relationship and its lag override must survive intact.
+    monkeypatch.setattr(fx.store, "delete_activity_rows", _boom)
+
+    with pytest.raises(RuntimeError):
+        fx.run(
+            "delete", ["A-1"], key="del-rollback", confirm_dependencies=True
+        )
+
+    assert fx.activities.get(SCOPE, "A-1") is not None
+    assert fx.relationships.get(SCOPE, "R-1") is not None
+    assert fx.calendar_assignments.get_relationship_lag(SCOPE, "R-1") is not None
+    assert _lag_ids(fx) == ("R-1",)
+
+
+def test_copy_rolls_back_the_lag_copy_when_a_later_step_fails(
+    fx: Fixture, monkeypatch: pytest.MonkeyPatch
+):
+    fx.activity("A-1")
+    fx.activity("A-2")
+    fx.relationships.save(
+        RelationshipMaster(
+            scope=SCOPE,
+            relationship_id="R-1",
+            predecessor_id="A-1",
+            successor_id="A-2",
+        )
+    )
+    _save_lag(
+        fx,
+        "R-1",
+        option=RelationshipLagCalendar.SUCCESSOR,
+        calendar_id="CAL-LAG",
+        calendar_version="V1",
+    )
+
+    def _boom(*args, **kwargs):
+        raise RuntimeError("injected failure before commit")
+
+    # The relationship and its override copy are written before finalize; a
+    # failure there must roll both back, leaving the source untouched and no
+    # half-written copied override behind.
+    monkeypatch.setattr(fx.store, "finalize", _boom)
+
+    with pytest.raises(RuntimeError):
+        fx.run("copy", ["A-1", "A-2"], key="copy-rollback")
+
+    assert fx.relationships.get(SCOPE, "R-1-COPY") is None
+    assert fx.calendar_assignments.get_relationship_lag(SCOPE, "R-1-COPY") is None
+    assert fx.calendar_assignments.get_relationship_lag(SCOPE, "R-1") is not None
+    assert _lag_ids(fx) == ("R-1",)

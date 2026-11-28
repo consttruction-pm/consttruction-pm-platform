@@ -26,6 +26,11 @@ from construction_pm.application.project_lifecycle import (
 from construction_pm.application.project_lifecycle_api import ProjectLifecycleAPI
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
+from construction_pm.calendar_master_repository import (
+    RelationshipLagCalendarAssignmentMaster,
+    SQLiteCalendarAssignmentRepository,
+    SQLiteCalendarMasterRepository,
+)
 from construction_pm.http.project_lifecycle_routes import ProjectLifecycleHttpRoutes
 from construction_pm.http.wsgi import ProjectLifecycleWsgiApp
 from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
@@ -46,6 +51,7 @@ from construction_pm.relationship_master_repository import (
     SQLiteRelationshipMasterRepository,
 )
 from construction_pm.scheduling.activity import ActivityStatus, ActivityStatusCode, ActivityType
+from construction_pm.scheduling.calendar_context import RelationshipLagCalendar
 from construction_pm.scheduling.time_duration import DurationUnit
 from construction_pm.wbs_master_repository import (
     SQLiteWBSMasterRepository,
@@ -446,3 +452,102 @@ def test_progressed_resource_dependent_copy_is_refused_without_writing():
     # The source row and its demand profile are untouched.
     assert activities.get(SCOPE, "A-RD") is not None
     assert len(periods.list(SCOPE, assignment_id="AS-RD")) == 3
+
+
+def test_delete_route_cascades_the_relationship_lag_override():
+    app, activities, connection, relationships = _app()
+    activities.save(
+        ActivityMaster(
+            scope=SCOPE,
+            activity_id="A-2",
+            duration_value=Decimal("2"),
+            duration_unit=DurationUnit.WORKING_DAY,
+            name="A-2",
+            wbs_id="W-ROOT",
+        )
+    )
+    relationships.save(
+        RelationshipMaster(
+            scope=SCOPE,
+            relationship_id="R-1",
+            predecessor_id="A-1",
+            successor_id="A-2",
+        )
+    )
+    SQLiteCalendarMasterRepository(connection)
+    calendar_assignments = SQLiteCalendarAssignmentRepository(connection)
+    calendar_assignments.save_relationship_lag(
+        RelationshipLagCalendarAssignmentMaster(
+            scope=SCOPE,
+            relationship_id="R-1",
+            option=RelationshipLagCalendar.PREDECESSOR,
+        )
+    )
+    path = "/api/projects/p1/p6/activity-operations"
+
+    status, unconfirmed = _request(
+        app, "POST", path, _payload("delete", ["A-1"]), idempotency_key="del-lag-0"
+    )
+    assert status == "409 Conflict"
+    assert unconfirmed["code"] == "P6_ACTIVITY_DELETE_CONFIRMATION_REQUIRED"
+    assert unconfirmed["details"]["lag_calendar_assignments"] == 1
+    assert relationships.get(SCOPE, "R-1") is not None
+
+    status, deleted = _request(
+        app,
+        "POST",
+        path,
+        _payload("delete", ["A-1"], confirm_dependencies=True),
+        idempotency_key="del-lag-1",
+    )
+    assert status == "200 OK"
+    assert deleted["deleted_count"] == 1
+    assert deleted["removed_rows"]["relationship_lag_calendar_assignment"] == 1
+    assert relationships.get(SCOPE, "R-1") is None
+    assert calendar_assignments.get_relationship_lag(SCOPE, "R-1") is None
+    assert calendar_assignments.list_relationship_lag(SCOPE) == ()
+
+
+def test_copy_route_preserves_the_relationship_lag_override():
+    app, activities, connection, relationships = _app()
+    activities.save(
+        ActivityMaster(
+            scope=SCOPE,
+            activity_id="A-2",
+            duration_value=Decimal("2"),
+            duration_unit=DurationUnit.WORKING_DAY,
+            name="A-2",
+            wbs_id="W-ROOT",
+        )
+    )
+    relationships.save(
+        RelationshipMaster(
+            scope=SCOPE,
+            relationship_id="R-1",
+            predecessor_id="A-1",
+            successor_id="A-2",
+        )
+    )
+    SQLiteCalendarMasterRepository(connection)
+    calendar_assignments = SQLiteCalendarAssignmentRepository(connection)
+    calendar_assignments.save_relationship_lag(
+        RelationshipLagCalendarAssignmentMaster(
+            scope=SCOPE,
+            relationship_id="R-1",
+            option=RelationshipLagCalendar.SUCCESSOR,
+            calendar_id="CAL-LAG",
+            calendar_version="V1",
+        )
+    )
+    path = "/api/projects/p1/p6/activity-operations"
+
+    status, copied = _request(
+        app, "POST", path, _payload("copy", ["A-1", "A-2"]), idempotency_key="copy-lag-1"
+    )
+    assert status == "200 OK"
+    assert copied["relationships_created"] == ["R-1-COPY"]
+    assert copied["lag_calendar_assignments_created"] == 1
+    stored = calendar_assignments.get_relationship_lag(SCOPE, "R-1-COPY")
+    assert stored is not None
+    assert stored.option is RelationshipLagCalendar.SUCCESSOR
+    assert (stored.calendar_id, stored.calendar_version) == ("CAL-LAG", "V1")
