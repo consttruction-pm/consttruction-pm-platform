@@ -187,6 +187,10 @@ from construction_pm.p6_financial_period_repository import (
     SQLiteP6FinancialPeriodRepository,
 )
 from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
+from construction_pm.p6_activity_operations import (
+    ActivityOperationStore,
+    P6ActivityOperationAPI,
+)
 from construction_pm.p6_wbs_master_api import P6WBSMasterAPI
 from construction_pm.knowledge.plan import MasterDataPlanPort, RealScheduleSettingsWriter
 from construction_pm.activity_progress_history import (
@@ -1572,6 +1576,10 @@ def open_preview_runtime(
 
     repositories = PreviewRepositories.create(connection)
     store = PreviewStore(connection)
+    # Cut/Copy/Paste/Delete journal. Idempotent DDL so a preview database that
+    # predates this feature gains the tables on open, exactly like the
+    # PostgreSQL migration registry does for production.
+    ActivityOperationStore(connection, placeholder="?").initialize()
     # Idempotent for a database that already holds the bundle and a no-op for
     # every project row that already exists, so a fixed preview database
     # created before this feature gains the reference projects on next open
@@ -1966,6 +1974,17 @@ def open_preview_runtime(
         ),
         snapshot_api=snapshot_api,
     )
+    # Cut / Copy / Paste / Delete is owned by one transactional service over
+    # the canonical activity and WBS repositories, so the preview Edit menu
+    # performs real schedule edits rather than UI-only clipboard state.
+    activity_operation_api = P6ActivityOperationAPI(
+        activity_repository=repositories.activities,
+        wbs_repository=repositories.wbs,
+        store=ActivityOperationStore(connection, placeholder="?"),
+        authorization_policy=policy,
+        checkout_lease=checkout_lease,
+        transaction_manager=repositories.transaction_manager,
+    )
     app = build_project_lifecycle_wsgi_app(
         lifecycle_api=lifecycle_api,
         snapshot_repository=repositories.snapshots,
@@ -1973,6 +1992,7 @@ def open_preview_runtime(
         calculation_context_repository=repositories.contexts,
         authorization_policy=policy,
         activity_master_repository=repositories.activities,
+        activity_operation_api=activity_operation_api,
         activity_progress_history_repository=repositories.progress_history,
         activity_progress_transaction_manager=repositories.transaction_manager,
         wbs_master_repository=repositories.wbs,

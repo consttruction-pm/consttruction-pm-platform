@@ -216,7 +216,7 @@ def _harden_tables(connection: Any, tables: tuple[str, ...]) -> None:
                 SELECT c.oid::regclass AS table_name
                 FROM pg_class c
                 JOIN pg_namespace n ON n.oid = c.relnamespace
-                WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')
+                WHERE n.nspname = current_schema() AND c.relkind IN ('r', 'p')
                   AND c.relname IN ({names})
               LOOP
                 EXECUTE format('ALTER TABLE %s ENABLE ROW LEVEL SECURITY', item.table_name);
@@ -246,7 +246,7 @@ def _harden_tables(connection: Any, tables: tuple[str, ...]) -> None:
                 SELECT c.oid::regclass AS table_name
                 FROM pg_class c
                 JOIN pg_namespace n ON n.oid = c.relnamespace
-                WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')
+                WHERE n.nspname = current_schema() AND c.relkind IN ('r', 'p')
                   AND c.relname IN ({names})
               LOOP
                 EXECUTE format('ALTER TABLE %s ENABLE ROW LEVEL SECURITY', item.table_name);
@@ -382,6 +382,23 @@ def _initialize_project_closeout(connection: Any) -> None:
     PostgresProjectCloseoutStore(connection).initialize()
     _harden_tables(
         connection, ("project_closeout", "project_closeout_event")
+    )
+
+
+def _initialize_activity_operations(connection: Any) -> None:
+    """Create the Cut/Copy/Paste/Delete idempotency journal and audit log.
+
+    The operation service writes both tables in the same transaction as the
+    activity change. They are additive, so they receive the same Revoke +
+    restrictive-RLS hardening as every table created after step 16. The store
+    must not commit here: the migration runner owns the transaction.
+    """
+
+    from ..p6_activity_operations import ActivityOperationStore
+
+    ActivityOperationStore(connection, placeholder="%s").initialize(commit=False)
+    _harden_tables(
+        connection, ("p6_activity_operation", "p6_activity_operation_audit")
     )
 
 
@@ -560,6 +577,7 @@ PRODUCTION_STEPS: tuple[MigrationStep, ...] = (
     MigrationStep(20, "scheduling-jobs", 1, _initialize_scheduling_jobs),
     MigrationStep(21, "report-register-and-schedules", 1, _initialize_reports),
     MigrationStep(22, "project-closeout", 1, _initialize_project_closeout),
+    MigrationStep(23, "activity-operations", 1, _initialize_activity_operations),
 )
 
 

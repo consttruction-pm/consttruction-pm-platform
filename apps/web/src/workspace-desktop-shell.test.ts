@@ -32,6 +32,8 @@ const capable: DesktopShellCapabilities = {
   canOpenFieldChooser: true,
   hasLayout: true,
   groupByWbs: true,
+  canWrite: true,
+  hasClipboard: true,
   canAdminister: true,
 };
 
@@ -247,38 +249,60 @@ test("the canonical workspace exposes no alternate visual-demo menu entry", () =
   assert.ok(help?.items.some((item) => item.id === "help.about"));
 });
 
-test("the Engineering workspace never presents an Enterprise environment entry", () => {
+test("the Engineering workspace keeps organizational data in a project-scoped menu", () => {
   const menus = getDesktopMenus(shellState());
+  // The Organization menu owns project-scoped organizational data. It is not
+  // the Enterprise environment selector that the Engineering workspace removed.
+  const organization = menus.find((menu) => menu.id === "organization");
+  assert.ok(organization, "Organization must be a first-class menu");
+  assert.equal(organization.label.en, "Organization");
+  assert.equal(organization.label.fa, "سازمان");
+  const ids = flattenMenuItems(organization.items).map((item) => item.id);
+  assert.deepEqual(ids, ["org.resources", "org.roles", "org.calendars", "org.dictionaries", "org.sep1", "org.obs"]);
+  const byId = new Map(organization.items.map((item) => [item.id, item]));
+  assert.equal(byId.get("org.resources")?.window, "resources");
+  assert.equal(byId.get("org.roles")?.window, "roles");
+  assert.equal(byId.get("org.calendars")?.window, "calendars");
+  assert.equal(byId.get("org.dictionaries")?.command, "admin.dictionaries");
+  assert.ok(byId.get("org.obs")?.disabledReason?.en, "OBS states why it has no surface");
+  // No menu may present the Enterprise environment entry itself.
   for (const menu of menus) {
     assert.doesNotMatch(menu.label.en, /^enterprise$/i, `${menu.id} must not be labelled Enterprise`);
-    assert.doesNotMatch(menu.label.fa, /^سازمان$/, `${menu.id} must not be labelled سازمان`);
+    assert.ok(
+      !flattenMenuItems(menu.items).some((item) => item.id.startsWith("enterprise.")),
+      `${menu.id} must not carry Enterprise environment commands`,
+    );
   }
+  // Removing that entry must not orphan project data windows.
   const itemIds = menus.flatMap((menu) => flattenMenuItems(menu.items)).map((item) => item.id);
-  assert.ok(
-    !itemIds.some((id) => id.startsWith("enterprise.")),
-    "no Engineering menu item may belong to the Enterprise environment",
-  );
-  // Removing that menu must not orphan project data windows.
   for (const id of ["window.resources", "window.assignments"]) {
     assert.ok(itemIds.includes(id), `${id} stays reachable from View → Windows`);
   }
+  const refused = getDesktopMenus(shellState({ canAdminister: false }));
+  const refusedDictionaries = refused
+    .find((menu) => menu.id === "organization")?.items.find((item) => item.id === "org.dictionaries");
+  assert.ok(refusedDictionaries?.disabledReason?.en, "non-administrators see why Dictionaries is unavailable");
+  assert.ok(refusedDictionaries?.disabledReason?.fa);
 });
 
-test("the menu bar mirrors the seven professional workspace menus in order", () => {
+test("the menu bar mirrors the eight professional workspace menus in order", () => {
   const menus = getDesktopMenus(shellState());
   assert.deepEqual(
     menus.map((menu) => menu.id),
-    ["workspace", "edit", "view", "project", "tools", "administration", "help"],
+    ["workspace", "edit", "view", "project", "organization", "tools", "administration", "help"],
   );
   assert.deepEqual(
     menus.map((menu) => menu.accessKey),
-    ["f", "e", "v", "p", "t", "a", "h"],
+    ["f", "e", "v", "p", "o", "t", "a", "h"],
   );
   for (const menu of menus) {
     assert.ok(menu.items.length > 0, `${menu.id} must not be empty`);
   }
   const refused = getDesktopMenus(shellState({ canAdminister: false }));
   assert.ok(!refused.some((menu) => menu.id === "administration"), "non-administrators keep the role-gated menu out");
+  // A capability that is not explicitly true cannot open administration.
+  const implicit = getDesktopMenus({ ...shellState(), capabilities: { ...capable, canAdminister: undefined as unknown as boolean } });
+  assert.ok(!implicit.some((menu) => menu.id === "administration"));
 });
 
 function flattenMenuItems(items: readonly DesktopMenuItem[]): DesktopMenuItem[] {
@@ -487,11 +511,12 @@ test("toolbar commands are real and track layout history and selection", () => {
   const toolbar = getDesktopToolbar(shellState());
   assert.ok(toolbar.length >= 8);
   assert.ok(toolbar.every((item) => item.command || item.window || item.fullscreen || item.disabledReason));
-  // Clipboard and baseline families have no service yet; they say so instead
-  // of rendering an enabled button that would do nothing.
-  for (const id of ["toolbar.cut", "toolbar.copy", "toolbar.paste", "toolbar.baseline"]) {
-    assert.ok(toolbar.find((item) => item.id === id)?.disabledReason, `${id} must explain its missing service`);
+  // Clipboard commands are real now; only a command without a server contract
+  // stays disabled, and it says so.
+  for (const id of ["toolbar.cut", "toolbar.copy", "toolbar.paste"]) {
+    assert.equal(toolbar.find((item) => item.id === id)?.disabledReason, undefined, `${id} runs a real command`);
   }
+  assert.ok(toolbar.find((item) => item.id === "toolbar.baseline")?.disabledReason, "toolbar.baseline must explain its missing service");
   assert.ok(toolbar.filter((item) => !item.disabledReason).length > 8);
   const group = toolbar.find((item) => item.id === "toolbar.group-wbs");
   assert.equal(group?.active, true);
@@ -512,8 +537,10 @@ test("Persian labels are provided for menus, items and window titles", () => {
   const menus = getDesktopMenus(shellState({}, "fa"));
   assert.equal(menus[0]?.label.fa, "فایل");
   assert.equal(menus[0]?.label.en, "File");
-  assert.equal(menus[4]?.label.en, "Tools");
-  assert.equal(menus[5]?.label.en, "Admin");
+  assert.equal(menus[4]?.label.en, "Organization");
+  assert.equal(menus[4]?.label.fa, "سازمان");
+  assert.equal(menus[5]?.label.en, "Tools");
+  assert.equal(menus[6]?.label.en, "Admin");
   assert.ok(menus.every((menu) => menu.items.every((item) => item.label.fa.trim().length > 0)));
   assert.equal(WINDOW_TITLES.schedule.fa, "فعالیت‌ها");
 });
@@ -623,7 +650,13 @@ test("the shortcut matcher honours every modifier and the availability gate", ()
   const reason = shortcutUnavailableReason(expand, { ...capable, groupByWbs: false });
   assert.ok(reason?.en && reason.fa, "an unavailable shortcut must explain itself");
   const cut = getDesktopShortcuts().find((item) => item.id === "shortcut.cut");
-  assert.ok(cut && shortcutUnavailableReason(cut, capable)?.en);
+  assert.ok(cut);
+  assert.equal(cut.command, "edit.cut");
+  assert.equal(shortcutUnavailableReason(cut, capable), null);
+  assert.match(
+    shortcutUnavailableReason(cut, { ...capable, hasSelectedActivity: false })?.en ?? "",
+    /Select an activity/i,
+  );
 });
 
 test("documented but unserviced shortcuts never dispatch a command", () => {
@@ -640,10 +673,31 @@ test("documented but unserviced shortcuts never dispatch a command", () => {
   press({ key: "F3", target: null, preventDefault: () => {} });
   press({ key: "F7", target: null, preventDefault: () => {} });
   press({ key: "F10", target: null, preventDefault: () => {} });
-  press({ key: "x", ctrlKey: true, target: null, preventDefault: () => {} });
   assert.deepEqual(dispatched, []);
+  // Cut, Copy, Paste and Delete are serviced now: the chords dispatch the real
+  // activity commands instead of being recorded as unavailable.
+  press({ key: "x", ctrlKey: true, target: null, preventDefault: () => {} });
+  press({ key: "c", ctrlKey: true, target: null, preventDefault: () => {} });
+  press({ key: "v", ctrlKey: true, target: null, preventDefault: () => {} });
+  press({ key: "Delete", target: null, preventDefault: () => {} });
+  assert.deepEqual(dispatched, ["edit.cut", "edit.copy", "edit.paste", "edit.delete"]);
   press({ key: "F5", target: null, preventDefault: () => {} });
-  assert.deepEqual(dispatched, ["workspace.refresh"]);
+  assert.deepEqual(dispatched, ["edit.cut", "edit.copy", "edit.paste", "edit.delete", "workspace.refresh"]);
+});
+
+test("a viewer's clipboard chords stay silent and explain the role", () => {
+  const shortcuts = getDesktopShortcuts();
+  const readOnly = { ...capable, canWrite: false };
+  for (const id of ["shortcut.cut", "shortcut.copy", "shortcut.paste", "shortcut.delete"]) {
+    const shortcut = shortcuts.find((item) => item.id === id);
+    assert.ok(shortcut, `${id} must stay in the catalogue`);
+    assert.ok(shortcutUnavailableReason(shortcut, readOnly)?.en, `${id} must explain why it cannot run`);
+  }
+  const noClipboard = shortcuts.find((item) => item.id === "shortcut.paste");
+  assert.match(
+    shortcutUnavailableReason(noClipboard!, { ...capable, hasClipboard: false })?.en ?? "",
+    /Copy or cut an activity first/i,
+  );
 });
 
 test("typing in a field swallows every shell shortcut", () => {
@@ -856,6 +910,45 @@ test("Edit menu exposes Select All, Link/Unlink and honest long-tail entries", (
       .find((entry) => entry.id === "project.additional-activities")?.disabledReason?.en ?? "",
     /one canonical Activities window/,
   );
+});
+
+test("Cut, Copy, Paste and Delete are real commands with exact preconditions", () => {
+  const editFor = (patch: Partial<DesktopShellCapabilities>) =>
+    getDesktopMenus(shellState(patch)).find((menu) => menu.id === "edit");
+  const full = editFor({});
+  for (const [id, command, shortcut] of [
+    ["edit.cut", "edit.cut", "Ctrl+X"],
+    ["edit.copy", "edit.copy", "Ctrl+C"],
+    ["edit.paste", "edit.paste", "Ctrl+V"],
+    ["edit.delete", "edit.delete", "Del"],
+  ] as const) {
+    const item = full?.items.find((entry) => entry.id === id);
+    assert.equal(item?.command, command, `${id} must dispatch ${command}`);
+    assert.equal(item?.shortcut, shortcut);
+    assert.equal(item?.disabledReason, undefined, `${id} is enabled with a selection and a write role`);
+  }
+  const noSelection = editFor({ hasSelectedActivity: false });
+  assert.match(noSelection?.items.find((item) => item.id === "edit.copy")?.disabledReason?.en ?? "", /Select an activity/i);
+  assert.match(noSelection?.items.find((item) => item.id === "edit.delete")?.disabledReason?.en ?? "", /Select an activity/i);
+  assert.equal(noSelection?.items.find((item) => item.id === "edit.paste")?.disabledReason, undefined, "paste only needs the clipboard");
+  const noClipboard = editFor({ hasClipboard: false });
+  assert.match(noClipboard?.items.find((item) => item.id === "edit.paste")?.disabledReason?.en ?? "", /Copy or cut an activity first/i);
+  const readOnly = editFor({ canWrite: false });
+  for (const id of ["edit.cut", "edit.copy", "edit.paste", "edit.delete"]) {
+    assert.match(
+      readOnly?.items.find((item) => item.id === id)?.disabledReason?.en ?? "",
+      /write role/i,
+      `${id} must name the missing write role`,
+    );
+    assert.ok(readOnly?.items.find((item) => item.id === id)?.disabledReason?.fa);
+  }
+  // The same four commands exist once each on the standard toolbar.
+  const toolbar = getDesktopToolbar(shellState());
+  for (const command of ["edit.cut", "edit.copy", "edit.paste", "edit.delete"]) {
+    assert.equal(toolbar.filter((item) => item.command === command).length, 1, `${command} must appear once`);
+  }
+  const readOnlyToolbar = getDesktopToolbar(shellState({ canWrite: false }));
+  assert.match(readOnlyToolbar.find((item) => item.id === "toolbar.paste")?.disabledReason?.en ?? "", /write role/i);
 });
 
 test("Link and Unlink state their real preconditions", () => {

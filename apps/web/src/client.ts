@@ -13,6 +13,8 @@ export type ClientError = {
   retryable: boolean;
   message_key: string;
   available_actions: string[];
+  /** Structured server detail, e.g. the dependency counts of a blocked delete. */
+  details?: unknown;
 };
 
 export type ApiResult<T> =
@@ -231,6 +233,7 @@ export class FetchApiTransport implements ApiTransport {
           available_actions: Array.isArray(payload?.available_actions)
             ? payload.available_actions.map(String)
             : [],
+          ...(payload?.details !== undefined ? { details: payload.details } : {}),
         },
       };
     } catch {
