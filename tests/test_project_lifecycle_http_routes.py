@@ -55,6 +55,7 @@ from construction_pm.p6_mapping_api import P6MappingAPI, P6_MAPPING_API_VERSION
 from construction_pm.p6_interchange_api import P6InterchangeAPI, P6_INTERCHANGE_API_VERSION
 from construction_pm.p6_resource_read_api import P6ResourceReadAPI, P6_RESOURCE_READ_API_VERSION
 from construction_pm.p6_resource_write_api import P6ResourceWriteAPI, P6_RESOURCE_WRITE_API_VERSION
+from construction_pm.p6_resource_master_repository import P6Resource, SQLiteP6ResourceRepository
 from construction_pm.p6_resource_assignment_repository import P6ResourceAssignment, P6ResourceAssignmentApplicationService, P6ResourceAssignmentPeriodApplicationService, P6ResourceAssignmentPeriodValue, SQLiteP6ResourceAssignmentRepository, SQLiteP6ResourceAssignmentPeriodRepository
 from construction_pm.p6_resource_spread_api import P6ResourceSpreadAPI, P6_RESOURCE_SPREAD_API_VERSION
 from construction_pm.p6_resource_spread_repository import P6ResourceSpreadApplicationService, SQLiteP6ResourceSpreadRepository
@@ -1214,8 +1215,13 @@ def resource_assignment_routes():
     assignment_service.save(P6ResourceAssignment(BackendScope("t1", "p1", 2), "A-R-1", "ACT-1", "RES-1", role_id="ROLE-1", units=Decimal("8"), planned_cost=Decimal("100")))
     spread_service = P6ResourceSpreadApplicationService(SQLiteP6ResourceSpreadRepository(connection), transaction_manager)
     read_api = P6ResourceReadAPI(assignment_service, period_service, spread_service, default_project_policy())
+    resources = SQLiteP6ResourceRepository(connection)
+    resources.save(P6Resource("t1", "p1", 2, "RES-1", "Crew"))
     write_api = P6ResourceWriteAPI(
-        period_service, default_project_policy(), assignment_service=assignment_service
+        period_service,
+        default_project_policy(),
+        resources,
+        assignment_service=assignment_service,
     )
     return ProjectLifecycleHttpRoutes(ProjectLifecycleAPI(service), clock=type("Clock", (), {"now": lambda self: now})(), p6_resource_read_api=read_api, p6_resource_write_api=write_api)
 
@@ -1308,6 +1314,42 @@ def test_resource_assignment_write_rejects_ambiguous_driving_flag_and_missing_co
     )
     assert status == 400
     assert json.loads(raw)["code"] == "P6_RESOURCE_ASSIGNMENT_REQUEST_INVALID"
+
+def test_resource_assignment_write_uses_the_project_resource_dictionary():
+    r = resource_assignment_routes()
+    payload = {
+        "contract_version": P6_RESOURCE_WRITE_API_VERSION,
+        "assignment_id": "A-R-DICT",
+        "activity_id": "ACT-1",
+        "resource_id": "RES-MISSING",
+        "units": "8",
+    }
+    status, _, raw = r.handle(
+        "POST", "/api/projects/p1/p6/resource-assignments",
+        cookies={"cp_session": "s1"}, body=json.dumps(payload).encode(),
+    )
+    assert status == 409
+    assert json.loads(raw)["code"] == "RESOURCE_NOT_FOUND"
+
+    r._p6_resource_write_api.resource_repository.save(
+        P6Resource("t1", "p1", 2, "RES-1", "Crew", is_active=False),
+        expected_revision=1,
+    )
+    payload["resource_id"] = "RES-1"
+    status, _, raw = r.handle(
+        "POST", "/api/projects/p1/p6/resource-assignments",
+        cookies={"cp_session": "s1"}, body=json.dumps(payload).encode(),
+    )
+    assert status == 409
+    assert json.loads(raw)["code"] == "RESOURCE_INACTIVE"
+
+    # The assignment stored while the resource was active is still readable.
+    status, _, _ = r.handle(
+        "GET", "/api/projects/p1/p6/resource-assignments/A-R-1",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 200
+
 
 def test_resource_assignment_http_boundary_enforces_scope_and_payload():
     r = resource_assignment_routes()

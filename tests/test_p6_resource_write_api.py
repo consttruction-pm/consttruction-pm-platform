@@ -18,6 +18,10 @@ from construction_pm.p6_resource_assignment_repository import (
     SQLiteP6ResourceAssignmentPeriodRepository,
     SQLiteP6ResourceAssignmentRepository,
 )
+from construction_pm.p6_resource_master_repository import (
+    P6Resource,
+    SQLiteP6ResourceRepository,
+)
 from construction_pm.p6_resource_write_api import (
     P6_RESOURCE_WRITE_API_VERSION,
     P6ResourceWriteAPI,
@@ -45,8 +49,21 @@ def build_api():
     assignment_repository = SQLiteP6ResourceAssignmentRepository(connection)
     service = P6ResourceAssignmentPeriodApplicationService(repository, manager)
     assignment_service = P6ResourceAssignmentApplicationService(assignment_repository, manager)
+    resources = SQLiteP6ResourceRepository(connection)
+    resources.save(
+        P6Resource(
+            tenant_id="tenant-a",
+            project_id="project-a",
+            project_revision=1,
+            resource_id="res-1",
+            name="Crew",
+        )
+    )
     return connection, repository, P6ResourceWriteAPI(
-        service, default_project_policy(), assignment_service=assignment_service
+        service,
+        default_project_policy(),
+        resources,
+        assignment_service=assignment_service,
     )
 
 
@@ -181,3 +198,73 @@ def test_resource_write_api_preserves_revision_conflict_from_repository():
 
     with pytest.raises(ValueError, match="REVISION_CONFLICT"):
         api.save_assignment_period(value(stale_scope), auth_context=auth())
+
+
+def _assignment(scope, resource_id, assignment_id="ra-dict"):
+    return P6ResourceAssignment(
+        scope=scope,
+        assignment_id=assignment_id,
+        activity_id="act-1",
+        resource_id=resource_id,
+    )
+
+
+def test_resource_write_api_rejects_an_unknown_or_foreign_resource_id():
+    _, _, api = build_api()
+    scope = BackendScope("tenant-a", "project-a", 7)
+
+    with pytest.raises(ValueError, match="RESOURCE_NOT_FOUND"):
+        api.save_assignment(
+            _assignment(scope, "res-missing"), auth_context=auth()
+        )
+
+    api.resource_repository.save(
+        P6Resource(
+            tenant_id="tenant-b",
+            project_id="project-a",
+            project_revision=1,
+            resource_id="res-foreign",
+            name="Foreign crew",
+        )
+    )
+    with pytest.raises(ValueError, match="RESOURCE_NOT_FOUND"):
+        api.save_assignment(
+            _assignment(scope, "res-foreign"), auth_context=auth()
+        )
+
+
+def test_resource_write_api_rejects_an_inactive_resource_but_keeps_legacy_assignments():
+    _, _, api = build_api()
+    scope = BackendScope("tenant-a", "project-a", 7)
+    legacy = _assignment(scope, "res-1", assignment_id="ra-legacy")
+    api.save_assignment(legacy, auth_context=auth())
+
+    api.resource_repository.save(
+        P6Resource(
+            tenant_id="tenant-a",
+            project_id="project-a",
+            project_revision=1,
+            resource_id="res-1",
+            name="Crew",
+            is_active=False,
+        ),
+        expected_revision=1,
+    )
+
+    with pytest.raises(ValueError, match="RESOURCE_INACTIVE"):
+        api.save_assignment(
+            _assignment(scope, "res-1", assignment_id="ra-new"), auth_context=auth()
+        )
+    # The assignment written while the resource was active is still readable.
+    assert api.assignment_service.read(scope, "ra-legacy") == legacy
+
+
+def test_resource_write_api_dictionary_check_resolves_the_identity_across_revisions():
+    _, _, api = build_api()
+    # res-1 is stamped at revision 1; an assignment written at the current
+    # revision 7 must still resolve the same identity (one row per resource).
+    result = api.save_assignment(
+        _assignment(BackendScope("tenant-a", "project-a", 7), "res-1"),
+        auth_context=auth(),
+    )
+    assert result["assignment"]["resource_id"] == "res-1"

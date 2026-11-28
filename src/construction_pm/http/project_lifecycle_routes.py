@@ -5623,6 +5623,8 @@ class ProjectLifecycleHttpRoutes:
                         return self._error(409, code, "error.resource_assignment.immutable_conflict")
                     if code == "RESOURCE_ASSIGNMENT_WRITE_SERVICE_NOT_CONFIGURED":
                         return self._error(503, code, "error.resource_assignment.unavailable")
+                    if code in {"RESOURCE_NOT_FOUND", "RESOURCE_INACTIVE"}:
+                        return self._error(409, code, "error.resource_assignment.resource_unavailable")
                     return self._error(400, "P6_RESOURCE_ASSIGNMENT_REQUEST_INVALID", "error.request.invalid")
                 except (TypeError, ArithmeticError):
                     return self._error(400, "P6_RESOURCE_ASSIGNMENT_REQUEST_INVALID", "error.request.invalid")

@@ -37,6 +37,9 @@ from construction_pm.p6_resource_spread_repository import (
     P6ResourceSpreadApplicationService,
     PostgresP6ResourceSpreadRepository,
 )
+from construction_pm.p6_resource_master_repository import (
+    PostgresP6ResourceRepository,
+)
 from construction_pm.p6_resource_write_api import (
     P6_RESOURCE_WRITE_API_VERSION,
     P6ResourceWriteAPI,
@@ -99,7 +102,9 @@ def _resource_apis(connection: object) -> tuple[P6ResourceWriteAPI, P6ResourceRe
         ),
         authorization_policy=policy,
     )
-    write_api = P6ResourceWriteAPI(period_service, policy)
+    resource_repository = PostgresP6ResourceRepository(connection)
+    resource_repository.initialize()
+    write_api = P6ResourceWriteAPI(period_service, policy, resource_repository)
     return write_api, read_api
 
 

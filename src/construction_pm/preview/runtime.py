@@ -2150,6 +2150,7 @@ def open_preview_runtime(
         resource_write_api=P6ResourceWriteAPI(
             repositories.resource_period_service,
             policy,
+            repositories.resources,
             assignment_service=repositories.resource_assignment_service,
         ),
         # The assignment read API also feeds the persisted leveling resolver,

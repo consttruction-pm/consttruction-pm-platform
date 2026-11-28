@@ -1,4 +1,5 @@
 import type { ApiResult, ApiTransport, ProjectContext } from "./client.js";
+import { buildResourceChoices, loadResourceDictionary, type ResourceDictionaryEntry } from "./resource-dictionary.js";
 import { loadCalendarCatalogue, type WorkspaceCalendarRecord } from "./workspace-calendars.js";
 
 export const ASSIGNMENT_READ_API_VERSION = "p6-resource-read-api.v1";
@@ -720,6 +721,8 @@ type PageState = {
   periodNotice: { kind: "ok" | "error"; message: string } | null;
   calendars: readonly WorkspaceCalendarRecord[];
   calendarError: string | null;
+  resourceDictionary: readonly ResourceDictionaryEntry[];
+  resourceDictionaryError: string | null;
 };
 
 function emptyDraft(): AssignmentInput {
@@ -794,6 +797,8 @@ export function mountWorkspaceAssignmentsPage(host: HTMLElement, options: Assign
     periodNotice: null,
     calendars: [],
     calendarError: null,
+    resourceDictionary: [],
+    resourceDictionaryError: null,
   };
 
   const say = (en: string, fa: string): string => text(locale, en, fa);
@@ -904,14 +909,27 @@ export function mountWorkspaceAssignmentsPage(host: HTMLElement, options: Assign
     }).join("");
   }
 
+  /**
+   * Resource choices come from the stored project dictionary, never from the
+   * ids already used by existing assignments and never from free text. A
+   * stored reference that is inactive or missing is preserved but marked so
+   * revising an assignment does not silently drop it; the API still rejects it.
+   */
+  function resourceOptions(current: string): string {
+    const placeholder = `<option value="">${escapeHtml(say("Select a stored resource", "یک منبع ذخیره‌شده انتخاب کنید"))}</option>`;
+    return placeholder + buildResourceChoices(state.resourceDictionary, current).map((choice) => {
+      const label = choice.isActive ? choice.label : `${choice.label} — ${say("unavailable", "در دسترس نیست")}`;
+      return `<option value="${escapeHtml(choice.resourceId)}"${choice.resourceId === current ? " selected" : ""}>${escapeHtml(label)}</option>`;
+    }).join("");
+  }
+
   function renderForm(): string {
     const draft = state.draft;
-    const knownResources = [...new Set(state.assignments.map((item) => item.resourceId))];
     const knownRoles = [...new Set(state.assignments.map((item) => item.roleId).filter((item): item is string => !!item))];
     return `<form data-assignment-form class="cp-assignment-fields">
       <label>${escapeHtml(say("Assignment ID", "شناسه تخصیص"))}<input name="assignment-id" value="${escapeHtml(draft.assignmentId)}" required></label>
       <label>${escapeHtml(say("Activity", "فعالیت"))}<select name="activity-id" required>${activityOptions(draft.activityId)}</select></label>
-      <label>${escapeHtml(say("Resource", "منبع"))}<input name="resource-id" value="${escapeHtml(draft.resourceId)}" list="cp-assignment-resources" required></label>
+      <label>${escapeHtml(say("Resource", "منبع"))}<select name="resource-id" required>${resourceOptions(draft.resourceId)}</select></label>
       <label>${escapeHtml(say("Role", "نقش"))}<input name="role-id" value="${escapeHtml(draft.roleId ?? "")}" list="cp-assignment-roles"></label>
       <label>${escapeHtml(say("Budgeted Units", "واحد بودجه"))}<input name="units" value="${escapeHtml(draft.units ?? "")}" inputmode="decimal"></label>
       <label>${escapeHtml(say("Unit", "واحد"))}<input name="unit" value="${escapeHtml(draft.unit ?? "")}"></label>
@@ -925,7 +943,7 @@ export function mountWorkspaceAssignmentsPage(host: HTMLElement, options: Assign
       <label class="cp-assignment-note">${escapeHtml(say("Note", "یادداشت"))}<input name="note" value="${escapeHtml(draft.note ?? "")}"></label>
       <div class="cp-calendar-panel-actions"><button type="submit" ${state.busy ? "disabled" : ""}>${escapeHtml(say("Create assignment", "ایجاد تخصیص"))}</button><button type="button" data-assignment-action="cancel">${escapeHtml(say("Cancel", "لغو"))}</button></div>
       ${state.calendarError ? `<p class="cp-register-notice" data-assignment-calendar-error>${escapeHtml(say("Stored calendars could not be read", "خواندن تقویم‌های ذخیره‌شده ناموفق بود"))} (${escapeHtml(state.calendarError)})</p>` : ""}
-      <datalist id="cp-assignment-resources">${knownResources.map((id) => `<option value="${escapeHtml(id)}"></option>`).join("")}</datalist>
+      ${state.resourceDictionaryError ? `<p class="cp-register-notice" data-assignment-resource-error>${escapeHtml(say("Stored resources could not be read", "خواندن منابع ذخیره‌شده ناموفق بود"))} (${escapeHtml(state.resourceDictionaryError)})</p>` : ""}
       <datalist id="cp-assignment-roles">${knownRoles.map((id) => `<option value="${escapeHtml(id)}"></option>`).join("")}</datalist>
     </form>
     <p class="cp-register-notice">${escapeHtml(say("Stored assignments are immutable facts. A revision is stored as a new assignment ID so the previous fact stays auditable.", "تخصیص‌های ذخیره‌شده حقایق تغییرناپذیرند. بازنگری با شناسهٔ تخصیص جدید ذخیره می‌شود تا حقیقت قبلی قابل حسابرسی بماند."))}</p>`;
@@ -1161,7 +1179,6 @@ export function mountWorkspaceAssignmentsPage(host: HTMLElement, options: Assign
     if (target.name === "period-units") state.periodDraft.units = target.value;
     if (target.name === "period-cost") state.periodDraft.cost = target.value;
     if (target.name === "assignment-id") state.draft.assignmentId = target.value;
-    if (target.name === "resource-id") state.draft.resourceId = target.value;
     if (target.name === "role-id") state.draft.roleId = target.value;
     if (target.name === "units") state.draft.units = target.value;
     if (target.name === "unit") state.draft.unit = target.value;
@@ -1199,6 +1216,7 @@ export function mountWorkspaceAssignmentsPage(host: HTMLElement, options: Assign
       return;
     }
     if (target.name === "activity-id") state.draft.activityId = target.value;
+    if (target.name === "resource-id") state.draft.resourceId = target.value;
     if (target.name === "calendar") {
       const [calendarId, calendarVersion] = target.value.split("|");
       state.draft.calendarId = calendarId || null;
@@ -1274,6 +1292,19 @@ export function mountWorkspaceAssignmentsPage(host: HTMLElement, options: Assign
     render();
   }
 
+  async function loadResources(): Promise<void> {
+    const result = await loadResourceDictionary(transport, context);
+    if (result.ok) {
+      state.resourceDictionary = result.data;
+      state.resourceDictionaryError = null;
+    } else {
+      state.resourceDictionary = [];
+      state.resourceDictionaryError = result.error.code;
+    }
+    render();
+  }
+
   void reload(null);
   void loadCalendars();
+  void loadResources();
 }

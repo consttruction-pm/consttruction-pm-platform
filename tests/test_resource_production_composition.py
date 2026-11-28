@@ -125,9 +125,10 @@ def _build_app(connection: sqlite3.Connection, *, wire_resources: bool):
         spread_service = P6ResourceSpreadApplicationService(
             SQLiteP6ResourceSpreadRepository(connection), manager
         )
+        resource_repository = SQLiteP6ResourceRepository(connection)
         options = {
             "p6_resource_api": P6ResourceAPI(
-                SQLiteP6ResourceRepository(connection),
+                resource_repository,
                 policy,
                 calendar_repository,
             ),
@@ -135,7 +136,7 @@ def _build_app(connection: sqlite3.Connection, *, wire_resources: bool):
                 assignment_service, period_service, spread_service, policy
             ),
             "resource_write_api": P6ResourceWriteAPI(
-                period_service, policy, assignment_service=assignment_service
+                period_service, policy, resource_repository, assignment_service=assignment_service
             ),
             # The composition seam builds the persisted leveling resolver from
             # the read API plus these exact calendar repositories, so the

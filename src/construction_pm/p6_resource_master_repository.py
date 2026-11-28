@@ -69,6 +69,9 @@ class P6ResourceRepository(Protocol):
     def get(
         self, tenant_id: str, project_id: str, project_revision: int, resource_id: str
     ) -> P6Resource | None: ...
+    def get_any_revision(
+        self, tenant_id: str, project_id: str, resource_id: str
+    ) -> P6Resource | None: ...
     def list(
         self, tenant_id: str, project_id: str, project_revision: int
     ) -> tuple[P6Resource, ...]: ...
@@ -352,6 +355,24 @@ class SQLiteP6ResourceRepository:
         ).fetchone()
         return None if row is None else _from_row(row)
 
+    def get_any_revision(
+        self, tenant_id: str, project_id: str, resource_id: str
+    ) -> P6Resource | None:
+        """Read the resource identity regardless of its write-time revision stamp.
+
+        The master keys on (tenant_id, project_id, resource_id); ``project_revision``
+        records when the row was last written. Assignment validation must resolve
+        the identity even when the project revision has advanced, so it uses this
+        method rather than the revision-filtered read.
+        """
+
+        row = self.connection.execute(
+            f"SELECT {_COLUMNS} FROM p6_resource_master "
+            "WHERE tenant_id=? AND project_id=? AND resource_id=?",
+            (tenant_id, project_id, resource_id),
+        ).fetchone()
+        return None if row is None else _from_row(row)
+
     def list(
         self, tenant_id: str, project_id: str, project_revision: int
     ) -> tuple[P6Resource, ...]:
@@ -522,6 +543,16 @@ class PostgresP6ResourceRepository:
             f"SELECT {_COLUMNS} FROM p6_resource_master "
             "WHERE tenant_id=%s AND project_id=%s AND project_revision=%s AND resource_id=%s",
             (tenant_id, project_id, project_revision, resource_id),
+        ).fetchone()
+        return None if row is None else _from_row(row)
+
+    def get_any_revision(
+        self, tenant_id: str, project_id: str, resource_id: str
+    ) -> P6Resource | None:
+        row = self.connection.execute(
+            f"SELECT {_COLUMNS} FROM p6_resource_master "
+            "WHERE tenant_id=%s AND project_id=%s AND resource_id=%s",
+            (tenant_id, project_id, resource_id),
         ).fetchone()
         return None if row is None else _from_row(row)
 
