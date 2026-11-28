@@ -423,6 +423,42 @@ export async function updateRole(
   }
 }
 
+export async function deleteRole(
+  transport: ApiTransport,
+  context: ProjectContext,
+  role: RoleRecord,
+): Promise<ApiResult<{ roleId: string; removedRows: Record<string, number> }>> {
+  if (role.recordRevision < 1) return localError("ROLE_REVISION_REQUIRED");
+  if (!transport.delete) return localError("ROLE_DELETE_TRANSPORT_UNAVAILABLE");
+  const result = await transport.delete<Record<string, unknown>, unknown>(
+    rolePath(context, role.roleId),
+    { expected_revision: role.recordRevision },
+    context,
+  );
+  if (!result.ok) return result;
+  const payload = result.data;
+  if (
+    !isRecord(payload) ||
+    payload.contract_version !== ROLE_API_VERSION ||
+    payload.kind !== "p6_role_deleted" ||
+    payload.deleted !== true
+  ) {
+    return localError("INVALID_ROLE_DELETE_RESPONSE");
+  }
+  const removed = isRecord(payload.removed_rows) ? payload.removed_rows : {};
+  const removedRows: Record<string, number> = {};
+  for (const [key, value] of Object.entries(removed)) {
+    if (typeof value === "number" && Number.isInteger(value) && value >= 0) removedRows[key] = value;
+  }
+  return {
+    ok: true,
+    data: {
+      roleId: typeof payload.role_id === "string" ? payload.role_id : role.roleId,
+      removedRows,
+    },
+  };
+}
+
 function isoDateOrNull(value: string): string | null {
   return /^\d{4}-\d{2}-\d{2}$/.test(value.trim()) ? value.trim() : null;
 }
@@ -850,7 +886,7 @@ export function mountWorkspaceRolesPage(host: HTMLElement, options: RolePageOpti
       ${field(say("Calculate Costs from Units", "محاسبه هزینه از واحدها"), role.calculateCostsFromUnits ? say("Yes", "بله") : say("No", "خیر"))}
       ${field(say("Record Revision", "ویرایش رکورد"), String(role.recordRevision))}
     </div>
-    <div class="cp-calendar-panel-actions"><button type="button" data-role-action="edit" ${state.busy ? "disabled" : ""}>${escapeHtml(say("Edit role", "ویرایش نقش"))}</button></div>
+    <div class="cp-calendar-panel-actions"><button type="button" data-role-action="edit" ${state.busy ? "disabled" : ""}>${escapeHtml(say("Edit role", "ویرایش نقش"))}</button><button type="button" data-role-action="delete" ${state.busy ? "disabled" : ""}>${escapeHtml(say("Delete role", "حذف نقش"))}</button></div>
     <p class="cp-calendar-hint">${escapeHtml(say("Rates and limits below are effective-dated stored facts; the role definition itself keeps one record revision.", "نرخ‌ها و محدودیت‌های پایین حقایق ذخیره‌شدهٔ تاریخ‌دار هستند؛ خود تعریف نقش یک ویرایش رکورد دارد."))}</p>`;
   }
 
@@ -1146,6 +1182,24 @@ export function mountWorkspaceRolesPage(host: HTMLElement, options: RolePageOpti
       state.draft = roleDraftFrom(current);
       state.notice = null;
       render();
+      return;
+    }
+    if (action === "delete") {
+      const current = selected();
+      if (!current) return;
+      void (async () => {
+        state.busy = true;
+        render();
+        const result = await deleteRole(transport, context, current);
+        state.busy = false;
+        if (!result.ok) {
+          setNotice("error", `${say("Role was not deleted", "نقش حذف نشد")} (${result.error.code})`);
+          render();
+          return;
+        }
+        setNotice("ok", say("Role deleted.", "نقش حذف شد."));
+        await reload(null);
+      })();
       return;
     }
     if (action === "cancel-rate") {

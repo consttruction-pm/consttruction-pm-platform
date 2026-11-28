@@ -91,6 +91,40 @@ class P6RoleAPI:
         self._validate_parent(role)
         return _dto(self.repository.save(role, expected_revision=expected_revision))
 
+    def delete(
+        self,
+        tenant_id: str,
+        project_id: str,
+        project_revision: int,
+        role_id: str,
+        *,
+        expected_revision: int,
+        auth_context: AuthorizationContext,
+    ) -> dict[str, Any]:
+        _scope_values(tenant_id, project_id, project_revision, auth_context)
+        _permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        if expected_revision < 1:
+            raise ValueError("ROLE_REVISION_REQUIRED")
+        removed_rows = self.repository.delete(
+            tenant_id,
+            project_id,
+            project_revision,
+            role_id,
+            expected_revision=expected_revision,
+        )
+        return {
+            "contract_version": P6_ROLE_API_VERSION,
+            "kind": "p6_role_deleted",
+            "scope": {
+                "tenant_id": tenant_id,
+                "project_id": project_id,
+                "project_revision": project_revision,
+            },
+            "role_id": role_id,
+            "deleted": True,
+            "removed_rows": removed_rows,
+        }
+
     def get(self, tenant_id: str, project_id: str, project_revision: int, role_id: str, *, auth_context: AuthorizationContext) -> dict[str, Any] | None:
         _scope_values(tenant_id, project_id, project_revision, auth_context)
         _permission(self.authorization_policy, auth_context, Permission.PROJECT_READ)

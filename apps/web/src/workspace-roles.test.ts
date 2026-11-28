@@ -4,6 +4,7 @@ import test from "node:test";
 import type { ApiResult, ApiTransport, ProjectContext } from "./client.js";
 import {
   createRole,
+  deleteRole,
   loadRole,
   loadRoleLimits,
   loadRoleResourceOptions,
@@ -453,4 +454,61 @@ test("role resource options read the resource master contract", async () => {
   if (!result.ok) return;
   assert.deepEqual(result.data, [{ resourceId: "RES-A", name: "Civil crew", resourceType: "labor" }]);
   assert.deepEqual(calls, [{ method: "GET", path: "/api/projects/project-1/p6/resources" }]);
+});
+
+test("role delete sends the record revision and parses removed rows", async () => {
+  const role: RoleRecord = {
+    roleId: "RPS-CIVIL",
+    name: "Civil superintendent",
+    description: null,
+    parentRoleId: null,
+    calculateCostsFromUnits: true,
+    recordRevision: 2,
+  };
+  const calls: Call[] = [];
+  const deleted = await deleteRole(
+    staticTransport({
+      ok: true,
+      data: {
+        contract_version: "p6-role-api.v1",
+        kind: "p6_role_deleted",
+        scope: { tenant_id: "t1", project_id: "project-1", project_revision: 4 },
+        role_id: "RPS-CIVIL",
+        deleted: true,
+        removed_rows: { p6_role: 1, rate_facts: 2, limits: 0, role_resource_links: "nope" },
+      },
+    }, calls),
+    CONTEXT,
+    role,
+  );
+  assert.equal(deleted.ok, true);
+  if (deleted.ok) {
+    assert.equal(deleted.data.roleId, "RPS-CIVIL");
+    assert.deepEqual(deleted.data.removedRows, { p6_role: 1, rate_facts: 2, limits: 0 });
+  }
+  assert.deepEqual(calls, [{
+    method: "DELETE",
+    path: "/api/projects/project-1/p6/roles/RPS-CIVIL",
+    request: { expected_revision: 2 },
+  }]);
+
+  const refused = await deleteRole(
+    staticTransport({ ok: false, error: { code: "ROLE_IN_USE", retryable: false, message_key: "x", available_actions: [] } }, []),
+    CONTEXT,
+    role,
+  );
+  assert.equal(refused.ok, false);
+  if (!refused.ok) assert.equal(refused.error.code, "ROLE_IN_USE");
+
+  const stale = await deleteRole(staticTransport({ ok: true, data: {} }, []), CONTEXT, { ...role, recordRevision: 0 });
+  assert.equal(stale.ok, false);
+  if (!stale.ok) assert.equal(stale.error.code, "ROLE_REVISION_REQUIRED");
+
+  const foreign = await deleteRole(
+    staticTransport({ ok: true, data: { contract_version: "other", kind: "p6_role_deleted", deleted: true } }, []),
+    CONTEXT,
+    role,
+  );
+  assert.equal(foreign.ok, false);
+  if (!foreign.ok) assert.equal(foreign.error.code, "INVALID_ROLE_DELETE_RESPONSE");
 });
