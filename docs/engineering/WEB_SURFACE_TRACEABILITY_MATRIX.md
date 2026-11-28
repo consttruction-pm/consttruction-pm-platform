@@ -209,3 +209,25 @@ re-audited against the Version 26 Standard, Edit, Layout, Display and Project to
 - Evidence: `docs/workspace/evidence/toolbars-v26-2026-11-12/report.json` at
   `9ddb1fa235eb20c89339e73622719ffb1915cb99`; per-requirement status in
   `docs/qa/V26_TOOLBAR_COMPLIANCE_MATRIX_2026-11-12.md`.
+
+### 2026-11-27 menu bar / command toolbar / icon re-audit
+
+`apps/web/e2e/toolbars-v26.mjs` re-ran at main `fc513c255` (six cells: 1280×720,
+1366×768 and 1920×1080 in `en/LTR` and `fa/RTL`; zero exceptions, console errors and
+5xx). The menu bar renders the approved **seven** menus — File, Edit, View, Project,
+Tools, Admin, Help — because merged #2168 removed the in-workspace Enterprise
+environment entry and moved environment selection to the Personal Workbench; open PR
+#2175 restores that position as a project-scoped **Organization** menu. The suite
+accepts exactly the approved eight- or seven-menu shape, records the measured shape
+and the absent reference menu with its owner in `menuSummary`, and fails any other
+combination. The command toolbar is one surface with the ten Activities families, 57
+command buttons (46 enabled, 11 disabled with a stated reason), zero iconless buttons,
+zero duplicate commands, a 57/57 overflow mirror and a 25×24 smallest target; the
+chart board keeps five scale presets and one relationship toggle; the navigation and
+context rails measure 48px/40px with ≥16px icons and mirror in RTL. Four commands were
+executed from the application menu (Select All 14/14, Link A100→A110, Unlink 15→14,
+Collapse To) and the Classic Schedule Layout survived a reload. Evidence:
+`docs/workspace/evidence/toolbars-v26-2026-11-27/report.json` (tested code
+`fc513c255`; the official Preview alias returned `DEPLOYMENT_NOT_FOUND`, so the run is
+from the local full-stack runtime). The menu-bar requirement stays PARTIAL until #2175
+lands; the toolbar and icon rows are browser-verified with the documented limitations.
