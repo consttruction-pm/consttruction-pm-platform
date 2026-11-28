@@ -6,8 +6,14 @@ import pytest
 from construction_pm.activity_master_repository import ActivityMaster, SQLiteActivityMasterRepository
 from construction_pm.application.authorization import AuthorizationContext, AuthorizationError, default_project_policy
 from construction_pm.backend_p0.models import BackendScope
+from construction_pm.calendar_master_repository import (
+    RelationshipLagCalendarAssignmentMaster,
+    SQLiteCalendarAssignmentRepository,
+    SQLiteCalendarMasterRepository,
+)
 from construction_pm.p6_relationship_api import P6_RELATIONSHIP_API_VERSION, P6RelationshipAPI
 from construction_pm.relationship_master_repository import RelationshipMaster, SQLiteRelationshipMasterRepository
+from construction_pm.scheduling.calendar_context import RelationshipLagCalendar
 from construction_pm.scheduling.relationships import RelationshipType
 from construction_pm.scheduling.time_duration import DurationUnit
 
@@ -171,3 +177,47 @@ def test_p6_relationship_api_delete_requires_write_permission_and_revision():
         service.delete(scope, "rel-1", expected_revision=99, auth_context=auth())
     with pytest.raises(AuthorizationError):
         service.delete(scope, "rel-1", expected_revision=1, auth_context=auth(roles=("viewer",)))
+
+
+def test_p6_relationship_delete_removes_only_its_lag_calendar_override():
+    # Regression: deleting a link used to leave its lag-calendar override
+    # behind, which made the next schedule composition fail closed with
+    # RELATIONSHIP_LAG_ASSIGNMENT_UNKNOWN_RELATIONSHIP.
+    connection = sqlite3.connect(":memory:")
+    SQLiteCalendarMasterRepository(connection)  # creates relationship_lag_calendar_assignment
+    scope = BackendScope("t1", "p1", 2)
+    service = api(connection)
+    lags = SQLiteCalendarAssignmentRepository(connection)
+
+    service.create(relationship(scope), auth_context=auth())
+    service.create(
+        RelationshipMaster(
+            scope=scope, relationship_id="rel-2", predecessor_id="A-2",
+            successor_id="A-3", relationship_type=RelationshipType.FS,
+        ),
+        auth_context=auth(),
+    )
+    for relationship_id in ("rel-1", "rel-2"):
+        lags.save_relationship_lag(
+            RelationshipLagCalendarAssignmentMaster(
+                scope, relationship_id, RelationshipLagCalendar.SUCCESSOR
+            )
+        )
+
+    assert service.delete(scope, "rel-1", expected_revision=1, auth_context=auth())["deleted"] is True
+
+    assert lags.get_relationship_lag(scope, "rel-1") is None
+    surviving = lags.get_relationship_lag(scope, "rel-2")
+    assert surviving is not None
+    assert surviving.relationship_id == "rel-2"
+
+
+def test_p6_relationship_delete_tolerates_absent_lag_table():
+    # Minimal stores (and this fixture) never create the lag table; the delete
+    # must still succeed instead of failing on a missing table.
+    connection = sqlite3.connect(":memory:")
+    service = api(connection)
+    scope = BackendScope("t1", "p1", 2)
+    service.create(relationship(scope), auth_context=auth())
+    assert service.delete(scope, "rel-1", expected_revision=1, auth_context=auth())["deleted"] is True
+    assert service.get(scope, "rel-1", auth_context=auth()) is None

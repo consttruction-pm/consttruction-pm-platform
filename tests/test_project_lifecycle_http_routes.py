@@ -7,6 +7,7 @@ from construction_pm.change_claim_api import ChangeClaimAPI, P0_CHANGE_CLAIM_API
 from construction_pm.change_claims import ChangeClaimService, InMemoryChangeClaimRepository
 from construction_pm.application.project_lifecycle import (
     AuthenticatedSession,
+    ProjectLifecycleService,
     ProjectSummary,
 )
 from construction_pm.application.project_lifecycle_api import ProjectLifecycleAPI
@@ -3055,6 +3056,57 @@ def test_authenticated_relationship_http_delete_rejects_stale_and_missing_revisi
     )
     assert status == 400
     assert json.loads(raw)["code"] == "P6_RELATIONSHIP_REQUEST_INVALID"
+
+
+def test_authenticated_relationship_http_delete_removes_its_lag_override():
+    # Regression: the Unlink HTTP path must remove the link's lag-calendar
+    # override in the same transaction, otherwise schedule composition later
+    # fails with RELATIONSHIP_LAG_ASSIGNMENT_UNKNOWN_RELATIONSHIP.
+    import sqlite3 as _sqlite3
+    connection = _sqlite3.connect(":memory:")
+    SQLiteCalendarMasterRepository(connection)  # creates relationship_lag_calendar_assignment
+    now = datetime(2026, 9, 30, tzinfo=timezone.utc)
+    session = AuthenticatedSession("s1", "u1", "t1", frozenset({"project_admin"}), now + timedelta(hours=1))
+    routes = ProjectLifecycleHttpRoutes(
+        ProjectLifecycleAPI(ProjectLifecycleService(Sessions(session), Projects(), default_project_policy())),
+        clock=type("Clock", (), {"now": lambda self: now})(),
+        p6_relationship_api=P6RelationshipAPI(
+            SQLiteRelationshipMasterRepository(connection), default_project_policy(),
+        ),
+    )
+    for relationship_id, predecessor, successor in (
+        ("rel-keep", "A-2", "A-3"), ("rel-drop", "A-1", "A-2"),
+    ):
+        status, _, _ = routes.handle(
+            "POST", "/api/projects/p1/p6/relationships", cookies={"cp_session": "s1"},
+            body=json.dumps({
+                "relationship_id": relationship_id, "predecessor_id": predecessor,
+                "successor_id": successor, "relationship_type": "FS", "lag_value": "0",
+                "lag_unit": DurationUnit.WORKING_DAY.value,
+            }).encode(),
+        )
+        assert status == 200
+    for relationship_id in ("rel-keep", "rel-drop"):
+        connection.execute(
+            "INSERT INTO relationship_lag_calendar_assignment "
+            "(tenant_id,project_id,project_revision,relationship_id,option,calendar_id,calendar_version,record_revision) "
+            "VALUES (?,?,?,?,?,?,?,?)",
+            ("t1", "p1", 2, relationship_id, "SUCCESSOR_ACTIVITY_CALENDAR", None, None, 1),
+        )
+    connection.commit()
+
+    status, _, raw = routes.handle(
+        "DELETE", "/api/projects/p1/p6/relationships/rel-drop", cookies={"cp_session": "s1"},
+        body=json.dumps({"expected_revision": 1}).encode(),
+    )
+    assert status == 200
+    assert json.loads(raw)["deleted"] is True
+    remaining = [
+        row[0] for row in connection.execute(
+            "SELECT relationship_id FROM relationship_lag_calendar_assignment ORDER BY relationship_id"
+        ).fetchall()
+    ]
+    assert remaining == ["rel-keep"]
 
 
 def test_authenticated_sync_mutation_requires_project_write_permission():
