@@ -16,6 +16,7 @@ from .p6_resource_assignment_repository import (
     P6ResourceAssignmentPeriodApplicationService,
     P6ResourceAssignmentPeriodValue,
 )
+from .p6_resource_master_repository import P6ResourceRepository
 
 P6_RESOURCE_WRITE_API_VERSION = "p6-resource-write-api.v1"
 
@@ -42,12 +43,30 @@ def _scope_dto(scope: BackendScope) -> dict[str, Any]:
 
 @dataclass(frozen=True)
 class P6ResourceWriteAPI:
-    """Versioned write boundary over authoritative resource persistence."""
+    """Versioned write boundary over authoritative resource persistence.
+
+    The resource master is the assignment dictionary. A ``resource_id`` is
+    never trusted as free text: it must name an active resource in the same
+    tenant/project/revision before an assignment is written. Existing
+    assignments are unaffected; only new writes are checked.
+    """
 
     period_service: P6ResourceAssignmentPeriodApplicationService
     authorization_policy: AuthorizationPolicy
+    resource_repository: P6ResourceRepository
     # Optional so existing deployments stay read/period-write compatible.
     assignment_service: P6ResourceAssignmentApplicationService | None = None
+
+    def _require_dictionary_resource(self, value: P6ResourceAssignment) -> None:
+        resource = self.resource_repository.get_any_revision(
+            value.scope.tenant_id,
+            value.scope.project_id,
+            value.resource_id,
+        )
+        if resource is None:
+            raise ValueError("RESOURCE_NOT_FOUND")
+        if not resource.is_active:
+            raise ValueError("RESOURCE_INACTIVE")
 
     def save_assignment(
         self,
@@ -59,6 +78,7 @@ class P6ResourceWriteAPI:
         _require_write(self.authorization_policy, auth_context)
         if self.assignment_service is None:
             raise ValueError("RESOURCE_ASSIGNMENT_WRITE_SERVICE_NOT_CONFIGURED")
+        self._require_dictionary_resource(value)
         stored = self.assignment_service.save(value)
         return _assignment_dto(stored)
 

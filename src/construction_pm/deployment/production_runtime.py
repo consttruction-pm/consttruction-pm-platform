@@ -604,6 +604,7 @@ class ProductionRuntime:
         resource_write_api = P6ResourceWriteAPI(
             resource_period_service,
             policy,
+            resource_repository,
             assignment_service=resource_assignment_service,
         )
         field_service = P6FieldRegistryApplicationService(
