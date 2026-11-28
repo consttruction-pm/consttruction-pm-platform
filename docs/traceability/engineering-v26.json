@@ -414,7 +414,7 @@
       },
       "helpRationale": null,
       "cubiBehavior": "Active-window-aware menu registry with stable command IDs; seven menus on the current baseline (the project-scoped Organization menu is owned by open PR #2175).",
-      "evidence": "apps/web/src/workspace-desktop-shell.test.ts; apps/web/e2e/toolbars-v26.mjs (2026-11-27: six cells; seven menus measured, absent reference menu recorded with its owner)",
+      "evidence": "apps/web/src/workspace-desktop-shell.test.ts",
       "status": "IMPLEMENTED"
     },
     {
@@ -432,7 +432,7 @@
       },
       "helpRationale": null,
       "cubiBehavior": "One command toolbar with ten Activities families, 57 command buttons (46 enabled, 11 disabled with a reason), icons, tooltips and keyboard access; chart-local controls and two mirrored tool rails.",
-      "evidence": "apps/web/src/workspace-toolbars.test.ts; apps/web/e2e/toolbars-v26.mjs (2026-11-27: six cells; structure, icons, overflow mirror and rails)",
+      "evidence": "apps/web/src/workspace-toolbars.test.ts",
       "status": "PARTIAL"
     },
     {
