@@ -147,6 +147,55 @@ class P6ResourceAPI:
             self.repository.save(resource, expected_revision=expected_revision)
         )
 
+    def delete(
+        self,
+        tenant_id: str,
+        project_id: str,
+        project_revision: int,
+        resource_id: str,
+        *,
+        expected_revision: int,
+        auth_context: AuthorizationContext,
+    ) -> dict[str, Any]:
+        """Delete a resource master only when nothing else references it.
+
+        Assignments, assignment period rows, role-resource links and child
+        resources block the delete with ``RESOURCE_IN_USE`` and a per-reference
+        count, so no dependent row is left orphaned. Rate, capacity and spread
+        facts describe the resource itself and are removed in the same
+        transaction; their counts are reported in ``removed_rows``.
+        """
+
+        _require_scope(tenant_id, project_id, auth_context)
+        _permission(
+            self.authorization_policy, auth_context, Permission.PROJECT_WRITE
+        )
+        if (
+            isinstance(expected_revision, bool)
+            or not isinstance(expected_revision, int)
+            or expected_revision < 1
+        ):
+            raise ValueError("RESOURCE_REVISION_REQUIRED")
+        removed_rows = self.repository.delete(
+            tenant_id,
+            project_id,
+            project_revision,
+            resource_id,
+            expected_revision=expected_revision,
+        )
+        return {
+            "contract_version": P6_RESOURCE_API_VERSION,
+            "kind": "p6_resource_deleted",
+            "scope": {
+                "tenant_id": tenant_id,
+                "project_id": project_id,
+                "project_revision": project_revision,
+            },
+            "resource_id": resource_id,
+            "deleted": True,
+            "removed_rows": removed_rows,
+        }
+
     def get(
         self,
         tenant_id: str,

@@ -72,6 +72,137 @@ class P6ResourceRepository(Protocol):
     def list(
         self, tenant_id: str, project_id: str, project_revision: int
     ) -> tuple[P6Resource, ...]: ...
+    def delete(
+        self,
+        tenant_id: str,
+        project_id: str,
+        project_revision: int,
+        resource_id: str,
+        *,
+        expected_revision: int,
+    ) -> dict[str, int]: ...
+
+
+class ResourceInUseError(ValueError):
+    """Delete refused because stored facts still reference the resource.
+
+    The counts describe every reference that blocks the delete, so the caller
+    can explain exactly what must be removed first. No row is deleted when this
+    error is raised.
+    """
+
+    def __init__(self, dependencies: dict[str, int]) -> None:
+        super().__init__("RESOURCE_IN_USE")
+        self.dependencies = dependencies
+
+
+# References owned by another aggregate: deleting the resource would leave them
+# pointing at a resource that no longer exists, so the delete is refused.
+_BLOCKING_REFERENCES = (
+    ("p6_resource_assignment", "assignments"),
+    ("p6_resource_assignment_period_value", "assignment_periods"),
+    ("p6_role_resource", "role_links"),
+)
+
+# Facts that describe this resource itself (rates, capacity, spreads). They have
+# no meaning without the identity, so they are removed with it and reported.
+_OWNED_FACTS = (
+    ("p6_resource_rate_supersession", "rate_supersessions"),
+    ("p6_resource_rate_fact", "rate_facts"),
+    ("p6_resource_capacity_supersession", "capacity_supersessions"),
+    ("p6_resource_capacity_segment", "capacity_segments"),
+    ("p6_resource_spread_bucket", "spread_buckets"),
+)
+
+
+def _sqlite_table_exists(connection: sqlite3.Connection, table: str) -> bool:
+    return (
+        connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)
+        ).fetchone()
+        is not None
+    )
+
+
+def _postgres_table_exists(connection: object, table: str) -> bool:
+    return (
+        connection.execute(
+            "SELECT 1 FROM information_schema.tables "
+            "WHERE table_schema=current_schema() AND table_name=%s",
+            (table,),
+        ).fetchone()
+        is not None
+    )
+
+
+def _blocking_dependencies(
+    connection: object,
+    placeholder: str,
+    table_exists,
+    tenant_id: str,
+    project_id: str,
+    resource_id: str,
+) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for table, label in _BLOCKING_REFERENCES:
+        if not table_exists(connection, table):
+            counts[label] = 0
+            continue
+        counts[label] = int(
+            connection.execute(
+                f"SELECT COUNT(*) FROM {table} "
+                f"WHERE tenant_id={placeholder} AND project_id={placeholder} "
+                f"AND resource_id={placeholder}",
+                (tenant_id, project_id, resource_id),
+            ).fetchone()[0]
+        )
+    counts["child_resources"] = int(
+        connection.execute(
+            "SELECT COUNT(*) FROM p6_resource_master "
+            f"WHERE tenant_id={placeholder} AND project_id={placeholder} "
+            f"AND parent_resource_id={placeholder}",
+            (tenant_id, project_id, resource_id),
+        ).fetchone()[0]
+    )
+    return counts
+
+
+def _delete_owned_facts(
+    connection: object,
+    placeholder: str,
+    table_exists,
+    tenant_id: str,
+    project_id: str,
+    resource_id: str,
+) -> dict[str, int]:
+    removed: dict[str, int] = {}
+    for table, label in _OWNED_FACTS:
+        if not table_exists(connection, table):
+            continue
+        cursor = connection.execute(
+            f"DELETE FROM {table} "
+            f"WHERE tenant_id={placeholder} AND project_id={placeholder} "
+            f"AND resource_id={placeholder}",
+            (tenant_id, project_id, resource_id),
+        )
+        removed[label] = max(0, int(getattr(cursor, "rowcount", 0) or 0))
+    return removed
+
+
+def _assert_deletable(
+    connection: object,
+    placeholder: str,
+    table_exists,
+    tenant_id: str,
+    project_id: str,
+    resource_id: str,
+) -> None:
+    dependencies = _blocking_dependencies(
+        connection, placeholder, table_exists, tenant_id, project_id, resource_id
+    )
+    blocking = {label: count for label, count in dependencies.items() if count}
+    if blocking:
+        raise ResourceInUseError(blocking)
 
 
 _COLUMNS = (
@@ -231,6 +362,46 @@ class SQLiteP6ResourceRepository:
         ).fetchall()
         return tuple(_from_row(row) for row in rows)
 
+    def delete(
+        self,
+        tenant_id: str,
+        project_id: str,
+        project_revision: int,
+        resource_id: str,
+        *,
+        expected_revision: int,
+    ) -> dict[str, int]:
+        row = self.connection.execute(
+            "SELECT project_revision,record_revision FROM p6_resource_master "
+            "WHERE tenant_id=? AND project_id=? AND resource_id=?",
+            (tenant_id, project_id, resource_id),
+        ).fetchone()
+        if row is None:
+            raise ValueError("RESOURCE_NOT_FOUND")
+        if int(row[0]) != project_revision or int(row[1]) != expected_revision:
+            raise ValueError("REVISION_CONFLICT")
+        _assert_deletable(
+            self.connection, "?", _sqlite_table_exists, tenant_id, project_id, resource_id
+        )
+        try:
+            removed = _delete_owned_facts(
+                self.connection, "?", _sqlite_table_exists, tenant_id, project_id, resource_id
+            )
+            cursor = self.connection.execute(
+                "DELETE FROM p6_resource_master "
+                "WHERE tenant_id=? AND project_id=? AND project_revision=? "
+                "AND resource_id=? AND record_revision=?",
+                (tenant_id, project_id, project_revision, resource_id, expected_revision),
+            )
+            if cursor.rowcount != 1:
+                raise ValueError("REVISION_CONFLICT")
+            self.connection.commit()
+        except Exception:
+            self.connection.rollback()
+            raise
+        removed["p6_resource_master"] = 1
+        return removed
+
 
 class PostgresP6ResourceRepository:
     def __init__(self, connection: object) -> None:
@@ -364,6 +535,41 @@ class PostgresP6ResourceRepository:
         ).fetchall()
         return tuple(_from_row(row) for row in rows)
 
+    def delete(
+        self,
+        tenant_id: str,
+        project_id: str,
+        project_revision: int,
+        resource_id: str,
+        *,
+        expected_revision: int,
+    ) -> dict[str, int]:
+        row = self.connection.execute(
+            "SELECT project_revision,record_revision FROM p6_resource_master "
+            "WHERE tenant_id=%s AND project_id=%s AND resource_id=%s",
+            (tenant_id, project_id, resource_id),
+        ).fetchone()
+        if row is None:
+            raise ValueError("RESOURCE_NOT_FOUND")
+        if int(row[0]) != project_revision or int(row[1]) != expected_revision:
+            raise ValueError("REVISION_CONFLICT")
+        _assert_deletable(
+            self.connection, "%s", _postgres_table_exists, tenant_id, project_id, resource_id
+        )
+        removed = _delete_owned_facts(
+            self.connection, "%s", _postgres_table_exists, tenant_id, project_id, resource_id
+        )
+        cursor = self.connection.execute(
+            "DELETE FROM p6_resource_master "
+            "WHERE tenant_id=%s AND project_id=%s AND project_revision=%s "
+            "AND resource_id=%s AND record_revision=%s",
+            (tenant_id, project_id, project_revision, resource_id, expected_revision),
+        )
+        if int(getattr(cursor, "rowcount", 0) or 0) != 1:
+            raise ValueError("REVISION_CONFLICT")
+        removed["p6_resource_master"] = 1
+        return removed
+
 
 def resource_tree_order(resources: tuple[P6Resource, ...]) -> tuple[P6Resource, ...]:
     """Parents before children; siblings in id order. Cycles fail closed."""
@@ -397,6 +603,7 @@ __all__ = [
     "P6ResourceRepository",
     "PostgresP6ResourceRepository",
     "RESOURCE_TYPES",
+    "ResourceInUseError",
     "SQLiteP6ResourceRepository",
     "resource_tree_order",
 ]

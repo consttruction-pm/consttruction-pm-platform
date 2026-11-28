@@ -1570,12 +1570,30 @@ class ProjectLifecycleHttpRoutes:
                         return self._json(200, self._p6_resource_api.update(
                             resource, expected_revision=expected_revision, auth_context=auth,
                         ))
+                    if method == "DELETE" and len(parts) == 1 and parts[0]:
+                        expected_revision = payload.get("expected_revision")
+                        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+                            raise ValueError("expected_revision required")
+                        return self._json(200, self._p6_resource_api.delete(
+                            context.tenant_id, context.project_id, context.revision,
+                            parts[0], expected_revision=expected_revision, auth_context=auth,
+                        ))
                 except AuthorizationError as exc:
                     return self._error(403, _stable_error_code(exc, "AUTHORIZATION_DENIED"), "error.authorization.denied")
                 except ValueError as exc:
                     code = str(exc)
                     if code == "REVISION_CONFLICT":
                         return self._error(409, code, "error.p6.resource.conflict")
+                    if code == "RESOURCE_NOT_FOUND":
+                        return self._error(404, code, "error.p6.resource.not_found")
+                    if code == "RESOURCE_IN_USE":
+                        dependencies = getattr(exc, "dependencies", None)
+                        return self._error(
+                            409,
+                            code,
+                            "error.p6.resource.in_use",
+                            details={"dependencies": dependencies} if dependencies else None,
+                        )
                     if code in {
                         "RESOURCE_HIERARCHY_CYCLE",
                         "RESOURCE_PARENT_NOT_FOUND",
@@ -8557,8 +8575,12 @@ class ProjectLifecycleHttpRoutes:
 
     @classmethod
     def _error(
-        cls, status: int, code: str, message_key: str
-    ) -> tuple[int, dict[str, str], bytes]:
+        cls,
+        status: int,
+        code: str,
+        message_key: str,
+        details: dict[str, object] | None = None,
+    ) -> tuple[int, dict[str, object], bytes]:
         non_retryable_integrity_errors = {
             "AI_ACTION_EXECUTION_RESULT_NOT_PERSISTED",
             "AI_ACTION_EXECUTION_STATE_NOT_PERSISTED",
@@ -8567,9 +8589,12 @@ class ProjectLifecycleHttpRoutes:
             "AI_ACTION_IDEMPOTENCY_RESULT_INVALID",
         }
         retryable = status >= 500 and code not in non_retryable_integrity_errors
-        return cls._json(status, {
+        payload: dict[str, object] = {
             "code": code,
             "retryable": retryable,
             "message_key": message_key,
             "available_actions": ["retry"] if retryable else [],
-        })
+        }
+        if details:
+            payload["details"] = details
+        return cls._json(status, payload)
